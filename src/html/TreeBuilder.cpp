@@ -603,7 +603,12 @@ void TreeBuilder::Process(const Token& token) {
   switch (mode_) {
     case InsertionMode::Initial: {
       if (token.kind == Token::Kind::Doctype) {
-        document_->Append(std::make_unique<dom::DocumentType>(token.data));
+        // The public and system identifiers travel with the node now. The
+        // tokenizer has always produced them -- it needs them for quirks mode
+        // -- and the tree dropped them, so `document.doctype.publicId` was the
+        // empty string on every page that has one.
+        document_->Append(std::make_unique<dom::DocumentType>(
+            token.data, token.public_identifier, token.system_identifier));
         // Quirks mode is a rendering decision, and it is decided here once.
         document_->SetQuirksMode(token.force_quirks || token.data != "html");
         mode_ = InsertionMode::BeforeHtml;

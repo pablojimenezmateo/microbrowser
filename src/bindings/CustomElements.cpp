@@ -293,7 +293,7 @@ void DomBindings::UpgradeElement(dom::Element& element) {
   }
   // Already in the document at upgrade time means connected now -- including
   // inside a shadow root, where parent-walking never reaches the document.
-  if (element.OwnerDocument() == document_) {
+  if (element.ConnectedDocument() == document_) {
     RunElementReaction(element, "connectedCallback");
   }
 }

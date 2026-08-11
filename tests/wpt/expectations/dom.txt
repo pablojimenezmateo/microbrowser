@@ -130,7 +130,54 @@ FAIL=Removing a once listener works with a passed signal
 [dom/events/AddEventListenerOptions-signal.any.worker.html]
 harness=TIMEOUT
 [dom/events/Body-FrameSet-Event-Handlers.html]
+FAIL=Enumerate HTMLBodyElement.onblur
+FAIL=Enumerate HTMLBodyElement.onerror
+FAIL=Enumerate HTMLBodyElement.onfocus
+FAIL=Enumerate HTMLBodyElement.onload
+FAIL=Enumerate HTMLBodyElement.onresize
+FAIL=Enumerate HTMLBodyElement.onscroll
+FAIL=Enumerate HTMLFrameSetElement.onblur
+FAIL=Enumerate HTMLFrameSetElement.onerror
+FAIL=Enumerate HTMLFrameSetElement.onfocus
+FAIL=Enumerate HTMLFrameSetElement.onload
+FAIL=Enumerate HTMLFrameSetElement.onresize
+FAIL=Enumerate HTMLFrameSetElement.onscroll
+FAIL=Forward HTMLBodyElement.onblur to Window
+FAIL=Forward HTMLBodyElement.onerror to Window
+FAIL=Forward HTMLBodyElement.onfocus to Window
+FAIL=Forward HTMLBodyElement.onload to Window
+FAIL=Forward HTMLBodyElement.onresize to Window
+FAIL=Forward HTMLBodyElement.onscroll to Window
+FAIL=Forward HTMLFrameSetElement.onblur to Window
+FAIL=Forward HTMLFrameSetElement.onerror to Window
+FAIL=Forward HTMLFrameSetElement.onfocus to Window
+FAIL=Forward HTMLFrameSetElement.onload to Window
+FAIL=Forward HTMLFrameSetElement.onresize to Window
+FAIL=Forward HTMLFrameSetElement.onscroll to Window
+FAIL=Reflect HTMLBodyElement.onblur
+FAIL=Reflect HTMLBodyElement.onerror
+FAIL=Reflect HTMLBodyElement.onfocus
+FAIL=Reflect HTMLBodyElement.onload
+FAIL=Reflect HTMLBodyElement.onresize
+FAIL=Reflect HTMLBodyElement.onscroll
+FAIL=Reflect HTMLFrameSetElement.onblur
+FAIL=Reflect HTMLFrameSetElement.onerror
+FAIL=Reflect HTMLFrameSetElement.onfocus
+FAIL=Reflect HTMLFrameSetElement.onload
+FAIL=Reflect HTMLFrameSetElement.onresize
+FAIL=Reflect HTMLFrameSetElement.onscroll
 FAIL=Set HTMLBodyElement.onblur
+FAIL=Set HTMLBodyElement.onerror
+FAIL=Set HTMLBodyElement.onfocus
+FAIL=Set HTMLBodyElement.onload
+FAIL=Set HTMLBodyElement.onresize
+FAIL=Set HTMLBodyElement.onscroll
+FAIL=Set HTMLFrameSetElement.onblur
+FAIL=Set HTMLFrameSetElement.onerror
+FAIL=Set HTMLFrameSetElement.onfocus
+FAIL=Set HTMLFrameSetElement.onload
+FAIL=Set HTMLFrameSetElement.onresize
+FAIL=Set HTMLFrameSetElement.onscroll
 [dom/events/CustomEvent.html]
 FAIL=First parameter to initCustomEvent should be mandatory.
 FAIL=initCustomEvent's default parameter values.
@@ -473,9 +520,6 @@ harness=TIMEOUT
 [dom/events/EventTarget-this-of-listener.html]
 FAIL=addEventListener should not require handleEvent to be defined on object listeners
 FAIL=dispatchEvent should invoke the current handleEvent method of the object
-FAIL=handleEvent properties added to a function after addEventListener are not reached
-FAIL=handleEvent properties added to a function before addEventListener are not reached
-FAIL=the this value inside the event listener callback should be the node
 FAIL=the this value inside the event listener object handleEvent should be the object
 [dom/events/click-on-absolute-pseudo.html]
 FAIL=Click on pseudo-element that disappears on mousedown
@@ -605,7 +649,38 @@ FAIL=Synthetic touchstart event with interface TouchEvent is not cancelable
 FAIL=Synthetic wheel event with interface Event is not cancelable
 FAIL=Synthetic wheel event with interface WheelEvent is not cancelable
 [dom/events/passive-by-default.html]
-harness=ERROR
+FAIL=mousewheel listener is passive by default for Document
+FAIL=mousewheel listener is passive by default for HTMLBodyElement
+FAIL=mousewheel listener is passive by default for HTMLHtmlElement
+FAIL=mousewheel listener is passive by default for Window
+FAIL=mousewheel listener is passive with {passive:undefined} for Document
+FAIL=mousewheel listener is passive with {passive:undefined} for HTMLBodyElement
+FAIL=mousewheel listener is passive with {passive:undefined} for HTMLHtmlElement
+FAIL=mousewheel listener is passive with {passive:undefined} for Window
+FAIL=touchmove listener is passive by default for Document
+FAIL=touchmove listener is passive by default for HTMLBodyElement
+FAIL=touchmove listener is passive by default for HTMLHtmlElement
+FAIL=touchmove listener is passive by default for Window
+FAIL=touchmove listener is passive with {passive:undefined} for Document
+FAIL=touchmove listener is passive with {passive:undefined} for HTMLBodyElement
+FAIL=touchmove listener is passive with {passive:undefined} for HTMLHtmlElement
+FAIL=touchmove listener is passive with {passive:undefined} for Window
+FAIL=touchstart listener is passive by default for Document
+FAIL=touchstart listener is passive by default for HTMLBodyElement
+FAIL=touchstart listener is passive by default for HTMLHtmlElement
+FAIL=touchstart listener is passive by default for Window
+FAIL=touchstart listener is passive with {passive:undefined} for Document
+FAIL=touchstart listener is passive with {passive:undefined} for HTMLBodyElement
+FAIL=touchstart listener is passive with {passive:undefined} for HTMLHtmlElement
+FAIL=touchstart listener is passive with {passive:undefined} for Window
+FAIL=wheel listener is passive by default for Document
+FAIL=wheel listener is passive by default for HTMLBodyElement
+FAIL=wheel listener is passive by default for HTMLHtmlElement
+FAIL=wheel listener is passive by default for Window
+FAIL=wheel listener is passive with {passive:undefined} for Document
+FAIL=wheel listener is passive with {passive:undefined} for HTMLBodyElement
+FAIL=wheel listener is passive with {passive:undefined} for HTMLHtmlElement
+FAIL=wheel listener is passive with {passive:undefined} for Window
 [dom/events/pointer-event-document-move.html]
 FAIL=Moving a node to new document should move the registered event listeners together
 [dom/events/preventDefault-during-activation-behavior.html]
@@ -824,17 +899,9 @@ FAIL=Attr.prefix absent (SVG)
 FAIL=Attr.prefix present (HTML)
 FAIL=Attr.prefix present (MathML)
 FAIL=Attr.prefix present (SVG)
-[dom/nodes/CharacterData-appendChild.html]
-FAIL=Comment.appendChild(ProcessingInstruction)
-FAIL=ProcessingInstruction.appendChild(Comment)
-FAIL=ProcessingInstruction.appendChild(ProcessingInstruction)
-FAIL=ProcessingInstruction.appendChild(Text)
-FAIL=Text.appendChild(ProcessingInstruction)
 [dom/nodes/CharacterData-data.html]
 FAIL=Comment.data = null
 FAIL=Text.data = null
-[dom/nodes/CharacterData-remove.html]
-harness=ERROR
 [dom/nodes/CharacterData-surrogates.html]
 FAIL=Comment.deleteData() splitting and creating surrogate pairs
 FAIL=Comment.insertData() splitting and creating surrogate pairs
@@ -842,98 +909,16 @@ FAIL=Comment.replaceData() splitting and creating surrogate pairs
 FAIL=Text.deleteData() splitting and creating surrogate pairs
 FAIL=Text.insertData() splitting and creating surrogate pairs
 FAIL=Text.replaceData() splitting and creating surrogate pairs
-[dom/nodes/ChildNode-after.html]
-FAIL=Comment.after() on a child without any parent.
-FAIL=Comment.after() when pre-insert behaves like append.
-FAIL=Comment.after() with all siblings of child as arguments.
-FAIL=Comment.after() with context object itself and node as the arguments, switching positions.
-FAIL=Comment.after() with context object itself as the argument.
-FAIL=Comment.after() with null as an argument.
-FAIL=Comment.after() with one element and text as arguments.
-FAIL=Comment.after() with one sibling of child and text as arguments.
-FAIL=Comment.after() with only one element as an argument.
-FAIL=Comment.after() with only text as an argument.
-FAIL=Comment.after() with some siblings of child as arguments; no changes in tree.
-FAIL=Comment.after() with the empty string as an argument.
-FAIL=Comment.after() with undefined as an argument.
-FAIL=Comment.after() without any argument.
-FAIL=Comment.before() with some siblings of child as arguments; no changes in tree; viable sibling is first child.
-FAIL=Element.after() on a child without any parent.
-FAIL=Element.after() when pre-insert behaves like append.
-FAIL=Element.after() with all siblings of child as arguments.
-FAIL=Element.after() with context object itself and node as the arguments, switching positions.
-FAIL=Element.after() with context object itself as the argument.
-FAIL=Element.after() with null as an argument.
-FAIL=Element.after() with one element and text as arguments.
-FAIL=Element.after() with one sibling of child and text as arguments.
-FAIL=Element.after() with only one element as an argument.
-FAIL=Element.after() with only text as an argument.
-FAIL=Element.after() with some siblings of child as arguments; no changes in tree.
-FAIL=Element.after() with the empty string as an argument.
-FAIL=Element.after() with undefined as an argument.
-FAIL=Element.after() without any argument.
-FAIL=Element.before() with some siblings of child as arguments; no changes in tree; viable sibling is first child.
-FAIL=Text.after() on a child without any parent.
-FAIL=Text.after() when pre-insert behaves like append.
-FAIL=Text.after() with all siblings of child as arguments.
-FAIL=Text.after() with context object itself and node as the arguments, switching positions.
-FAIL=Text.after() with context object itself as the argument.
-FAIL=Text.after() with null as an argument.
-FAIL=Text.after() with one element and text as arguments.
-FAIL=Text.after() with one sibling of child and text as arguments.
-FAIL=Text.after() with only one element as an argument.
-FAIL=Text.after() with only text as an argument.
-FAIL=Text.after() with some siblings of child as arguments; no changes in tree.
-FAIL=Text.after() with the empty string as an argument.
-FAIL=Text.after() with undefined as an argument.
-FAIL=Text.after() without any argument.
-FAIL=Text.before() with some siblings of child as arguments; no changes in tree; viable sibling is first child.
 [dom/nodes/ChildNode-before.html]
-FAIL=Comment.before() on a child without any parent.
-FAIL=Comment.before() when pre-insert behaves like prepend.
 FAIL=Comment.before() with all siblings of child as arguments.
-FAIL=Comment.before() with context object itself and node as the arguments, switching positions.
-FAIL=Comment.before() with context object itself as the argument.
-FAIL=Comment.before() with null as an argument.
-FAIL=Comment.before() with one element and text as arguments.
-FAIL=Comment.before() with one sibling of child and text as arguments.
-FAIL=Comment.before() with only one element as an argument.
-FAIL=Comment.before() with only text as an argument.
 FAIL=Comment.before() with some siblings of child as arguments; no changes in tree.
 FAIL=Comment.before() with some siblings of child as arguments; no changes in tree; viable sibling is first child.
-FAIL=Comment.before() with the empty string as an argument.
-FAIL=Comment.before() with undefined as an argument.
-FAIL=Comment.before() without any argument.
-FAIL=Element.before() on a child without any parent.
-FAIL=Element.before() when pre-insert behaves like prepend.
 FAIL=Element.before() with all siblings of child as arguments.
-FAIL=Element.before() with context object itself and node as the arguments, switching positions.
-FAIL=Element.before() with context object itself as the argument.
-FAIL=Element.before() with null as an argument.
-FAIL=Element.before() with one element and text as arguments.
-FAIL=Element.before() with one sibling of child and text as arguments.
-FAIL=Element.before() with only one element as an argument.
-FAIL=Element.before() with only text as an argument.
 FAIL=Element.before() with some siblings of child as arguments; no changes in tree.
 FAIL=Element.before() with some siblings of child as arguments; no changes in tree; viable sibling is first child.
-FAIL=Element.before() with the empty string as an argument.
-FAIL=Element.before() with undefined as an argument.
-FAIL=Element.before() without any argument.
-FAIL=Text.before() on a child without any parent.
-FAIL=Text.before() when pre-insert behaves like prepend.
 FAIL=Text.before() with all siblings of child as arguments.
-FAIL=Text.before() with context object itself and node as the arguments, switching positions.
-FAIL=Text.before() with context object itself as the argument.
-FAIL=Text.before() with null as an argument.
-FAIL=Text.before() with one element and text as arguments.
-FAIL=Text.before() with one sibling of child and text as arguments.
-FAIL=Text.before() with only one element as an argument.
-FAIL=Text.before() with only text as an argument.
 FAIL=Text.before() with some siblings of child as arguments; no changes in tree.
 FAIL=Text.before() with some siblings of child as arguments; no changes in tree; viable sibling is first child.
-FAIL=Text.before() with the empty string as an argument.
-FAIL=Text.before() with undefined as an argument.
-FAIL=Text.before() without any argument.
 [dom/nodes/ChildNode-replaceWith.html]
 FAIL=Comment.replaceWith() with one sibling of child and child itself as arguments.
 FAIL=Element.replaceWith() with one sibling of child and child itself as arguments.
@@ -942,117 +927,19 @@ FAIL=Text.replaceWith() with one sibling of child and child itself as arguments.
 harness=TIMEOUT
 [dom/nodes/DOMImplementation-createDocument.html]
 FAIL=DOMImplementation.createDocument(namespace, qualifiedName, doctype)
-[dom/nodes/DOMImplementation-createDocumentType.html]
-FAIL=createDocumentType("", "", "") should work
-FAIL=createDocumentType("#", "", "") should work
-FAIL=createDocumentType("$", "", "") should work
-FAIL=createDocumentType("%", "", "") should work
-FAIL=createDocumentType("&", "", "") should work
-FAIL=createDocumentType("'", "", "") should work
-FAIL=createDocumentType("(", "", "") should work
-FAIL=createDocumentType(")", "", "") should work
-FAIL=createDocumentType("*", "", "") should work
-FAIL=createDocumentType("1foo", "", "") should work
-FAIL=createDocumentType(":foo", "", "") should work
-FAIL=createDocumentType("@", "", "") should work
-FAIL=createDocumentType("@foo", "", "") should work
-FAIL=createDocumentType("^", "", "") should work
-FAIL=createDocumentType("_:_", "", "") should work
-FAIL=createDocumentType("_:_.", "", "") should work
-FAIL=createDocumentType("_:a-", "", "") should work
-FAIL=createDocumentType("_:h0", "", "") should work
-FAIL=createDocumentType("_:test", "", "") should work
-FAIL=createDocumentType("`", "", "") should work
-FAIL=createDocumentType("a-b:c", "", "") should work
-FAIL=createDocumentType("a-b:c.j", "", "") should work
-FAIL=createDocumentType("a.b:c", "", "") should work
-FAIL=createDocumentType("edi:!", "", "") should work
-FAIL=createDocumentType("edi:#", "", "") should work
-FAIL=createDocumentType("edi:$", "", "") should work
-FAIL=createDocumentType("edi:%", "", "") should work
-FAIL=createDocumentType("edi:&", "", "") should work
-FAIL=createDocumentType("edi:'", "", "") should work
-FAIL=createDocumentType("edi:(", "", "") should work
-FAIL=createDocumentType("edi:)", "", "") should work
-FAIL=createDocumentType("edi:*", "", "") should work
-FAIL=createDocumentType("edi:+", "", "") should work
-FAIL=createDocumentType("edi:,", "", "") should work
-FAIL=createDocumentType("edi:/", "", "") should work
-FAIL=createDocumentType("edi:;", "", "") should work
-FAIL=createDocumentType("edi:<", "", "") should work
-FAIL=createDocumentType("edi:=", "", "") should work
-FAIL=createDocumentType("edi:>", "", "") should throw INVALID_CHARACTER_ERR
-FAIL=createDocumentType("edi:@", "", "") should work
-FAIL=createDocumentType("edi:[", "", "") should work
-FAIL=createDocumentType("edi:\"", "", "") should work
-FAIL=createDocumentType("edi:\\", "", "") should work
-FAIL=createDocumentType("edi:]", "", "") should work
-FAIL=createDocumentType("edi:^", "", "") should work
-FAIL=createDocumentType("edi:`", "", "") should work
-FAIL=createDocumentType("edi:a ", "", "") should throw INVALID_CHARACTER_ERR
-FAIL=createDocumentType("edi:{", "", "") should work
-FAIL=createDocumentType("edi:}", "", "") should work
-FAIL=createDocumentType("edi:~", "", "") should work
-FAIL=createDocumentType("f1oo", "", "") should work
-FAIL=createDocumentType("f:oo", "", "") should work
-FAIL=createDocumentType("f@oo", "", "") should work
-FAIL=createDocumentType("foo", "", "") should work
-FAIL=createDocumentType("foo", "", "f'o\"o") should work
-FAIL=createDocumentType("foo", "", "f'oo") should work
-FAIL=createDocumentType("foo", "", "f\"oo") should work
-FAIL=createDocumentType("foo", "", "foo") should work
-FAIL=createDocumentType("foo", "", "foo>") should work
-FAIL=createDocumentType("foo", "f'o\"o", "") should work
-FAIL=createDocumentType("foo", "f'oo", "") should work
-FAIL=createDocumentType("foo", "f\"oo", "") should work
-FAIL=createDocumentType("foo", "foo", "") should work
-FAIL=createDocumentType("foo", "foo>", "") should work
-FAIL=createDocumentType("foo1", "", "") should work
-FAIL=createDocumentType("foo:", "", "") should work
-FAIL=createDocumentType("foo@", "", "") should work
-FAIL=createDocumentType("l_:_", "", "") should work
-FAIL=createDocumentType("ns0:test", "", "") should work
-FAIL=createDocumentType("ns:EEE.", "", "") should work
-FAIL=createDocumentType("ns:_-", "", "") should work
-FAIL=createDocumentType("ns:_0", "", "") should work
-FAIL=createDocumentType("ns:a0", "", "") should work
-FAIL=createDocumentType("prefix::local", "", "") should work
-FAIL=createDocumentType("test:root", "1234", "") should work
-FAIL=createDocumentType("test:root", "1234", "test") should work
-FAIL=createDocumentType("test:root", "test", "") should work
-FAIL=createDocumentType("test:root", "test", "test") should work
-FAIL=createDocumentType("{", "", "") should work
-FAIL=createDocumentType("}", "", "") should work
-FAIL=createDocumentType("~", "", "") should work
 [dom/nodes/DOMImplementation-createHTMLDocument-with-saved-implementation.html]
 FAIL=createHTMLDocument(): from a saved and detached implementation does not return null
 [dom/nodes/DOMImplementation-createHTMLDocument.html]
-FAIL=Missing title argument
-FAIL=createHTMLDocument test 0: "","",""
-FAIL=createHTMLDocument test 1: null,"null","null"
-FAIL=createHTMLDocument test 2: undefined,undefined,""
-FAIL=createHTMLDocument test 3: "foo  bar baz","foo  bar baz","foo bar baz"
-FAIL=createHTMLDocument test 4: "foo\t\tbar baz","foo\t\tbar baz","foo bar baz"
-FAIL=createHTMLDocument test 5: "foo\n\nbar baz","foo\n\nbar baz","foo bar baz"
-FAIL=createHTMLDocument test 6: "foo\f\fbar baz","foo\f\fbar baz","foo bar baz"
-FAIL=createHTMLDocument test 7: "foo\r\rbar baz","foo\r\rbar baz","foo bar baz"
 FAIL=createHTMLDocument(): URL parsing
 FAIL=createHTMLDocument(): characterSet aliases
 FAIL=createHTMLDocument(): document location getter is null
 FAIL=createHTMLDocument(): metadata
 [dom/nodes/Document-URL.html]
 harness=TIMEOUT
-[dom/nodes/Document-adoptNode-DocumentFragment-with-host.window.html]
-FAIL=adoptNode() <template> element: content follows via template adopting steps
-FAIL=adoptNode() nested <template> elements: all owner documents update
-FAIL=adoptNode() plain DocumentFragment (no host): adopts and returns it
-FAIL=adoptNode() shadow root: throws HierarchyRequestError
-FAIL=adoptNode() template.content: adopts fragment + children, returns it
 [dom/nodes/Document-adoptNode.html]
 FAIL=Adopting a Document should throw.
 FAIL=Adopting an Element called ':good:times:' should work.
 FAIL=Adopting an Element called 'x<' should work.
-FAIL=Explicitly adopting a DocumentType should work.
 [dom/nodes/Document-characterSet-normalization-1.html]
 harness=TIMEOUT
 [dom/nodes/Document-characterSet-normalization-2.html]
@@ -1105,8 +992,6 @@ FAIL=createCDATASection("a -- b")
 FAIL=createCDATASection("a-")
 FAIL=createCDATASection(null)
 FAIL=createCDATASection(undefined)
-[dom/nodes/Document-createCDATASection.html]
-harness=TIMEOUT
 [dom/nodes/Document-createComment.html]
 FAIL=createComment("-b")
 FAIL=createComment("\v")
@@ -1660,34 +1545,17 @@ FAIL=storageevent should be an alias for StorageEvent.
 FAIL=textevent should be an alias for TextEvent.
 PRECONDITION_FAILED=touchevent should be an alias for TouchEvent.
 [dom/nodes/Document-createProcessingInstruction-xhtml.xhtml]
-FAIL=Should get a ProcessingInstruction for target "AU+b7A" and data "x".
-FAIL=Should get a ProcessingInstruction for target "a0" and data "x".
-FAIL=Should get a ProcessingInstruction for target "xml:fail" and data "x".
-FAIL=Should throw an INVALID_CHARACTER_ERR for target "0" and data "x".
-FAIL=Should throw an INVALID_CHARACTER_ERR for target "A" and data "?>".
 FAIL=Should throw an INVALID_CHARACTER_ERR for target "AU+d7" and data "x".
 FAIL=Should throw an INVALID_CHARACTER_ERR for target "U+b7A" and data "x".
 FAIL=Should throw an INVALID_CHARACTER_ERR for target "U+d7A" and data "x".
-FAIL=Should throw an INVALID_CHARACTER_ERR for target "\\A" and data "x".
-FAIL=Should throw an INVALID_CHARACTER_ERR for target "\f" and data "x".
-FAIL=Should throw an INVALID_CHARACTER_ERR for target 0 and data "x".
 [dom/nodes/Document-createProcessingInstruction.html]
-FAIL=Should get a ProcessingInstruction for target "AU+b7A" and data "x".
-FAIL=Should get a ProcessingInstruction for target "a0" and data "x".
-FAIL=Should get a ProcessingInstruction for target "xml:fail" and data "x".
-FAIL=Should throw an INVALID_CHARACTER_ERR for target "0" and data "x".
-FAIL=Should throw an INVALID_CHARACTER_ERR for target "A" and data "?>".
 FAIL=Should throw an INVALID_CHARACTER_ERR for target "AU+d7" and data "x".
 FAIL=Should throw an INVALID_CHARACTER_ERR for target "U+b7A" and data "x".
 FAIL=Should throw an INVALID_CHARACTER_ERR for target "U+d7A" and data "x".
-FAIL=Should throw an INVALID_CHARACTER_ERR for target "\\A" and data "x".
-FAIL=Should throw an INVALID_CHARACTER_ERR for target "\f" and data "x".
-FAIL=Should throw an INVALID_CHARACTER_ERR for target 0 and data "x".
 [dom/nodes/Document-createTreeWalker.html]
 FAIL=Optional arguments to createTreeWalker should be optional (1 passed).
 FAIL=Optional arguments to createTreeWalker should be optional (2 passed).
 [dom/nodes/Document-doctype.html]
-FAIL=Window document with doctype
 FAIL=new Document()
 [dom/nodes/Document-getElementById.html]
 FAIL=Calling document.getElementById with an empty string argument.
@@ -1707,15 +1575,8 @@ FAIL=hasOwnProperty, getOwnPropertyDescriptor, getOwnPropertyNames
 [dom/nodes/Document-getElementsByTagNameNS.html]
 FAIL=Document.getElementsByTagNameNS
 FAIL=getElementsByTagNameNS() should be a live collection
-[dom/nodes/Document-implementation.html]
-FAIL=Getting implementation off different documents
-FAIL=Getting implementation off the same document
 [dom/nodes/Document-importNode.html]
-FAIL=False 'deep' argument.
 FAIL=Import an Attr node with namespace/prefix correctly.
-FAIL=No 'deep' argument.
-FAIL=True 'deep' argument.
-FAIL=Undefined 'deep' argument.
 [dom/nodes/DocumentFragment-constructor.html]
 FAIL=Create a valid document DocumentFragment
 FAIL=Sets the owner document to the current global object associated document
@@ -1725,10 +1586,6 @@ FAIL=It must return null when there are no matches
 FAIL=It must return the first element when there are matches
 FAIL=It must return the first element when there are matches, using a template
 FAIL=The method must exist
-[dom/nodes/DocumentType-literal-xhtml.xhtml]
-FAIL=DocumentType literals
-[dom/nodes/DocumentType-literal.html]
-FAIL=DocumentType literals
 [dom/nodes/DocumentType-remove.html]
 harness=ERROR
 [dom/nodes/Element-childElement-null-svg.svg]
@@ -1810,8 +1667,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [dom/nodes/Element-previousElementSibling-xhtml.xhtml]
 harness=TIMEOUT
-[dom/nodes/Element-remove.html]
-FAIL=element should support remove()
 [dom/nodes/Element-removeAttributeNS.html]
 FAIL=removeAttributeNS should take a local name.
 [dom/nodes/Element-siblingElement-null-svg.svg]
@@ -1853,7 +1708,6 @@ FAIL=Custom element reactions follow script execution
 FAIL=Adopting a non-orphan
 FAIL=Adopting an orphan
 FAIL=Appending a document
-FAIL=Appending to a doctype
 [dom/nodes/Node-baseURI.html]
 FAIL=For attributes in elements belonging to document fragments in document, baseURI should be document URL
 FAIL=For attributes in elements belonging to document fragments, baseURI should be document URL
@@ -1887,50 +1741,9 @@ FAIL=cloned <use>'s xlink:href attribute should have the right properties
 FAIL=Node with custom prototype
 FAIL=createAttribute
 FAIL=createAttributeNS
-FAIL=createElement(area)
-FAIL=createElement(base)
-FAIL=createElement(body)
-FAIL=createElement(br)
-FAIL=createElement(caption)
-FAIL=createElement(col)
-FAIL=createElement(colgroup)
-FAIL=createElement(data)
-FAIL=createElement(datalist)
-FAIL=createElement(del)
-FAIL=createElement(dialog)
-FAIL=createElement(dir)
-FAIL=createElement(dl)
-FAIL=createElement(embed)
-FAIL=createElement(fieldset)
-FAIL=createElement(font)
-FAIL=createElement(frame)
-FAIL=createElement(frameset)
-FAIL=createElement(head)
-FAIL=createElement(hr)
-FAIL=createElement(html)
-FAIL=createElement(ins)
-FAIL=createElement(label)
-FAIL=createElement(legend)
-FAIL=createElement(map)
-FAIL=createElement(meta)
-FAIL=createElement(meter)
-FAIL=createElement(object)
-FAIL=createElement(optgroup)
-FAIL=createElement(output)
-FAIL=createElement(param)
-FAIL=createElement(pre)
-FAIL=createElement(progress)
-FAIL=createElement(q)
-FAIL=createElement(source)
-FAIL=createElement(tbody)
-FAIL=createElement(time)
-FAIL=createElement(title)
-FAIL=createElement(track)
 FAIL=createElement(unknown)
 FAIL=createElementNS HTML
-FAIL=createProcessingInstruction
 FAIL=implementation.createDocument
-FAIL=implementation.createDocumentType
 FAIL=implementation.createHTMLDocument
 [dom/nodes/Node-compareDocumentPosition.html]
 harness=ERROR
@@ -1942,27 +1755,6 @@ FAIL=Constants for createDocumentPosition on Text object.
 [dom/nodes/Node-contains.html]
 harness=ERROR
 [dom/nodes/Node-insertBefore.html]
-FAIL=Calling insertBefore an a leaf node DocumentType must throw HIERARCHY_REQUEST_ERR.
-FAIL=Calling insertBefore an a leaf node ProcessingInstruction must throw HIERARCHY_REQUEST_ERR.
-FAIL=Calling insertBefore with a non-Node first argument on a leaf node ProcessingInstruction must throw TypeError.
-FAIL=Calling insertBefore with second argument missing, or other than Node, null, or undefined, must throw TypeError.
-FAIL=If node is a DocumentFragment with an element and parent is a document with another element, then throw a HierarchyRequestError DOMException.
-FAIL=If node is a DocumentFragment with multiple elements and parent is a document, then throw a HierarchyRequestError DOMException.
-FAIL=If node is a doctype and parent is a document with an element, then throw a HierarchyRequestError DOMException.
-FAIL=If node is a doctype and parent is a document with another doctype, then throw a HierarchyRequestError DOMException.
-FAIL=If node is a doctype and parent is not a document, then throw a HierarchyRequestError DOMException.
-FAIL=If node is an Element and parent is a document with another element, then throw a HierarchyRequestError DOMException.
-FAIL=If the context node is a document and a doctype is following the reference child, inserting a DocumentFragment with an element should throw a HierarchyRequestError.
-FAIL=If the context node is a document and a doctype is following the reference child, inserting an element should throw a HierarchyRequestError.
-FAIL=If the context node is a document with and element child, appending a doctype should throw a HierarchyRequestError.
-FAIL=If the context node is a document, inserting a DocumentFragment that contains a text node or too many elements should throw a HierarchyRequestError.
-FAIL=If the context node is a document, inserting a DocumentFragment with an element before the doctype should throw a HierarchyRequestError.
-FAIL=If the context node is a document, inserting a DocumentFragment with an element if there already is an element child should throw a HierarchyRequestError.
-FAIL=If the context node is a document, inserting a doctype after the document element should throw a HierarchyRequestError.
-FAIL=If the context node is a document, inserting a doctype if there already is a doctype child should throw a HierarchyRequestError.
-FAIL=If the context node is a document, inserting an element before the doctype should throw a HierarchyRequestError.
-FAIL=If the context node is a document, inserting an element if there already is an element child should throw a HierarchyRequestError.
-FAIL=Inserting a node before itself should not move the node
 FAIL=Should check the 'parent' type before checking whether 'child' is a child of 'parent'
 FAIL=Should check whether 'child' is a child of 'parent' before checking whether 'node' can be inserted into the document given the kids the document has right now.
 FAIL=Should check whether 'child' is a child of 'parent' before checking whether 'node' is of a type that can have a parent of the type that 'parent' is.
@@ -1992,15 +1784,6 @@ FAIL=processing instructions should be compared on reference
 FAIL=text nodes should be compared on reference
 [dom/nodes/Node-lookupNamespaceURI.html]
 FAIL=Child element should have XMLNS namespace
-FAIL=DocumentType is in default namespace, prefix ""
-FAIL=DocumentType is in default namespace, prefix "foo"
-FAIL=DocumentType is in default namespace, prefix "xmlns"
-FAIL=DocumentType is in default namespace, prefix null
-FAIL=DocumentType should have null namespace, prefix ""
-FAIL=DocumentType should have null namespace, prefix "foo"
-FAIL=DocumentType should have null namespace, prefix "xml"
-FAIL=DocumentType should have null namespace, prefix "xmlns"
-FAIL=DocumentType should have null namespace, prefix null
 FAIL=Element should have XML namespace
 FAIL=Element should have XMLNS namespace
 FAIL=Element should have namespace with xmlns prefix
@@ -2014,16 +1797,10 @@ FAIL=Node.lookupPrefix 8
 FAIL=Node.lookupPrefix 9
 [dom/nodes/Node-mutation-adoptNode.html]
 FAIL=Adopting an element into a different document update's the element's owner doc as well as the owner docs of it's attributes
-FAIL=simple append of foreign div with text
 [dom/nodes/Node-nodeName-xhtml.xhtml]
-FAIL=For DocumentType nodes, nodeName should return the name.
 FAIL=For Element nodes, nodeName should return the same as tagName.
-FAIL=For ProcessingInstruction nodes, nodeName should return the target.
-[dom/nodes/Node-nodeName.html]
-FAIL=For DocumentType nodes, nodeName should return the name.
 [dom/nodes/Node-nodeValue.html]
 FAIL=Comment.nodeValue
-FAIL=DocumentType.nodeValue
 FAIL=ProcessingInstruction.nodeValue
 FAIL=Text.nodeValue
 [dom/nodes/Node-normalize.html]
@@ -2043,38 +1820,16 @@ harness=TIMEOUT
 harness=ERROR
 [dom/nodes/Node-removeChild.html]
 FAIL=Calling removeChild on a comment from a frame document with no children should throw NOT_FOUND_ERR.
-FAIL=Calling removeChild on a comment from a synthetic document with no children should throw NOT_FOUND_ERR.
 FAIL=Calling removeChild on a element from a frame document with no children should throw NOT_FOUND_ERR.
-FAIL=Calling removeChild on a element from a synthetic document with no children should throw NOT_FOUND_ERR.
 FAIL=Calling removeChild on a text from a frame document with no children should throw NOT_FOUND_ERR.
-FAIL=Calling removeChild on a text from a synthetic document with no children should throw NOT_FOUND_ERR.
 FAIL=Passing a detached comment from a frame document to removeChild should not affect it.
-FAIL=Passing a detached comment from a synthetic document to removeChild should not affect it.
 FAIL=Passing a detached element from a frame document to removeChild should not affect it.
-FAIL=Passing a detached element from a synthetic document to removeChild should not affect it.
 FAIL=Passing a detached text from a frame document to removeChild should not affect it.
-FAIL=Passing a detached text from a synthetic document to removeChild should not affect it.
 FAIL=Passing a non-detached comment from a frame document to removeChild should not affect it.
-FAIL=Passing a non-detached comment from a synthetic document to removeChild should not affect it.
 FAIL=Passing a non-detached element from a frame document to removeChild should not affect it.
-FAIL=Passing a non-detached element from a synthetic document to removeChild should not affect it.
 FAIL=Passing a non-detached text from a frame document to removeChild should not affect it.
-FAIL=Passing a non-detached text from a synthetic document to removeChild should not affect it.
 [dom/nodes/Node-replaceChild.html]
-FAIL=If the context node is a document (without element children), inserting a DocumentFragment that contains multiple elements should throw a HierarchyRequestError.
-FAIL=If the context node is a document, inserting a DocumentFragment that contains a text node or too many elements should throw a HierarchyRequestError.
-FAIL=If the context node is a document, inserting a DocumentFragment with an element before the doctype should throw a HierarchyRequestError.
-FAIL=If the context node is a document, inserting a DocumentFragment with an element if there already is an element child should throw a HierarchyRequestError.
-FAIL=If the context node is a document, inserting a doctype after the document element should throw a HierarchyRequestError.
-FAIL=If the context node is a document, inserting a doctype if there already is a doctype child should throw a HierarchyRequestError.
-FAIL=If the context node is a document, inserting a new doctype should work.
-FAIL=If the context node is a document, inserting an element before the doctype should throw a HierarchyRequestError.
-FAIL=If the context node is a document, inserting an element if there already is an element child should throw a HierarchyRequestError.
 FAIL=If the context node is not a node that can contain children, a HierarchyRequestError exception should be thrown
-FAIL=Replacing a node with itself should not move the node
-FAIL=Replacing the document element with a DocumentFragment containing a single element and comments should work.
-FAIL=Replacing the document element with a DocumentFragment containing a single element should work.
-FAIL=Replacing the document element with a single element should work.
 FAIL=Should check the 'parent' type before checking whether 'child' is a child of 'parent'
 FAIL=Should check whether 'child' is a child of 'parent' before checking whether 'node' can be inserted into the document given the kids the document has right now.
 FAIL=Should check whether 'child' is a child of 'parent' before checking whether 'node' is of a type that can have a parent of the type that 'parent' is.
@@ -2463,7 +2218,6 @@ FAIL=Moving a style inside the document should not affect whether it's applied
 [dom/nodes/moveBefore/throws-exception.html]
 FAIL=moveBefore() on a cross-document target node
 [dom/nodes/name-validation.html]
-FAIL=Valid and invalid characters in createDocumentType.
 FAIL=Valid and invalid characters in createElementNS and createDocument.
 FAIL=Valid and invalid characters in setAttribute, toggleAttribute, and createAttribute.
 FAIL=Valid and invalid characters in setAttributeNS and createAttributeNS.
@@ -2659,11 +2413,6 @@ FAIL=before() should be unscopable
 FAIL=prepend() should be unscopable
 FAIL=remove() should be unscopable
 FAIL=replaceWith() should be unscopable
-[dom/nodes/rootNode.html]
-FAIL=getRootNode() must return a document fragment when a node is in the fragment
-FAIL=getRootNode() must return the context object when it does not have any parent
-FAIL=getRootNode() must return the document when a node is in document
-FAIL=getRootNode() must return the parent node of the context object when the context object has a single ancestor not in a document
 [dom/observable/tentative/crashtests/observable-gc.any.html]
 FAIL=every(): does not crash on observable being GCed
 FAIL=find(): does not crash on observable being GCed
@@ -3072,7 +2821,23 @@ harness=ERROR
 [dom/ranges/Range-surroundContents.html]
 harness=ERROR
 [dom/ranges/StaticRange-constructor.html]
-harness=TIMEOUT
+FAIL=Construct collapsed static range
+FAIL=Construct inverted static range
+FAIL=Construct static range with CDATASection container
+FAIL=Construct static range with Comment container
+FAIL=Construct static range with Document container
+FAIL=Construct static range with DocumentFragment container
+FAIL=Construct static range with Element container
+FAIL=Construct static range with Element startContainer and Text endContainer
+FAIL=Construct static range with ProcessingInstruction container
+FAIL=Construct static range with Text container
+FAIL=Construct static range with Text startContainer and Element endContainer
+FAIL=Construct static range with endpoints in disconnected documents
+FAIL=Construct static range with endpoints in disconnected trees
+FAIL=Construct static range with offset greater than length
+FAIL=Construct static range with standalone Node container
+FAIL=Throw on DocumentType or Attr container
+FAIL=Throw on missing or invalid arguments
 [dom/ranges/tentative/OpaqueRange-auto-disconnect.html]
 FAIL=All OpaqueRanges disconnected on element removal (input)
 FAIL=All OpaqueRanges disconnected on element removal (textarea)

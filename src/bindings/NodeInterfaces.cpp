@@ -38,39 +38,115 @@ namespace {
 
 // Which tag gets which interface.
 //
-// Deliberately not the full table. These are the tags whose interface a page
-// is likely to *name* -- in an `instanceof`, or as the base of a custom
-// element -- rather than every tag that has one in the specification. An
-// unlisted tag gets HTMLElement, which is the right answer for it and not a
-// fallback.
+// Every tag HTML gives an interface of its own, and the interface's parent
+// when that is not HTMLElement.
+//
+// It used to be a short list of "tags a page is likely to name", and the
+// argument for that was wrong in a way the suite made obvious:
+// `Node-cloneNode.html` asks `assert_true("HTMLAreaElement" in window)` before
+// it clones an `<area>`, and 48 of its subtests failed on that line alone --
+// not on cloning. A page tests for a type before it has one, and the cost of a
+// missing name is a ReferenceError rather than a false `instanceof`.
+//
+// A tag *not* here is an HTMLElement, which is right for `<abbr>` and wrong for
+// `<foo>` -- an unknown tag is an HTMLUnknownElement. That distinction needs a
+// list of the tags HTML defines at all, which is C10's, not this table's.
 struct TagInterface {
   std::string_view tag;
   const char* interface;
+  // Null means HTMLElement. The two that are not are `<svg>`, which is an
+  // Element with no HTML semantics at all, and the media pair.
+  const char* parent = nullptr;
 };
 
 constexpr TagInterface kTagInterfaces[] = {
-    {"div", "HTMLDivElement"},           {"span", "HTMLSpanElement"},
-    {"a", "HTMLAnchorElement"},          {"img", "HTMLImageElement"},
-    {"input", "HTMLInputElement"},       {"button", "HTMLButtonElement"},
-    {"select", "HTMLSelectElement"},     {"option", "HTMLOptionElement"},
-    {"textarea", "HTMLTextAreaElement"}, {"form", "HTMLFormElement"},
-    {"script", "HTMLScriptElement"},     {"style", "HTMLStyleElement"},
-    {"link", "HTMLLinkElement"},         {"table", "HTMLTableElement"},
-    {"tr", "HTMLTableRowElement"},       {"td", "HTMLTableCellElement"},
-    {"th", "HTMLTableCellElement"},      {"ul", "HTMLUListElement"},
-    {"ol", "HTMLOListElement"},          {"li", "HTMLLIElement"},
-    {"p", "HTMLParagraphElement"},       {"h1", "HTMLHeadingElement"},
-    {"h2", "HTMLHeadingElement"},        {"h3", "HTMLHeadingElement"},
-    {"h4", "HTMLHeadingElement"},        {"h5", "HTMLHeadingElement"},
-    {"h6", "HTMLHeadingElement"},        {"canvas", "HTMLCanvasElement"},
-    {"video", "HTMLVideoElement"},       {"audio", "HTMLAudioElement"},
-    {"iframe", "HTMLIFrameElement"},     {"template", "HTMLTemplateElement"},
-    // `<svg>` is an Element and not an HTMLElement, which is the one place this
-    // table's chain forks. Only the root tag is listed: the elements *inside* an
-    // SVG subtree are not distinguished, because `src/html` has no foreign
-    // content (TreeBuilder.h says so) and so this DOM has no namespace to ask
-    // about. When foreign content lands, this is where its tags go.
-    {"svg", "SVGElement"},
+    {"a", "HTMLAnchorElement"},
+    {"area", "HTMLAreaElement"},
+    {"audio", "HTMLAudioElement", "HTMLMediaElement"},
+    {"base", "HTMLBaseElement"},
+    {"blockquote", "HTMLQuoteElement"},
+    {"body", "HTMLBodyElement"},
+    {"br", "HTMLBRElement"},
+    {"button", "HTMLButtonElement"},
+    {"canvas", "HTMLCanvasElement"},
+    {"caption", "HTMLTableCaptionElement"},
+    {"col", "HTMLTableColElement"},
+    {"colgroup", "HTMLTableColElement"},
+    {"data", "HTMLDataElement"},
+    {"datalist", "HTMLDataListElement"},
+    {"del", "HTMLModElement"},
+    {"details", "HTMLDetailsElement"},
+    {"dialog", "HTMLDialogElement"},
+    {"dir", "HTMLDirectoryElement"},
+    {"div", "HTMLDivElement"},
+    {"dl", "HTMLDListElement"},
+    {"embed", "HTMLEmbedElement"},
+    {"fieldset", "HTMLFieldSetElement"},
+    {"font", "HTMLFontElement"},
+    {"form", "HTMLFormElement"},
+    {"frame", "HTMLFrameElement"},
+    {"frameset", "HTMLFrameSetElement"},
+    {"h1", "HTMLHeadingElement"},
+    {"h2", "HTMLHeadingElement"},
+    {"h3", "HTMLHeadingElement"},
+    {"h4", "HTMLHeadingElement"},
+    {"h5", "HTMLHeadingElement"},
+    {"h6", "HTMLHeadingElement"},
+    {"head", "HTMLHeadElement"},
+    {"hr", "HTMLHRElement"},
+    {"html", "HTMLHtmlElement"},
+    {"iframe", "HTMLIFrameElement"},
+    {"img", "HTMLImageElement"},
+    {"input", "HTMLInputElement"},
+    {"ins", "HTMLModElement"},
+    {"label", "HTMLLabelElement"},
+    {"legend", "HTMLLegendElement"},
+    {"li", "HTMLLIElement"},
+    {"link", "HTMLLinkElement"},
+    {"listing", "HTMLPreElement"},
+    {"map", "HTMLMapElement"},
+    {"marquee", "HTMLMarqueeElement"},
+    {"menu", "HTMLMenuElement"},
+    {"meta", "HTMLMetaElement"},
+    {"meter", "HTMLMeterElement"},
+    {"object", "HTMLObjectElement"},
+    {"ol", "HTMLOListElement"},
+    {"optgroup", "HTMLOptGroupElement"},
+    {"option", "HTMLOptionElement"},
+    {"output", "HTMLOutputElement"},
+    {"p", "HTMLParagraphElement"},
+    {"param", "HTMLParamElement"},
+    {"picture", "HTMLPictureElement"},
+    {"pre", "HTMLPreElement"},
+    {"progress", "HTMLProgressElement"},
+    {"q", "HTMLQuoteElement"},
+    {"script", "HTMLScriptElement"},
+    {"select", "HTMLSelectElement"},
+    {"slot", "HTMLSlotElement"},
+    {"source", "HTMLSourceElement"},
+    {"span", "HTMLSpanElement"},
+    {"style", "HTMLStyleElement"},
+    {"table", "HTMLTableElement"},
+    {"tbody", "HTMLTableSectionElement"},
+    {"td", "HTMLTableCellElement"},
+    {"template", "HTMLTemplateElement"},
+    {"textarea", "HTMLTextAreaElement"},
+    {"tfoot", "HTMLTableSectionElement"},
+    {"th", "HTMLTableCellElement"},
+    {"thead", "HTMLTableSectionElement"},
+    {"time", "HTMLTimeElement"},
+    {"title", "HTMLTitleElement"},
+    {"tr", "HTMLTableRowElement"},
+    {"track", "HTMLTrackElement"},
+    {"ul", "HTMLUListElement"},
+    {"video", "HTMLVideoElement", "HTMLMediaElement"},
+    {"xmp", "HTMLPreElement"},
+    // `<svg>` is an Element and not an HTMLElement. Only the root tag is
+    // listed: the elements *inside* an SVG subtree are not distinguished,
+    // because `src/html` has no foreign content (TreeBuilder.h says so) and so
+    // this DOM has no namespace to ask about. When foreign content lands, this
+    // is where its tags go.
+    {"svg", "SVGElement", "Element"},
 };
 
 const char* InterfaceForTag(std::string_view tag) {
@@ -104,6 +180,10 @@ std::string NodeNameOf(const dom::Node& node) {
       return "#document";
     case dom::Node::Kind::DocumentFragment:
       return "#document-fragment";
+    case dom::Node::Kind::ProcessingInstruction:
+      // The *target*, which is the reason a processing instruction is not a
+      // comment with a longer string in it.
+      return static_cast<const dom::ProcessingInstruction&>(node).Target();
     case dom::Node::Kind::DocumentType:
       // A doctype's name, as written -- `html` for every page this browser
       // will meet, and not upper-cased, because it is not a tag name.
@@ -258,13 +338,24 @@ void DomBindings::EnsureInterfaces() {
   // decides whether `classList` needs patching, reached unqualified off `window`
   // and therefore a TypeError rather than a ReferenceError when it is missing.
   MakeInterface("SVGElement", element);
+  // `HTMLMediaElement` before the loop for the same reason: it is a parent in
+  // the table, and `video instanceof HTMLMediaElement` is what a feature check
+  // asks. The media API lives on it rather than on each of the two, which is
+  // where the specification puts it and one prototype rather than two.
+  const Value media_element = MakeInterface("HTMLMediaElement", html_element);
+  InstallMediaElement(media_element);
   // Every per-tag interface, up front rather than when its tag is first seen.
   // Lazily was tempting and wrong: `x instanceof HTMLAnchorElement` has to
   // answer *false* on a page with no anchor in it, and a name that does not
   // exist until the tag does throws a ReferenceError instead. A page tests for
   // a type before it has one far more often than after.
   for (const TagInterface& entry : kTagInterfaces) {
-    MakeInterface(entry.interface, html_element);
+    if (entry.parent == nullptr) {
+      MakeInterface(entry.interface, html_element);
+      continue;
+    }
+    const Value* parent = interfaces_.object->GetOwn(entry.parent);
+    MakeInterface(entry.interface, parent == nullptr ? html_element : *parent);
   }
   if (js::Value* script_ctor = interpreter_->GlobalScope()->Lookup("HTMLScriptElement")) {
     if (script_ctor->IsObject()) {
@@ -274,15 +365,6 @@ void DomBindings::EnsureInterfaces() {
       if (supports.IsObject()) {
         script_ctor->object->Set("supports", supports);
       }
-    }
-  }
-  // The media API, on `HTMLVideoElement` and `HTMLAudioElement` and nowhere else -- installed on
-  // each rather than on a shared `HTMLMediaElement` prototype because this engine's interface
-  // table is flat, and `video instanceof HTMLMediaElement` is not a question any measured page
-  // asks. What pages do ask for is `video.play`, and that is what this puts there.
-  for (const char* interface : {"HTMLVideoElement", "HTMLAudioElement"}) {
-    if (const Value* found = interfaces_.object->GetOwn(interface)) {
-      InstallMediaElement(*found);
     }
   }
   if (const Value* image_interface = interfaces_.object->GetOwn("HTMLImageElement")) {
@@ -320,22 +402,58 @@ void DomBindings::EnsureInterfaces() {
   InstallCharacterData(character_data);
   const Value text_interface = MakeInterface("Text", character_data);
   MakeInterface("Comment", character_data);
-  // Two interfaces nothing here will ever be an instance of, and they are not
-  // stubs: **a real browser's HTML document has no instance of either.** An
-  // HTML parser turns `<![CDATA[…]]>` and `<?xml-stylesheet?>` into comments,
-  // so a CDATASection or a ProcessingInstruction only appears in an XML
-  // document, which this browser does not have. What every browser *does* have
-  // is the name, with CharacterData behind it -- and that is exactly what
-  // this declares, so nothing is being claimed that is not true.
-  //
-  // youtube is why they are here. `webcomponents-all-noPatch.js` does
+  // A CDATASection is XML-only and this browser has no instance of one --
+  // `createCDATASection` throws NotSupportedError in an HTML document, which is
+  // the specification's own answer rather than a limitation. The *name* is here
+  // because youtube's `webcomponents-all-noPatch.js` does
   // `["Text","Comment","CDATASection","ProcessingInstruction"].forEach(
   //    function (a) { var b = window[a]; Object.create(b.prototype) ... })`
-  // and takes a TypeError on the third name. That is ADR 0012 read from the
-  // other side: the rule is about *behaviour* a page would branch on, and a
-  // missing interface object is not a fallback path, it is a wall.
+  // and takes a TypeError on a missing one. ADR 0012 read from the other side:
+  // a missing interface object is not a fallback path, it is a wall.
   MakeInterface("CDATASection", text_interface);
-  MakeInterface("ProcessingInstruction", character_data);
+  // A ProcessingInstruction, on the other hand, is now a node this browser can
+  // hold: `document.createProcessingInstruction` makes one, and the HTML
+  // parser still cannot.
+  const Value processing_instruction = MakeInterface("ProcessingInstruction", character_data);
+  if (processing_instruction.IsObject()) {
+    const Value target = interpreter_->NewNativeValue("target", [](js::NativeCall& call) {
+      dom::Node* self = NodeOf(call.self);
+      if (self == nullptr ||
+          self->GetKind() != dom::Node::Kind::ProcessingInstruction) {
+        return Value::Undefined();
+      }
+      return Value::String(static_cast<dom::ProcessingInstruction*>(self)->Target());
+    });
+    if (target.IsObject()) {
+      target.object->Set(kOwnerSlot, PointerValue(this));
+      processing_instruction.object->DefineAccessor("target", target.object, nullptr);
+    }
+  }
+  // `<!DOCTYPE html>` as a node. Its own interface rather than Document's,
+  // which is what it shared until 2026-08-11 -- one line that made
+  // `document.doctype instanceof Document` true and `instanceof DocumentType`
+  // false.
+  const Value document_type = MakeInterface("DocumentType", node);
+  if (document_type.IsObject()) {
+    const auto doctype_string = [this, &document_type](
+                                    const char* name,
+                                    const std::string& (dom::DocumentType::*read)() const) {
+      const Value getter = interpreter_->NewNativeValue(name, [read](js::NativeCall& call) {
+        dom::Node* self = NodeOf(call.self);
+        if (self == nullptr || self->GetKind() != dom::Node::Kind::DocumentType) {
+          return Value::Undefined();
+        }
+        return Value::String((static_cast<dom::DocumentType*>(self)->*read)());
+      });
+      if (getter.IsObject()) {
+        getter.object->Set(kOwnerSlot, PointerValue(this));
+        document_type.object->DefineAccessor(name, getter.object, nullptr);
+      }
+    };
+    doctype_string("name", &dom::DocumentType::Name);
+    doctype_string("publicId", &dom::DocumentType::PublicId);
+    doctype_string("systemId", &dom::DocumentType::SystemId);
+  }
   // A fragment is a ParentNode: script queries the subtree it is building
   // before it inserts it, which is most of the reason to build it detached.
   const Value fragment = MakeInterface("DocumentFragment", node);
@@ -397,7 +515,7 @@ void DomBindings::EnsureInterfaces() {
   // by script after the load has equally -- not something this introduces.
   DomBindings* self = this;
   const Value image = interpreter_->NewNativeValue("Image", [self](js::NativeCall& call) {
-    const Value made = self->CreateElement("img");
+    const Value made = self->CreateElement("img", *self->document_);
     if (made.IsObject() && !call.arguments.empty()) {
       if (dom::Node* made_node = NodeOf(made)) {
         auto& img = static_cast<dom::Element&>(*made_node);
@@ -423,7 +541,7 @@ void DomBindings::EnsureInterfaces() {
   // `<audio>`, and watch throws `ReferenceError: Audio is not defined` when the
   // name is absent (TD-0020 throw census).
   const Value audio = interpreter_->NewNativeValue("Audio", [self](js::NativeCall& call) {
-    const Value made = self->CreateElement("audio");
+    const Value made = self->CreateElement("audio", *self->document_);
     if (made.IsObject() && !call.arguments.empty()) {
       if (dom::Node* made_node = NodeOf(made)) {
         static_cast<dom::Element&>(*made_node).SetAttribute("src", js::ToString(call.arguments[0]));
@@ -565,8 +683,14 @@ js::Value DomBindings::PrototypeFor(const dom::Node& node) {
                        ? "ShadowRoot"
                        : "DocumentFragment");
     case dom::Node::Kind::Document:
-    case dom::Node::Kind::DocumentType:
       return named("Document");
+    case dom::Node::Kind::DocumentType:
+      // Its own interface. It shared Document's until 2026-08-11, which made
+      // `document.doctype instanceof Document` true and `instanceof
+      // DocumentType` false -- two wrong answers from one line.
+      return named("DocumentType");
+    case dom::Node::Kind::ProcessingInstruction:
+      return named("ProcessingInstruction");
     case dom::Node::Kind::Element:
       break;
   }

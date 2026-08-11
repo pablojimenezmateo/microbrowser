@@ -990,7 +990,11 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "Object.getPrototypeOf(document.createElement('div'))",
                  "true");
     // `constructor` names the interface, which is how a page prints a type.
-    ExpectScript(kPage, "document.body.constructor.name", "HTMLElement");
+    // `<body>` has one of its own -- it did not until the per-tag table was
+    // completed, and `assert_true("HTMLBodyElement" in window)` is the first
+    // line of a whole class of web-platform-test.
+    ExpectScript(kPage, "document.body.constructor.name", "HTMLBodyElement");
+    ExpectScript(kPage, "document.body instanceof HTMLElement", "true");
     ExpectScript(kPage, "document.createElement('a').constructor.name", "HTMLAnchorElement");
     // HTMLHyperlinkElementUtils: youtube's searchbox does
     // `a.href = location.href; a.pathname.startsWith(...)` (TD-0026).
@@ -3000,11 +3004,14 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "const root = host.attachShadow({mode:'open'});"
                  "try { document.importNode(root, true); 'no' } catch (e) { 'threw' }",
                  "threw");
-    // adoptNode of a node already here is identity, and leaves it in place.
+    // adoptNode returns the node, and **removes it from its parent** -- which
+    // is step 2 of the DOM's "adopt", unconditional and not a consequence of
+    // the documents differing. This asserted the opposite until 2026-08-11;
+    // dom/nodes/Document-adoptNode.html asserts `y.parentNode === null` twice.
     ExpectScript(kTemplatePage,
                  "const p = document.createElement('p');"
                  "document.body.appendChild(p);"
-                 "document.adoptNode(p) === p && p.parentNode === document.body",
+                 "document.adoptNode(p) === p && p.parentNode === null",
                  "true");
     // Comments are children. Polymer indexes stamp targets by child offset,
     // so a clone that dropped them would point every listener at the wrong
@@ -3326,6 +3333,159 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage, "document.defaultView === window", "true");
     ExpectScript(kPage,
                  "document.implementation.createHTMLDocument('x').defaultView", "null");
+  });
+
+  AddTest(tests, "DomBindings/OwnerDocumentIsTheNodeDocument", [] {
+    static constexpr const char* kPage = "<html><body><div id=host></div></body></html>";
+    // A node script made and never inserted still has a node document: the DOM
+    // assigns one at creation, and no walk over the tree can derive it.
+    ExpectScript(kPage, "document.createElement('p').ownerDocument === document", "true");
+    ExpectScript(kPage, "document.createTextNode('x').ownerDocument === document", "true");
+    // And it survives detachment, which is the other half of the same fact.
+    ExpectScript(kPage,
+                 "const p = document.createElement('p');"
+                 "document.body.appendChild(p); p.remove();"
+                 "p.ownerDocument === document",
+                 "true");
+    // A document's own `ownerDocument` is null, and not itself.
+    ExpectScript(kPage, "String(document.ownerDocument)", "null");
+    // A second document is a second answer. This is the whole reason the field
+    // exists: before it, `ownerDocument` named the page's document
+    // unconditionally, so a node made in an inert document claimed to be in the
+    // page on screen.
+    ExpectScript(kPage,
+                 "const doc = document.implementation.createHTMLDocument('t');"
+                 "const p = doc.createElement('p');"
+                 "p.ownerDocument === doc && p.ownerDocument !== document",
+                 "true");
+    // Inserting adopts: the node document follows the tree it lands in.
+    ExpectScript(kPage,
+                 "const doc = document.implementation.createHTMLDocument('t');"
+                 "const p = doc.createElement('p');"
+                 "document.body.appendChild(p);"
+                 "p.ownerDocument === document",
+                 "true");
+    // `document.implementation` is per document and stable, which is what lets
+    // `doc.implementation.createDocumentType(...)` answer about `doc`.
+    ExpectScript(kPage, "document.implementation === document.implementation", "true");
+    ExpectScript(kPage,
+                 "const doc = document.implementation.createHTMLDocument('t');"
+                 "doc.implementation !== document.implementation &&"
+                 "doc.implementation.createDocumentType('html','','').ownerDocument === doc",
+                 "true");
+  });
+
+  AddTest(tests, "DomBindings/DoctypeIsANodeWithItsIdentifiers", [] {
+    static constexpr const char* kQuirky =
+        "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">"
+        "<html><body></body></html>";
+    // The tokenizer has always produced these; the tree dropped them.
+    ExpectScript(kQuirky, "document.doctype.name", "html");
+    ExpectScript(kQuirky, "document.doctype.publicId", "-//W3C//DTD HTML 4.01//EN");
+    ExpectScript(kQuirky, "document.doctype.systemId", "http://www.w3.org/TR/html4/strict.dtd");
+    // Its own interface, not Document's -- which is what it shared before.
+    ExpectScript(kQuirky, "document.doctype instanceof DocumentType", "true");
+    ExpectScript(kQuirky, "document.doctype instanceof Document", "false");
+    ExpectScript(kQuirky, "document.doctype.nodeType", "10");
+    ExpectScript(kQuirky, "String(document.doctype.nodeValue)", "null");
+    // A doctype name is neither the element rule nor the attribute one: `@` is
+    // a legal doctype name and `a b` is not.
+    static constexpr const char* kPage = "<html><body></body></html>";
+    ExpectScript(kPage, "document.implementation.createDocumentType('@','','').name", "@");
+    ExpectScript(kPage,
+                 "try { document.implementation.createDocumentType('a b','',''); 'no' }"
+                 "catch (e) { e.name }",
+                 "InvalidCharacterError");
+  });
+
+  AddTest(tests, "DomBindings/ProcessingInstructionIsANode", [] {
+    static constexpr const char* kPage = "<html><body></body></html>";
+    ExpectScript(kPage,
+                 "document.createProcessingInstruction('t', 'x').nodeType", "7");
+    // `nodeName` is the target, which is the reason it is not a Comment.
+    ExpectScript(kPage, "document.createProcessingInstruction('t', 'x').nodeName", "t");
+    ExpectScript(kPage, "document.createProcessingInstruction('t', 'x').data", "x");
+    // CharacterData, so `data` writes as well as reads.
+    ExpectScript(kPage,
+                 "const pi = document.createProcessingInstruction('t','x');"
+                 "pi.data = 'y'; pi.data",
+                 "y");
+    ExpectScript(kPage,
+                 "document.createProcessingInstruction('t','x') instanceof CharacterData",
+                 "true");
+    // The two refusals, both of which are about serializing back out.
+    ExpectScript(kPage,
+                 "try { document.createProcessingInstruction('t', 'a?>b'); 'no' }"
+                 "catch (e) { e.name }",
+                 "InvalidCharacterError");
+    // A CDATA section is XML-only, and an HTML document says so rather than
+    // making a node no serializer here could write.
+    ExpectScript(kPage,
+                 "try { document.createCDATASection('x'); 'no' } catch (e) { e.name }",
+                 "NotSupportedError");
+  });
+
+  AddTest(tests, "DomBindings/BeforeAndAfterInsertSiblings", [] {
+    static constexpr const char* kPage =
+        "<html><body><div id=host><i>a</i><b>c</b></div></body></html>";
+    ExpectScript(kPage,
+                 "const b = document.querySelector('b');"
+                 "b.before('B'); document.getElementById('host').innerHTML",
+                 "<i>a</i>B<b>c</b>");
+    ExpectScript(kPage,
+                 "const i = document.querySelector('i');"
+                 "i.after('B'); document.getElementById('host').innerHTML",
+                 "<i>a</i>B<b>c</b>");
+    // A node already in the list is *viable-skipped*: `i.after(b)` puts `b`
+    // right after `i`, which is where it already is, rather than nowhere.
+    ExpectScript(kPage,
+                 "const host = document.getElementById('host');"
+                 "host.firstChild.after(host.lastChild); host.innerHTML",
+                 "<i>a</i><b>c</b>");
+    // No parent means return, not throw -- the same rule replaceWith follows.
+    ExpectScript(kPage,
+                 "const made = document.createElement('x'); made.after('y'); "
+                 "String(made.nextSibling)",
+                 "null");
+  });
+
+  AddTest(tests, "DomBindings/ADocumentHasOneElementAndOneDoctype", [] {
+    static constexpr const char* kPage = "<html><body></body></html>";
+    // The constraints that keep `document.documentElement` a question with one
+    // answer. They were left out of the pre-insertion check until 2026-08-11.
+    ExpectScript(kPage,
+                 "const doc = document.implementation.createHTMLDocument('t');"
+                 "try { doc.appendChild(doc.createElement('x')); 'no' } catch (e) { e.name }",
+                 "HierarchyRequestError");
+    ExpectScript(kPage,
+                 "const doc = document.implementation.createHTMLDocument('t');"
+                 "try { doc.appendChild(document.implementation"
+                 ".createDocumentType('html','','')); 'no' } catch (e) { e.name }",
+                 "HierarchyRequestError");
+    // Replacing the document element is legal precisely because the element in
+    // the way is the one going out.
+    ExpectScript(kPage,
+                 "const doc = document.implementation.createHTMLDocument('t');"
+                 "const fresh = doc.createElement('x');"
+                 "doc.replaceChild(fresh, doc.documentElement);"
+                 "doc.documentElement === fresh",
+                 "true");
+    // And a node replaced by itself stays where it was rather than vanishing.
+    ExpectScript(kPage,
+                 "const host = document.body;"
+                 "const a = host.appendChild(document.createElement('a'));"
+                 "const b = host.appendChild(document.createElement('b'));"
+                 "host.replaceChild(a, a); host.insertBefore(b, b);"
+                 "[...host.children].map(e => e.tagName).join(',')",
+                 "A,B");
+    // `insertBefore` takes two arguments, and its `length` says so -- which is
+    // what web-platform-tests branches on to decide whether to pass the second.
+    ExpectScript(kPage, "Node.prototype.insertBefore.length", "2");
+    ExpectScript(kPage, "Node.prototype.remove.length", "0");
+    ExpectScript(kPage,
+                 "try { document.body.insertBefore(document.createTextNode('x')); 'no' }"
+                 "catch (e) { e.constructor.name }",
+                 "TypeError");
   });
 
   AddTest(tests, "DomBindings/ScriptSeesTheTreeItChanges", [] {

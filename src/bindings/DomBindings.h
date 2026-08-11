@@ -331,26 +331,24 @@ class DomBindings {
   static void ForEachElementIn(dom::Node& root,
                                const std::function<void(dom::Element&)>& visit);
   void ForEachElement(const std::function<void(dom::Element&)>& visit) const;
-  dom::Node* DocumentOf(const js::Value& self) const;
+  dom::Document* DocumentOf(const js::Value& self) const;
   // The one document that is *in* a window, as against one a script made with
   // `createHTMLDocument`. What `defaultView` is null for.
   const dom::Node* MainDocument() const { return document_; }
-  // A new element, owned here until something appends it. A node's owner is
-  // its parent, so one without a parent needs somewhere to live -- and the
-  // alternative, handing script a node it owns, would put a raw pointer's
-  // lifetime in a page's hands.
-  js::Value CreateElement(const std::string& tag_name);
-  // The same for a namespaced element; `CreateElement` is this with the HTML
-  // namespace filled in, so one place owns the unattached list, the CSP trust
-  // mark and the upgrade.
-  js::Value CreateElementNS(QualifiedName name);
-  js::Value CreateText(const std::string& text);
-  // A comment node. A framework uses one as a placeholder marker far more
-  // often than a page author writes one.
-  js::Value CreateComment(const std::string& data);
-  // A parentless bag of nodes. Inserting it inserts its children -- see
-  // InsertNodeBefore, which is where that happens.
-  js::Value CreateDocumentFragment();
+  // The node-creation half, all of it in NodeCreation.cpp -- see the comment
+  // at the top of that file for why `node_document` is a parameter with no
+  // default and what `AdoptUnattached` owns.
+  js::Value CreateElement(const std::string& tag_name, dom::Document& node_document);
+  js::Value CreateElementNS(QualifiedName name, dom::Document& node_document);
+  js::Value CreateText(const std::string& text, dom::Document& node_document);
+  js::Value CreateComment(const std::string& data, dom::Document& node_document);
+  js::Value CreateDocumentFragment(dom::Document& node_document);
+  js::Value AdoptUnattached(std::unique_ptr<dom::Node> node, dom::Document& node_document);
+  // The node document a node made *beside* `node` belongs to.
+  dom::Document& NodeDocumentOf(const dom::Node& node) const {
+    dom::Document* found = node.NodeDocument();
+    return found == nullptr ? *document_ : *found;
+  }
   // `document.implementation`, and `Document.prototype` -- where every
   // `document.*` method now lives rather than on the one wrapper.
   void InstallImplementation(const js::Value& document_interface);
@@ -903,7 +901,7 @@ class DomBindings {
   // bounded leak rather than an unbounded one.
   bool DetachFromTree(dom::Node& child);
   void ClearChildren(dom::Node& parent);
-  js::Value AdoptClone(std::unique_ptr<dom::Node> clone);
+  js::Value AdoptClone(std::unique_ptr<dom::Node> clone, dom::Document& node_document);
   js::Value AppendTextTo(dom::Node& parent, const std::string& text);
 
   js::Interpreter* interpreter_;

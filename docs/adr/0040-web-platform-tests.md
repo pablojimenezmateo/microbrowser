@@ -113,6 +113,23 @@ else exists and serves from its own single-threaded process. The browser's
 zero-idle-CPU, one-place-to-block invariant is not something a test harness gets
 to opt out of: a harness that polls measures its own polling.
 
+**The wall-clock deadline is testharness.js's deadline plus a grace, and the
+grace is load-bearing** (added 2026-08-11, task C4). testharness.js gives a page
+`--timeout` milliseconds and *then* reports: harness `TIMEOUT`, and every subtest
+with the status it actually reached. The runner used the same number, so it
+killed the page at the instant it began reporting and recorded "the page never
+reported" instead — a different claim, and a false one. **86 of `dom/nodes`' 327
+tests were in that state**, and one of them (`Comment-constructor.html`) had
+eleven passing subtests behind a single `async_test` waiting on an iframe.
+Five seconds of grace made 242 subtests visible in that one directory. The cost
+is bounded and paid only by a test that really does hang.
+
+The same session found the other half of it: **`--verbose` printed nothing when
+a non-OK harness status was the expected result**, so the message naming the
+first script error was computed, escaped, sent down the pipe and discarded. It
+prints now. Both are the founding bug of this ADR in a new place — the browser
+was fine and the reporting path was not.
+
 ### 5. Expectations record failures, never passes
 
 `tests/wpt/expectations/<area>.txt` lists only what does *not* pass. The default

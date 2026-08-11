@@ -263,6 +263,7 @@ void DomBindings::InstallNodeInterface(const js::Value& target) {
       case dom::Node::Kind::DocumentFragment: return Value::Number(11);
       case dom::Node::Kind::Document: return Value::Number(9);
       case dom::Node::Kind::DocumentType: return Value::Number(10);
+      case dom::Node::Kind::ProcessingInstruction: return Value::Number(7);
     }
     return Value::Number(0);
   });
@@ -276,13 +277,8 @@ void DomBindings::InstallNodeInterface(const js::Value& target) {
         if (self == nullptr) {
           return Value::Undefined();
         }
-        if (self->IsText()) {
-          return Value::String(static_cast<dom::Text*>(self)->Data());
-        }
-        if (self->GetKind() == dom::Node::Kind::Comment) {
-          return Value::String(static_cast<dom::Comment*>(self)->Data());
-        }
-        return Value::Null();
+        return IsCharacterDataNode(*self) ? Value::String(CharacterDataOf(self))
+                                         : Value::Null();
       },
       [](NativeCall& call) {
         DomBindings* owner = OwnerOf(call);
@@ -291,7 +287,7 @@ void DomBindings::InstallNodeInterface(const js::Value& target) {
           return Value::Undefined();
         }
         const std::string value = js::ToString(Argument(call.arguments, 0));
-        if (self->IsText() || self->GetKind() == dom::Node::Kind::Comment) {
+        if (IsCharacterDataNode(*self)) {
           owner->SetCharacterData(self, value);
         }
         return Value::Undefined();
@@ -726,10 +722,10 @@ void DomBindings::ForEachElement(const std::function<void(dom::Element&)>& visit
 // Deliberately not "any node": these are document methods, and
 // `Document.prototype.getElementById.call(someDiv, 'x')` is a page asking for
 // something the interface does not offer.
-dom::Node* DomBindings::DocumentOf(const js::Value& self) const {
+dom::Document* DomBindings::DocumentOf(const js::Value& self) const {
   dom::Node* receiver = NodeOf(self);
   if (receiver != nullptr && receiver->GetKind() == dom::Node::Kind::Document) {
-    return receiver;
+    return static_cast<dom::Document*>(receiver);
   }
   return document_;
 }

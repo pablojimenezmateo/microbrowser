@@ -7,6 +7,15 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
+**Partly re-measured again, 2026-08-11 (C4, both halves).** The 26 rows for `dom/`,
+`custom-elements/`, `shadow-dom/` and `domparsing/` are from that run, merged in by hand for
+the reason the next paragraph gives. **Read the counts before the percentages.** The runner's
+per-test timeout used to be the same number as testharness.js's own, so a page that timed out was
+killed at the instant it began reporting and its subtests were never counted at all; with five
+seconds of grace they are. Every denominator in those rows grew -- `dom/nodes` 5177 -> 5451,
+`shadow-dom/declarative` 7647 -> 7785, `domparsing` 245 -> 426 -- so a *rate* can fall while
+nothing regressed. `domparsing` reads 31.4% -> 18.1% with the same 77 subtests passing.
+
 **Partly re-measured, 2026-08-10 (C1 + C2, then C3).** The per-area rows for `dom/`, `FileAPI/`,
 `xhr/`, `domparsing/`, `custom-elements/`, `shadow-dom/` and `IndexedDB/` are from the C1+C2 run;
 every `dom/` row was re-measured again by the C3 run (argument conversion, `DOMTokenList`,
@@ -142,24 +151,24 @@ it is a page that never reported, which almost always means something threw befo
 | `css/cssom` | 190 | 149 | 5 | 36 | 0 | 1435 | 708 | 49.3 |
 | `css/cssom-view` | 225 | 187 | 0 | 38 | 0 | 1349 | 365 | 27.1 |
 | `css/selectors` | 277 | 210 | 10 | 57 | 0 | 1353 | 334 | 24.7 |
-| `custom-elements` | 44 | 25 | 0 | 19 | 0 | 549 | 108 | 19.7 |
+| `custom-elements` | 44 | 25 | 0 | 19 | 0 | 983 | 196 | 19.9 |
 | `custom-elements/form-associated` | 18 | 14 | 3 | 1 | 0 | 103 | 1 | 1.0 |
-| `custom-elements/htmlconstructor` | 2 | 0 | 0 | 2 | 0 | 0 | 0 | 0.0 |
+| `custom-elements/htmlconstructor` | 2 | 0 | 0 | 2 | 0 | 20 | 0 | 0.0 |
 | `custom-elements/parser` | 11 | 8 | 0 | 3 | 0 | 20 | 7 | 35.0 |
-| `custom-elements/reactions` | 57 | 26 | 0 | 31 | 0 | 372 | 78 | 21.0 |
-| `custom-elements/registries` | 40 | 28 | 2 | 10 | 0 | 2207 | 225 | 10.2 |
+| `custom-elements/reactions` | 57 | 45 | 0 | 12 | 0 | 514 | 80 | 15.6 |
+| `custom-elements/registries` | 40 | 28 | 2 | 10 | 0 | 2233 | 225 | 10.1 |
 | `custom-elements/state` | 5 | 4 | 1 | 0 | 0 | 28 | 1 | 3.6 |
-| `custom-elements/upgrading` | 7 | 2 | 0 | 5 | 0 | 7 | 1 | 14.3 |
+| `custom-elements/upgrading` | 7 | 2 | 0 | 5 | 0 | 29 | 1 | 3.4 |
 | `dom` | 10 | 10 | 0 | 0 | 0 | 125 | 66 | 52.8 |
 | `dom/abort` | 10 | 6 | 0 | 4 | 0 | 37 | 10 | 27.0 |
 | `dom/collections` | 10 | 10 | 0 | 0 | 0 | 53 | 7 | 13.2 |
-| `dom/events` | 178 | 85 | 1 | 92 | 0 | 540 | 157 | 29.1 |
+| `dom/events` | 178 | 86 | 0 | 92 | 0 | 677 | 183 | 27.0 |
 | `dom/lists` | 5 | 5 | 0 | 0 | 0 | 189 | 144 | 76.2 |
-| `dom/nodes` | 327 | 233 | 7 | 86 | 1 | 5177 | 3036 | 58.6 |
-| `dom/observable` | 52 | 25 | 0 | 27 | 0 | 242 | 0 | 0.0 |
-| `dom/ranges` | 57 | 32 | 24 | 1 | 0 | 242 | 21 | 8.7 |
-| `dom/traversal` | 18 | 14 | 3 | 1 | 0 | 55 | 30 | 54.5 |
-| `domparsing` | 34 | 21 | 3 | 10 | 0 | 245 | 77 | 31.4 |
+| `dom/nodes` | 327 | 235 | 6 | 85 | 1 | 5451 | 3389 | 62.2 |
+| `dom/observable` | 52 | 25 | 0 | 27 | 0 | 251 | 0 | 0.0 |
+| `dom/ranges` | 57 | 33 | 24 | 0 | 0 | 259 | 21 | 8.1 |
+| `dom/traversal` | 18 | 14 | 3 | 1 | 0 | 56 | 30 | 53.6 |
+| `domparsing` | 34 | 21 | 3 | 10 | 0 | 426 | 77 | 18.1 |
 | `domparsing/tentative` | 26 | 17 | 0 | 9 | 0 | 905 | 28 | 3.1 |
 | `domxpath` | 32 | 24 | 0 | 8 | 0 | 87 | 1 | 1.1 |
 | `encoding` | 74 | 40 | 0 | 34 | 0 | 11801 | 68 | 0.6 |
@@ -247,13 +256,13 @@ it is a page that never reported, which almost always means something threw befo
 | `selection/contenteditable` | 10 | 6 | 0 | 4 | 0 | 61 | 0 | 0.0 |
 | `selection/shadow-dom` | 12 | 8 | 0 | 4 | 0 | 51 | 1 | 2.0 |
 | `selection/textcontrols` | 7 | 3 | 0 | 4 | 0 | 3 | 0 | 0.0 |
-| `shadow-dom` | 66 | 58 | 0 | 8 | 0 | 728 | 73 | 10.0 |
-| `shadow-dom/declarative` | 56 | 40 | 4 | 12 | 0 | 7647 | 5 | 0.1 |
+| `shadow-dom` | 66 | 58 | 0 | 8 | 0 | 739 | 84 | 11.4 |
+| `shadow-dom/declarative` | 56 | 40 | 4 | 12 | 0 | 7785 | 112 | 1.4 |
 | `shadow-dom/focus` | 37 | 31 | 1 | 5 | 0 | 78 | 5 | 6.4 |
 | `shadow-dom/focus-navigation` | 45 | 45 | 0 | 0 | 0 | 89 | 2 | 2.2 |
-| `shadow-dom/leaktests` | 4 | 3 | 0 | 1 | 0 | 15 | 7 | 46.7 |
+| `shadow-dom/leaktests` | 4 | 3 | 0 | 1 | 0 | 16 | 7 | 43.8 |
 | `shadow-dom/reference-target` | 15 | 14 | 0 | 1 | 0 | 768 | 0 | 0.0 |
-| `shadow-dom/untriaged` | 54 | 52 | 0 | 2 | 0 | 248 | 157 | 63.3 |
+| `shadow-dom/untriaged` | 54 | 52 | 0 | 2 | 0 | 251 | 180 | 71.7 |
 | `storage` | 28 | 11 | 0 | 17 | 0 | 23 | 0 | 0.0 |
 | `storage/buckets` | 10 | 8 | 0 | 2 | 0 | 48 | 0 | 0.0 |
 | `streams` | 3 | 2 | 0 | 1 | 0 | 3 | 0 | 0.0 |

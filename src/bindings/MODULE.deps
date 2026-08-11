@@ -57,6 +57,12 @@ extern:
 # true reading of this number -- `DomBindings` has been the missing module for
 # four raises now, and the class-budget comment below says the same. What is
 # owed is a split of the *class*, not another twenty lines of headroom.
+# **Not raised for task C4's node-document half, and that is the point.** The
+# node document made TreeMutation.cpp 973 lines, three over. Rather than a sixth
+# raise, the file was split along the seam it already had: NodeCreation.cpp is
+# everything that *makes* a node and owns one before a parent does, and
+# TreeMutation.cpp is moving nodes that already exist. 669 and 333. The note
+# above is what said to do that, and it is still owed for the class.
 max_tu_lines: 970
 
 # A wrapper is a JavaScript object holding a raw `dom::Node*`, which is only

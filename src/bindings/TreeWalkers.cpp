@@ -66,6 +66,8 @@ std::uint32_t ShowBitFor(const dom::Node& node) {
       return 0x200;
     case dom::Node::Kind::DocumentFragment:
       return 0x400;
+    case dom::Node::Kind::ProcessingInstruction:
+      return 0x40;
   }
   return 0;
 }

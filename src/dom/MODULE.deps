@@ -31,12 +31,23 @@ max_tu_lines: 800
 # and there for the same reason: the document's focus is a raw Element* and
 # *missing a call* is the failure mode. Script removing the focused element
 # would otherwise leave the next key routed at a node no longer in the tree.
-# The twenty-second public method is OwnerDocument, and it is a deduplication
-# rather than a widening: NoteMutation and ReleaseFocusWithin both walked to the
-# root and both had to know what a Document is, and the selector matcher needs
-# the same walk to answer `:focus` from the one copy of focus. Three copies of a
-# loop is how one of them ends up stopping at the wrong node.
-budget: Node     header_lines=140 public_methods=22 members=3
+# The twenty-second public method is ConnectedDocument, and it is a
+# deduplication rather than a widening: NoteMutation and ReleaseFocusWithin both
+# walked to the root and both had to know what a Document is, and the selector
+# matcher needs the same walk to answer `:focus` from the one copy of focus.
+# Three copies of a loop is how one of them ends up stopping at the wrong node.
+# It was called OwnerDocument until 2026-08-11, and the rename is the point: it
+# is not what a page calls `ownerDocument`, and reading one for the other is a
+# node claiming to be in a document it was only *made* by.
+# The third member is the *node document* -- what `ownerDocument` answers.
+# Stored rather than walked, and the two are different facts: the walk answers
+# "which rendered tree is this in", which is null for a node script made and has
+# not inserted, while the DOM assigns a node document at *creation* and it
+# survives detachment. No walk can derive it, which is why this is the one
+# pointer the module's own comment argued against and now carries. It costs
+# 8 bytes on every node; what it buys is `document.createElement` on an inert
+# document answering that document rather than the page on screen.
+budget: Node     header_lines=185 public_methods=25 members=4
 # The third member is the element's dynamic state: a bitmask of the states a
 # selector can match on that the tree does not otherwise record. ADR 0016 §2
 # decided it belongs here rather than in the matcher, and the enum's comment in
@@ -74,7 +85,14 @@ budget: NamespaceRef header_lines=55 public_methods=13 members=1
 budget: Attribute    header_lines=30 public_methods=2  members=4
 budget: Text         header_lines=25 public_methods=8  members=1
 budget: Comment      header_lines=25 public_methods=6  members=1
-budget: DocumentType header_lines=25 public_methods=6  members=1
+# Three members: the name plus the public and system ids. Kept rather than
+# dropped because they are what a doctype *is* to `createDocumentType`, and
+# because they are the input to the quirks-mode decision the tokenizer already
+# makes.
+budget: DocumentType header_lines=40 public_methods=8  members=3
+# A target and its data. Two members and not one: `nodeName` on one of these is
+# the target, which is the whole reason it is not a Comment.
+budget: ProcessingInstruction header_lines=40 public_methods=8 members=2
 # The second member is the mutation version: how many times anything in this
 # tree has changed. A document-level counter rather than a per-node bit, because
 # its readers are caches of the whole tree -- the box tree today, ADR 0016's

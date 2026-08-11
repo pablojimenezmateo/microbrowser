@@ -31,6 +31,16 @@ inline constexpr const char* kBlobMarkerSlot = "#isBlob";
 // than a C++ member, because the collector can see a property and cannot see a
 // `js::Value` in a field -- the same rule the wrapper cache follows.
 inline constexpr const char* kReadyStateSlot = "#readyState";
+// The document a `DOMImplementation` belongs to. One implementation object per
+// document, because `doc.implementation.createDocumentType(...)` must answer a
+// node whose `ownerDocument` is `doc` -- and a single shared object has no way
+// to know which document was asked. Deliberately not kNodeSlot: an object that
+// answered NodeOf would be reachable by every Node method a page cared to
+// `.call()` on it.
+inline constexpr const char* kImplementationDocumentSlot = "#implDocument";
+// Where a document wrapper keeps the one DOMImplementation it hands out, so
+// that `document.implementation === document.implementation`.
+inline constexpr const char* kImplementationSlot = "#implementation";
 inline constexpr const char* kCSSStyleSheetMarkerSlot = "#isCSSStyleSheet";
 // Where an element's wrapper keeps its one `DOMTokenList`. The list is live,
 // so this is identity rather than a cache: `el.classList === el.classList` is
@@ -268,6 +278,53 @@ std::string NodeNameOf(const dom::Node& node);
 // youtube.com painted a white page with two upgraded hosts and no shadow
 // trees. `cloneNode` and `importNode` must describe the same tree.
 std::unique_ptr<dom::Node> CloneDomNode(const dom::Node& node, bool deep);
+
+// The three node kinds the DOM files under CharacterData -- Text, Comment and
+// ProcessingInstruction -- and the data of one.
+//
+// Here rather than repeated at each reader because the failure mode is silent:
+// a kind missing from one copy of the condition is a node whose `data` reads
+// and will not write, or whose `nodeValue` is null when the DOM says it is a
+// string.
+bool IsCharacterDataNode(const dom::Node& node);
+
+// WebIDL's `length` for a native method: the number of arguments before the
+// first optional or variadic one.
+//
+// Native functions here have no `length` at all by default, and that is
+// observable in a way that bites: `pre-insertion-validation-hierarchy.js`
+// branches on `parent[method].length > 1` to decide whether to pass a second
+// argument, so a missing `length` sent every one of its checks down the
+// one-argument path and made six tests fail with the *arity* TypeError instead
+// of the HierarchyRequestError they were testing for. `ChildNode-remove.js`
+// asserts `node.remove.length === 0` outright.
+//
+// Set where the number is part of the contract rather than everywhere, and the
+// general gap -- every native binding should carry its IDL arity -- is written
+// down here because this is where the next person will look.
+inline void SetFunctionLength(const js::Value& function, double length) {
+  if (function.IsObject()) {
+    function.object->Set("length", js::Value::Number(length));
+  }
+}
+
+// The node after `node` among its parent's children, or null. Null too for a
+// node with no parent, which is what makes it safe to use as an insertion
+// reference without a second check.
+inline dom::Node* NextSiblingOf(const dom::Node& node) {
+  const dom::Node* parent = node.Parent();
+  if (parent == nullptr) {
+    return nullptr;
+  }
+  const std::vector<std::unique_ptr<dom::Node>>& children = parent->Children();
+  for (std::size_t i = 0; i + 1 < children.size(); ++i) {
+    if (children[i].get() == &node) {
+      return children[i + 1].get();
+    }
+  }
+  return nullptr;
+}
+std::string CharacterDataOf(const dom::Node* node);
 
 // Polymer / Lit binding tokens left in attribute values until effects replace
 // them. Kept visible to getAttribute/clone so annotation parsing can see them;

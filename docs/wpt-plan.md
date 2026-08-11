@@ -296,15 +296,29 @@ Known causes already visible from 150 tests:
 C1 and C2 are the two that unblock the rest of the suite and should be done
 first, by one agent, in that order. C4–C10 are parallel after them.
 
-**C1, C2 and C3 are done, and C4's namespace half landed on 2026-08-11. `dom/` is at 52.1%,
-from 11.6% at the baseline.** `dom::Element` and `dom::Attribute` carry a namespace and a prefix
-length now, so `tagName`, `localName`, `prefix` and `namespaceURI` are four answers rather than
-two guesses at one field — `dom/nodes` 49.4% → 58.6%, `dom/lists` 67.3% → 76.2%,
-`custom-elements/parser` 10.0% → 35.0%. **C4 is still open**, and what is left of it is three
-things the task title does not name: the *node document* (`ownerDocument` on a node script made,
-which the DOM assigns at creation and which no walk can derive), `Attr` as a real node, and XML
-documents — the last of which is J1 and accounts for 390 subtests of the two `createElement*`
-files on its own. `docs/wpt-tasks.json` has the detail.
+**C1, C2 and C3 are done, and C4 landed in two halves on 2026-08-11. `dom/` is at 54.2%
+(3850 of 7098 subtests), from 11.6% at the baseline.** The namespace half gave `dom::Element`
+and `dom::Attribute` a namespace and a prefix length, so `tagName`, `localName`, `prefix` and
+`namespaceURI` are four answers rather than two guesses at one field. The second half gave every node a **node document**
+— stored, because the DOM assigns one at *creation* and it survives detachment, so no walk over
+the tree derives it — and with it the node types this tree did not have (`DocumentType` with its
+identifiers, `ProcessingInstruction`), the ChildNode insertions (`before`, `after`), the document
+mutation constraints, and the complete per-tag interface table. `dom/nodes` 49.4% → 58.6% →
+**62.2%** (3389 of 5451).
+
+**Two of that session's findings are about the instrument and generalise past M-C.** The runner's
+per-test timeout was the *same number* as testharness.js's own, so a page that timed out was
+killed at the instant it began reporting: 86 of `dom/nodes`' 327 tests recorded "the page never
+reported" and lost every subtest they had already run. A five-second grace made 242 of them
+visible in that one directory. And **native bindings carry no `length`**, which web-platform-tests
+branches on — `pre-insertion-validation-hierarchy.js` decides whether to pass a second argument by
+reading `parent[method].length > 1`. Both are the same shape as ADR 0040's own founding bug: the
+browser was fine and the reporting path was not.
+
+**C4 is still open.** What is left is `Attr` as a real node, and XML documents — the latter is J1
+and accounts for 488 subtests of the two `createElement*` files on its own.
+`docs/wpt-tasks.json` has the detail, including the 136-subtest file in `dom/nodes` that is a WICG
+proposal rather than a gap.
 
 **C1, C2 and C3's lesson, unchanged:**
 C3's lesson is worth reading before starting C4–C10, because it applies to

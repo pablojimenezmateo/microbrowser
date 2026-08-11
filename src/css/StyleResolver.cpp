@@ -594,7 +594,7 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
     cache_generation_ = generation_;
   }
 
-  const dom::Document* document = element.OwnerDocument();
+  const dom::Document* document = element.ConnectedDocument();
   const std::uint64_t structure =
       document != nullptr ? document->StructureVersion() : 0;
   const std::uint32_t attr = element.AttrVersion();

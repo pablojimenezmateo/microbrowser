@@ -491,6 +491,7 @@ microbrowser_module(bindings
     src/bindings/TrustedScript.cpp
     src/bindings/TrustedScriptHooks.cpp
     src/bindings/TokenList.cpp
+    src/bindings/NodeCreation.cpp
     src/bindings/TreeMutation.cpp
     src/bindings/TreeWalkers.cpp
     src/bindings/MessageChannels.cpp

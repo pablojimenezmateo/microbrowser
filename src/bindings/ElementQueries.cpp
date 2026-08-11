@@ -119,6 +119,7 @@ const dom::Element* NamespaceLookupRoot(const dom::Node* node) {
       return nullptr;
     case dom::Node::Kind::Text:
     case dom::Node::Kind::Comment:
+    case dom::Node::Kind::ProcessingInstruction:
       break;
   }
   for (const dom::Node* at = node->Parent(); at != nullptr; at = at->Parent()) {
@@ -204,20 +205,33 @@ void DomBindings::InstallNodeQueries(const js::Value& target) {
     dom::Node* self = NodeOf(call.self);
     return Value::Bool(self != nullptr && !self->Children().empty());
   });
+  // The *node document*, which is stored on the node rather than derived from
+  // where it happens to be: a node script created and never inserted has one,
+  // and so does a node it removed. Null for a Document, which is the DOM's own
+  // answer and the one thing this is not derived from the field.
   accessor("ownerDocument", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
-    return owner == nullptr ? Value::Null() : owner->WrapperFor(owner->document_);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr ||
+        self->GetKind() == dom::Node::Kind::Document) {
+      return Value::Null();
+    }
+    return owner->WrapperFor(self->NodeDocument());
   });
   // Whether the node is in the document rather than floating: script that made
   // an element and has not appended it yet reads false, which is what a
-  // framework checks before it does layout-dependent work. OwnerDocument
+  // framework checks before it does layout-dependent work. ConnectedDocument
   // crosses shadow roots; parent-walking does not, and Polymer gates enable
   // on `isConnected` inside stamped trees.
   accessor("isConnected", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
     dom::Node* self = NodeOf(call.self);
+    // "Its shadow-including root is a document", and *any* document -- a node
+    // inside `createHTMLDocument()`'s tree is connected too. Comparing against
+    // the page's own document was the same one-document assumption
+    // `ownerDocument` above carried.
     return Value::Bool(owner != nullptr && self != nullptr &&
-                       self->OwnerDocument() == owner->document_);
+                       self->ConnectedDocument() != nullptr);
   });
 
   // The three namespace lookups. They are Node methods rather than Element

@@ -12,9 +12,6 @@ FAIL=document.caretPositionFromPoint() should return a CaretPosition at the spec
 FAIL=document.caretPositionFromPoint() should return a CaretPosition at the specified location pointing to the outer shadow tree when the point is in an inner shadow tree and the outer shadow tree is specified as an argument
 FAIL=document.caretPositionFromPoint() should return a CaretPosition at the specified location pointing to the shadow host's parent when the shadow tree is not specified as an argument
 FAIL=document.caretPositionFromPoint() should return a CaretPosition at the specified location when the non-intersecting shadow tree is specified as an argument
-[shadow-dom/Document-prototype-adoptNode.html]
-FAIL=adoptNode on a shadow root in closed mode must throw a HierarchyRequestError
-FAIL=adoptNode on a shadow root in open mode must throw a HierarchyRequestError
 [shadow-dom/Document-prototype-currentScript.html]
 harness=TIMEOUT
 [shadow-dom/Document-prototype-importNode.html]
@@ -92,22 +89,15 @@ FAIL=composedPath() must return an empty array when the event has not been dispa
 FAIL=composedPath() must return an empty array when the event is no longer dispatched
 [shadow-dom/HTMLSlotElement-interface.html]
 FAIL="name" attribute on HTMLSlotElement must reflect "name" attribute
-FAIL=HTMLSlotElement must be defined on window
-FAIL=assignedNodes() must return the list of assigned nodes when none of the assigned nodes themselves are slots
 FAIL=assignedNodes() must update when a default slot is introduced dynamically by a slot rename
 FAIL=assignedNodes() must update when slot and name attributes are modified
 FAIL=assignedNodes() must update when slot elements are inserted or removed
-FAIL=assignedNodes() on a HTMLSlotElement must return an empty array when the slot element is not in a tree or in a document tree
-FAIL=assignedNodes({"flattened":false}) must return the list of assigned nodes when none of the assigned nodes themselves are slots
 FAIL=assignedNodes({"flattened":false}) must update when a default slot is introduced dynamically by a slot rename
 FAIL=assignedNodes({"flattened":false}) must update when slot and name attributes are modified
 FAIL=assignedNodes({"flattened":false}) must update when slot elements are inserted or removed
-FAIL=assignedNodes({"flattened":false}) on a HTMLSlotElement must return an empty array when the slot element is not in a tree or in a document tree
-FAIL=assignedNodes({"flattened":true}) must return the list of assigned nodes when none of the assigned nodes themselves are slots
 FAIL=assignedNodes({"flattened":true}) must update when a default slot is introduced dynamically by a slot rename
 FAIL=assignedNodes({"flattened":true}) must update when slot and name attributes are modified
 FAIL=assignedNodes({"flattened":true}) must update when slot elements are inserted or removed
-FAIL=assignedNodes({"flattened":true}) on a HTMLSlotElement must return an empty array when the slot element is not in a tree or in a document tree
 FAIL=assignedNodes({flatten: true}) must return the distributed nodes, and assignedNodes() and assignedNodes({flatten: false}) must returned the assigned nodes
 [shadow-dom/HighlightRegistry-highlightsFromPoint.html]
 FAIL=CSS.highlights.highlightsFromPoint() doesn't return Highlights that are not painted at the given coordinates even when they fall inside the Highlights' ranges
@@ -8233,7 +8223,7 @@ FAIL=Focus should cover assigned elements of an assigned slot, as well as elemen
 [shadow-dom/focus-navigation/focus-navigation-slot-shadow-in-slot.html]
 FAIL=Focus should cover assigned elements of an assigned slot, as well as elements that are directly assigned to a slot.
 [shadow-dom/focus-navigation/focus-navigation-slot-with-tabindex.html]
-FAIL=Slots tabindex should be considred in focus navigation.
+harness=TIMEOUT
 [shadow-dom/focus-navigation/focus-navigation-slots-in-slot.html]
 FAIL=Focus should cover assigned nodes of slot, especially for nested slots in slot scope.
 [shadow-dom/focus-navigation/focus-navigation-slots.html]
@@ -8275,9 +8265,7 @@ FAIL=Focus navigation should skip over other menuitems in menubars.
 [shadow-dom/focus-navigation/reading-flow/tentative/carousel-grid-order.html]
 FAIL=Grid items in carousel should follow grid-order reading flow
 [shadow-dom/focus-navigation/reading-flow/tentative/flex-flow.html]
-FAIL=Flex items in flexbox should follow flex-flow reading flow
-FAIL=Flex items in rtl flexbox should follow flex-flow reading flow
-FAIL=Flex items in vertical-lr flexbox should follow flex-flow reading flow
+harness=TIMEOUT
 [shadow-dom/focus-navigation/reading-flow/tentative/flex-visual-order.html]
 FAIL=Flex items in flexbox should follow flex-visual reading flow
 FAIL=Flex items in row-reverse and vertical-lr flexbox should follow flex-visual reading flow
@@ -8335,11 +8323,7 @@ FAIL=Grid items. Focus should be in DOM tabindexed-order.
 [shadow-dom/focus-navigation/reading-flow/tentative/source-order-invalid.html]
 FAIL=Inline elements. Focus should be in DOM tabindexed-order.
 [shadow-dom/focus-navigation/reading-flow/tentative/source-order-valid.html]
-FAIL=Block elements. Focus should be in DOM tabindexed-order, but reading-order takes effect.
-FAIL=Block inline elements. Focus should be in DOM tabindexed-order, but reading-order takes effect.
-FAIL=Flex elements. Focus should be in DOM tabindexed-order, but reading-order takes effect.
-FAIL=Flow root elements. Focus should be in DOM tabindexed-order, but reading-order takes effect.
-FAIL=Grid elements. Focus should be in DOM tabindexed-order, but reading-order takes effect.
+harness=TIMEOUT
 [shadow-dom/focus-navigation/tentative/focus-navigation-scroller-interactive-child.html]
 FAIL=While focusing a keyboard-focusable scroller, adding interactive content should not cancel focusability
 [shadow-dom/focus-navigation/tentative/focus-scroller-layout-update.html]
@@ -9537,30 +9521,6 @@ FAIL=Elements in a shadow tree should not be accessible from owner document's ge
 FAIL=Elements in a shadow tree should be accessible via shadow root's getElementById() DOM tree accessor.
 [shadow-dom/untriaged/shadow-trees/upper-boundary-encapsulation/ownerdocument-001.html]
 FAIL=All children nodes of a shadow root get a valid ownerDocument when added to a shadow tree.
-FAIL=Elements added to a shadow tree should automatically get a valid ownerDocument.
-FAIL=ownerDocument property of a node should remain the same, even if its child is adopted into a shadow tree.
-FAIL=ownerDocument property of a shadow root should be the document of the shadow host, regardless of the location of the shadow host.
-FAIL=ownerDocument property of an element in a shadow tree should be the document of the shadow host, even if the host element is created from another document.
-FAIL=ownerDocument property of elements in a shadow tree should match the document of the shadow host, regardless of the element's location in a shadow tree.
-[shadow-dom/untriaged/shadow-trees/upper-boundary-encapsulation/ownerdocument-002.html]
-FAIL=ownerDocument property of any elements in a shadow tree should match the document of the shadow host, when the host is a "article" element.
-FAIL=ownerDocument property of any elements in a shadow tree should match the document of the shadow host, when the host is a "aside" element.
-FAIL=ownerDocument property of any elements in a shadow tree should match the document of the shadow host, when the host is a "blockquote" element.
-FAIL=ownerDocument property of any elements in a shadow tree should match the document of the shadow host, when the host is a "body" element.
-FAIL=ownerDocument property of any elements in a shadow tree should match the document of the shadow host, when the host is a "div" element.
-FAIL=ownerDocument property of any elements in a shadow tree should match the document of the shadow host, when the host is a "footer" element.
-FAIL=ownerDocument property of any elements in a shadow tree should match the document of the shadow host, when the host is a "h1" element.
-FAIL=ownerDocument property of any elements in a shadow tree should match the document of the shadow host, when the host is a "h2" element.
-FAIL=ownerDocument property of any elements in a shadow tree should match the document of the shadow host, when the host is a "h3" element.
-FAIL=ownerDocument property of any elements in a shadow tree should match the document of the shadow host, when the host is a "h4" element.
-FAIL=ownerDocument property of any elements in a shadow tree should match the document of the shadow host, when the host is a "h5" element.
-FAIL=ownerDocument property of any elements in a shadow tree should match the document of the shadow host, when the host is a "h6" element.
-FAIL=ownerDocument property of any elements in a shadow tree should match the document of the shadow host, when the host is a "header" element.
-FAIL=ownerDocument property of any elements in a shadow tree should match the document of the shadow host, when the host is a "main" element.
-FAIL=ownerDocument property of any elements in a shadow tree should match the document of the shadow host, when the host is a "nav" element.
-FAIL=ownerDocument property of any elements in a shadow tree should match the document of the shadow host, when the host is a "p" element.
-FAIL=ownerDocument property of any elements in a shadow tree should match the document of the shadow host, when the host is a "section" element.
-FAIL=ownerDocument property of any elements in a shadow tree should match the document of the shadow host, when the host is a "span" element.
 [shadow-dom/untriaged/shadow-trees/upper-boundary-encapsulation/test-005.html]
 FAIL=A_04_01_05_T01
 [shadow-dom/untriaged/shadow-trees/upper-boundary-encapsulation/test-007.html]

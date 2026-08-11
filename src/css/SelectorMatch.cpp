@@ -258,7 +258,7 @@ std::int64_t SiblingIndex(const dom::Element& element, const NthPattern& nth) {
 // Null for `element`'s document is not an error: a subtree a script has built
 // and not inserted has no document, and nothing in it has focus.
 bool FocusStateMatches(const dom::Element& element, dom::ElementState state) {
-  const dom::Document* document = element.OwnerDocument();
+  const dom::Document* document = element.ConnectedDocument();
   if (document == nullptr) {
     return false;
   }

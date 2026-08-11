@@ -725,6 +725,15 @@ int main(int argc, char** argv) {
       std::printf("%-9s %s\n",
                   comparison.outcome == Outcome::Unexpected ? "UNEXPECTED" : "ok",
                   test.url_path.c_str());
+      // A harness status that is not OK subsumes the subtests, so the only
+      // thing that says *why* is its message -- and an expected TIMEOUT prints
+      // no comparison lines at all. Without this, "the page never reported;
+      // first script error: ..." is computed, escaped, sent down the pipe and
+      // thrown away, and a session diagnosing 86 timeouts has to rebuild the
+      // runner to see it.
+      if (report.harness != "OK" && !report.harness_message.empty()) {
+        std::printf("  %s: %s\n", report.harness.c_str(), report.harness_message.c_str());
+      }
       for (const std::string& line : comparison.lines) {
         std::printf("%s\n", line.c_str());
       }
@@ -771,10 +780,25 @@ int main(int argc, char** argv) {
         return 2;
       }
       // The page's own harness deadline is what should fire, so the wall-clock
-      // budget moves with the multiplier the page was given.
+      // budget moves with the multiplier the page was given -- and it is that
+      // deadline *plus a grace*, because the two are otherwise the same number
+      // racing itself.
+      //
+      // testharness.js gives up after exactly `--timeout` milliseconds and then
+      // reports: harness TIMEOUT, and every subtest with the status it actually
+      // reached. Killing the page at the same instant threw all of that away and
+      // recorded "the page never reported" instead -- which is a different
+      // claim, and a false one. 86 of dom/nodes' 327 tests were in that state,
+      // and one of them (Comment-constructor) had eleven passing subtests behind
+      // a single async_test waiting on an iframe.
+      //
+      // The cost is bounded and paid only by a test that really does hang: the
+      // grace is a few seconds on top of a deadline that already elapsed.
+      constexpr int kReportGraceMs = 5000;
       const int budget_ms =
           (test.long_timeout ? options.long_timeout_ms : options.timeout_ms) *
-          options.timeout_multiplier;
+              options.timeout_multiplier +
+          kReportGraceMs;
       const pid_t pid = ::fork();
       if (pid == 0) {
         ::close(pipes[0]);

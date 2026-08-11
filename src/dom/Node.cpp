@@ -57,7 +57,35 @@ bool IsVoidElement(std::string_view tag_name) {
   return std::find(kVoidElements.begin(), kVoidElements.end(), tag_name) != kVoidElements.end();
 }
 
-Document* Node::OwnerDocument() const {
+void Node::SetNodeDocument(Document* document) {
+  if (node_document_ == document) {
+    // The common case, and the reason adoption is not a cost on every
+    // insertion: a subtree built by `document.createElement` and appended into
+    // the same document stops here rather than being walked.
+    return;
+  }
+  node_document_ = document;
+  for (const std::unique_ptr<Node>& child : children_) {
+    child->SetNodeDocument(document);
+  }
+  // A shadow root and a template's contents are *not* children -- deliberately,
+  // so that nothing which walks the document reaches them -- and a node inside
+  // either still belongs to the host's document. A cast here rather than a
+  // virtual, because one more vtable entry on every node in the tree buys one
+  // branch on the two elements in a page that have either.
+  if (kind_ != Kind::Element) {
+    return;
+  }
+  const Element& element = static_cast<const Element&>(*this);
+  if (DocumentFragment* content = element.Content()) {
+    content->SetNodeDocument(document);
+  }
+  if (DocumentFragment* shadow = element.ShadowRoot()) {
+    shadow->SetNodeDocument(document);
+  }
+}
+
+Document* Node::ConnectedDocument() const {
   const Node* node = this;
   while (true) {
     if (node->parent_ != nullptr) {
@@ -89,19 +117,19 @@ Document* Node::OwnerDocument() const {
 }
 
 void Node::NoteMutation() {
-  if (Document* document = OwnerDocument(); document != nullptr) {
+  if (Document* document = ConnectedDocument(); document != nullptr) {
     document->NoteTreeMutation();
   }
 }
 
 void Node::NoteStructureChange() {
-  if (Document* document = OwnerDocument(); document != nullptr) {
+  if (Document* document = ConnectedDocument(); document != nullptr) {
     document->NoteStructureMutation();
   }
 }
 
 void Node::ReleaseFocusWithin(const Node& removed) {
-  Document* document = OwnerDocument();
+  Document* document = ConnectedDocument();
   if (document == nullptr) {
     return;
   }
@@ -119,6 +147,10 @@ void Node::ReleaseFocusWithin(const Node& removed) {
 
 Node& Node::Append(std::unique_ptr<Node> child) {
   child->parent_ = this;
+  // The DOM's "adopt": a node inserted into a tree takes that tree's node
+  // document, and so does everything under it. A no-op when they already agree,
+  // which is every insertion the parser makes after the first.
+  child->SetNodeDocument(node_document_);
   children_.push_back(std::move(child));
   AddPerformanceCounter(PerfCounterId::DomNodesCreated);
   NoteStructureChange();
@@ -145,6 +177,7 @@ Node& Node::InsertBefore(std::unique_ptr<Node> child, const Node* reference) {
     return Append(std::move(child));
   }
   child->parent_ = this;
+  child->SetNodeDocument(node_document_);
   AddPerformanceCounter(PerfCounterId::DomNodesCreated);
   Node& inserted = **children_.insert(found, std::move(child));
   NoteStructureChange();
@@ -366,6 +399,10 @@ DocumentFragment* Element::AttachShadow(bool open) {
   if (shadow_ == nullptr) {
     shadow_ = std::make_unique<DocumentFragment>();
     shadow_->SetHost(this);
+    // A shadow root's node document is its host's, and the host is usually
+    // already in a tree when `attachShadow` is called -- so this cannot wait
+    // for an insertion that has already happened.
+    shadow_->SetNodeDocument(NodeDocument());
     shadow_open_ = open;
     NoteStructureChange();
   }
@@ -422,6 +459,12 @@ std::string DocumentFragment::Serialize() const {
 
 std::string DocumentType::Serialize() const {
   return "<!DOCTYPE " + name_ + ">";
+}
+
+std::string ProcessingInstruction::Serialize() const {
+  // The HTML serializer's form (HTML §13.3): no `?` before the closing `>`,
+  // which is the one place it differs from XML's.
+  return "<?" + target_ + " " + data_ + ">";
 }
 
 Element* Document::DocumentElement() const {

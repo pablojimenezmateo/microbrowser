@@ -101,6 +101,17 @@ inline bool ToIdlBoolean(const js::Value& value) { return js::ToBoolean(value); 
 enum class NameKind : std::uint8_t { Element, Attribute };
 bool IsValidLocalName(std::string_view name, NameKind kind);
 
+// A doctype's name, which is neither of those two.
+//
+// `createDocumentType("", "", "")` works, and so do `@`, `{`, `1foo`, `f:oo`,
+// `:foo` and `prefix::local`. What does not is a name carrying whitespace or
+// `>`, and the reason is the same one the attribute rule has: those are the two
+// characters that would end the doctype early when it is written back out.
+// DOMImplementation-createDocumentType.html states all 80 cases, and it is the
+// authority here -- the specification's prose says "the Name production" and no
+// browser implements that.
+bool IsValidDoctypeName(std::string_view name);
+
 // "Validate and extract a namespace and qualifiedName". Splits `qualified` at
 // its first colon and checks the four namespace rules the DOM states, throwing
 // InvalidCharacterError or NamespaceError as appropriate; false means it threw.

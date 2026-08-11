@@ -131,7 +131,8 @@ void DomBindings::Install() {
   method("createTextNode", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
     return owner == nullptr ? Value::Null()
-                            : owner->CreateText(js::ToString(Argument(call.arguments, 0)));
+                            : owner->CreateText(js::ToString(Argument(call.arguments, 0)),
+                                                *owner->DocumentOf(call.self));
   });
   method("createElement", [](NativeCall& call) -> Value {
     DomBindings* owner = OwnerOf(call);
@@ -153,7 +154,7 @@ void DomBindings::Install() {
     }
     // ASCII-lower-cased, and only ASCII: `createElement("İnput")` must not
     // become an `<input>`, which is exactly what a locale-aware fold would do.
-    return owner->CreateElement(LowerCase(name));
+    return owner->CreateElement(LowerCase(name), *owner->DocumentOf(call.self));
   });
   // The namespace is kept, and with it the prefix. **Nothing is lower-cased**:
   // `createElement` folds a name because an HTML document's element names are
@@ -174,11 +175,52 @@ void DomBindings::Install() {
     if (owner == nullptr) {
       return Value::Null();
     }
-    return owner->CreateElementNS(std::move(name));
+    return owner->CreateElementNS(std::move(name), *owner->DocumentOf(call.self));
   });
   method("createDocumentFragment", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
-    return owner == nullptr ? Value::Null() : owner->CreateDocumentFragment();
+    return owner == nullptr ? Value::Null()
+                            : owner->CreateDocumentFragment(*owner->DocumentOf(call.self));
+  });
+  // `<?target data?>`. Legal in an HTML document even though the HTML parser
+  // cannot produce one -- the DOM allows it and only refuses the two things
+  // that would make the result unserializable: a target that is not a name,
+  // and data containing `?>`.
+  method("createProcessingInstruction", [](NativeCall& call) -> Value {
+    DomBindings* owner = OwnerOf(call);
+    if (!RequireArguments(call, "Document", "createProcessingInstruction", 2)) {
+      return call.ThrownValue();
+    }
+    std::string instruction_target;
+    std::string data;
+    if (!ToDomString(call, call.arguments[0], instruction_target) ||
+        !ToDomString(call, call.arguments[1], data)) {
+      return call.ThrownValue();
+    }
+    if (!IsValidLocalName(instruction_target, NameKind::Element)) {
+      return ThrowDom(call, "InvalidCharacterError",
+                      "'" + instruction_target + "' is not a valid processing instruction target");
+    }
+    if (data.find("?>") != std::string::npos) {
+      return ThrowDom(call, "InvalidCharacterError",
+                      "a processing instruction's data may not contain '?>'");
+    }
+    if (owner == nullptr) {
+      return Value::Null();
+    }
+    return owner->AdoptUnattached(
+        std::make_unique<dom::ProcessingInstruction>(std::move(instruction_target),
+                                                     std::move(data)),
+        *owner->DocumentOf(call.self));
+  });
+  // A CDATA section is XML-only, and the DOM says an HTML document throws
+  // rather than making one. Every document this browser has is an HTML
+  // document, so this is the whole implementation rather than a stub of one --
+  // and a page that feature-detects gets a real refusal, not a node no
+  // serializer here could write back out.
+  method("createCDATASection", [](NativeCall& call) -> Value {
+    return ThrowDom(call, "NotSupportedError",
+                    "createCDATASection is not available in an HTML document");
   });
   // `importNode` and `adoptNode` -- the two ways a node crosses documents.
   //
@@ -214,25 +256,34 @@ void DomBindings::Install() {
     if (copy == nullptr) {
       return call.Throw("TypeError", "this node type cannot be imported");
     }
-    return owner->AdoptClone(std::move(copy));
+    // The *receiver's* document, which is the whole difference between this
+    // and `cloneNode`: importing is copying into the document that was asked.
+    return owner->AdoptClone(std::move(copy), *owner->DocumentOf(call.self));
   });
-  // Already owned by this bindings instance -- there is one DomBindings per
-  // page, and every document it makes shares it -- so adopt is identity for a
-  // node that is already here. A Document or a ShadowRoot still refuses, so a
-  // page that probes with those gets a throw rather than a silent wrong keep.
-  method("adoptNode", [](NativeCall& call) {
+  // Every document a page holds is owned by this one bindings instance, so
+  // adoption never moves ownership -- what it moves is the *node document*,
+  // which is now a real answer rather than one document for everything. The
+  // node is removed from its old parent first, because that is what the DOM's
+  // adopt does and because a node in a tree whose document is a different one
+  // is the inconsistency the whole node-document field exists to prevent.
+  method("adoptNode", [](NativeCall& call) -> Value {
     DomBindings* owner = OwnerOf(call);
     dom::Node* node = NodeOf(Argument(call.arguments, 0));
     if (owner == nullptr || node == nullptr) {
       return call.Throw("TypeError", "adoptNode requires a Node");
     }
     if (node->GetKind() == dom::Node::Kind::Document) {
-      return call.Throw("TypeError", "Document nodes cannot be adopted");
+      return ThrowDom(call, "NotSupportedError", "a Document cannot be adopted");
     }
     if (node->IsDocumentFragment() &&
         static_cast<const dom::DocumentFragment*>(node)->Host() != nullptr) {
-      return call.Throw("TypeError", "ShadowRoot nodes cannot be adopted");
+      return ThrowDom(call, "HierarchyRequestError", "a ShadowRoot cannot be adopted");
     }
+    dom::Document& into = *owner->DocumentOf(call.self);
+    if (node->Parent() != nullptr) {
+      owner->DetachFromTree(*node);
+    }
+    node->SetNodeDocument(&into);
     return owner->WrapperFor(node);
   });
   method("createComment", [](NativeCall& call) {
@@ -240,7 +291,8 @@ void DomBindings::Install() {
     if (owner == nullptr) {
       return Value::Null();
     }
-    return owner->CreateComment(js::ToString(Argument(call.arguments, 0)));
+    return owner->CreateComment(js::ToString(Argument(call.arguments, 0)),
+                                *owner->DocumentOf(call.self));
   });
   method("createEvent", [](NativeCall& call) -> Value {
     DomBindings* owner = OwnerOf(call);
@@ -313,7 +365,42 @@ void DomBindings::Install() {
     }
   };
   element_accessor("body", "body");
-  element_accessor("documentElement", "html");
+
+  // `documentElement` is the **first element child**, not the first `<html>`
+  // in the tree. The two agree on every parsed page and disagree the moment a
+  // page replaces the document element -- `doc.replaceChild(x, doc
+  // .documentElement)` left `documentElement` answering null, because there was
+  // no longer an element called `html` anywhere.
+  const Value document_element =
+      interpreter_->NewNativeValue("documentElement", [](NativeCall& call) {
+        DomBindings* owner = OwnerOf(call);
+        return owner == nullptr ? Value::Null()
+                                : owner->WrapperFor(owner->DocumentOf(call.self)
+                                                        ->DocumentElement());
+      });
+  if (document_element.IsObject()) {
+    document_element.object->Set(kOwnerSlot, PointerValue(this));
+    target.object->DefineAccessor("documentElement", document_element.object, nullptr);
+  }
+
+  // `document.doctype`: the first DocumentType child, or null. An accessor for
+  // the reason the two above are: a page can remove it.
+  const Value doctype = interpreter_->NewNativeValue("doctype", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    if (owner == nullptr) {
+      return Value::Null();
+    }
+    for (const std::unique_ptr<dom::Node>& child : owner->DocumentOf(call.self)->Children()) {
+      if (child->GetKind() == dom::Node::Kind::DocumentType) {
+        return owner->WrapperFor(child.get());
+      }
+    }
+    return Value::Null();
+  });
+  if (doctype.IsObject()) {
+    doctype.object->Set(kOwnerSlot, PointerValue(this));
+    target.object->DefineAccessor("doctype", doctype.object, nullptr);
+  }
 
   // `document.defaultView`: the window a document is displayed in, or null for
   // one that is in no window at all.
@@ -431,8 +518,27 @@ void DomBindings::SetReadyState(const char* state) {
   }
 }
 
+// The document a `DOMImplementation` call was made against: the one its
+// receiver was handed out for, and the page's own only when a page has taken
+// the method off and called it on something else.
+dom::Document* ImplementationDocumentOf(const js::Value& self) {
+  if (!self.IsObject()) {
+    return nullptr;
+  }
+  const js::Object* behind = BehindProxies(self.object);
+  const js::Value* slot = behind == nullptr ? nullptr
+                                            : behind->GetOwn(kImplementationDocumentSlot);
+  if (slot == nullptr || !slot->IsNumber()) {
+    return nullptr;
+  }
+  return reinterpret_cast<dom::Document*>(static_cast<std::uintptr_t>(slot->number));
+}
+
 void DomBindings::InstallImplementation(const js::Value& document_interface) {
-  const Value implementation = interpreter_->NewObjectValue();
+  // A real interface with a real name, so that `document.implementation
+  // instanceof DOMImplementation` answers -- and so that the per-document
+  // objects below share one set of methods rather than one per document.
+  const Value implementation = MakeInterface("DOMImplementation", Value::Undefined());
   if (!implementation.IsObject() || !document_interface.IsObject()) {
     return;
   }
@@ -469,6 +575,11 @@ void DomBindings::InstallImplementation(const js::Value& document_interface) {
     // none. A wrapper holds a raw pointer, so the node may not outlive it.
     owner->unattached_.push_back(std::move(made));
 
+    // The doctype first, which is step 2 of the algorithm and not decoration:
+    // `doc.doctype` is read by every test of the document mutation constraints,
+    // and a document with no doctype makes "inserting a doctype if there
+    // already is one should throw" pass for the wrong reason.
+    raw->Append(std::make_unique<dom::DocumentType>("html"));
     auto& html = static_cast<dom::Element&>(raw->Append(std::make_unique<dom::Element>("html")));
     auto& head = static_cast<dom::Element&>(html.Append(std::make_unique<dom::Element>("head")));
     // The title is created whenever the argument was given at all, including
@@ -489,19 +600,37 @@ void DomBindings::InstallImplementation(const js::Value& document_interface) {
     return wrapper;
   });
 
-  // A doctype node, which a page passes to `createDocument` and reads
-  // `.name` off. Public and qualified ids are accepted and dropped: this
-  // parser has no XML in it, so there is nothing behind them to be right
-  // about, and `name` is the only field anything reads.
-  method("createDocumentType", [](NativeCall& call) {
+  // A doctype node. All three strings are kept: they are what a doctype *is*,
+  // and dropping the public and system ids made `createDocumentType(n, p, s)`
+  // a lossy round trip through an object whose only job is to carry them.
+  //
+  // The name is validated as a *qualified* name -- a doctype's name may have a
+  // colon in it, which is why this is not the element rule.
+  method("createDocumentType", [](NativeCall& call) -> Value {
     DomBindings* owner = OwnerOf(call);
-    if (owner == nullptr) {
+    if (!RequireArguments(call, "DOMImplementation", "createDocumentType", 3)) {
+      return call.ThrownValue();
+    }
+    std::string name;
+    std::string public_id;
+    std::string system_id;
+    if (!ToDomString(call, call.arguments[0], name) ||
+        !ToDomString(call, call.arguments[1], public_id) ||
+        !ToDomString(call, call.arguments[2], system_id)) {
+      return call.ThrownValue();
+    }
+    if (!IsValidDoctypeName(name)) {
+      return ThrowDom(call, "InvalidCharacterError",
+                      "'" + name + "' is not a valid doctype name");
+    }
+    dom::Document* node_document = ImplementationDocumentOf(call.self);
+    if (owner == nullptr || node_document == nullptr) {
       return Value::Null();
     }
-    auto made = std::make_unique<dom::DocumentType>(js::ToString(Argument(call.arguments, 0)));
-    dom::Node* raw = made.get();
-    owner->unattached_.push_back(std::move(made));
-    return owner->WrapperFor(raw);
+    return owner->AdoptUnattached(std::make_unique<dom::DocumentType>(
+                                      std::move(name), std::move(public_id),
+                                      std::move(system_id)),
+                                  *node_document);
   });
 
   // True for everything, which is what the DOM standard says to answer and
@@ -509,9 +638,35 @@ void DomBindings::InstallImplementation(const js::Value& document_interface) {
   // disagreed about it, and the specified behaviour is now to return true.
   method("hasFeature", [](NativeCall&) { return Value::Bool(true); });
 
-  // On the interface, so every document has one -- including the ones this
-  // makes, which is what lets a page nest the call.
-  document_interface.object->Set("implementation", implementation);
+  // An accessor rather than one shared object, because the answer depends on
+  // *which* document was asked: `doc.implementation.createDocumentType(…)` must
+  // make a node whose `ownerDocument` is `doc`. Cached on the document wrapper
+  // so `document.implementation === document.implementation`, which a page can
+  // and does check.
+  const Value implementation_accessor =
+      interpreter_->NewNativeValue("implementation", [implementation](NativeCall& call) -> Value {
+        DomBindings* owner = OwnerOf(call);
+        if (owner == nullptr || !call.self.IsObject()) {
+          return Value::Undefined();
+        }
+        if (const Value* cached = call.self.object->GetOwn(kImplementationSlot)) {
+          return *cached;
+        }
+        const Value made = call.interpreter.NewObjectValue();
+        if (!made.IsObject()) {
+          return Value::Undefined();
+        }
+        made.object->SetPrototype(implementation.object);
+        made.object->SetHidden(kImplementationDocumentSlot,
+                               PointerValue(owner->DocumentOf(call.self)));
+        call.self.object->SetHidden(kImplementationSlot, made);
+        return made;
+      });
+  if (implementation_accessor.IsObject()) {
+    implementation_accessor.object->Set(kOwnerSlot, PointerValue(this));
+    document_interface.object->DefineAccessor("implementation", implementation_accessor.object,
+                                              nullptr);
+  }
 }
 
 void DomBindings::InstallPageVisibility(const js::Value& document_interface) {

@@ -157,6 +157,15 @@ bool ToUnsignedLong(NativeCall& call, const Value& value, IntegerRange range,
   return true;
 }
 
+bool IsValidDoctypeName(std::string_view name) {
+  for (const char c : name) {
+    if (c == '\0' || c == '>' || util::IsHtmlWhitespace(c)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool IsValidLocalName(std::string_view name, NameKind kind) {
   // A byte-wise walk over what the specification states in code points, and
   // the two agree exactly: every rule here is either about an ASCII character

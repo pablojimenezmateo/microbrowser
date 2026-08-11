@@ -344,7 +344,9 @@ void DomBindings::InstallHtmlParsing(const js::Value& element_interface) {
     if (owner == nullptr) {
       return Value::Undefined();
     }
-    dom::Node* node = NodeOf(owner->CreateText(text));
+    dom::Node* self = NodeOf(call.self);
+    dom::Node* node = NodeOf(owner->CreateText(
+        text, self == nullptr ? owner->Document() : owner->NodeDocumentOf(*self)));
     (void)insert_adjacent(call, "insertAdjacentText", node);
     // Undefined whatever happened -- the node went in or the element had no
     // parent, and the caller is told neither. That asymmetry with

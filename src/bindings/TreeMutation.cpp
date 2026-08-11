@@ -42,8 +42,12 @@ namespace {
 // other browser would produce -- and the *reason* a page cares is that the DOM
 // answers these with an exception it can catch, not with a corrupt tree it
 // cannot see.
+// `replacing` is null for an insertion and the outgoing child for a
+// `replaceChild`. The DOM states the two algorithms separately and they differ
+// in exactly that: every "does the parent already have one" question below
+// must not count the node that is on its way out.
 const char* PreInsertionError(const dom::Node& parent, const dom::Node& node,
-                              const dom::Node* reference) {
+                              const dom::Node* reference, const dom::Node* replacing = nullptr) {
   // 1. Only these three can have children.
   switch (parent.GetKind()) {
     case dom::Node::Kind::Document:
@@ -53,6 +57,7 @@ const char* PreInsertionError(const dom::Node& parent, const dom::Node& node,
     case dom::Node::Kind::DocumentType:
     case dom::Node::Kind::Text:
     case dom::Node::Kind::Comment:
+    case dom::Node::Kind::ProcessingInstruction:
       return "HierarchyRequestError";
   }
   // 2. A node cannot be inserted into itself or into its own descendant. The
@@ -75,22 +80,105 @@ const char* PreInsertionError(const dom::Node& parent, const dom::Node& node,
     case dom::Node::Kind::Element:
     case dom::Node::Kind::Text:
     case dom::Node::Kind::Comment:
+    case dom::Node::Kind::ProcessingInstruction:
       break;
     case dom::Node::Kind::Document:
       return "HierarchyRequestError";
   }
   // 5. Text does not belong directly in a document, and a doctype belongs
-  // nowhere else. The remaining document constraints -- one element child, the
-  // doctype before it -- are deliberately not here: this browser has one
-  // document, built by the parser, and a page that reaches them is doing
-  // something no page does. They are named in docs/wpt-plan.md task C4 with the
-  // rest of the mutation algorithms.
+  // nowhere else.
   const bool parent_is_document = parent.GetKind() == dom::Node::Kind::Document;
   if (node.IsText() && parent_is_document) {
     return "HierarchyRequestError";
   }
   if (node.GetKind() == dom::Node::Kind::DocumentType && !parent_is_document) {
     return "HierarchyRequestError";
+  }
+  if (!parent_is_document) {
+    return nullptr;
+  }
+  // 6. **A document has at most one element child and at most one doctype, and
+  // the doctype comes first.** These were left out until 2026-08-11 on the
+  // argument that "a page that reaches them is doing something no page does",
+  // and the suite priced that at 41 subtests across Node-insertBefore.html and
+  // Node-replaceChild.html. They are also the constraints that keep
+  // `document.documentElement` a question with one answer.
+  //
+  // `replacing` is the child being replaced, which is excluded from every count
+  // below: `replaceChild(newHtml, oldHtml)` is legal precisely because the
+  // element that is in the way is the one going out.
+  const auto has_child = [&parent, replacing](dom::Node::Kind kind, const dom::Node* except) {
+    for (const std::unique_ptr<dom::Node>& child : parent.Children()) {
+      if (child.get() != except && child.get() != replacing && child->GetKind() == kind) {
+        return true;
+      }
+    }
+    return false;
+  };
+  // "A doctype is following `child`" / "an element is preceding `child`".
+  const auto sibling_of_kind = [&parent, reference](dom::Node::Kind kind, bool after) {
+    bool seen_reference = false;
+    for (const std::unique_ptr<dom::Node>& child : parent.Children()) {
+      if (child.get() == reference) {
+        seen_reference = true;
+        continue;
+      }
+      if (child->GetKind() == kind && seen_reference == after) {
+        return true;
+      }
+    }
+    return false;
+  };
+  // "child is a doctype, or a doctype is following child" -- the first half of
+  // which is an *insertion* rule only: when `child` is being replaced it is on
+  // its way out and cannot be in the way of anything.
+  const auto doctype_is_in_the_way = [&sibling_of_kind, reference, replacing]() {
+    if (reference == nullptr) {
+      return false;
+    }
+    if (replacing == nullptr && reference->GetKind() == dom::Node::Kind::DocumentType) {
+      return true;
+    }
+    return sibling_of_kind(dom::Node::Kind::DocumentType, true);
+  };
+  switch (node.GetKind()) {
+    case dom::Node::Kind::DocumentFragment: {
+      std::size_t elements = 0;
+      for (const std::unique_ptr<dom::Node>& child : node.Children()) {
+        if (child->IsElement()) {
+          ++elements;
+        } else if (child->IsText()) {
+          return "HierarchyRequestError";
+        }
+      }
+      if (elements > 1) {
+        return "HierarchyRequestError";
+      }
+      if (elements == 1 && (has_child(dom::Node::Kind::Element, nullptr) ||
+                            doctype_is_in_the_way())) {
+        return "HierarchyRequestError";
+      }
+      return nullptr;
+    }
+    case dom::Node::Kind::Element:
+      if (has_child(dom::Node::Kind::Element, nullptr) || doctype_is_in_the_way()) {
+        return "HierarchyRequestError";
+      }
+      return nullptr;
+    case dom::Node::Kind::DocumentType:
+      if (has_child(dom::Node::Kind::DocumentType, nullptr)) {
+        return "HierarchyRequestError";
+      }
+      if (reference == nullptr ? has_child(dom::Node::Kind::Element, nullptr)
+                               : sibling_of_kind(dom::Node::Kind::Element, false)) {
+        return "HierarchyRequestError";
+      }
+      return nullptr;
+    case dom::Node::Kind::Text:
+    case dom::Node::Kind::Comment:
+    case dom::Node::Kind::ProcessingInstruction:
+    case dom::Node::Kind::Document:
+      return nullptr;
   }
   return nullptr;
 }
@@ -138,10 +226,24 @@ std::unique_ptr<dom::Node> CloneDomNode(const dom::Node& node, bool deep) {
       // stamps out a repeated subtree.
       copy = std::make_unique<dom::DocumentFragment>();
       break;
+    case dom::Node::Kind::ProcessingInstruction: {
+      const auto& instruction = static_cast<const dom::ProcessingInstruction&>(node);
+      copy = std::make_unique<dom::ProcessingInstruction>(instruction.Target(),
+                                                          instruction.Data());
+      break;
+    }
+    case dom::Node::Kind::DocumentType: {
+      const auto& doctype = static_cast<const dom::DocumentType&>(node);
+      copy = std::make_unique<dom::DocumentType>(doctype.Name(), doctype.PublicId(),
+                                                 doctype.SystemId());
+      break;
+    }
     case dom::Node::Kind::Document:
-    case dom::Node::Kind::DocumentType:
-      // Cloning a document or a doctype is not something a page does, and
-      // producing an approximation of one would be worse than refusing.
+      // A document clones to a document, which needs the node document of every
+      // node under it to be the *copy* -- and this function has no way to say
+      // so, because it returns before anything owns the result. `cloneNode` on
+      // a document is refused rather than approximated; C4 in docs/wpt-plan.md
+      // owns finishing it.
       return nullptr;
   }
   if (!deep) {
@@ -197,7 +299,7 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
           return Value::Undefined();
         }
         const std::string text = js::ToString(Argument(call.arguments, 0));
-        if (self->IsText() || self->GetKind() == dom::Node::Kind::Comment) {
+        if (IsCharacterDataNode(*self)) {
           owner->SetCharacterData(self, text);
           return Value::Undefined();
         }
@@ -212,10 +314,15 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
   // HtmlParsing.cpp -- which is where the specification puts them, and where
   // the fragment parsing algorithm that writes them lives.
 
-  const auto method = [this, &wrapper](const char* name, js::NativeFunction function) {
+  // `length` is part of the contract for these -- see SetFunctionLength. The
+  // variadic ones (append, before, …) take 0 required arguments, which is what
+  // WebIDL says their length is.
+  const auto method = [this, &wrapper](const char* name, js::NativeFunction function,
+                                       double arity = 0) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
       native.object->Set(kOwnerSlot, PointerValue(this));
+      SetFunctionLength(native, arity);
       wrapper.object->Set(name, native);
     }
   };
@@ -227,8 +334,11 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
     }
     // Shallow by default, which catches out everyone who forgets the argument
     // and is what the specification says.
-    return owner->AdoptClone(CloneDomNode(*self, js::ToBoolean(Argument(call.arguments, 0))));
-  });
+    // A clone stays in the node document of what it was cloned from, which is
+    // the difference between this and `importNode`.
+    return owner->AdoptClone(CloneDomNode(*self, js::ToBoolean(Argument(call.arguments, 0))),
+                             owner->NodeDocumentOf(*self));
+  }, 0);
   method("removeChild", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
     dom::Node* self = NodeOf(call.self);
@@ -248,7 +358,7 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
     // The removed node is returned, still usable -- a page removes a node and
     // appends it somewhere else, and that only works because it is alive.
     return wrapper_for_child;
-  });
+  }, 1);
   method("remove", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
     dom::Node* self = NodeOf(call.self);
@@ -257,43 +367,66 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
     }
     return Value::Undefined();
   });
-  method("insertBefore", [](NativeCall& call) {
+  method("insertBefore", [](NativeCall& call) -> Value {
     DomBindings* owner = OwnerOf(call);
     dom::Node* self = NodeOf(call.self);
-    dom::Node* child = NodeOf(Argument(call.arguments, 0));
+    // `insertBefore(node)` with the reference left off is a TypeError: the IDL
+    // is `insertBefore(Node node, Node? child)` and the second argument is
+    // *nullable*, not optional. A missing one used to mean "append", which is
+    // what `appendChild` is for.
+    if (!RequireArguments(call, "Node", "insertBefore", 2)) {
+      return call.ThrownValue();
+    }
+    dom::Node* child = NodeOf(call.arguments[0]);
     if (owner == nullptr || self == nullptr || child == nullptr) {
       return call.Throw("TypeError", "insertBefore requires a node");
     }
-    dom::Node* reference = NodeOf(Argument(call.arguments, 1));
+    const Value reference_argument = call.arguments[1];
+    dom::Node* reference = NodeOf(reference_argument);
+    if (reference == nullptr && !reference_argument.IsNull() &&
+        !reference_argument.IsUndefined()) {
+      return call.Throw("TypeError", "insertBefore's reference must be a Node or null");
+    }
     if (const char* refusal = PreInsertionError(*self, *child, reference); refusal != nullptr) {
       return ThrowDom(call, refusal, "insertBefore would not produce a valid tree");
     }
     return owner->InsertNodeBefore(*self, child, reference);
-  });
-  method("replaceChild", [](NativeCall& call) {
+  }, 2);
+  method("replaceChild", [](NativeCall& call) -> Value {
     DomBindings* owner = OwnerOf(call);
     dom::Node* self = NodeOf(call.self);
-    dom::Node* fresh = NodeOf(Argument(call.arguments, 0));
-    dom::Node* stale = NodeOf(Argument(call.arguments, 1));
+    if (!RequireArguments(call, "Node", "replaceChild", 2)) {
+      return call.ThrownValue();
+    }
+    dom::Node* fresh = NodeOf(call.arguments[0]);
+    dom::Node* stale = NodeOf(call.arguments[1]);
     if (owner == nullptr || self == nullptr || fresh == nullptr || stale == nullptr) {
       return call.Throw("TypeError", "replaceChild requires two nodes");
     }
-    if (const char* refusal = PreInsertionError(*self, *fresh, stale); refusal != nullptr) {
+    // For a replacement the reference is the node *after* the one going out --
+    // "child's next sibling" in the specification -- because `stale` itself is
+    // no longer in the way. Passing `stale` as the reference would make
+    // `replaceChild(html, html)` refuse itself.
+    if (const char* refusal = PreInsertionError(*self, *fresh, stale, stale);
+        refusal != nullptr) {
       return ThrowDom(call, refusal, "replaceChild would not produce a valid tree");
     }
-    if (stale->Parent() != self) {
-      return ThrowDom(call, "NotFoundError", "the node to replace is not a child of this node");
+    // Out before in, against a reference taken *first* -- the DOM's steps 7, 8,
+    // 10 and 11 in that order. It used to be in-before-out with `stale` as the
+    // reference, on the argument that the new node would otherwise land at the
+    // end; taking the reference before the removal is what actually keeps the
+    // position, and it is the only ordering under which
+    // `parent.replaceChild(b, b)` leaves `b` where it was rather than deleting
+    // it.
+    dom::Node* reference = NextSiblingOf(*stale);
+    if (reference == fresh) {
+      reference = NextSiblingOf(*fresh);
     }
-    // In before out, so the new node lands where the old one was rather than
-    // at the end -- which is the entire difference from remove-then-append.
-    const Value inserted = owner->InsertNodeBefore(*self, fresh, stale);
-    if (inserted.IsObject()) {
-      const Value removed = owner->WrapperFor(stale);
-      owner->DetachFromTree(*stale);
-      return removed;
-    }
-    return Value::Null();
-  });
+    const Value removed = owner->WrapperFor(stale);
+    owner->DetachFromTree(*stale);
+    owner->InsertNodeBefore(*self, fresh, reference);
+    return removed;
+  }, 2);
 
   method("appendChild", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
@@ -309,7 +442,7 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
     // reorders a list. That works now because detaching hands the node over
     // rather than destroying it.
     return owner->InsertNodeBefore(*self, child, nullptr);
-  });
+  }, 1);
 
   // ParentNode: `append`, `prepend`, and `replaceChildren`. reddit's
   // `ac-render-template` hoists `<template for="…">` markup with
@@ -322,7 +455,7 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
       (void)InsertNodeBefore(parent, child, reference);
       return;
     }
-    const js::Value text = CreateText(js::ToString(argument));
+    const js::Value text = CreateText(js::ToString(argument), NodeDocumentOf(parent));
     if (dom::Node* node = NodeOf(text)) {
       (void)InsertNodeBefore(parent, node, reference);
     }
@@ -359,6 +492,80 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
     ClearChildren(*self);
     for (std::size_t i = 0; i < call.arguments.size(); ++i) {
       insert_argument(*self, nullptr, Argument(call.arguments, i));
+    }
+    return Value::Undefined();
+  });
+  // ChildNode: `before` and `after`, which insert siblings.
+  //
+  // The DOM defines both against a *viable* sibling -- the nearest one that is
+  // not itself in the argument list -- and that is not a detail: `x.after(y)`
+  // where `y` is already the next sibling has to insert after `y`'s old
+  // position, not before it, or the call is a no-op that looks like a bug in
+  // the page. Both were simply absent, which cost 90 subtests across
+  // ChildNode-before.html and ChildNode-after.html.
+  const auto is_argument = [](const NativeCall& call, const dom::Node* node) {
+    for (const js::Value& argument : call.arguments) {
+      if (NodeOf(argument) == node) {
+        return true;
+      }
+    }
+    return false;
+  };
+  method("before", [insert_argument, is_argument](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr) {
+      return call.Throw("TypeError", "before called on a non-node");
+    }
+    dom::Node* parent = self->Parent();
+    if (parent == nullptr) {
+      // "If parent is null, then return" -- the same rule replaceWith follows.
+      return Value::Undefined();
+    }
+    // The DOM's "viable previous sibling", then insert before *its next
+    // sibling* -- which is the first child when there is no viable one.
+    const std::vector<std::unique_ptr<dom::Node>>& children = parent->Children();
+    std::size_t reference_index = 0;
+    for (std::size_t i = 0; i < children.size(); ++i) {
+      if (children[i].get() == self) {
+        break;
+      }
+      if (!is_argument(call, children[i].get())) {
+        reference_index = i + 1;
+      }
+    }
+    dom::Node* reference =
+        reference_index < children.size() ? children[reference_index].get() : nullptr;
+    for (std::size_t i = 0; i < call.arguments.size(); ++i) {
+      insert_argument(*parent, reference, Argument(call.arguments, i));
+    }
+    return Value::Undefined();
+  });
+  method("after", [insert_argument, is_argument](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr) {
+      return call.Throw("TypeError", "after called on a non-node");
+    }
+    dom::Node* parent = self->Parent();
+    if (parent == nullptr) {
+      return Value::Undefined();
+    }
+    // The viable next sibling is the reference to insert before.
+    dom::Node* reference = nullptr;
+    bool past_self = false;
+    for (const std::unique_ptr<dom::Node>& child : parent->Children()) {
+      if (child.get() == self) {
+        past_self = true;
+        continue;
+      }
+      if (past_self && !is_argument(call, child.get())) {
+        reference = child.get();
+        break;
+      }
+    }
+    for (std::size_t i = 0; i < call.arguments.size(); ++i) {
+      insert_argument(*parent, reference, Argument(call.arguments, i));
     }
     return Value::Undefined();
   });
@@ -419,15 +626,13 @@ void DomBindings::ClearChildren(dom::Node& parent) {
   }
 }
 
-js::Value DomBindings::AdoptClone(std::unique_ptr<dom::Node> clone) {
-  if (clone == nullptr) {
-    return Value::Null();
-  }
+js::Value DomBindings::AdoptClone(std::unique_ptr<dom::Node> clone,
+                                  dom::Document& node_document) {
   // Owned here until something appends it, exactly like a created node: a
-  // clone has no parent, and a node's owner is its parent.
-  dom::Node* raw = clone.get();
-  unattached_.push_back(std::move(clone));
-  return WrapperFor(raw);
+  // clone has no parent, and a node's owner is its parent. The node document
+  // is the argument rather than the source's, which is the difference between
+  // `cloneNode` (same document) and `importNode` (the receiver's).
+  return AdoptUnattached(std::move(clone), node_document);
 }
 
 bool DomBindings::DetachFromTree(dom::Node& child) {
@@ -450,6 +655,13 @@ bool DomBindings::DetachFromTree(dom::Node& child) {
 
 js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
                                         dom::Node* reference) {
+  // "If reference child is node, then set reference child to node's next
+  // sibling" -- DOM pre-insert step 3. Without it, `a.insertBefore(b, b)`
+  // detaches `b`, finds its reference gone, and appends: the node *moves*, to
+  // the end, for a call every specification says is a no-op.
+  if (reference != nullptr && reference == child) {
+    reference = NextSiblingOf(*child);
+  }
   // Inserting a fragment inserts its *children* and leaves it empty. That is
   // what a fragment is for -- a framework assembles a subtree in one and
   // places it in a single operation -- and it has to happen here rather than
@@ -544,9 +756,11 @@ void DomBindings::NotifyConnection(dom::Node& node, bool connected) {
     return;  // no custom elements defined: nothing to tell, and no walk to do
   }
   // Parent-walking misses nodes inside a shadow root: the root has no parent.
-  // OwnerDocument crosses through the host, which is what makes a stamped
-  // custom element in a component tree count as connected.
-  if (node.OwnerDocument() != document_) {
+  // ConnectedDocument crosses through the host, which is what makes a stamped
+  // custom element in a component tree count as connected -- and it is the
+  // *connected* document rather than the node document on purpose, because a
+  // reaction is owed only to a node that is actually in this page's tree.
+  if (node.ConnectedDocument() != document_) {
     return;
   }
   // The node and everything under it, because a reaction is owed to each.
@@ -574,287 +788,5 @@ js::Value DomBindings::AdoptInto(dom::Node& parent, dom::Node* child) {
   return Value::Null();
 }
 
-js::Value DomBindings::CreateElement(const std::string& tag_name) {
-  // `createElement` in an HTML document makes an HTML element with no prefix,
-  // which is the only kind this parser produces too.
-  QualifiedName name;
-  name.name_space = dom::NamespaceRef::kHtml;
-  name.qualified = tag_name;
-  return CreateElementNS(std::move(name));
-}
-
-js::Value DomBindings::CreateElementNS(QualifiedName name) {
-  const std::string tag_name = name.qualified;
-  if (tag_name.empty()) {
-    return Value::Null();
-  }
-  auto element = std::make_unique<dom::Element>(std::move(name.name_space),
-                                                std::move(name.qualified), name.prefix_length);
-  dom::Element* raw = element.get();
-  // Held here rather than handed to script, because a node's owner is its
-  // parent and this one has none yet. Script gets the wrapper; the node stays
-  // owned by C++ until something appends it.
-  unattached_.push_back(std::move(element));
-  const js::Value wrapper = WrapperFor(raw);
-  // CSP `'strict-dynamic'`: a script created while a permitted script runs is
-  // trusted before it is inserted. YouTube's player loader (`GXC`) does
-  // createElement → set src → appendChild; marking only at append missed the
-  // create half when the append's trust bit had already dropped (TD-0024).
-  if (tag_name == "script" && raw->Namespace().IsHtml() && InTrustedScriptContext()) {
-    MarkCspTrustedScript(*raw);
-  }
-  // Upgraded here rather than on insertion, because the specification says a
-  // custom element is constructed when it is created -- a page that does
-  // `document.createElement('my-thing')` and reads a property its constructor
-  // set expects it to be there before anything is appended.
-  //
-  // HTML namespace only: a custom element is an HTML element, and
-  // `createElementNS('http://FOO', 'my-thing')` is a foreign element that
-  // happens to have a hyphen in its name.
-  if (raw->Namespace().IsHtml()) {
-    UpgradeElement(*raw);
-  }
-  return wrapper;
-}
-
-js::Value DomBindings::CreateText(const std::string& text) {
-  auto node = std::make_unique<dom::Text>(text);
-  dom::Node* raw = node.get();
-  unattached_.push_back(std::move(node));
-  return WrapperFor(raw);
-}
-
-js::Value DomBindings::CreateDocumentFragment() {
-  auto node = std::make_unique<dom::DocumentFragment>();
-  dom::Node* raw = node.get();
-  unattached_.push_back(std::move(node));
-  return WrapperFor(raw);
-}
-
-js::Value DomBindings::CreateComment(const std::string& data) {
-  auto node = std::make_unique<dom::Comment>(data);
-  dom::Node* raw = node.get();
-  unattached_.push_back(std::move(node));
-  return WrapperFor(raw);
-}
-
-js::Value DomBindings::AppendTextTo(dom::Node& parent, const std::string& text) {
-  auto node = std::make_unique<dom::Text>(text);
-  dom::Node* raw = node.get();
-  parent.Append(std::move(node));
-  return WrapperFor(raw);
-}
-
-namespace {
-
-std::string CharacterDataOf(const dom::Node* node) {
-  if (node == nullptr) {
-    return {};
-  }
-  if (node->IsText()) {
-    return static_cast<const dom::Text*>(node)->Data();
-  }
-  if (node->GetKind() == dom::Node::Kind::Comment) {
-    return static_cast<const dom::Comment*>(node)->Data();
-  }
-  return {};
-}
-
-}  // namespace
-
-bool DomBindings::SetCharacterData(dom::Node* node, std::string data) {
-  if (node == nullptr) {
-    return false;
-  }
-  if (!node->IsText() && node->GetKind() != dom::Node::Kind::Comment) {
-    return false;
-  }
-  // Polymer (and youtube's kevlar) schedules ASAP work by observing a detached
-  // text node with `{characterData:true}` and bumping its `textContent`. Without
-  // a characterData record that observer never fires, `_.Ub` never runs, and
-  // the lazy-list autofill chain stops after the initial `shownItems` slice.
-  const Value old_value = Value::String(CharacterDataOf(node));
-  if (node->IsText()) {
-    static_cast<dom::Text*>(node)->SetData(std::move(data));
-  } else {
-    static_cast<dom::Comment*>(node)->SetData(std::move(data));
-  }
-  RecordMutation(*node, "characterData", {}, old_value, {}, {});
-  return true;
-}
-
-void DomBindings::InstallCharacterData(const js::Value& target) {
-  const auto accessor = [this, &target](const char* name, js::NativeFunction get,
-                                      js::NativeFunction set) {
-    const Value getter = interpreter_->NewNativeValue(name, std::move(get));
-    const Value setter = interpreter_->NewNativeValue(name, std::move(set));
-    if (getter.IsObject() && setter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
-      setter.object->Set(kOwnerSlot, PointerValue(this));
-      target.object->DefineAccessor(name, getter.object, setter.object);
-    }
-  };
-
-  const auto method = [this, &target](const char* name, js::NativeFunction function) {
-    const Value native = interpreter_->NewNativeValue(name, std::move(function));
-    if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
-      target.object->SetHidden(name, native);
-    }
-  };
-
-  // Polymer's text bindings set `textNode.data` after stamping. Without a
-  // setter the binding token stays literal in the tree -- which is why
-  // youtube.com painted `[[errorMessage]]` rather than the string.
-  accessor(
-      "data",
-      [](NativeCall& call) {
-        dom::Node* self = NodeOf(call.self);
-        return self == nullptr ? Value::Undefined() : Value::String(CharacterDataOf(self));
-      },
-      [](NativeCall& call) -> Value {
-        DomBindings* owner = OwnerOf(call);
-        dom::Node* self = NodeOf(call.self);
-        if (owner == nullptr || self == nullptr) {
-          return Value::Undefined();
-        }
-        std::string data;
-        if (!ToDomString(call, Argument(call.arguments, 0), data)) {
-          return call.ThrownValue();
-        }
-        if (!owner->SetCharacterData(self, std::move(data))) {
-          return call.Throw("TypeError", "data can only be set on a text or comment node");
-        }
-        return Value::Undefined();
-      });
-
-  // **Code units, not bytes.** `length` is the number of UTF-16 code units in
-  // the data, because that is what a DOMString is; measuring `std::string::size`
-  // made every non-ASCII text node report its byte count, so `"é".length` was 2
-  // and every offset computed from it addressed the wrong character. The same
-  // measurement runs through all five mutation methods below -- an offset is an
-  // offset in the same units `length` counts, or none of them agree.
-  accessor(
-      "length",
-      [](NativeCall& call) {
-        dom::Node* self = NodeOf(call.self);
-        return self == nullptr
-                   ? Value::Undefined()
-                   : Value::Number(static_cast<double>(DomStringLength(CharacterDataOf(self))));
-      },
-      [](NativeCall& call) { return call.Throw("TypeError", "length is read-only"); });
-
-  // The five mutation operations, which were simply absent -- `data` and
-  // `length` were the whole of CharacterData here. Each is "replace data" with
-  // different arguments, and they are written that way rather than five times:
-  // the specification defines the other four in terms of it, and the ordering
-  // that matters (bounds check, then the write, then the record) is in one
-  // place.
-  //
-  // `offset` and `count` are `unsigned long`, so a negative argument wraps to
-  // an enormous one and lands in the IndexSizeError below rather than clamping
-  // to zero. `substringData(-1, 0)` throwing is not pedantry -- it is the
-  // difference between a page's bounds check running and it silently reading
-  // from position 4294967295.
-  const auto replace_data = [](NativeCall& call, const char* operation,
-                               std::uint32_t offset, std::uint32_t count,
-                               const std::string& insertion) -> Value {
-    DomBindings* owner = OwnerOf(call);
-    dom::Node* self = NodeOf(call.self);
-    if (owner == nullptr || self == nullptr) {
-      return call.Throw("TypeError", std::string(operation) + " called on a non-CharacterData");
-    }
-    const std::string data = CharacterDataOf(self);
-    const std::size_t length = DomStringLength(data);
-    if (offset > length) {
-      return ThrowDom(call, "IndexSizeError", "the offset is larger than the node's length");
-    }
-    const std::size_t end = std::min<std::size_t>(length, static_cast<std::size_t>(offset) + count);
-    std::string rewritten = DomSubstring(data, 0, offset);
-    rewritten += insertion;
-    rewritten += DomSubstring(data, end, length);
-    if (!owner->SetCharacterData(self, std::move(rewritten))) {
-      return call.Throw("TypeError", std::string(operation) + " called on a non-CharacterData");
-    }
-    return Value::Undefined();
-  };
-
-  method("substringData", [](NativeCall& call) -> Value {
-    if (!RequireArguments(call, "CharacterData", "substringData", 2)) {
-      return call.ThrownValue();
-    }
-    std::uint32_t offset = 0;
-    std::uint32_t count = 0;
-    if (!ToUnsignedLong(call, call.arguments[0], IntegerRange::Modulo, offset) ||
-        !ToUnsignedLong(call, call.arguments[1], IntegerRange::Modulo, count)) {
-      return call.ThrownValue();
-    }
-    dom::Node* self = NodeOf(call.self);
-    if (self == nullptr) {
-      return call.Throw("TypeError", "substringData called on a non-CharacterData");
-    }
-    const std::string data = CharacterDataOf(self);
-    const std::size_t length = DomStringLength(data);
-    if (offset > length) {
-      return ThrowDom(call, "IndexSizeError", "the offset is larger than the node's length");
-    }
-    const std::size_t end = std::min<std::size_t>(length, static_cast<std::size_t>(offset) + count);
-    return Value::String(DomSubstring(data, offset, end));
-  });
-
-  method("appendData", [replace_data](NativeCall& call) -> Value {
-    if (!RequireArguments(call, "CharacterData", "appendData", 1)) {
-      return call.ThrownValue();
-    }
-    std::string insertion;
-    if (!ToDomString(call, call.arguments[0], insertion)) {
-      return call.ThrownValue();
-    }
-    dom::Node* self = NodeOf(call.self);
-    const std::size_t length = self == nullptr ? 0 : DomStringLength(CharacterDataOf(self));
-    return replace_data(call, "appendData", static_cast<std::uint32_t>(length), 0, insertion);
-  });
-
-  method("insertData", [replace_data](NativeCall& call) -> Value {
-    if (!RequireArguments(call, "CharacterData", "insertData", 2)) {
-      return call.ThrownValue();
-    }
-    std::uint32_t offset = 0;
-    std::string insertion;
-    if (!ToUnsignedLong(call, call.arguments[0], IntegerRange::Modulo, offset) ||
-        !ToDomString(call, call.arguments[1], insertion)) {
-      return call.ThrownValue();
-    }
-    return replace_data(call, "insertData", offset, 0, insertion);
-  });
-
-  method("deleteData", [replace_data](NativeCall& call) -> Value {
-    if (!RequireArguments(call, "CharacterData", "deleteData", 2)) {
-      return call.ThrownValue();
-    }
-    std::uint32_t offset = 0;
-    std::uint32_t count = 0;
-    if (!ToUnsignedLong(call, call.arguments[0], IntegerRange::Modulo, offset) ||
-        !ToUnsignedLong(call, call.arguments[1], IntegerRange::Modulo, count)) {
-      return call.ThrownValue();
-    }
-    return replace_data(call, "deleteData", offset, count, std::string());
-  });
-
-  method("replaceData", [replace_data](NativeCall& call) -> Value {
-    if (!RequireArguments(call, "CharacterData", "replaceData", 3)) {
-      return call.ThrownValue();
-    }
-    std::uint32_t offset = 0;
-    std::uint32_t count = 0;
-    std::string insertion;
-    if (!ToUnsignedLong(call, call.arguments[0], IntegerRange::Modulo, offset) ||
-        !ToUnsignedLong(call, call.arguments[1], IntegerRange::Modulo, count) ||
-        !ToDomString(call, call.arguments[2], insertion)) {
-      return call.ThrownValue();
-    }
-    return replace_data(call, "replaceData", offset, count, insertion);
-  });
-}
 
 }  // namespace microbrowser::bindings

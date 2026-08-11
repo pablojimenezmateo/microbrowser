@@ -39,6 +39,13 @@ class Node {
     Element,
     Text,
     Comment,
+    // `<?target data?>`. Not something the HTML parser produces -- it turns one
+    // into a comment (HTML §13.2.5, "bogus comment") -- so this exists for
+    // `document.createProcessingInstruction` and for the XML parser that does
+    // not exist yet. It is here rather than approximated by Comment because a
+    // page asks `nodeName` and gets the *target* back, which a comment has no
+    // room for.
+    ProcessingInstruction,
     // A parentless bag of nodes. Script builds a subtree in one of these and
     // inserts it in a single operation, which is the point: inserting the
     // fragment inserts its *children* and leaves the fragment empty, so a
@@ -112,10 +119,35 @@ class Node {
 
   // The document at the root of this tree, or null when there is none -- which
   // is a node script built and has not inserted, and is the common case during
-  // a parse. A walk rather than a stored pointer, for the reason NoteMutation
-  // says: a pointer is a second invariant to maintain across every subtree
-  // move, for a depth ADR 0009 already bounds.
-  Document* OwnerDocument() const;
+  // a parse. A walk, over a depth ADR 0009 already bounds.
+  //
+  // **This is not `ownerDocument`, and the difference is the reason both
+  // exist.** This one answers "is this node in a rendered tree, and which one",
+  // which is what invalidation and the cascade ask -- and it must answer *null*
+  // for a detached subtree, or every `createElement` while script assembles a
+  // fragment would bump the live document's mutation version and force a
+  // relayout that describes nothing. `NodeDocument` below is what a page calls
+  // `ownerDocument`, and it answers that same detached node's document. Reading
+  // one for the other is the bug this pair was split to make impossible.
+  Document* ConnectedDocument() const;
+
+  // The DOM's *node document* -- what `ownerDocument` answers.
+  //
+  // Stored, and the two-field split above is the whole reason it has to be:
+  // the DOM assigns a node document when the node is *created* and it survives
+  // detachment, so no walk over the tree can derive it. `createElement` on an
+  // inert document followed by `remove()` must still answer that document, and
+  // a walk answers null.
+  //
+  // Null only for a node created outside any document, which after this change
+  // is nothing the binding layer makes -- the parser's nodes get theirs when
+  // they are inserted.
+  Document* NodeDocument() const { return node_document_; }
+
+  // Sets the node document of this node and its whole subtree, which is the
+  // DOM's "adopt". Cheap in the case that matters: an insertion whose subtree
+  // is already in the right document stops at the first node.
+  void SetNodeDocument(Document* document);
 
   // Serializes the subtree back to HTML. Used by tests to state an expected
   // tree in one string, and by nothing else — it is not a sanitizer, and a
@@ -133,11 +165,11 @@ class Node {
   // is one of five primitives, and every mutation anywhere else goes through
   // one of them, so marking them is the only marking that cannot be forgotten.
   //
-  // Finding the document is a walk to the root rather than a stored pointer.
-  // A pointer would be faster and is what a mature DOM keeps; it also has to be
-  // maintained across every insertion and removal of every *subtree*, which is
-  // a second invariant to get wrong for a walk whose depth is bounded by
-  // ADR 0009's parse depth. Revisit with a measurement, not a guess.
+  // Finding the document is a walk to the root -- ConnectedDocument, and
+  // deliberately not the stored `node_document_` beside it. The stored one is
+  // right about a *detached* node, which is exactly the case that must not mark
+  // anything: script building a subtree it has not inserted has changed nothing
+  // the document derived. See the comment on ConnectedDocument.
   void NoteMutation();
 
   // Insert/remove/reorder — bumps Document::StructureVersion as well as the
@@ -161,6 +193,10 @@ class Node {
  private:
   Kind kind_;
   Node* parent_ = nullptr;
+  // See NodeDocument. Borrowed: a document outlives every node whose node
+  // document it is, because the binding layer holds every node script made
+  // for the life of the page and a document owns its own tree.
+  Document* node_document_ = nullptr;
   std::vector<std::unique_ptr<Node>> children_;
 };
 
@@ -399,13 +435,49 @@ class Comment : public Node {
 
 class DocumentType : public Node {
  public:
-  explicit DocumentType(std::string name)
-      : Node(Kind::DocumentType), name_(std::move(name)) {}
+  DocumentType(std::string name, std::string public_id = {}, std::string system_id = {})
+      : Node(Kind::DocumentType),
+        name_(std::move(name)),
+        public_id_(std::move(public_id)),
+        system_id_(std::move(system_id)) {}
   const std::string& Name() const { return name_; }
+  // Kept rather than dropped, and they are not decoration: `<!DOCTYPE html
+  // PUBLIC "-//W3C//DTD HTML 4.01//EN">` is what puts a page in quirks or
+  // limited-quirks mode, so the strings the tokenizer already produced are the
+  // input to a rendering decision this browser does not yet make -- and
+  // `createDocumentType` round-trips them either way.
+  const std::string& PublicId() const { return public_id_; }
+  const std::string& SystemId() const { return system_id_; }
   std::string Serialize() const override;
 
  private:
   std::string name_;
+  std::string public_id_;
+  std::string system_id_;
+};
+
+// `<?xml-stylesheet href="x"?>` -- a target and the rest of the data.
+//
+// A CharacterData in the DOM, which is what makes `data`, `substringData` and
+// the rest of that interface apply to it, and what the binding layer files it
+// under.
+class ProcessingInstruction : public Node {
+ public:
+  ProcessingInstruction(std::string target, std::string data)
+      : Node(Kind::ProcessingInstruction),
+        target_(std::move(target)),
+        data_(std::move(data)) {}
+  const std::string& Target() const { return target_; }
+  const std::string& Data() const { return data_; }
+  void SetData(std::string data) {
+    data_ = std::move(data);
+    NoteMutation();
+  }
+  std::string Serialize() const override;
+
+ private:
+  std::string target_;
+  std::string data_;
 };
 
 // A subtree with no parent, inserted as a unit.
@@ -453,7 +525,9 @@ class DocumentFragment : public Node {
 
 class Document : public Node {
  public:
-  Document() : Node(Kind::Document) {}
+  // Its own node document, which is what the DOM says and what makes every
+  // node inserted into it inherit one.
+  Document() : Node(Kind::Document) { SetNodeDocument(this); }
 
   // Quirks mode is a rendering decision that comes from the doctype, and it has
   // to be carried on the document because layout asks about it long after the
