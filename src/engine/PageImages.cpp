@@ -299,6 +299,24 @@ void Page::DeliverImageLoad(const std::string& src) {
   if (document_ == nullptr) {
     return;
   }
+  // **Collected first, dispatched second, and the two must not be one loop.**
+  //
+  // `NotifyElementEvent` runs the page's own `load` handler, and a `load`
+  // handler is allowed to change the tree -- `img.onload` that calls
+  // `remove()` on anything is ordinary code. Doing that from inside
+  // `ForEachDescendant` erases from the `children_` vector the range-`for` is
+  // iterating, which is undefined behaviour and was a **segfault** reachable
+  // from any page: `dom/nodes/moveBefore/relevant-mutations.html` crashed the
+  // process here, and its handler does nothing more exotic than resolve a
+  // promise whose continuation moves a `<source>` out of a `<picture>`.
+  //
+  // The second loop re-asks two questions per element rather than trusting the
+  // list, because an earlier handler may have removed a later element or
+  // changed which image it selected. The pointers themselves stay valid -- the
+  // binding layer holds a removed subtree until navigation (ADR 0008) -- so
+  // this is about not firing `load` at a node that has left the document, not
+  // about the pointer.
+  std::vector<const dom::Element*> loaded;
   document_->ForEachDescendant([&](const dom::Node& node) {
     if (!node.IsElement()) {
       return;
@@ -308,11 +326,20 @@ void Page::DeliverImageLoad(const std::string& src) {
       return;
     }
     const auto selected = resources_.selected_image_urls.find(&element);
-    if (selected == resources_.selected_image_urls.end() || selected->second != src) {
-      return;
+    if (selected != resources_.selected_image_urls.end() && selected->second == src) {
+      loaded.push_back(&element);
     }
-    script_.NotifyElementEvent(element, "load");
   });
+  for (const dom::Element* element : loaded) {
+    if (element->ConnectedDocument() != document_.get()) {
+      continue;  // a previous handler took it out of the document
+    }
+    const auto selected = resources_.selected_image_urls.find(element);
+    if (selected == resources_.selected_image_urls.end() || selected->second != src) {
+      continue;
+    }
+    script_.NotifyElementEvent(*element, "load");
+  }
 }
 
 std::optional<gfx::SurfaceId> Page::SurfaceForElement(const dom::Element& element) const {

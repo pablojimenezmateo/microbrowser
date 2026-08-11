@@ -15,6 +15,18 @@ namespace microbrowser::wpt {
 // every subtest with its status -- makes a 40,000-line file whose diffs nobody
 // reads.
 struct TestExpectation {
+  // The `#` comment lines written immediately above this test's `[path]` line,
+  // verbatim and in order.
+  //
+  // Kept because `tests/wpt/expectations/README.md` *requires* one on every
+  // deliberate refusal -- "use one whenever a line records a deliberate
+  // deviation rather than a bug, and name the ADR" -- and until this field
+  // existed the writer dropped every one of them. A rule the tool silently
+  // undoes is not a rule: a session would write down why a test may never pass,
+  // and the next `--update-expectations` anywhere in the same file would delete
+  // it. They belong to the test rather than to the file so that re-recording
+  // one area cannot lose another's.
+  std::vector<std::string> comments;
   // Harness status: OK (default), ERROR, TIMEOUT, PRECONDITION_FAILED, CRASH.
   std::string harness = "OK";
   // Subtest name -> expected status, for subtests that are not PASS.

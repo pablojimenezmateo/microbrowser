@@ -2043,7 +2043,7 @@ FAIL=when reparenting an open popover, it shouldn't be closed automatically
 [dom/nodes/moveBefore/preserve-render-blocking-style.html]
 FAIL=A moved script should keep its render-blocking state
 [dom/nodes/moveBefore/relevant-mutations.html]
-harness=CRASH
+harness=TIMEOUT
 [dom/nodes/moveBefore/role-updates-after-move.html]
 FAIL=header elements role should become sectionheader when moved into a section
 [dom/nodes/moveBefore/script-move-before.html]

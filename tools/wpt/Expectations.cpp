@@ -106,7 +106,11 @@ std::string Line(std::string_view status, std::string_view value) {
 }
 
 std::string Serialize(const std::string& url_path, const TestExpectation& expectation) {
-  std::string text = "[" + url_path + "]\n";
+  std::string text;
+  for (const std::string& comment : expectation.comments) {
+    text += comment + "\n";
+  }
+  text += "[" + url_path + "]\n";
   if (expectation.disabled) {
     text += Line("disabled", expectation.disabled_reason);
   }
@@ -134,20 +138,30 @@ void ExpectationStore::Load(const std::string& directory) {
     std::ifstream stream(entry.path());
     std::string line;
     std::string current;
+    // Comments seen since the last blank or non-comment line: they belong to
+    // the `[path]` that follows them.
+    std::vector<std::string> pending_comments;
     while (std::getline(stream, line)) {
       // Only the line ending: a trailing space belongs to the name, and
       // trimming it is what made a name ending in one unmatchable.
       while (!line.empty() && line.back() == '\r') {
         line.pop_back();
       }
-      if (line.empty() || line[0] == '#') {
+      if (line.empty()) {
+        pending_comments.clear();  // a blank line detaches a comment from what follows
+        continue;
+      }
+      if (line[0] == '#') {
+        pending_comments.push_back(line);
         continue;
       }
       if (line.front() == '[' && line.back() == ']') {
         current = line.substr(1, line.size() - 2);
-        tests_[current];  // default-construct: listed but all-PASS is legal
+        tests_[current].comments = std::move(pending_comments);
+        pending_comments.clear();
         continue;
       }
+      pending_comments.clear();
       if (current.empty()) {
         continue;
       }
@@ -185,8 +199,17 @@ const TestExpectation* ExpectationStore::Find(const std::string& url_path) const
 
 void ExpectationStore::Set(const std::string& url_path, TestExpectation expectation) {
   if (expectation.harness == "OK" && expectation.subtests.empty() && !expectation.disabled) {
+    // Everything passes now, so the comment goes with the entry: a note saying
+    // why a test may never pass is wrong the moment it does.
     tests_.erase(url_path);
     return;
+  }
+  // The observed result carries statuses; the comment is the *file's*, written
+  // by a person to say why a failure is deliberate. Carried across rather than
+  // overwritten, which is the whole point of storing it.
+  const auto existing = tests_.find(url_path);
+  if (existing != tests_.end() && expectation.comments.empty()) {
+    expectation.comments = existing->second.comments;
   }
   tests_[url_path] = std::move(expectation);
 }
