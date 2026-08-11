@@ -4850,3 +4850,77 @@ raises old: **what is owed is a split of the class.**
 in the two `Document-characterSet-normalization` files, and roughly twenty-five `.xhtml`/`.svg`
 files run inside an `<iframe>` or in an XML document. That is **J1**, and the honest reading is
 that C4's target needs revising with that reason rather than another session of chasing it.
+
+## 2026-08-11 — five tasks in parallel, and the arithmetic that says what 90% of `dom/` costs
+
+**Status:** `dom/` **52.1% → 83.1%**. Six commits on master, four of them from agents working
+disjoint areas in their own worktrees, every one verified with **0 unexpected results** before it
+was merged.
+
+| commit | what | measured |
+|---|---|---|
+| `c880e64` | C4: the mutation algorithms and the records they queue | `dom/nodes` 62.2 → 64.5% |
+| `29d6e75` | C4: an `Attr` that knows whether its element still has it | +24 subtests for twenty lines |
+| `7e01ca6` | C9: `DOMParser`, and the XML parser it turned out to require | `domparsing` 18.1 → 55.7% |
+| `48ea116` | D5: `:has()`, and the measurement ADR 0016 priced it behind | `css/selectors` 23.9 → 31.7% |
+| `2c787c5` | C6: the target is on both dispatch passes | `dom/events`+`uievents` 30.9 → 35.8% |
+| `9e3b4eb` | C5: a Range that changes the tree | `dom/ranges` 8.1 → 80.4% |
+| `35d84c2` | a `load` handler ran from inside the walk looking for it | a **segfault**, gone |
+| `feea567` | setting a text node's value is "replace data" | 1,561 expectation lines deleted |
+
+**Two of the five sessions found that the measurement was fake before the browser was.** C5's area
+reported **259** subtests where a browser reports 31,000 — 24 of 57 files were `harness=ERROR` on
+`dom/common.js` throwing at `new Document()`. Opening that one gate took the denominator to 31,129,
+which is why `dom/`'s total went from 7,178 to 43,207 subtests *in the middle of a session*. A pass
+rate computed against a denominator the browser itself is suppressing is not a measurement, and
+this is the second session in a row where the instrument was wrong before the code was.
+
+**The sharpest single finding is C5's, and it is about missing constants.** `dom/common.js`
+computes every expected tree-order answer as
+`x.compareDocumentPosition(y) & Node.DOCUMENT_POSITION_FOLLOWING`. The constant was undefined, so
+`x & undefined` is `0` is falsy, so the helper answered "before" for every pair of nodes — and 930
+subtests failed *against a correct `comparePoint`*. **A missing constant does not read as missing.
+It reads as a wrong answer somewhere else.**
+
+**A page could segfault this browser, and it took one `<img>`.** `Page::DeliverImageLoad` fired the
+page's `load` handler from inside `ForEachDescendant`, which iterates a `children_` vector by
+reference; a handler that removes anything invalidates that iterator. Found by ASan after C5
+reported the crash in passing. The fix is the rule the event dispatcher already followed —
+collect, then dispatch — and only one other walk in `src/engine` calls into script, which already
+took a copy.
+
+**`--update-expectations` was deleting the comments the format requires.**
+`tests/wpt/expectations/README.md` asks for a `#` naming the ADR on every deliberate refusal; the
+writer dropped every one. C5 wrote twenty; re-recording one unrelated test removed all twenty. A
+rule the tool undoes is not a rule. Comments now belong to the test they sit above and survive a
+re-record — and are dropped only when the test starts passing, because a note saying why something
+cannot pass is wrong the moment it does.
+
+**The runner learned to print failing subtests when the harness is OK**, which is the third
+instrument fix in two sessions and the one with the widest reach. It printed only *disagreements*
+before, so a fully-expected 3-of-25 printed `ok` and stopped — a green light on the exact file you
+opened the runner to read. Every cause in the C6 commit came off that list within ten minutes of
+it existing.
+
+### What 90% of `dom/` costs, in numbers
+
+The session goal was `dom/` at 90%. It is at 83.1% (35,899 of 43,207) and the remaining gap is one
+feature, which is worth writing down precisely so nobody re-derives it:
+
+- **2,280** subtests are visibly failing. Fixing *every one of them* reaches **88.4%**.
+- **~5,028** more are invisible, behind 208 tests whose harness never reported.
+- **~4,176 of those** are seven files — `Range-{cloneContents,deleteContents,extractContents,`
+  `insertNode,surroundContents,set,compareBoundaryPoints}.html` — which are driven entirely by
+  `iframe.onload` over two `<iframe>`s. Every assertion sits in an `async_test` that never starts.
+- Another **498** are `Document-createElement{,NS}.html`, also iframes, also XML documents.
+
+**So 90% is reachable only through ADR 0027, nested browsing contexts, and no combination of the
+other work gets there.** Those seven files need a *fully scriptable* same-origin child — the test
+mutates `iframe.contentDocument` and calls `iframe.contentWindow.run()` — so a stub does not pay.
+It is the next session's task and it is a large one: `src/engine`'s `Page` is 16,000 lines that all
+assume there is exactly one document.
+
+Two further things the goal should be judged against. **431 subtests are tentative proposals**
+(`dom/observable/`, `OpaqueRange`) and **126 are a WICG proposal** no browser ships — 1.3 points of
+the remaining gap is specs that are not stable, and ADR 0012's rule about stubs is the argument for
+leaving them where they are rather than chasing a percentage into them.
