@@ -1,0 +1,27 @@
+purpose: XML: the well-formedness parse, the namespace bindings it produces, and the serialization back out.
+
+# Its own module rather than a corner of `src/html`, and the reason is the one
+# ADR 0012 keeps making: the two are not the same algorithm and must never
+# become one. HTML tree construction *recovers* -- every error has a defined
+# repair and a document always comes out. XML **refuses**: a well-formedness
+# error is fatal, and the whole of what `DOMParser.parseFromString(s,
+# "text/xml")` produces for a bad string is a document containing one
+# `parsererror` element. A parser that shared code with the HTML tree builder
+# would have to be talked out of recovering at every step, and the first time
+# somebody forgot, a page would get a tree no other browser produces.
+#
+# `allow: util dom` and deliberately not `url` or `html`: this module turns
+# bytes into a `dom::Document` and a `dom::Node` back into bytes, and it
+# resolves nothing, fetches nothing and knows no element semantics.
+allow: util dom
+
+public: XmlParser.h XmlSerializer.h
+
+extern:
+
+# XmlParser.cpp is the whole of XML's grammar in one pass, and splitting it
+# would put the prolog in one file and content in another with the sticky error
+# flag and the namespace scope stack shared between them -- two files that can
+# only be read together. 1000 is what it takes; the number is here so that
+# growing past it is a decision.
+max_tu_lines: 1000

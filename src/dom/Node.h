@@ -535,6 +535,18 @@ class Document : public Node {
   bool InQuirksMode() const { return quirks_; }
   void SetQuirksMode(bool quirks) { quirks_ = quirks; }
 
+  // Whether this is an HTML document or an XML one -- the DOM's document
+  // "type", and true for every document until `DOMParser` made one that is not.
+  //
+  // It lives here rather than on the binding layer's wrapper because two things
+  // in the *tree* branch on it and neither can see a wrapper:
+  // `createElement` folds its argument to lower case and puts the element in the
+  // HTML namespace only in an HTML document, and `tagName` upper-cases only
+  // there. An XML document whose elements were lower-cased on the way in and
+  // upper-cased on the way out round-trips to a different name.
+  bool IsHtmlDocument() const { return html_; }
+  void SetHtmlDocument(bool html) { html_ = html; }
+
   Element* DocumentElement() const;
   Element* Body() const;
   Element* Head() const;
@@ -621,6 +633,7 @@ class Document : public Node {
 
  private:
   bool quirks_ = false;
+  bool html_ = true;
   bool user_activation_ = false;
   std::uint64_t mutation_version_ = 0;
   std::uint64_t structure_version_ = 0;

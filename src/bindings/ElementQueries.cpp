@@ -27,6 +27,75 @@ using js::Value;
 
 namespace {
 
+// "A and B are equal": the DOM's structural comparison, recursive over
+// children. Bounded by the same reasoning `dom::Node`'s destructor is -- a tree
+// deep enough to overflow this is a tree deep enough to overflow being freed --
+// so no explicit limit is added here that the tree does not already carry.
+bool AreEqualNodes(const dom::Node& a, const dom::Node& b) {
+  if (a.GetKind() != b.GetKind()) {
+    return false;
+  }
+  switch (a.GetKind()) {
+    case dom::Node::Kind::DocumentType: {
+      const auto& left = static_cast<const dom::DocumentType&>(a);
+      const auto& right = static_cast<const dom::DocumentType&>(b);
+      if (left.Name() != right.Name() || left.PublicId() != right.PublicId() ||
+          left.SystemId() != right.SystemId()) {
+        return false;
+      }
+      break;
+    }
+    case dom::Node::Kind::Element: {
+      const auto& left = static_cast<const dom::Element&>(a);
+      const auto& right = static_cast<const dom::Element&>(b);
+      if (!(left.Namespace() == right.Namespace()) || left.Prefix() != right.Prefix() ||
+          left.LocalName() != right.LocalName() ||
+          left.Attributes().size() != right.Attributes().size()) {
+        return false;
+      }
+      for (const dom::Attribute& attribute : left.Attributes()) {
+        const dom::Attribute* match =
+            right.GetAttributeNS(attribute.name_space, attribute.LocalName());
+        if (match == nullptr || match->value != attribute.value) {
+          return false;
+        }
+      }
+      break;
+    }
+    case dom::Node::Kind::ProcessingInstruction: {
+      const auto& left = static_cast<const dom::ProcessingInstruction&>(a);
+      const auto& right = static_cast<const dom::ProcessingInstruction&>(b);
+      if (left.Target() != right.Target() || left.Data() != right.Data()) {
+        return false;
+      }
+      break;
+    }
+    case dom::Node::Kind::Text:
+      if (static_cast<const dom::Text&>(a).Data() != static_cast<const dom::Text&>(b).Data()) {
+        return false;
+      }
+      break;
+    case dom::Node::Kind::Comment:
+      if (static_cast<const dom::Comment&>(a).Data() !=
+          static_cast<const dom::Comment&>(b).Data()) {
+        return false;
+      }
+      break;
+    case dom::Node::Kind::Document:
+    case dom::Node::Kind::DocumentFragment:
+      break;
+  }
+  if (a.Children().size() != b.Children().size()) {
+    return false;
+  }
+  for (std::size_t i = 0; i < a.Children().size(); ++i) {
+    if (!AreEqualNodes(*a.Children()[i], *b.Children()[i])) {
+      return false;
+    }
+  }
+  return true;
+}
+
 // The elements under `root`, in document order, that `matches` accepts.
 // `root` itself is not one of them -- a query is over descendants, which is
 // the difference between `querySelector` and `matches`.
@@ -237,6 +306,25 @@ void DomBindings::InstallNodeQueries(const js::Value& target) {
   method("hasChildNodes", [](NativeCall& call) {
     dom::Node* self = NodeOf(call.self);
     return Value::Bool(self != nullptr && !self->Children().empty());
+  });
+  // Structural equality, which is a different question from identity and is the
+  // only way to state "these two subtrees are the same" in a test. It is what
+  // most of `domparsing/createContextualFragment.html` is written in: every
+  // case there builds the tree it expects by hand and compares.
+  //
+  // Attributes are compared as *sets* -- same count, and every one of this
+  // element's matched by namespace, local name and value on the other. Order is
+  // deliberately not part of it, which is the DOM's rule and not a shortcut: the
+  // order attributes were written in is observable through
+  // `getAttributeNames`, and two elements that differ only in it are equal.
+  method("isEqualNode", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    dom::Node* other = NodeOf(Argument(call.arguments, 0));
+    return Value::Bool(self != nullptr && other != nullptr && AreEqualNodes(*self, *other));
+  });
+  method("isSameNode", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    return Value::Bool(self != nullptr && self == NodeOf(Argument(call.arguments, 0)));
   });
   // The *node document*, which is stored on the node rather than derived from
   // where it happens to be: a node script created and never inserted has one,

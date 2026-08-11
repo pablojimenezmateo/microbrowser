@@ -154,7 +154,21 @@ void DomBindings::Install() {
     }
     // ASCII-lower-cased, and only ASCII: `createElement("İnput")` must not
     // become an `<input>`, which is exactly what a locale-aware fold would do.
-    return owner->CreateElement(LowerCase(name), *owner->DocumentOf(call.self));
+    //
+    // Both the fold and the HTML namespace are conditional on *this document*
+    // being an HTML one, which it is not when `DOMParser` made it. In an XML
+    // document `createElement("child")` produces `child` in no namespace, with
+    // its case intact -- the same rule `createElementNS` follows below, and the
+    // reason it is stated here rather than assumed is that assuming it put an
+    // `xmlns="http://www.w3.org/1999/xhtml"` on every element script added to a
+    // parsed XML tree.
+    dom::Document& into = *owner->DocumentOf(call.self);
+    if (!into.IsHtmlDocument()) {
+      QualifiedName qualified;
+      qualified.qualified = std::move(name);
+      return owner->CreateElementNS(std::move(qualified), into);
+    }
+    return owner->CreateElement(LowerCase(name), into);
   });
   // The namespace is kept, and with it the prefix. **Nothing is lower-cased**:
   // `createElement` folds a name because an HTML document's element names are
@@ -503,6 +517,10 @@ void DomBindings::Install() {
   InstallBroadcastChannel();
   InstallIndexedDb();
   InstallRange();
+  // After InstallRange, because `createContextualFragment` goes on its
+  // prototype, and after the document interface exists, because the document
+  // metadata accessors go on that one.
+  InstallDomParsing();
   InstallPageVisibility(target);
 
   interpreter_->GlobalScope()->Declare("document", document, false);

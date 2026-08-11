@@ -1,7 +1,5 @@
 [domparsing/DOMParser-parseFromString-encoding.html]
 harness=ERROR
-[domparsing/DOMParser-parseFromString-html.html]
-harness=ERROR
 [domparsing/DOMParser-parseFromString-stylesheets.html]
 FAIL=DOMParser-created document should expose multiple style elements in styleSheets
 FAIL=DOMParser-created document should have accessible styleSheets collection with one style element
@@ -19,131 +17,17 @@ harness=TIMEOUT
 harness=TIMEOUT
 [domparsing/DOMParser-parseFromString-url.html]
 harness=TIMEOUT
-[domparsing/DOMParser-parseFromString-xml-doctype.html]
-FAIL=Doctype parsing of System Id can handle a quoted value
-FAIL=Doctype parsing of System Id can handle empty string
-FAIL=Doctype parsing of System Id must fail on ommitted value
-[domparsing/DOMParser-parseFromString-xml-internal-subset.html]
-FAIL=Parsing and serialization of doctype internal subset
-[domparsing/DOMParser-parseFromString-xml-parsererror.html]
-FAIL=A lone surrogate is replaced with U+FFFD
-FAIL=A valid surrogate pair is preserved
-FAIL=DOMParser: <parsererror> element added on error, 15<span
-FAIL=DOMParser: <parsererror> element added on error, 6</span>
-FAIL=DOMParser: <parsererror> element added on error, < span>2</span>
-FAIL=DOMParser: <parsererror> element added on error, <8:test xmlns:8="urn:x-test:test">16</8:test>
-FAIL=DOMParser: <parsererror> element added on error, <span ::="test">11</span>
-FAIL=DOMParser: <parsererror> element added on error, <span :test="testing">3</span>
-FAIL=DOMParser: <parsererror> element added on error, <span ="noattr">10</span>
-FAIL=DOMParser: <parsererror> element added on error, <span data-test=testing>14</span>
-FAIL=DOMParser: <parsererror> element added on error, <span novalue>9</span>
-FAIL=DOMParser: <parsererror> element added on error, <span x:test="testing">1</span>
-FAIL=DOMParser: <parsererror> element added on error, <span xmlns:="urn:x-test:test">12</span>
-FAIL=DOMParser: <parsererror> element added on error, <span xmlns:p1 xmlns:p2="urn:x-test:test"/>17
-FAIL=DOMParser: <parsererror> element added on error, <span xmlns:xmlns="">13</span>
-FAIL=DOMParser: <parsererror> element added on error, <span>5
-FAIL=DOMParser: <parsererror> element added on error, <span>7< /span>
-FAIL=DOMParser: <parsererror> element added on error, <span>8</ span>
-FAIL=DOMParser: <parsererror> element added on error, <span><em>4</span></em>
-FAIL=application/xhtml+xml is preserved in the error document
-FAIL=application/xml is preserved in the error document
-FAIL=image/svg+xml is preserved in the error document
-FAIL=text/xml is preserved in the error document
-[domparsing/DOMParser-parseFromString-xml.html]
-FAIL=Should parse correctly in type application/xhtml+xml
-FAIL=Should parse correctly in type application/xml
-FAIL=Should parse correctly in type image/svg+xml
-FAIL=Should parse correctly in type text/xml
-FAIL=Should return an error document for XML wellformedness errors in type application/xhtml+xml
-FAIL=Should return an error document for XML wellformedness errors in type application/xml
-FAIL=Should return an error document for XML wellformedness errors in type image/svg+xml
-FAIL=Should return an error document for XML wellformedness errors in type text/xml
-FAIL=XMLDocument interface for correctly parsed document with type application/xhtml+xml
-FAIL=XMLDocument interface for correctly parsed document with type application/xml
-FAIL=XMLDocument interface for correctly parsed document with type image/svg+xml
-FAIL=XMLDocument interface for correctly parsed document with type text/xml
-FAIL=XMLDocument interface for incorrectly parsed document with type application/xhtml+xml
-FAIL=XMLDocument interface for incorrectly parsed document with type application/xml
-FAIL=XMLDocument interface for incorrectly parsed document with type image/svg+xml
-FAIL=XMLDocument interface for incorrectly parsed document with type text/xml
-FAIL=scripting must be disabled with type application/xhtml+xml
-FAIL=scripting must be disabled with type application/xml
-FAIL=scripting must be disabled with type image/svg+xml
-FAIL=scripting must be disabled with type text/xml
 [domparsing/XMLSerializer-serializeToString.html]
 FAIL=Attribute nodes are serialized as the empty string
-FAIL=Attribute value escapes: apos
-FAIL=Attribute value escapes: gt
-FAIL=Attribute value escapes: lt
-FAIL=Attribute value escapes: quot
-FAIL=Check children were included for void elements
-FAIL=Check if "ns1" is generated even if the element already has xmlns:ns1.
 FAIL=Check if a prefix bound to an empty namespace URI ("no namespace") serialize
-FAIL=Check if an attribute with namespace and no prefix is serialized with the nearest-declared prefix
-FAIL=Check if an attribute with namespace and no prefix is serialized with the nearest-declared prefix even if the prefix is assigned to another namespace.
-FAIL=Check if attribute serialization takes into account of following xmlns:* attributes
-FAIL=Check if attribute serialization takes into account of the same prefix declared in an ancestor element
-FAIL=Check if document fragment serializes.
-FAIL=Check if end tag serialization matches start tag for elements in the XML namespace.
-FAIL=Check if end tag serialization matches start tag when an appropriate prefix is found.
-FAIL=Check if generated prefixes match to "ns${index}".
-FAIL=Check if inconsistent xmlns="..." is dropped.
 FAIL=Check if no special handling for XLink namespace unlike HTML serializer.
-FAIL=Check if redundant xmlns="..." is dropped.
-FAIL=Check if start tag serialization applied the original prefix even if it is declared in an ancestor element.
-FAIL=Check if start tag serialization does NOT apply the default namespace if its namespace is declared in an ancestor.
-FAIL=Check if start tag serialization drops element prefix if the namespace is same as inherited default namespace.
-FAIL=Check if start tag serialization finds an appropriate prefix.
-FAIL=Check if start tag serialization takes into account of its xmlns:* attributes
-FAIL=Check if the default namespace is correctly reset.
-FAIL=Check if the prefix of an attribute is NOT preserved in a case where neither its prefix nor its namespace URI is not already used.
-FAIL=Check if the prefix of an attribute is replaced with a generated one in a case where the prefix is already mapped to a different namespace URI.
-FAIL=Check if the prefix of an attribute is replaced with another existing prefix mapped to the same namespace URI.
-FAIL=Check if there is no redundant empty namespace declaration.
-FAIL=Drop inconsistent xmlns="..." by matching on local name
-FAIL=[TENTATIVE] check XMLSerializer.serializeToString escapes attribute values for roundtripping
-FAIL=check XMLSerializer.serializeToString method could parsing document to string
-FAIL=check XMLSerializer.serializeToString method could parsing xmldoc to string
 [domparsing/createContextualFragment-xhtml.xhtml]
 harness=TIMEOUT
 [domparsing/createContextualFragment.html]
-FAIL=<html> and <body> must work the same, 1
-FAIL=<html> and <body> must work the same, 2
 FAIL=<html> in a different namespace shouldn't be special
 FAIL=<script>s should be run when appended to the document (but not before)
-FAIL=Don't auto-create <body> when applied to <html>
-FAIL=Implicit <body> creation
-FAIL=Must not throw INVALID_STATE_ERR for a detached node.
-FAIL=Namespace generally shouldn't matter
-FAIL=Non-Element parent should not be special
-FAIL=SVG namespace shouldn't be special
-FAIL=Simple test with paragraphs
-FAIL=Text nodes shouldn't be special
-FAIL=createContextualFragment should work even when the context is <area>
-FAIL=createContextualFragment should work even when the context is <base>
-FAIL=createContextualFragment should work even when the context is <basefont>
-FAIL=createContextualFragment should work even when the context is <bgsound>
-FAIL=createContextualFragment should work even when the context is <br>
-FAIL=createContextualFragment should work even when the context is <col>
-FAIL=createContextualFragment should work even when the context is <embed>
-FAIL=createContextualFragment should work even when the context is <frame>
-FAIL=createContextualFragment should work even when the context is <hr>
-FAIL=createContextualFragment should work even when the context is <image>
-FAIL=createContextualFragment should work even when the context is <img>
-FAIL=createContextualFragment should work even when the context is <input>
-FAIL=createContextualFragment should work even when the context is <keygen>
-FAIL=createContextualFragment should work even when the context is <link>
-FAIL=createContextualFragment should work even when the context is <menuitem>
-FAIL=createContextualFragment should work even when the context is <meta>
-FAIL=createContextualFragment should work even when the context is <param>
-FAIL=createContextualFragment should work even when the context is <source>
-FAIL=createContextualFragment should work even when the context is <track>
-FAIL=createContextualFragment should work even when the context is <wbr>
-FAIL=null should be stringified
-FAIL=undefined should be stringified
 [domparsing/domparser-spurious-attributes.html]
 FAIL=Using ">" and "\r" in an attribute creates no unexpected attributes.
-FAIL=Using ">" and HTML entities in an attribute creates no unexpected attributes.
 [domparsing/innerhtml-01.xhtml]
 FAIL=innerHTML in XHTML: getting while the document is in an invalid state
 FAIL=innerHTML in XHTML: getting while the document is in an invalid state 1
@@ -151,10 +35,6 @@ FAIL=innerHTML in XHTML: getting while the document is in an invalid state 1
 harness=TIMEOUT
 [domparsing/innerhtml-05.xhtml]
 harness=TIMEOUT
-[domparsing/innerhtml-07.html]
-FAIL=innerHTML and string conversion: null.
-FAIL=innerHTML and string conversion: toString.
-FAIL=innerHTML and string conversion: valueOf.
 [domparsing/innerhtml-mxss.sub.html]
 FAIL=href after setter: 1680
 FAIL=href after setter: 2000
@@ -188,19 +68,11 @@ FAIL=href before setter: 205f
 FAIL=href before setter: 3000
 [domparsing/insert_adjacent_html-xhtml.xhtml]
 harness=TIMEOUT
-[domparsing/insert_adjacent_html.html]
-FAIL=Inserting kids of the <html> element should not do weird things with implied <body>/<head> tags
-FAIL=When the parent node is a document, insertAdjacentHTML should throw for beforebegin and afterend (comments)
-FAIL=When the parent node is a document, insertAdjacentHTML should throw for beforebegin and afterend (elements)
-FAIL=When the parent node is a document, insertAdjacentHTML should throw for beforebegin and afterend (text)
-[domparsing/outerhtml-01.html]
-FAIL=outerHTML: child of #document
-[domparsing/outerhtml-02.html]
-FAIL=outerHTML and string conversion: null.
-FAIL=outerHTML and string conversion: toString.
-FAIL=outerHTML and string conversion: valueOf.
 [domparsing/style_attribute_html.html]
-harness=ERROR
+FAIL=Parsing of initial style attribute
+FAIL=Parsing of invalid style attribute
+FAIL=Parsing of style attribute
+FAIL=Update style.backgroundColor
 [domparsing/tentative/all-stream-methods-with-trusted-types-no-policy.html]
 FAIL=streamAfterHTML with trusted types and no default policy returns a WritableStream.
 FAIL=streamAppendHTML with trusted types and no default policy returns a WritableStream.
@@ -1117,5 +989,3 @@ FAIL=DOMParser and XMLSerializer should round trip with CDATA sections: large CD
 FAIL=DOMParser and XMLSerializer should round trip with CDATA sections: multiple CDATAs
 [domparsing/xml-serialization.xhtml]
 harness=TIMEOUT
-[domparsing/xmldomparser.html]
-FAIL=XML Dom Parse readyState Test

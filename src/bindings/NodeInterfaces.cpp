@@ -166,11 +166,19 @@ std::string NodeNameOf(const dom::Node& node) {
       // Upper case for an HTML element in an HTML document, and *as written*
       // for anything else: `createElementNS(SVG_NS, 'linearGradient').tagName`
       // is `linearGradient`, and upper-casing it would name an element that
-      // does not exist. Every document here is an HTML document, so the
-      // element's namespace is the whole of the condition.
+      // does not exist.
+      //
+      // **Both halves of that condition**, now that `DOMParser` can make an XML
+      // document. `<div xmlns="…xhtml">` parsed as XML is an HTML-namespace
+      // element whose `tagName` is `div`, and it becomes `DIV` the moment
+      // `importNode` moves it into an HTML document -- so the answer depends on
+      // where the element *is*, not only on what it is.
       const auto& element = static_cast<const dom::Element&>(node);
-      return element.Namespace().IsHtml() ? util::AsciiUpperCase(element.TagName())
-                                          : element.TagName();
+      const dom::Document* document = element.NodeDocument();
+      const bool html_document = document == nullptr || document->IsHtmlDocument();
+      return element.Namespace().IsHtml() && html_document
+                 ? util::AsciiUpperCase(element.TagName())
+                 : element.TagName();
     }
     case dom::Node::Kind::Text:
       return "#text";

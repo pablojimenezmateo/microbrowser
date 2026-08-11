@@ -28,7 +28,18 @@ purpose: The seam between script and the document. The only module that sees bot
 # while `querySelector("ytd-app")` still worked. Selector matching is a pure
 # function of (element, selector) that already lives in `src/css`; this line
 # is how the binding layer asks it rather than re-implementing it wrong.
-allow: util js dom html css
+#
+# `xml` is here for `DOMParser` and `XMLSerializer`, and it does not widen the
+# model for the same reason `html` does not: `src/xml` cannot see `src/js`
+# either, so "every path from a page's code to its tree passes through this
+# module" is still true. What it buys is the thing ADR 0012 is about. XML has a
+# *failure* mode -- a well-formedness error is fatal, and the answer to a bad
+# string is a document containing one `parsererror` element -- and there was no
+# way to produce that answer from here without something that could tell a
+# well-formed document from a malformed one. The alternative on offer was to
+# run the HTML tokenizer over XML, which would have built a tree no other
+# browser builds, silently, for every input.
+allow: util js dom html css xml
 
 public: AnimationFrames.h DomBindings.h Geometry.h History.h IdleCallbacks.h IndexedDb.h Media.h Network.h Performance.h Sockets.h Storage.h Cookies.h Timers.h ViewObservers.h Canvas.h Workers.h Waapi.h
 

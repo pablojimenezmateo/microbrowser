@@ -38,6 +38,11 @@ inline constexpr const char* kReadyStateSlot = "#readyState";
 // answered NodeOf would be reachable by every Node method a page cared to
 // `.call()` on it.
 inline constexpr const char* kImplementationDocumentSlot = "#implDocument";
+// The MIME type a document was parsed as, on the document's wrapper for the
+// reason `readyState` is there: it is a fact about how the object was *made*
+// rather than about the tree, and `dom::Document` is shared with an engine that
+// has no notion of one. `DOMParser` writes it; `document.contentType` reads it.
+inline constexpr const char* kContentTypeSlot = "#contentType";
 // Where a document wrapper keeps the one DOMImplementation it hands out, so
 // that `document.implementation === document.implementation`.
 inline constexpr const char* kImplementationSlot = "#implementation";

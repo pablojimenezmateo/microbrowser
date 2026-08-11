@@ -209,9 +209,19 @@ void DomBindings::InstallHtmlParsing(const js::Value& element_interface) {
         } else {
           return Value::Undefined();
         }
-        // Read before anything is torn down: `ToString` can call a page's own
-        // `toString`, and that runs script which may move this element.
-        const std::string markup = js::ToString(Argument(call.arguments, 0));
+        // Read before anything is torn down: the conversion can call a page's
+        // own `toString`, and that runs script which may move this element.
+        //
+        // `[LegacyNullToEmptyString]`, which is on the IDL declaration rather
+        // than on DOMString: `el.innerHTML = null` empties the element, where
+        // WebIDL's plain conversion would have written the four characters
+        // "null" into it. `js::ToString` was doing neither -- it is a *pure*
+        // conversion that cannot call a page's `toString` at all, so an object
+        // became the literal "[object Object]" (see WebIdl.h).
+        std::string markup;
+        if (!ToDomStringOrEmptyForNull(call, Argument(call.arguments, 0), markup)) {
+          return call.ThrownValue();
+        }
         owner->ClearChildren(*target);
         owner->InsertParsedHtml(context, *target, nullptr, markup);
         return Value::Undefined();
@@ -230,19 +240,26 @@ void DomBindings::InstallHtmlParsing(const js::Value& element_interface) {
           return Value::Undefined();
         }
         dom::Node* parent = self->Parent();
-        if (parent == nullptr) {
+        if (parent == nullptr || parent->GetKind() == dom::Node::Kind::Document) {
           // The specification's NoModificationAllowedError. A node with no
           // parent has no place to put a replacement, and silently doing
-          // nothing is how a page ends up debugging the wrong line.
+          // nothing is how a page ends up debugging the wrong line. A node
+          // whose parent is the *document* is the same refusal: replacing
+          // `documentElement` with a fragment would mean parsing markup with
+          // no context element and inserting whatever came out beside the
+          // doctype.
           return ThrowDom(call, "NoModificationAllowedError",
-                            "outerHTML on a node with no parent");
+                            "outerHTML on a node with no element parent");
         }
         // §"the fragment parsing algorithm" for outerHTML: the context is the
         // *parent*, because that is where the nodes are going. A parent that is
         // not an element -- the document, a fragment -- uses body's rules,
         // which is what the specification says and what keeps `<td>` from
         // becoming a cell at the top of a document.
-        const std::string markup = js::ToString(Argument(call.arguments, 0));
+        std::string markup;
+        if (!ToDomStringOrEmptyForNull(call, Argument(call.arguments, 0), markup)) {
+          return call.ThrownValue();
+        }
         owner->ReplaceWithParsedHtml(*parent, *self, markup);
         return Value::Undefined();
       });
@@ -262,8 +279,16 @@ void DomBindings::InstallHtmlParsing(const js::Value& element_interface) {
       return call.Throw("TypeError", "insertAdjacentHTML called on a non-element");
     }
     auto& element = static_cast<dom::Element&>(*self);
-    const std::string position = LowerCase(js::ToString(Argument(call.arguments, 0)));
-    const std::string markup = js::ToString(Argument(call.arguments, 1));
+    if (!RequireArguments(call, "Element", "insertAdjacentHTML", 2)) {
+      return call.ThrownValue();
+    }
+    std::string position;
+    std::string markup;
+    if (!ToDomString(call, call.arguments[0], position) ||
+        !ToDomString(call, call.arguments[1], markup)) {
+      return call.ThrownValue();
+    }
+    position = LowerCase(position);
 
     if (position == "afterbegin" || position == "beforeend") {
       dom::Node& host = HtmlHost(element);
@@ -278,9 +303,13 @@ void DomBindings::InstallHtmlParsing(const js::Value& element_interface) {
       return ThrowDom(call, "SyntaxError", "'" + position + "' is not a valid insert position");
     }
     dom::Node* parent = element.Parent();
-    if (parent == nullptr) {
+    if (parent == nullptr || parent->GetKind() == dom::Node::Kind::Document) {
+      // Both halves are the specification's, and the document one is the
+      // interesting half: `document.documentElement.insertAdjacentHTML(
+      // "beforebegin", …)` would put nodes beside `<html>` at the top of a
+      // document, which is a tree the parser can never produce.
       return ThrowDom(call, "NoModificationAllowedError",
-                        "insertAdjacentHTML '" + position + "' on a node with no parent");
+                        "insertAdjacentHTML '" + position + "' on a node with no element parent");
     }
     // The context is the parent, for the reason outerHTML's is.
     dom::Node* reference =
@@ -371,8 +400,21 @@ void DomBindings::InsertAdjacentParsedHtml(dom::Node& parent, dom::Node* referen
   // no tag to be a context, and the specification substitutes `body`. Made
   // rather than found, because the document's own body is not necessarily the
   // right shape and is not necessarily there at all.
-  InsertParsedHtml(parent.IsElement() ? static_cast<dom::Element&>(parent).TagName() : "body",
-                   parent, reference, markup);
+  //
+  // **`<html>` takes the same substitution**, and that is the half that is easy
+  // to miss: `document.body.insertAdjacentHTML("afterend", "<p>")` has `<html>`
+  // as its context, and parsing into an `html` context runs "before head", which
+  // invents a `<head>` and a `<body>` around the `<p>` and inserts *those* --
+  // leaving the document with three of each. The same rule is why
+  // `createContextualFragment` on `<html>` does not auto-create a body.
+  std::string context = "body";
+  if (parent.IsElement()) {
+    const auto& element = static_cast<dom::Element&>(parent);
+    if (!(element.Namespace().IsHtml() && element.LocalName() == "html")) {
+      context = element.TagName();
+    }
+  }
+  InsertParsedHtml(context, parent, reference, markup);
 }
 
 void DomBindings::ReplaceWithParsedHtml(dom::Node& parent, dom::Node& target,

@@ -605,7 +605,6 @@ class DomBindings {
   // already lives -- a second copy is how two answers about the same gesture come to disagree.
   bool HasUserActivation() const;
   void SetClipboardText(std::string text) { clipboard_ = std::move(text); }
-  const std::string& ClipboardText() const { return clipboard_; }
 
   // --- workers, in WorkerBindings.cpp (ADR 0022 §1) --------------------------
   void InstallWorker();
@@ -845,12 +844,12 @@ class DomBindings {
   // `Range`, in Ranges.cpp: two boundary points and the ordering between them.
   void InstallRange();
 
-  // --- HTML from script, in HtmlParsing.cpp ---------------------------------
-  // `innerHTML`, `outerHTML` and `insertAdjacentHTML`: a page's string of
-  // markup becoming nodes, through the fragment parsing algorithm with a
-  // context element. On the Element interface, which is where the
-  // specification puts all three.
+  // --- DOM Parsing and Serialization, in HtmlParsing.cpp / DomParsing.cpp ---
+  // Markup becoming nodes and back, and in every one of them the *context* is
+  // the algorithm: `innerHTML`/`outerHTML`/`insertAdjacentHTML` on Element,
+  // then `DOMParser`, `XMLSerializer` and `Range.createContextualFragment`.
   void InstallHtmlParsing(const js::Value& element_interface);
+  void InstallDomParsing();
 
   // --- shadow DOM, in ShadowBindings.cpp ------------------------------------
   // `attachShadow`, `shadowRoot`, `assignedSlot` and a slot's assignment. On
@@ -958,7 +957,8 @@ class DomBindings {
   AnimationSource* animations_ = nullptr;
   // What a page last wrote to the clipboard. Held here rather than handed to the system, because
   // reaching the platform clipboard from the binding layer would be a module boundary crossed for one
-  // string -- and a test needs to see what was written either way. The chrome takes it from here.
+  // string -- and a test needs to see what was written either way. Write-only for now: the reader
+  // this was meant for never arrived, and a getter nothing calls is surface, not a plan.
   std::string clipboard_;
   std::uint32_t trusted_script_depth_ = 0;
   bool csp_script_strict_dynamic_ = false;

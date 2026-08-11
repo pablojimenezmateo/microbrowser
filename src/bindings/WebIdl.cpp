@@ -131,6 +131,16 @@ bool ToDomString(NativeCall& call, const Value& value, std::string& out) {
   return true;
 }
 
+bool ToDomStringOrEmptyForNull(NativeCall& call, const Value& value, std::string& out) {
+  // Only `null`. `undefined` still converts to "undefined", which looks like a
+  // typo and is what every browser does: the extended attribute names null.
+  if (value.IsNull()) {
+    out.clear();
+    return true;
+  }
+  return ToDomString(call, value, out);
+}
+
 bool ToNullableDomString(NativeCall& call, const Value& value, bool& is_null, std::string& out) {
   // WebIDL: only `null` is the null; `undefined` converts like any other value,
   // *unless* the argument is optional and undefined means "not passed" -- which

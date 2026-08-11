@@ -58,6 +58,13 @@ bool RequireArguments(js::NativeCall& call, std::string_view interface_name,
 // a default) rather than on the type.
 bool ToDomString(js::NativeCall& call, const js::Value& value, std::string& out);
 
+// `[LegacyNullToEmptyString] DOMString`. A null argument is the empty string
+// rather than the text "null" -- and, like `DOMString?`, that lives on the
+// *declaration* rather than on the type. `innerHTML`, `outerHTML` and the CSSOM
+// setters carry it, so `el.innerHTML = null` empties the element instead of
+// writing four characters into it. Everything else here is ToDomString.
+bool ToDomStringOrEmptyForNull(js::NativeCall& call, const js::Value& value, std::string& out);
+
 // `DOMString?`. A null or undefined argument is a real null rather than the
 // text "null" -- `setAttributeNS(null, …)` is the common spelling of "no
 // namespace" and every namespace-aware API takes it.

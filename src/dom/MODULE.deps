@@ -110,7 +110,14 @@ budget: ProcessingInstruction header_lines=40 public_methods=8 members=2
 # another.
 # +1 structure_version_: tree-shape half of MutationVersion for TD-0021's style
 # cache. Attribute writes leave it alone; insert/remove bump both.
-budget: Document     header_lines=130 public_methods=22 members=6
+# +1 member for the document's *type* -- HTML or XML -- which arrived with
+# `DOMParser` (task C9). It is a bit rather than a MIME string on purpose: the
+# two things in the tree that branch on it are `createElement`'s case folding
+# and `tagName`'s upper-casing, and both want the bit. The exact content type a
+# page reads back (`text/xml` against `image/svg+xml`) is not a tree fact and
+# stays on the binding layer's wrapper, where the rest of "how was this object
+# made" already lives.
+budget: Document     header_lines=130 public_methods=24 members=7
 # A fragment, plus the one link back from a shadow root to its host. Deliberately
 # not the fragment's parent: a shadow root with a parent would be reachable by
 # every ordinary tree walk, and being unreachable that way is the whole point of

@@ -204,10 +204,8 @@ FAIL=initEvent should unset defaultPrevented.
 [dom/events/Event-dispatch-bubble-canceled.html]
 FAIL=Setting cancelBubble=true prior to dispatchEvent()
 [dom/events/Event-dispatch-bubbles-false.html]
-FAIL=In new Document()
 FAIL=In window.document.cloneNode(true)
 [dom/events/Event-dispatch-bubbles-true.html]
-FAIL=In new Document()
 FAIL=In window.document.cloneNode(true)
 [dom/events/Event-dispatch-click.html]
 harness=TIMEOUT
@@ -912,8 +910,6 @@ FAIL=DOMImplementation.createDocument(namespace, qualifiedName, doctype)
 FAIL=createHTMLDocument(): from a saved and detached implementation does not return null
 [dom/nodes/DOMImplementation-createHTMLDocument.html]
 FAIL=createHTMLDocument(): URL parsing
-FAIL=createHTMLDocument(): characterSet aliases
-FAIL=createHTMLDocument(): document location getter is null
 FAIL=createHTMLDocument(): metadata
 [dom/nodes/Document-URL.html]
 harness=TIMEOUT
@@ -929,9 +925,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [dom/nodes/Document-constructor.html]
 FAIL=new Document(): URL parsing
-FAIL=new Document(): characterSet aliases
-FAIL=new Document(): children
-FAIL=new Document(): interfaces
 FAIL=new Document(): metadata
 [dom/nodes/Document-contentType/contentType/contenttype_bmp.html]
 harness=TIMEOUT
@@ -959,8 +952,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [dom/nodes/Document-contentType/contentType/createDocument.html]
 FAIL=document.implementation.createDocument: document.contentType === 'application/xhtml+xml'
-[dom/nodes/Document-contentType/contentType/createHTMLDocument.html]
-FAIL=document.implementation.createHTMLDocument: document.contentType === 'text/html'
 [dom/nodes/Document-contentType/contentType/xhr_responseType_document.html]
 FAIL=XHR - retrieve HTML document: document.contentType === 'application/xml'
 [dom/nodes/Document-createAttribute.html]
@@ -1536,8 +1527,6 @@ FAIL=Should throw an INVALID_CHARACTER_ERR for target "U+d7A" and data "x".
 [dom/nodes/Document-createTreeWalker.html]
 FAIL=Optional arguments to createTreeWalker should be optional (1 passed).
 FAIL=Optional arguments to createTreeWalker should be optional (2 passed).
-[dom/nodes/Document-doctype.html]
-FAIL=new Document()
 [dom/nodes/Document-getElementById.html]
 FAIL=Calling document.getElementById with an empty string argument.
 FAIL=changing attribute's value via `Attr` gotten from `Element.attribute`.
@@ -1558,9 +1547,6 @@ FAIL=Document.getElementsByTagNameNS
 FAIL=getElementsByTagNameNS() should be a live collection
 [dom/nodes/Document-importNode.html]
 FAIL=Import an Attr node with namespace/prefix correctly.
-[dom/nodes/DocumentFragment-constructor.html]
-FAIL=Create a valid document DocumentFragment
-FAIL=Sets the owner document to the current global object associated document
 [dom/nodes/DocumentFragment-getElementById.html]
 FAIL=Empty string ID values
 FAIL=It must return null when there are no matches
@@ -1747,25 +1733,11 @@ FAIL=Test with iframes
 [dom/nodes/Node-isEqualNode-xhtml.xhtml]
 harness=TIMEOUT
 [dom/nodes/Node-isEqualNode.html]
-FAIL=comments should be compared on data
-FAIL=doctypes should be compared on name, public ID, and system ID
-FAIL=document fragments should not be compared based on properties
 FAIL=documents should not be compared based on properties
-FAIL=elements should be compared on attribute namespace, local name, and value
-FAIL=elements should be compared on namespace, namespace prefix, local name, and number of attributes
 FAIL=node equality testing should test descendant equality too
-FAIL=processing instructions should be compared on target and data
-FAIL=text nodes should be compared on data
 [dom/nodes/Node-isSameNode.html]
 FAIL=attributes should be compared on reference
-FAIL=comments should be compared on reference
-FAIL=doctypes should be compared on reference
-FAIL=document fragments should be compared on reference
 FAIL=documents should be compared on reference
-FAIL=elements should be compared on reference (namespaced attribute)
-FAIL=elements should be compared on reference (namespaced element)
-FAIL=processing instructions should be compared on reference
-FAIL=text nodes should be compared on reference
 [dom/nodes/Node-lookupNamespaceURI.html]
 FAIL=Child element should have XMLNS namespace
 FAIL=Element should have XML namespace
@@ -2227,9 +2199,6 @@ FAIL=Distinct attribute name (source: html-parser): x123A and x123a
 FAIL=Distinct attribute name (source: xml-dom): ABC and abc
 FAIL=Distinct attribute name (source: xml-dom): abC and abc
 FAIL=Distinct attribute name (source: xml-dom): x123A and x123a
-FAIL=Distinct attribute name (source: xml-parser): ABC and abc
-FAIL=Distinct attribute name (source: xml-parser): abC and abc
-FAIL=Distinct attribute name (source: xml-parser): x123A and x123a
 FAIL=Invalid attribute name: 	x (source: html-dom)
 FAIL=Invalid attribute name: 	x (source: html-parser)
 FAIL=Invalid attribute name: 	x (source: xml-dom)
@@ -2297,7 +2266,6 @@ FAIL=Processing instruction attribute parsing allows _ in attribute names from x
 FAIL=Processing instruction attribute parsing rejects unquoted attributes from html-dom
 FAIL=Processing instruction attribute parsing rejects unquoted attributes from html-parser
 FAIL=Processing instruction attribute parsing rejects unquoted attributes from xml-dom
-FAIL=Processing instruction attribute parsing rejects unquoted attributes from xml-parser
 FAIL=Processing instruction attributes with xml-stylesheet from html-dom
 FAIL=Processing instruction attributes with xml-stylesheet from xml-dom
 FAIL=Processing instruction attributes with xml-stylesheet from xml-parser
@@ -2309,27 +2277,21 @@ FAIL=Processing instruction toggleAttribute from xml-parser
 FAIL=Valid attribute name: $ (source: html-dom)
 FAIL=Valid attribute name: $ (source: html-parser)
 FAIL=Valid attribute name: $ (source: xml-dom)
-FAIL=Valid attribute name: $ (source: xml-parser)
 FAIL=Valid attribute name: $foo (source: html-dom)
 FAIL=Valid attribute name: $foo (source: html-parser)
 FAIL=Valid attribute name: $foo (source: xml-dom)
-FAIL=Valid attribute name: $foo (source: xml-parser)
 FAIL=Valid attribute name: _ (source: html-dom)
 FAIL=Valid attribute name: _ (source: html-parser)
 FAIL=Valid attribute name: _ (source: xml-dom)
-FAIL=Valid attribute name: _ (source: xml-parser)
 FAIL=Valid attribute name: _bar (source: html-dom)
 FAIL=Valid attribute name: _bar (source: html-parser)
 FAIL=Valid attribute name: _bar (source: xml-dom)
-FAIL=Valid attribute name: _bar (source: xml-parser)
 FAIL=Valid attribute name: a$b (source: html-dom)
 FAIL=Valid attribute name: a$b (source: html-parser)
 FAIL=Valid attribute name: a$b (source: xml-dom)
-FAIL=Valid attribute name: a$b (source: xml-parser)
 FAIL=Valid attribute name: a_b (source: html-dom)
 FAIL=Valid attribute name: a_b (source: html-parser)
 FAIL=Valid attribute name: a_b (source: xml-dom)
-FAIL=Valid attribute name: a_b (source: xml-parser)
 FAIL=check attribute value: "'""'" (source: "html-dom")
 FAIL=check attribute value: "'""'" (source: "html-parser")
 FAIL=check attribute value: "'""'" (source: "xml-dom")

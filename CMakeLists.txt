@@ -282,6 +282,12 @@ microbrowser_module(html
     src/html/TreeBuilderTable.cpp
   DEPS microbrowser_util microbrowser_url microbrowser_dom)
 
+microbrowser_module(xml
+  SOURCES
+    src/xml/XmlParser.cpp
+    src/xml/XmlSerializer.cpp
+  DEPS microbrowser_util microbrowser_dom)
+
 microbrowser_module(layout
   SOURCES
     src/layout/FlexLayout.cpp
@@ -502,6 +508,7 @@ microbrowser_module(bindings
     src/bindings/MediaQueries.cpp
     src/bindings/Ranges.cpp
     src/bindings/HtmlParsing.cpp
+    src/bindings/DomParsing.cpp
     src/bindings/UrlSearchParams.cpp
     src/bindings/ViewObservers.cpp
     src/bindings/WaapiBindings.cpp
@@ -511,7 +518,7 @@ microbrowser_module(bindings
     src/bindings/FormBindings.cpp
     src/bindings/WindowBindings.cpp
     src/bindings/XhrBindings.cpp
-  DEPS microbrowser_js microbrowser_dom microbrowser_html microbrowser_css)
+  DEPS microbrowser_js microbrowser_dom microbrowser_html microbrowser_css microbrowser_xml)
 
 microbrowser_module(js
   SOURCES
@@ -732,6 +739,7 @@ add_executable(microbrowser_tests
   tests/TextShaperTests.cpp
   tests/TokenizerTests.cpp
   tests/NamespaceTests.cpp
+  tests/XmlTests.cpp
   tests/TreeBuilderTests.cpp
   tests/UrlEncodedTests.cpp
   tests/UrlTests.cpp
@@ -809,6 +817,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(html_fuzzer fuzz/HtmlFuzzer.cpp microbrowser_html microbrowser_dom)
   microbrowser_fuzzer(html_fragment_fuzzer fuzz/HtmlFragmentFuzzer.cpp
     microbrowser_html microbrowser_dom)
+  microbrowser_fuzzer(xml_fuzzer fuzz/XmlFuzzer.cpp microbrowser_xml microbrowser_dom)
   microbrowser_fuzzer(css_fuzzer fuzz/CssFuzzer.cpp microbrowser_css microbrowser_dom)
   microbrowser_fuzzer(image_selection_fuzzer fuzz/ImageSelectionFuzzer.cpp
     microbrowser_engine microbrowser_css microbrowser_html microbrowser_dom)
