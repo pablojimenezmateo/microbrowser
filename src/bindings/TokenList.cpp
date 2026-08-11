@@ -208,6 +208,14 @@ js::Value DomBindings::TokenListInterface() {
   if (prototype.object->HasOwn("add")) {
     return prototype;  // already installed
   }
+  // `Object.prototype.toString.call(el.classList)` must say `[object
+  // DOMTokenList]`. That string is the only way a page can tell this type
+  // apart without `instanceof`, and it is what `assert_class_string` -- the
+  // check WPT uses on every reflected token list -- reads. Without it the
+  // answer was `[object Object]`, which is what a plain object says.
+  if (js::Object* tag = interpreter_->SymbolToStringTag()) {
+    prototype.object->Set(js::PropertyKey::Symbol(tag), Value::String("DOMTokenList"));
+  }
 
   const auto method = [this, &prototype](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));

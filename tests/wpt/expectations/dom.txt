@@ -702,54 +702,9 @@ FAIL=Should be able to delete ProcessingInstruction.
 FAIL=Should be able to delete Text.
 FAIL=Should be able to delete TreeWalker.
 [dom/lists/DOMTokenList-coverage-for-attributes.html]
-FAIL=a.classList in http://example.com/ namespace should be DOMTokenList.
-FAIL=a.classList in http://www.w3.org/1998/Math/MathML namespace should be DOMTokenList.
-FAIL=a.classList in http://www.w3.org/1999/xhtml namespace should be DOMTokenList.
-FAIL=a.classList in http://www.w3.org/2000/svg namespace should be DOMTokenList.
-FAIL=a.classList in null namespace should be DOMTokenList.
-FAIL=a.relList in http://www.w3.org/1999/xhtml namespace should be DOMTokenList.
 FAIL=a.relList in http://www.w3.org/2000/svg namespace should be DOMTokenList.
-FAIL=area.classList in http://example.com/ namespace should be DOMTokenList.
-FAIL=area.classList in http://www.w3.org/1998/Math/MathML namespace should be DOMTokenList.
-FAIL=area.classList in http://www.w3.org/1999/xhtml namespace should be DOMTokenList.
-FAIL=area.classList in http://www.w3.org/2000/svg namespace should be DOMTokenList.
-FAIL=area.classList in null namespace should be DOMTokenList.
-FAIL=area.relList in http://www.w3.org/1999/xhtml namespace should be DOMTokenList.
-FAIL=iframe.classList in http://example.com/ namespace should be DOMTokenList.
-FAIL=iframe.classList in http://www.w3.org/1998/Math/MathML namespace should be DOMTokenList.
-FAIL=iframe.classList in http://www.w3.org/1999/xhtml namespace should be DOMTokenList.
-FAIL=iframe.classList in http://www.w3.org/2000/svg namespace should be DOMTokenList.
-FAIL=iframe.classList in null namespace should be DOMTokenList.
-FAIL=iframe.sandbox in http://www.w3.org/1999/xhtml namespace should be DOMTokenList.
-FAIL=link.classList in http://example.com/ namespace should be DOMTokenList.
-FAIL=link.classList in http://www.w3.org/1998/Math/MathML namespace should be DOMTokenList.
-FAIL=link.classList in http://www.w3.org/1999/xhtml namespace should be DOMTokenList.
-FAIL=link.classList in http://www.w3.org/2000/svg namespace should be DOMTokenList.
-FAIL=link.classList in null namespace should be DOMTokenList.
-FAIL=link.relList in http://www.w3.org/1999/xhtml namespace should be DOMTokenList.
-FAIL=link.sizes in http://www.w3.org/1999/xhtml namespace should be DOMTokenList.
-FAIL=output.classList in http://example.com/ namespace should be DOMTokenList.
-FAIL=output.classList in http://www.w3.org/1998/Math/MathML namespace should be DOMTokenList.
-FAIL=output.classList in http://www.w3.org/1999/xhtml namespace should be DOMTokenList.
-FAIL=output.classList in http://www.w3.org/2000/svg namespace should be DOMTokenList.
-FAIL=output.classList in null namespace should be DOMTokenList.
-FAIL=output.htmlFor in http://www.w3.org/1999/xhtml namespace should be DOMTokenList.
-FAIL=td.classList in http://example.com/ namespace should be DOMTokenList.
-FAIL=td.classList in http://www.w3.org/1998/Math/MathML namespace should be DOMTokenList.
-FAIL=td.classList in http://www.w3.org/1999/xhtml namespace should be DOMTokenList.
-FAIL=td.classList in http://www.w3.org/2000/svg namespace should be DOMTokenList.
-FAIL=td.classList in null namespace should be DOMTokenList.
-FAIL=th.classList in http://example.com/ namespace should be DOMTokenList.
-FAIL=th.classList in http://www.w3.org/1998/Math/MathML namespace should be DOMTokenList.
-FAIL=th.classList in http://www.w3.org/1999/xhtml namespace should be DOMTokenList.
-FAIL=th.classList in http://www.w3.org/2000/svg namespace should be DOMTokenList.
-FAIL=th.classList in null namespace should be DOMTokenList.
 [dom/lists/DOMTokenList-iteration.html]
 FAIL=classList inheritance from Array.prototype
-[dom/lists/DOMTokenList-stringifier.html]
-FAIL=DOMTokenList stringifier
-[dom/lists/DOMTokenList-value.html]
-FAIL=DOMTokenList value
 [dom/nodes/Attr-prefix-xhtml.xhtml]
 FAIL=Attr.prefix present
 [dom/nodes/Attr-prefix.html]

@@ -9522,7 +9522,6 @@ FAIL=Elements in a shadow tree should not be accessible from owner document's "l
 FAIL=Elements in a shadow tree should not be accessible from owner document's "plugins" attribute.
 FAIL=Elements in a shadow tree should not be accessible from owner document's "scripts" attribute.
 FAIL=Elements in a shadow tree should not be accessible from owner document's getElementsByName() method.
-FAIL=Elements in a shadow tree should not be accessible from owner document's getElementsByTagNameNS() method.
 [shadow-dom/untriaged/shadow-trees/upper-boundary-encapsulation/dom-tree-accessors-002.html]
 FAIL=Elements in a shadow tree should be accessible via shadow root's getElementById() DOM tree accessor.
 [shadow-dom/untriaged/shadow-trees/upper-boundary-encapsulation/ownerdocument-001.html]

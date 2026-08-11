@@ -2007,7 +2007,17 @@ FAIL=Removing the media attribute updates the associated stylesheet
 FAIL=Setting media via the IDL attribute updates the content attribute
 FAIL=Setting the content attribute updates the IDL attribute (media)
 FAIL=media attribute on SVG <style> elements should reflect correctly
+# This browser has one `SVGElement` interface for every SVG tag (see the tag
+# table in src/bindings/NodeInterfaces.cpp), and `title` is an IDL attribute of
+# `SVGStyleElement` in particular. These two passed until 2026-08-11 only
+# because an SVG `<style>` was being given `HTMLStyleElement.prototype` -- the
+# interface was chosen by tag name with no regard for the namespace, which also
+# made `svgStyle instanceof HTMLStyleElement` true. Adding `title` to
+# `SVGElement` to keep them green would put it on every SVG element, which is
+# ADR 0012's stub by another route. Wants the SVG interface hierarchy.
 [svg/styling/attr-style-title.html]
+FAIL=Setting the content attribute updates the IDL attribute (title)
+FAIL=Setting title via the IDL attribute updates the content attribute
 FAIL=title attribute on SVG <style> elements should reflect correctly
 [svg/styling/attr-style-type-dynamic.html]
 FAIL=Changing the type from invalid to valid creates the stylesheet

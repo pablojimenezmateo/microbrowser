@@ -392,6 +392,62 @@ void DomBindings::EnsureInterfaces() {
     const Value* parent = interfaces_.object->GetOwn(entry.parent);
     MakeInterface(entry.interface, parent == nullptr ? html_element : *parent);
   }
+  // The reflected `DOMTokenList`s other than `classList`, each on exactly the
+  // interfaces HTML gives it and no others.
+  //
+  // Not on Element.prototype, and that is the point: `div.relList` must be
+  // *undefined*, because a page that feature-detects `el.relList` to decide
+  // whether it is looking at a link would otherwise get yes for every element.
+  // `classList` is the one that is universal, and it lives with the rest of
+  // Element's surface for that reason.
+  //
+  // Each is cached on the wrapper, like `classList` and for the same reason:
+  // the list is live -- it re-reads its attribute on every operation -- so
+  // caching costs nothing in staleness, while not caching makes
+  // `el.relList !== el.relList`, which pages compare.
+  struct ReflectedTokenList {
+    const char* interface;
+    const char* property;
+    const char* attribute;
+  };
+  static constexpr ReflectedTokenList kReflectedTokenLists[] = {
+      {"HTMLAnchorElement", "relList", "rel"},
+      {"HTMLAreaElement", "relList", "rel"},
+      {"HTMLLinkElement", "relList", "rel"},
+      {"HTMLLinkElement", "sizes", "sizes"},
+      {"HTMLIFrameElement", "sandbox", "sandbox"},
+      {"HTMLOutputElement", "htmlFor", "for"},
+  };
+  for (const ReflectedTokenList& entry : kReflectedTokenLists) {
+    const Value* prototype = interfaces_.object->GetOwn(entry.interface);
+    if (prototype == nullptr || !prototype->IsObject()) {
+      continue;
+    }
+    const std::string slot = std::string("#tokenList:") + entry.property;
+    const char* attribute = entry.attribute;
+    const Value getter =
+        interpreter_->NewNativeValue(entry.property, [slot, attribute](NativeCall& call) {
+          DomBindings* owner = OwnerOf(call);
+          dom::Node* self = NodeOf(call.self);
+          if (owner == nullptr || self == nullptr || !self->IsElement()) {
+            return Value::Undefined();
+          }
+          if (call.self.IsObject()) {
+            if (const Value* cached = call.self.object->GetOwn(slot)) {
+              return *cached;
+            }
+          }
+          const Value list = owner->MakeTokenList(static_cast<dom::Element&>(*self), attribute);
+          if (call.self.IsObject()) {
+            call.self.object->SetHidden(slot, list);
+          }
+          return list;
+        });
+    if (getter.IsObject()) {
+      getter.object->Set(kOwnerSlot, PointerValue(this));
+      prototype->object->DefineAccessor(entry.property, getter.object, nullptr);
+    }
+  }
   if (js::Value* script_ctor = interpreter_->GlobalScope()->Lookup("HTMLScriptElement")) {
     if (script_ctor->IsObject()) {
       const Value supports = interpreter_->NewNativeValue("supports", [](NativeCall&) {
@@ -776,7 +832,24 @@ js::Value DomBindings::PrototypeFor(const dom::Node& node) {
       break;
   }
 
-  const char* interface = InterfaceForTag(static_cast<const dom::Element&>(node).TagName());
+  // **The tag decides the interface only inside the HTML namespace.**
+  //
+  // `createElementNS("http://example.com/", "a")` is not an anchor. It is an
+  // `Element` with the local name `a`, and every member HTML puts on
+  // `HTMLAnchorElement` -- `href`, `relList`, `target` -- must be *undefined*
+  // on it. Choosing by tag name alone gave a foreign element the whole HTML
+  // interface, which is not a missing feature but an invented one: a page that
+  // feature-detects `el.relList` to decide whether it is looking at a link
+  // gets yes for a MathML `<a>`.
+  //
+  // SVG has its own hierarchy and this browser has one interface for it, so an
+  // SVG element is an `SVGElement`; anything else foreign is a bare `Element`.
+  const auto& element = static_cast<const dom::Element&>(node);
+  if (!element.Namespace().IsHtml()) {
+    return named(element.Namespace().Uri() == "http://www.w3.org/2000/svg" ? "SVGElement"
+                                                                        : "Element");
+  }
+  const char* interface = InterfaceForTag(element.TagName());
   return *interface == '\0' ? named("HTMLElement") : named(interface);
 }
 
