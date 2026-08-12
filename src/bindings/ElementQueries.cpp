@@ -185,6 +185,44 @@ js::Value MakeAttrImpl(DomBindings& owner, js::Interpreter& interpreter, dom::El
   if (getter.IsObject()) {
     entry.object->DefineAccessor("ownerElement", getter.object, nullptr);
   }
+  // The three namespace lookups every Node answers, which an Attr has to as
+  // well -- and a **disconnected** one answers null and false, because there is
+  // no element above it to carry an `xmlns`. They are on the record rather than
+  // inherited because this object is not a Node; leaving them off made
+  // `document.createAttribute('x').lookupNamespaceURI(null)` a TypeError the
+  // moment `createAttribute` started answering at all, which is a regression a
+  // missing method introduced by a method arriving.
+  struct Lookup {
+    const char* name;
+    bool boolean;
+  };
+  for (const Lookup& lookup : {Lookup{"lookupNamespaceURI", false},
+                               Lookup{"lookupPrefix", false},
+                               Lookup{"isDefaultNamespace", true}}) {
+    const char* name = lookup.name;
+    const bool boolean = lookup.boolean;
+    const js::Value native = interpreter.NewNativeValue(
+        name, [name, boolean](js::NativeCall& inner) -> js::Value {
+          // Delegated to the element when there is one, so an attached Attr
+          // answers what its element answers rather than a second opinion.
+          const js::Value* owner_element =
+              inner.self.IsObject() ? inner.self.object->Get("ownerElement") : nullptr;
+          if (owner_element != nullptr && owner_element->IsObject()) {
+            const js::Value method =
+                inner.interpreter.GetPropertyValue(*owner_element, name);
+            if (method.IsObject() && method.object->IsCallable()) {
+              const js::Result answered = inner.interpreter.CallFunction(
+                  method, *owner_element, {Argument(inner.arguments, 0)});
+              return answered.IsAbrupt() ? inner.ThrowValue(answered.value) : answered.value;
+            }
+          }
+          return boolean ? js::Value::Bool(false) : js::Value::Null();
+        });
+    if (native.IsObject()) {
+      native.object->Set(kOwnerSlot, PointerValue(&owner));
+      entry.object->Set(name, native);
+    }
+  }
   return entry;
 }
 

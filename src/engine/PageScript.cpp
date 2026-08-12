@@ -525,6 +525,10 @@ std::optional<bindings::PendingSubmit> PageScript::TakePendingSubmit() {
   return bindings_ == nullptr ? std::nullopt : bindings_->TakePendingSubmit();
 }
 
+dom::Element* PageScript::TakePendingActivation() {
+  return bindings_ == nullptr ? nullptr : bindings_->TakePendingActivation();
+}
+
 bool PageScript::NotifyLoad() {
   return bindings_ != nullptr && bindings_->NotifyLoad();
 }

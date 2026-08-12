@@ -173,6 +173,16 @@ class DomBindings {
   // The submission a script asked for, taken. Empty when it asked for none.
   std::optional<PendingSubmit> TakePendingSubmit();
 
+  // The element `element.click()` activated and nothing cancelled, taken.
+  //
+  // Recorded rather than performed, for the reason a submission is: the
+  // activation behaviour of a checkbox, a submit button, an anchor or a
+  // `<details>` is the *engine's* -- it lays out, navigates and repaints, none
+  // of which this module may see. `Page::ResolveClickActivation` already
+  // implements all of it for real pointer input; this is the same act arriving
+  // from script, and running it here would be a second copy that disagrees.
+  dom::Element* TakePendingActivation();
+
   // Samples every `IntersectionObserver` and `ResizeObserver` against the
   // layout about to be painted and runs the callbacks whose answers changed.
   // True when one ran, which is the caller's signal that the document may have
@@ -902,6 +912,10 @@ class DomBindings {
   std::vector<std::unique_ptr<dom::Node>> detached_;
   // The submission a script asked for. See PendingSubmit for why it waits.
   std::optional<PendingSubmit> pending_submit_;
+  // The element a script's `click()` activated, waiting for the engine. A raw
+  // pointer for the reason every node pointer here is one: the tree outlives
+  // this class, and nothing frees a node before its document.
+  dom::Element* pending_activation_ = nullptr;
   // Borrowed, like the interpreter and the document, and null when there is no
   // layout behind this binding layer.
   GeometrySource* geometry_ = nullptr;

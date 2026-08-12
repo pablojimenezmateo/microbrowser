@@ -95,6 +95,12 @@ std::optional<PendingSubmit> DomBindings::TakePendingSubmit() {
   return taken;
 }
 
+dom::Element* DomBindings::TakePendingActivation() {
+  dom::Element* taken = pending_activation_;
+  pending_activation_ = nullptr;
+  return taken;
+}
+
 void DomBindings::InstallFormApis() {
   // `document.forms`, as an accessor so it follows the tree rather than
   // freezing what it looked like when the bindings were installed. reddit's

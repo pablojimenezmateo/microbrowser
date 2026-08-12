@@ -152,7 +152,20 @@ void DomBindings::InstallFocus(const js::Value& target) {
     }
     pointer.button = 0;
     pointer.buttons = 0;
-    (void)owner->DispatchClick(element, pointer);
+    // **The activation behaviour is the engine's, and it is recorded rather
+    // than run.** Toggling a checkbox, submitting a form, following an
+    // `href` -- all of it lays out, navigates or repaints, none of which this
+    // module may see. `engine::Page::ResolveClickActivation` already
+    // implements every case for real pointer input; a second copy here is how
+    // a click from script and a click from a mouse come to disagree. So the
+    // element is left for the engine, exactly as a `requestSubmit()` is.
+    //
+    // Only when nothing cancelled: `preventDefault` in a handler is what
+    // stops the default action, and that is the whole contract of a
+    // cancelable click.
+    if (!owner->DispatchClick(element, pointer)) {
+      owner->pending_activation_ = &element;
+    }
     return Value::Undefined();
   });
 }

@@ -406,6 +406,29 @@ std::optional<FormSubmission> Page::TakeScriptFormSubmission() {
   return BuildFormSubmission(*pending->form, pending->submitter, *document_, url_);
 }
 
+std::optional<FormSubmission> Page::ApplyScriptActivation(bool& changed_document,
+                                                          std::optional<std::string>& href) {
+  changed_document = false;
+  href.reset();
+  dom::Element* clicked = script_.TakePendingActivation();
+  if (clicked == nullptr) {
+    return std::nullopt;
+  }
+  // **The same walk a real click takes.** `element.click()` from script has the
+  // same activation behaviour as a pointer release -- the specification runs
+  // one algorithm, and two copies of it is how a checkbox toggles under the
+  // mouse and not under `click()`. The `preventDefault` check already happened
+  // where the event was dispatched.
+  const ClickActivation activation = ResolveClickActivation(clicked);
+  if (activation.form.has_value()) {
+    return activation.form;
+  }
+  href = activation.href;
+  changed_document =
+      activation.reset_form || activation.toggled_checkable || activation.toggled_media;
+  return std::nullopt;
+}
+
 std::optional<FormSubmission> Page::FormSubmissionRequestAt(gfx::FloatPoint document_point) {
   EnsureLayoutClean();
   if (boxes_ == nullptr || document_ == nullptr) {

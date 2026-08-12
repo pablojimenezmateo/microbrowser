@@ -312,6 +312,10 @@ class PageScript {
   // and doing that while it is on the stack is the use-after-free ADR 0026 §3
   // is written to prevent.
   std::optional<bindings::PendingSubmit> TakePendingSubmit();
+  // The element a script's `click()` activated and nothing cancelled. The
+  // engine runs its activation behaviour, because that is the engine's -- see
+  // DomBindings::TakePendingActivation.
+  dom::Element* TakePendingActivation();
   // Fires `load` at the window and moves `readyState` to "complete". True when
   // something was listening, which is the caller's signal that the document
   // may have changed. A page with no `load` handler must not cost a relayout

@@ -397,6 +397,17 @@ class Page : private layout::ImageProvider,
   // interpreter on the stack is a use-after-free. See ADR 0026 §3.
   std::optional<FormSubmission> TakeScriptFormSubmission();
 
+  // The activation behaviour of an `element.click()` a script ran, applied.
+  //
+  // Empty unless the script clicked something whose default action is a
+  // *navigation* -- a submit control or an anchor with an `href` -- which the
+  // caller has to perform. Everything else (a checkbox toggling, a form
+  // resetting, media playing) is applied here and reported through the return
+  // of `TookScriptActivation`, because it changes the document rather than the
+  // address.
+  std::optional<FormSubmission> ApplyScriptActivation(bool& changed_document,
+                                                      std::optional<std::string>& href);
+
   // Fires `load` and moves `readyState` to "complete". True when something was
   // listening and the document may therefore have changed.
   bool NotifyLoad() { return script_.NotifyLoad(); }

@@ -263,7 +263,15 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # question and the answer crosses as a flag. It defaults to false, because a
 # path from markup to running code that is on until somebody turns it off is
 # the wrong default for the one gate between the two.
-budget: DomBindings header_lines=940 public_methods=46 members=27
+# A twenty-eighth member, and it is the same shape as the ninth: an element a
+# script's `click()` activated, recorded rather than acted on. The activation
+# behaviour of a checkbox, a submit control or an anchor lays out, navigates or
+# repaints, none of which this module may see -- and `engine::Page::
+# ResolveClickActivation` already implements every case for real pointer input.
+# A second copy here is how a click from script and a click from a mouse come
+# to disagree, so the engine takes this after the turn exactly as it takes a
+# `requestSubmit`.
+budget: DomBindings header_lines=955 public_methods=47 members=28
 # ADR 0038's `indexedDB` seam: a database/store/key/version question this module
 # declares and `src/engine` answers, the same inversion StorageSource uses. Four
 # extra "methods" over what reads as the API (16) are the deleted copy ops and
