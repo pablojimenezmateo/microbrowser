@@ -159,7 +159,7 @@ FAIL=Moving the template node from invalid parent to valid parent should still n
 [shadow-dom/declarative/script-access.html]
 FAIL=Streaming Declarative Shadow DOM: template .content() should be null
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch-disconnect-iframe.html]
-harness=TIMEOUT
+FAIL=Destroying iframe during async adoptedStyleSheets fetch does not crash.
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch-disconnect.html]
 FAIL=Disconnecting and reconnecting host during async fetch still applies styles.
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch-duplicate-bare-specifier.html]
@@ -194,7 +194,15 @@ FAIL=adoptedStyleSheets is populated from a <template> element's shadowrootadopt
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-clonenode-async-fetch.html]
 FAIL=cloneNode handles both placeholder and resolved async-fetched adoptedStyleSheets.
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-clonenode.html]
-harness=TIMEOUT
+FAIL=Adopted stylesheets resolved from the cloned shadow root style the cloned tree.
+FAIL=cloneNode(true) followed by getHTML() round-trips the shadowrootadoptedstylesheets attribute.
+FAIL=cloneNode(true) on a non-clonable host does not produce a shadow root regardless of shadowrootadoptedstylesheets.
+FAIL=cloneNode(true) preserves order of multiple shadowrootadoptedstylesheets specifiers.
+FAIL=cloneNode(true) preserves resolution semantics for whitespace-padded shadowrootadoptedstylesheets values.
+FAIL=cloneNode(true) re-processes shadowrootadoptedstylesheets and the clone shares the resolved sheet.
+FAIL=cloneNode(true) reflects only the shadowrootadoptedstylesheets attribute, not script mutations to adoptedStyleSheets.
+FAIL=document.importNode does NOT inherit the source document's import map resolution.
+FAIL=document.importNode resolves shadowrootadoptedstylesheets against the destination document.
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-fetched-module.html]
 harness=TIMEOUT
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-invalid-specifier.html]
@@ -876,7 +884,7 @@ FAIL=The user agent should scroll to an anchor element with a name attribute exa
 FAIL=The user agent should scroll to an element with an ID exactly equal to the decoded fragid in the document tree even if there was another element with the same ID inside a closed shadow tree earlier in tree order
 FAIL=The user agent should scroll to an element with an ID exactly equal to the decoded fragid in the document tree even if there was another element with the same ID inside an open shadow tree earlier in tree order
 [shadow-dom/shadow-root-clonable.html]
-harness=TIMEOUT
+FAIL=attachShadow with clonable: true
 [shadow-dom/slotchange-customelements.html]
 FAIL=slotchange must fire on initialization of custom elements with slotted children
 [shadow-dom/slotchange-event.html]
@@ -955,18 +963,9 @@ FAIL=confirm activeElement return null when focus on the element in the outer sh
 FAIL=confirm activeElement return null when there is other element in body
 [shadow-dom/untriaged/elements-and-dom-objects/shadowroot-object/shadowroot-attributes/test-007.html]
 FAIL=A_10_01_01_03_01_T01
-[shadow-dom/untriaged/elements-and-dom-objects/shadowroot-object/shadowroot-attributes/test-009.html]
-FAIL=A_10_01_01_04_01_T01
-[shadow-dom/untriaged/elements-and-dom-objects/shadowroot-object/shadowroot-attributes/test-010.html]
-FAIL=A_10_01_01_04_02_T01_01
-FAIL=A_10_01_01_04_02_T01_02
 [shadow-dom/untriaged/elements-and-dom-objects/shadowroot-object/shadowroot-attributes/test-011.html]
 FAIL=A_10_01_01_05_01_T01
 FAIL=A_10_01_01_05_01_T02
-[shadow-dom/untriaged/elements-and-dom-objects/shadowroot-object/shadowroot-attributes/test-012.html]
-FAIL=A_10_01_01_06_T01
-[shadow-dom/untriaged/elements-and-dom-objects/shadowroot-object/shadowroot-attributes/test-013.html]
-FAIL=A_10_01_01_07_T01
 [shadow-dom/untriaged/elements-and-dom-objects/shadowroot-object/shadowroot-methods/test-004.html]
 FAIL=A_10_01_02_04_T01
 [shadow-dom/untriaged/elements-and-dom-objects/shadowroot-object/shadowroot-methods/test-006.html]
@@ -981,16 +980,7 @@ FAIL=A_05_05_02_T01
 [shadow-dom/untriaged/events/event-dispatch/test-003.html]
 FAIL=A_05_05_03_T01
 [shadow-dom/untriaged/events/event-retargeting/test-001.html]
-harness=TIMEOUT
-[shadow-dom/untriaged/events/event-retargeting/test-003.html]
-FAIL=A_05_01_03_T01
-[shadow-dom/untriaged/events/retargeting-focus-events/test-001.html]
-FAIL=A_05_03_01_T01
-FAIL=A_05_03_01_T02
-FAIL=A_05_03_01_T03
-FAIL=A_05_03_01_T04
-FAIL=A_05_03_01_T05
-FAIL=A_05_03_01_T06
+FAIL=A_05_01_01_T1
 [shadow-dom/untriaged/events/retargeting-focus-events/test-002.html]
 FAIL=A_05_03_02_T01
 [shadow-dom/untriaged/events/retargeting-focus-events/test-003.html]
@@ -999,14 +989,8 @@ FAIL=A_05_03_03_T01
 FAIL=A_05_02_01_T1
 [shadow-dom/untriaged/events/retargeting-relatedtarget/test-002.html]
 FAIL=A_05_02_02_T01
-[shadow-dom/untriaged/events/retargeting-relatedtarget/test-003.html]
-FAIL=A_05_02_03_T01
-[shadow-dom/untriaged/events/test-001.html]
-harness=TIMEOUT
 [shadow-dom/untriaged/html-elements-in-shadow-trees/html-forms/test-003.html]
-FAIL=A_08_02_03_T01
-[shadow-dom/untriaged/html-elements-in-shadow-trees/inert-html-elements/test-001.html]
-FAIL=A_08_01_01_T01
+harness=TIMEOUT
 [shadow-dom/untriaged/html-elements-in-shadow-trees/inert-html-elements/test-002.html]
 FAIL=A_08_01_02_T01
 [shadow-dom/untriaged/shadow-trees/upper-boundary-encapsulation/dom-tree-accessors-001.html]
@@ -1043,8 +1027,6 @@ FAIL=A_07_03_01_T01
 FAIL=A_07_03_02_T01
 [shadow-dom/untriaged/user-interaction/editing/inheritance-of-content-editable-001.html]
 FAIL=contentEditable of shadow trees must be undefined when contentEditable attribute of shadow host is "inherit"
-FAIL=contentEditable of shadow trees must be undefined when contentEditable attribute of shadow host is "true"
-FAIL=contentEditable of shadow trees must be undefined when contentEditable of shadow host is "false"
 [shadow-dom/untriaged/user-interaction/ranges-and-selections/test-001.html]
 FAIL=A_07_07_01_T01
 FAIL=A_07_07_01_T02

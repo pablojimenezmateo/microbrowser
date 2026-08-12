@@ -6078,3 +6078,87 @@ whole file. `Expectations.h` carries the correction and how it happened.
   with a realm, a worker. That is ADR 0042 §5 and ADR 0022. Implementing it was still right: it
   converts "fails because the server refused" into "fails for the reason it actually needs", which
   is the only thing that makes the ranked table mean anything.
+
+## C12 — ADR 0042 §5, the host half: a frame runs script, and `url/` reaches 99.8% · 2026-08-13
+
+**Status:** in_progress (steps 1-4 landed; step 5's `postMessage` and the child's engine services
+are not)
+**Check:** `url/` **97.9% → 99.8%** (9,696 → 9,884 of 9,903 subtests, 71 tests, 0 crashes).
+`dom/` 46,531 subtests, 38,589 → **38,596**, **1 crash → 0**. `custom-elements/` + `shadow-dom/` +
+`domparsing/` together: **141 subtests newly passing, 0 newly failing**. `microbrowser_tests`
+2,158/2,158.
+**Landed:** the realm guard as a type; a same-origin frame running its own script;
+`contentWindow` as the child's real global; the owner-slot use-after-free; realm retirement;
+`window.location = x` as a navigation.
+
+### The realm guard is a type, and that was the whole design decision
+
+ADR 0042 §5 says a missed realm guard is a same-origin escape rather than a bug, and says not to
+solve it with a `RealmScope` at each of ~40 entry points. What landed is `RealmBoundScript`:
+`PageScript`'s constructor is private, that class is its one friend, and its `operator->` returns a
+proxy holding the scope for the full expression. **A method added to `PageScript` tomorrow is
+guarded because there is no other way to call it.** The 76 call sites went from `script_.` to
+`script_->` and nothing else moved.
+
+The lint pushed back usefully twice. It refused a nested class called `Impl` (no budget, and the
+name is not one) -- which is what made the outer/inner split land the *other* way round, with the
+big class keeping its name. And `Page.h` going over the module cap is what turned six new
+forwarders into one accessor plus **eight deletions**: `Page` had been a pass-through for its own
+script half.
+
+### The crash, which is the finding
+
+`f.src = other` replaces a frame's `Page` and destroys the `DomBindings` that installed the old
+realm's natives -- while the realm, the heap and every function object in it live on, because they
+belong to the embedder's interpreter now. `kOwnerSlot` held that layer's **address**, so
+`f.contentWindow.postMessage(...)` after a renavigation reached freed memory. Three lines of script.
+Found as a segfault in `dom/events/scrolling/scroll-cross-origin-iframes.html`.
+
+**A liveness check on the address would not have been enough**, and this is the part worth keeping:
+the allocator reuses addresses, so a stale native could find a *live* binding layer belonging to
+another document -- a same-origin escape rather than a crash. The slot now holds a serial that is
+never reused (`OwnerIdentity`, RAII, one entry per live document), and a stale native resolves to
+null, which every one of those natives already handled.
+
+This bug class did not exist before this session and could not have: a `DomBindings` could only die
+with its heap until a child started borrowing its parent's interpreter.
+
+### Three things that each hid the next, and cost `url/` 188 subtests
+
+`url/failure.html`'s third case is `frame.contentWindow.location = input` must throw. Fixing it
+needed all three, in this order, and each was invisible until the one before it landed:
+
+1. **A frame's window did not exist until the next turn of the loop.** HTML creates the context on
+   *insertion*. The suite writes `const f = document.body.appendChild(document.createElement("iframe"));
+   f.contentWindow.location = x` -- one script turn. `contentWindow` now asks the engine to settle
+   the tree (`FrameGlobals::SetSettleHook`), and deliberately does **not** dispatch the `load` those
+   frames are owed: that is a task, and firing it inside `appendChild` would beat the line that
+   assigns `onload`.
+2. **The realm bound counted realms ever made, not realms alive.** That file appends, reads and
+   removes one `<iframe>` 188 times -- one live frame throughout -- and past the 64th, `CreateRealm`
+   refused and none ran script. `js::Interpreter::RetireRealm` gives the slot back.
+3. **`window.location = x` was an assignment.** Installed as a plain property, the page was
+   *overwriting* `location`: nothing navigated and nothing threw.
+
+### Left, and the first two are the same shape
+
+- **A child has script but not the engine's services.** No `NetworkSource`, `HistorySource`,
+  `StorageSource` or `CookieSource` is handed to a child `Page`, so a frame's `fetch` is undeclared.
+  `fetch/api/abort/keepalive.html` times out for exactly that. Wiring them is **not** a one-liner:
+  `Engine::StartFetch` resolves against `page_.Policy()`, so a child's relative URL would resolve
+  against the embedder's base and its `connect-src` would be checked against the embedder's policy.
+- **A form inside a frame fires `submit` and never navigates.** `Engine::RunFrameScripts` drains a
+  child's queued activations -- without that, a child's `element.click()` recorded an activation
+  nobody performed and every promise waiting on it hung, which is how three
+  `fetch/security/dangling-markup/` tests went from OK to a 20-second TIMEOUT. The submission it
+  produces is dropped, because a child navigation the engine drives is not built.
+- **`postMessage` between realms** (§5 step 5) and `frameElement` are absent.
+- **A wrapper made before an adoption keeps the realm it was made in.** `WrapperFor` now delegates
+  to the node document's layer, and cross-document `appendChild` works at all (the node's
+  `unique_ptr` was parked in the layer that made it, so the insertion silently did nothing) -- but
+  `node-creation-realm.html` and `node-realm-mixed-across-adoption.html` still fail on a wrapper
+  that predates the adoption. Those two were passing before only because `contentWindow.document`
+  was the *embedder's* document and nothing ever crossed a realm.
+- **Four cap raises**, each recorded in its `MODULE.deps` with what it bought. `bindings`' is the
+  one to read: that note has asked for a class split for six raises now, and a class that cannot
+  take a two-line member without a raise is the argument finishing itself.

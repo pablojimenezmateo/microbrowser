@@ -305,9 +305,33 @@ std::string Engine::LoadingReason() const {
   return out.str();
 }
 
+// The soonest a child context has asked to be woken, over the whole subtree.
+//
+// Without it, a `setTimeout` in a frame fires only when something else happens to wake the loop --
+// which on a settled page is never. Zero idle CPU is a *bound on waking*, not an excuse for a
+// deadline nobody watches, and a frame's timer is a deadline the page chose exactly as its own is.
+static std::optional<std::uint32_t> FrameWakeDelay(const Page& parent, std::int64_t now_ms) {
+  std::optional<std::uint32_t> soonest;
+  for (const Frame& frame : parent.Frames().Frames()) {
+    if (frame.page == nullptr || !frame.loaded) {
+      continue;
+    }
+    for (const std::optional<std::uint32_t> candidate :
+         {frame.page->NextWakeDelay(now_ms), FrameWakeDelay(*frame.page, now_ms)}) {
+      if (candidate.has_value()) {
+        soonest = soonest.has_value() ? std::min(*soonest, *candidate) : candidate;
+      }
+    }
+  }
+  return soonest;
+}
+
 std::optional<std::uint32_t> Engine::NextDeadlineMs() const {
   const std::int64_t now_ms = NowMilliseconds();
-  const std::optional<std::uint32_t> timers = page_.NextWakeDelay(now_ms);
+  std::optional<std::uint32_t> timers = page_.NextWakeDelay(now_ms);
+  if (const std::optional<std::uint32_t> frames = FrameWakeDelay(page_, now_ms)) {
+    timers = timers.has_value() ? std::min(*timers, *frames) : frames;
+  }
   // Not gated on `load_.active` any more: with nothing loading the loader still
   // answers when it holds an idle connection, and that deadline is the only
   // thing that will ever close it.
@@ -343,6 +367,11 @@ bool Engine::RunDueWork() {
   }
   bool script_ran = false;
   const Page::DueWorkKind due = page_.RunDueWork(NowMilliseconds(), &script_ran);
+  // The frames too, and `script_ran` picks it up so a child timer that touched the tree still
+  // reaches the recollection below.
+  if (RunFrameDueWork(page_, NowMilliseconds())) {
+    script_ran = true;
+  }
   // A timer that appended an `<iframe>` made a browsing context. Gated on `script_ran` because
   // nothing else can have: a video frame and an animation tick cannot append an element.
   if (script_ran) {

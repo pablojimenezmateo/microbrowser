@@ -141,7 +141,7 @@ That bucket is the score, and it is three projects rather than a long tail:
 | tests | needs | where |
 |--:|---|---|
 | 2,446 | a worker global that can run testharness (`.any.worker.html`) | ADR 0022 §1, task G5 |
-| 1,083 | an `<iframe>` | ADR 0027 + **ADR 0042 §5**; the language half is done, the host half is not |
+| 1,083 | an `<iframe>` | ADR 0027 + **ADR 0042 §5** — steps 1-4 landed 2026-08-13; see below for what is left |
 | ~2,214 files | **our own server's `.py` handlers** — 31 landed; **74 still requested, 1,609 times** | ADR 0040, task **A2** |
 | 226 | the module loader | — |
 
@@ -204,26 +204,54 @@ false, the well-known symbols are shared so a protocol still crosses, and the co
 realm. Nine tests in `tests/JsRealmTests.cpp`; cost +2.9% on the JS microbenchmarks, measured by
 interleaving and recorded as TD-0060.
 
-**What is left is the host half, and `docs/adr/0042-realms.md` §5 is the design. Read it before
-touching this.** `engine::PageScript` owns an interpreter per `Page`, a same-origin child has to
-borrow its parent's, and every one of ~40 host entry points must then run in the child's realm — a
-timer, an event, a fetch response, a reaction, a microtask drain. **A missed one is a same-origin
-escape rather than a bug**: the child's script would see the embedder's `window`, which is worse than
-the stub it replaces. §5 has the mechanism and one correction worth reading before you start: **the ~40 `interpreter_` uses
-are not the boundary.** `PageScript` reaches script through `bindings_` far more often — every
-`DispatchClick`, observer delivery and attribute reaction calls the interpreter from inside
-`src/bindings`, where no realm is in scope — so guarding the `interpreter_->…` sites produces
-something that *looks* guarded, passes a test that runs a child `<script>`, and still runs the child's
-click handler in the parent's realm. The seam is `engine::PageScript`'s own public API. §5 also names
-the thing to decide first: `DomBindings` caches a wrapper per node, so two of them over one heap gives
-a node two wrappers.
+**The host half landed 2026-08-13 (ADR 0042 §5 steps 1-4), and the *guard* is the part to read
+before touching any of it.** §5 said a missed realm guard is a same-origin escape rather than a bug,
+and said not to solve it with a `RealmScope` at each of ~40 entry points. So it is a type:
+`engine::RealmBoundScript` is `PageScript`'s only friend, `PageScript`'s constructor is private, and
+its `operator->` hands back a proxy holding the scope for the full expression. **A method added to
+`PageScript` tomorrow is guarded because there is no other way to call it.** Do not add a second
+route to that object.
 
-Until that lands, `contentWindow` is still a plain object with a `.document`, the child's scripts
-still do not run, and `parent`/`top`/`postMessage` are still absent. The smallest end-to-end check is
-`dom/nodes/remove-from-shadow-host-and-adopt-into-iframe.html`, which is **red on master while the
-expectation file claims it passes** (verified against a pre-realm build, not assumed).
+What works now: a same-origin child runs its own script in its own realm of the embedder's
+interpreter (a cross-origin one gets its own interpreter, which *is* the isolation);
+`iframe.contentWindow` is the child's real global and `contentDocument` is that window's own
+`document`, so the two are one object; `parent`, `top`, `window[i]` and `window.length` answer; a
+frame's window exists the instant the element is inserted, because the suite reads it in the same
+script turn; and `window.location = x` navigates and throws a `SyntaxError` on a URL that does not
+parse. `url/` went **97.9% → 99.8%** on that last pair alone (188 subtests, all of
+`url/failure.html`'s third case), `custom-elements/` + `shadow-dom/` + `domparsing/` gained **141
+subtests with none lost**, and `dom/` lost its one crash.
 
-**Five parallel worktrees were merged into master on 2026-08-12** — `url/`, declarative shadow DOM,
+**Two findings from it are worth more than the feature.** First, a `DomBindings` can now be
+destroyed while the heap holding its natives lives on -- `f.src = other` does exactly that -- so the
+old `kOwnerSlot` *address* was a use-after-free three lines of script could reach, found as a
+segfault in `dom/events/scrolling/scroll-cross-origin-iframes.html`. It holds a never-reused serial
+now (`bindings::OwnerIdentity`); a liveness check on the address would **not** have been enough,
+because the allocator reuses addresses and a stale native would then find a live layer belonging to
+another document. Second, `js::kMaxRealms` was bounding realms *ever made* rather than realms alive:
+`url/failure.html` appends, reads and removes one `<iframe>` 188 times, and past the 64th none of
+them ran script. `Interpreter::RetireRealm` gives the slot back.
+
+**What is left, and the first two are the same shape: a child has script but not the engine's
+services.**
+
+- **No `NetworkSource`/`HistorySource`/`StorageSource`/`CookieSource` reaches a child `Page`**, so a
+  frame's `fetch` is undeclared (`fetch/api/abort/keepalive.html` times out on exactly that). Wiring
+  them is not a one-liner: `Engine::StartFetch` resolves against `page_.Policy()`, so a child's
+  relative URL would resolve against the *embedder's* base and its `connect-src` would be checked
+  against the embedder's policy.
+- **A form inside a frame fires `submit` and never navigates.** `Engine::RunFrameScripts` drains a
+  child's queued activations -- without that a child's `element.click()` recorded an activation
+  nobody performed and every promise waiting on it hung, which is how three
+  `fetch/security/dangling-markup/` tests went from OK to a 20-second TIMEOUT. The submission is
+  dropped, because a child navigation the engine drives is not built.
+- **`postMessage` between realms** (§5 step 5) and `frameElement` are absent.
+- **A wrapper made before an adoption keeps the realm it was made in.** `WrapperFor` delegates to
+  the node document's layer and cross-document `appendChild` works at all now (the node's
+  `unique_ptr` was parked in the layer that made it, so the insertion silently did nothing), but
+  `dom/nodes/node-creation-realm.html` and `node-realm-mixed-across-adoption.html` still fail on it.
+  Those two were passing before **only** because `contentWindow.document` was the embedder's own
+  document, so nothing ever crossed a realm.
 reflected IDL attributes, `dom/`, and the legacy multi-byte encodings. All five branched from the
 same commit, so most of what a merge had to decide was not textual. Four decisions are worth
 knowing before trusting anything in this file:
@@ -556,13 +584,11 @@ one; unmasking it needs a way to evaluate a prelude before a page's own scripts,
 `microbrowser_snapshot` cannot yet do. **`www.reddit.com` is a separate problem** — a JavaScript
 challenge, unaffected by the `User-Agent`; see `docs/roadmap-to-any-page.md` Phase A.
 
-**`url/` is 9,696 of 9,909 web-platform-tests subtests (97.9%), and what is left is not URL work.**
-188 of the 190 are `failure.html`'s `frame.contentWindow.location = badUrl` third and 24 of the
-31 timeouts are `*.any.worker.html` — ADR 0027 and ADR 0022 §2, which is the same wall `dom/`
-hit from the other direction (see `docs/session-log.md`'s C6 entry: ~4,176 of its subtests are
-behind two `<iframe>`s). TD-0057 carries the numbers. **Nested browsing contexts is the
-highest-value unbuilt feature in the tree on this measurement, and it is the only one two
-independent areas both name.**
+**`url/` is 9,884 of 9,903 web-platform-tests subtests (99.8%) as of 2026-08-13**, up from 97.9%:
+the 188 that were `failure.html`'s `frame.contentWindow.location = badUrl` third case now pass, and
+what remains is 19 subtests plus 30 timeouts of which 24 are `*.any.worker.html` (ADR 0022 §2).
+Nested browsing contexts was the highest-value unbuilt feature on the previous measurement and it
+is now partly built -- see the ADR 0042 §5 paragraphs above for which parts.
 
 Known remaining gaps on Hacker News itself: `<select>` is laid out and submitted but not clickable,
 `cellspacing` is not mapped because there is no `border-spacing`, and `:visited` deliberately

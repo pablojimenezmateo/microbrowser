@@ -509,6 +509,24 @@ bool Engine::ProcessDynamicFrames() {
   return dispatched;
 }
 
+bool Engine::RunFrameDueWork(Page& parent, std::int64_t now_ms) {
+  bool ran = false;
+  for (Frame& frame : parent.MutableFrames().MutableFrames()) {
+    if (frame.page == nullptr || !frame.loaded) {
+      continue;
+    }
+    // A child's timers and animation frames are its own, and nothing else was turning them. A
+    // `setTimeout` in a frame that never fires is the same class of bug as a script that never
+    // runs, one turn of the loop later.
+    ran = frame.page->RunDueWork(now_ms) != Page::DueWorkKind::None || ran;
+    bool child_changed = false;
+    std::optional<std::string> child_href;
+    (void)frame.page->ApplyScriptActivation(child_changed, child_href);
+    ran = RunFrameDueWork(*frame.page, now_ms) || ran;
+  }
+  return ran;
+}
+
 void Engine::SettleFrameContexts() {
   page_.CollectFrames();
   StartFrameRequests();
@@ -578,6 +596,20 @@ bool Engine::RunFrameScripts(Page& parent, bool run_scripts, js::Object* top_win
       continue;  // the window exists; its document's scripts run at the point below
     }
     frame.page->RunScripts(NowMilliseconds());
+    // **What a child's script asked the browser to do, carried out.** A page that only *ran* a
+    // child's script and never drained its queues is worse than one that ran none: the child's
+    // `element.click()` records an activation nobody performs, so a promise waiting on the
+    // resulting event never settles and the whole test times out rather than failing. Found that
+    // way, in `fetch/security/dangling-markup/`.
+    //
+    // The submission it can produce is deliberately **dropped**: submitting a form inside a frame
+    // navigates that frame, and a child navigation the engine drives is not built yet (it is the
+    // next thing this file owes). What the drain does deliver is the `submit` event itself, which
+    // is what a page listens for -- so the answer is wrong rather than absent, and a wrong answer
+    // is visible.
+    bool child_changed = false;
+    std::optional<std::string> child_href;
+    (void)frame.page->ApplyScriptActivation(child_changed, child_href);
     ran = true;
     // A frame inside a frame, and it recurses rather than iterating a flat list because the realm
     // a grandchild borrows is *its* parent's -- which for a same-origin chain is the same
