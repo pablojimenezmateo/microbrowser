@@ -210,6 +210,25 @@ bool DecodeEscape(std::string_view source, std::size_t& at, std::string& out, st
           codepoint = codepoint * 16 + static_cast<char32_t>(HexValue(source[at + i]));
         }
         at += 4;
+        // **A surrogate pair is one character, and two escapes are how source code spells it.**
+        // `"💩"` and `"\u{1f4a9}"` are the same string in JavaScript -- the language has
+        // no way to say otherwise -- so decoding each half into its own three-byte sequence makes
+        // them different strings, `codePointAt(0)` answer 55357, and every astral character a page
+        // writes with two escapes come out as two replacement characters wherever it is later
+        // encoded. Found by `encoding/legacy-mb-schinese/gbk`, which spells U+1F4A9 that way.
+        if (codepoint >= 0xD800 && codepoint <= 0xDBFF && at + 5 < source.size() &&
+            source[at] == '\\' && source[at + 1] == 'u' && IsHexDigit(source[at + 2]) &&
+            IsHexDigit(source[at + 3]) && IsHexDigit(source[at + 4]) &&
+            IsHexDigit(source[at + 5])) {
+          char32_t low = 0;
+          for (std::size_t i = 0; i < 4; ++i) {
+            low = low * 16 + static_cast<char32_t>(HexValue(source[at + 2 + i]));
+          }
+          if (low >= 0xDC00 && low <= 0xDFFF) {
+            codepoint = 0x10000 + ((codepoint - 0xD800) << 10) + (low - 0xDC00);
+            at += 6;
+          }
+        }
       }
       AppendUtf8(out, codepoint);
       return true;
