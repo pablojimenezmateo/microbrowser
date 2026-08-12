@@ -29,6 +29,7 @@
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
 #include "bindings/LiveRanges.h"
+#include "bindings/Reflection.h"
 #include "bindings/ShadowDom.h"
 
 namespace microbrowser::bindings {
@@ -800,7 +801,7 @@ void DomBindings::EnsureInterfaces() {
 
   // After every interface exists, because a reflected property lands on the
   // prototype of the tag it belongs to.
-  InstallReflections();
+  Reflector(*this).Install();
 
   InstallFormApis();
   InstallCustomElements();

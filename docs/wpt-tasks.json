@@ -19,7 +19,7 @@
     "its target revised HERE and in the plan, with the reason."
   ],
   "source": "docs/wpt-plan.md",
-  "updated": "2026-08-10",
+  "updated": "2026-08-12",
   "milestones": [
     { "id": "M-A", "title": "the instrument", "status": "done" },
     { "id": "M-B", "title": "the baseline", "status": "done" },
@@ -144,8 +144,9 @@
     {
       "id": "C10", "milestone": "M-C", "title": "reflected IDL attributes", "area": "html/dom/",
       "scope": "Every reflected attribute, Element interface mixins.",
-      "check": "html/dom/ >= 70%.", "depends": ["C3"], "target": "70%",
-      "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "check": "html/dom/ >= 70%. Run 2026-08-12: 21450 of 59930 (35.8%) -> 57694 of 60138 (95.9%), 0 subtests going PASS -> FAIL, 35847 expectation lines deleted. html/dom/reflection-*.html is 56660 of 56660 (100%), from 35560 recorded failures; aria-attribute-reflection{,.tentative}.html is 44 of 44, from 3.", "depends": ["C3"], "target": "70%",
+      "status": "done", "agent": "wpt-c10", "adr": "0012",
+      "notes": "Done, +59.7 points. **The shape is the finding.** HTML states a dozen reflection *algorithms* and then applies them a few hundred times; this browser had ~50 hand-written accessor pairs, which is the shape that guarantees `td.colSpan` clamps and `col.span` does not from the same paragraph. Now: src/bindings/Reflection.h is the vocabulary, ReflectionTable.cpp is ~430 rows of data, ReflectedAttributes.cpp is each algorithm once. The integer and float parsers are transcriptions of HTML's own rules and deliberately NOT util::ParseInt -- that one rejects trailing garbage and these must stop at it, and a vertical tab is whitespace to C and is not to HTML. **Three things it uncovered that reflection-*.html does not test**: `<canvas>` width/height were a resize only `canvas.width =` reached (setAttribute did not resize, and `width=\"50px\"` was a zero-width canvas), so they are ordinary reflected unsigned longs now with the resize on the attribute write -- html/canvas/element/canvas-host/ 24.2% -> 50.0%; `<a href>` did not resolve, so `a.pathname` was not a path; and `nonce` reflects one way only, which is CSP nonce-hiding rather than a quirk. **ARIA reflection landed too**: every `aria-*` and `role` is a nullable DOMString on Element, which is three states rather than two -- `aria-checked` absent means \"not a checkbox\" and `aria-checked=\"\"` means \"a checkbox in no state\". **`aria-attribute-reflection-enumerated.tentative.html` (1160 subtests) is a deliberate refusal, measured rather than argued**: it is w3c/aria PR 2484, a proposal that contradicts the shipped spec -- with `aria-busy` absent it wants \"false\" where `aria-attribute-reflection.html` wants null. The proposal was implemented, both files measured, and reverted: DOMString? (ours) scores 41/41 and 562/1722; enumerated scores 28/41 and 1696/1722. So the trade is +1134 subtests there for -13 here, and it is still refused -- those 13 are the shipped behaviour of every browser, so taking the trade buys a pass rate by giving pages an answer no other engine gives. Correctness before pass rate; revisit when the proposal ships. **Not done**: img/video width/height return the attribute rather than the rendered size (the suite marks them customGetter and does not test the getter), ARIA *element* reflection (26 subtests, wants element references plus named access on window), and html/browsers/ was not re-measured -- 751 navigation tests, almost all 20-second timeouts, four hours to learn nothing about reflection. **html/dom/render-blocking/ is flaky by construction** -- two identical runs reported 0 unexpected and then 2 -- so a small unexpected count there is not a regression."
     },
 
     {

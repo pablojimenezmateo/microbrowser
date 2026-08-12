@@ -109,8 +109,11 @@ extern:
 # argument is `setHTMLUnsafe`'s shadow-root opt-in and no one else's -- a security property, and
 # the one comment here that was not worth deleting to save a line.
 #
-# The two raises met in a merge and did not need a seventh: the URL branch asked for 990 on its
-# own and the shadow-DOM branch for 974, and the union of both is 988 lines. 990 still holds.
+# Three branches met in a merge and it did not need a seventh raise, but it is **exactly at the
+# cap**: the URL branch asked for 990 on its own, the shadow-DOM branch for 974, and reflection
+# traded two method declarations for two `friend`s. The union is 990 lines. The next declaration
+# added here does not get a raise -- it gets the cut this note has been describing for six of
+# them, and `UrlObject.cpp`'s nine methods are still where it should start.
 max_tu_lines: 990
 
 # A wrapper is a JavaScript object holding a raw `dom::Node*`, which is only
@@ -376,3 +379,34 @@ budget: IdleCallbacks header_lines=55 public_methods=4 members=2
 # navigated must answer zero, and zero is what an unset pair of them means.
 budget: Performance header_lines=170 public_methods=13 members=4
 budget: PendingEntry header_lines=25 public_methods=0 members=9
+
+# HTML's reflection layer (Reflection.h / ReflectionTable.cpp /
+# ReflectedAttributes.cpp). Four declarations, and the numbers to watch are
+# different for each:
+#
+# `Reflect` is the list of algorithms HTML defines for turning a content
+# attribute into an IDL one. It grows only when the specification grows a
+# thirteenth, which has happened about twice in a decade -- so a rise here is a
+# real event, and a rise that is *not* one means somebody has encoded an
+# attribute's quirk as a kind instead of as a parameter of one.
+budget: Reflect header_lines=90 public_methods=0 members=0
+# One row of the table: the interface, the property, the attribute, the kind,
+# and the per-kind parameters HTML states outright (a keyword list, a default,
+# a clamp). Members rise when a kind needs a parameter no other kind has, which
+# is the moment to ask whether it is a kind at all.
+budget: Reflection header_lines=35 public_methods=0 members=10
+budget: DocumentReflection header_lines=10 public_methods=0 members=2
+# The algorithms themselves. Zero members but the reference it is constructed
+# from: a Reflector is built at the point of use and the accessors it installs
+# capture the binding layer, never one of these. It exists because `DomBindings`
+# was at its header cap and this is what that cap is for -- the two things it
+# borrows are named on the `friend` line in DomBindings.h.
+budget: Reflector header_lines=45 public_methods=3 members=1
+
+# `document.body` and `document.title` (DocumentTree.h). One member -- the
+# binding layer it borrows -- and it stays one: both accessors are algorithms
+# over the document they are handed, so anything this held would be state the
+# next call could disagree with. It exists because `DomBindings.h` is at its
+# line cap and that cap is the question "is this class doing another job";
+# `Reflector` above is the same answer to the same question.
+budget: DocumentTree header_lines=20 public_methods=3 members=1

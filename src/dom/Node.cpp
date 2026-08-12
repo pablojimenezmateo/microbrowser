@@ -635,12 +635,60 @@ std::vector<Element*> Document::ElementsByTagName(std::string_view tag_name) con
   return found;
 }
 
+// "The body element of a document is the first of the html element's children
+// that is either a body element or a frameset element, or null if there is no
+// such element."
+//
+// Every clause of that does work, and a descendant search for the first `<body>`
+// -- which is what this was -- gets all of them wrong:
+//
+//   * **A child of the html element**, not a descendant of the document. A
+//     `<body>` inside some other element is not the body element, and a `<body>`
+//     that *is* the document element has no html element above it, so the
+//     document has no body at all.
+//   * **A frameset counts.** A frameset document's body element is its
+//     `<frameset>`, which is why `document.body` is where `onload` is set on
+//     either kind of page.
+//   * **In the HTML namespace.** `createElementNS('urn:x', 'body')` appended to
+//     `<html>` is not a body, and answering with it would hand a page an element
+//     with none of the members it is about to use.
 Element* Document::Body() const {
-  return FirstElementByTagName("body");
+  const Element* html = DocumentElement();
+  if (html == nullptr || !html->Namespace().IsHtml() || html->TagName() != "html") {
+    return nullptr;
+  }
+  for (const std::unique_ptr<Node>& child : html->Children()) {
+    if (!child->IsElement()) {
+      continue;
+    }
+    auto* element = static_cast<Element*>(child.get());
+    if (element->Namespace().IsHtml() &&
+        (element->TagName() == "body" || element->TagName() == "frameset")) {
+      return element;
+    }
+  }
+  return nullptr;
 }
 
+// "The head element of a document is the first head element that is a child of
+// the html element." Same three clauses as Body above, and the same reason a
+// descendant search is wrong: a `<head>` somewhere else is not the head, and
+// `document.title = x` appending into it would put the title where no parser
+// would have placed one.
 Element* Document::Head() const {
-  return FirstElementByTagName("head");
+  const Element* html = DocumentElement();
+  if (html == nullptr || !html->Namespace().IsHtml() || html->TagName() != "html") {
+    return nullptr;
+  }
+  for (const std::unique_ptr<Node>& child : html->Children()) {
+    if (child->IsElement()) {
+      auto* element = static_cast<Element*>(child.get());
+      if (element->Namespace().IsHtml() && element->TagName() == "head") {
+        return element;
+      }
+    }
+  }
+  return nullptr;
 }
 
 }  // namespace microbrowser::dom

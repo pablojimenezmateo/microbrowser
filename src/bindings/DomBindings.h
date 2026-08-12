@@ -571,10 +571,11 @@ class DomBindings {
   void AfterAttributeWrite(dom::Element& element, const std::string& name,
                            const js::Value& old_value, const js::Value& new_value,
                            std::string_view attribute_namespace = {});
-  // The IDL attributes that reflect content attributes, as get/set pairs on the interface each
-  // belongs to. `el.value = 'x'` and `setAttribute('value', 'x')` are the same act; they were not.
-  void InstallReflections();  // also InstallHyperlinkElementUtils, which is in UrlObject.cpp
-  void InstallHyperlinkElementUtils();
+  // Friends rather than more methods here, because this header is at its line
+  // cap and that cap is the question "is this class doing another job":
+  // `Reflector` is HTML's reflection table, `DocumentTree` is body and title.
+  friend class Reflector;
+  friend class DocumentTree;
 
   // --- Geometry, in GeometryBindings.cpp ------------------------------------
   // `getBoundingClientRect`, `offsetWidth`/`offsetHeight` and

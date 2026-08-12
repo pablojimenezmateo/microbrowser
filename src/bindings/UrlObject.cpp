@@ -22,6 +22,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/Reflection.h"
 #include "dom/Node.h"
 #include "url/Url.h"
 
@@ -453,8 +454,13 @@ void DomBindings::InstallBaseElementHref() {
   }
 }
 
-void DomBindings::InstallHyperlinkElementUtils() {
-  InstallBaseElementHref();
+// A `Reflector` method rather than a `DomBindings` one, and the distinction matters at every
+// capture below: a Reflector is built at the point of use and dies with the frame, so nothing
+// installed here may capture `this`. `owner` is the long-lived pointer, and it is what goes into
+// every lambda and every kOwnerSlot -- the same rule Reflection.h states for the accessors.
+void Reflector::InstallHyperlinkElementUtils() {
+  DomBindings* owner = &bindings_;
+  owner->InstallBaseElementHref();
   // HTMLHyperlinkElementUtils, on both elements that have it. `<area>` is not an afterthought: the
   // standard defines the two together, and the URL Standard's own setter tests run every case
   // against both — a decomposition attribute that worked on `<a>` and not on `<area>` is a page
@@ -463,11 +469,11 @@ void DomBindings::InstallHyperlinkElementUtils() {
   // youtube's searchbox resolves `location.href` through `document.createElement('a'); a.href =
   // url; a.pathname` (`n0n`). Without `pathname` that call threw and Enter never navigated
   // (TD-0026).
-  if (!interfaces_.IsObject()) {
+  if (!owner->interfaces_.IsObject()) {
     return;
   }
   for (const char* interface_name : {"HTMLAnchorElement", "HTMLAreaElement"}) {
-    const Value* prototype = interfaces_.object->GetOwn(interface_name);
+    const Value* prototype = owner->interfaces_.object->GetOwn(interface_name);
     if (prototype == nullptr || !prototype->IsObject()) {
       continue;
     }
@@ -475,7 +481,7 @@ void DomBindings::InstallHyperlinkElementUtils() {
     // "Reinitialize url": the href content attribute, resolved against the document base URL.
     // Nullopt when there is no attribute or it does not parse, and the two are different — the
     // href getter answers "" for the first and the attribute's own text for the second.
-    const auto url_of = [this](const Value& self) -> std::optional<url::Url> {
+    const auto url_of = [owner](const Value& self) -> std::optional<url::Url> {
       dom::Element* element = ElementOf(self);
       if (element == nullptr) {
         return std::nullopt;
@@ -488,12 +494,12 @@ void DomBindings::InstallHyperlinkElementUtils() {
       // scalar value string, so the conversion happens here rather than at the setter -- the
       // attribute keeps what was written, and only the *parse* sees U+FFFD.
       const std::string text = util::ScrubLoneSurrogates(*href);
-      const std::optional<url::Url> base = url::Url::Parse(DocumentBaseUrl(element->NodeDocument()));
+      const std::optional<url::Url> base = url::Url::Parse(owner->DocumentBaseUrl(element->NodeDocument()));
       return base.has_value() ? url::Url::Parse(text, *base) : url::Url::Parse(text);
     };
 
     const Value href_get =
-        interpreter_->NewNativeValue("href", [this, url_of](NativeCall& call) -> Value {
+        owner->interpreter_->NewNativeValue("href", [url_of](NativeCall& call) -> Value {
           const std::optional<url::Url> url = url_of(call.self);
           if (url.has_value()) {
             return Value::String(url->Serialize());
@@ -505,22 +511,23 @@ void DomBindings::InstallHyperlinkElementUtils() {
               element == nullptr ? nullptr : element->GetAttribute("href");
           return Value::String(href == nullptr ? std::string() : *href);
         });
-    const Value href_set = interpreter_->NewNativeValue("href", [](NativeCall& call) -> Value {
-      DomBindings* owner = OwnerOf(call);
+    const Value href_set = owner->interpreter_->NewNativeValue("href", [](NativeCall& call) -> Value {
+      // Recovered from kOwnerSlot rather than captured: this lambda outlives the install.
+      DomBindings* target = OwnerOf(call);
       dom::Element* element = ElementOf(call.self);
-      if (owner == nullptr || element == nullptr) {
+      if (target == nullptr || element == nullptr) {
         return Value::Undefined();
       }
       std::string href;
       if (!CoerceToString(call, Argument(call.arguments, 0), href)) {
         return call.ThrownValue();
       }
-      owner->SetElementAttribute(*element, "href", href);
+      target->SetElementAttribute(*element, "href", href);
       return Value::Undefined();
     });
     if (href_get.IsObject() && href_set.IsObject()) {
-      href_get.object->Set(kOwnerSlot, PointerValue(this));
-      href_set.object->Set(kOwnerSlot, PointerValue(this));
+      href_get.object->Set(kOwnerSlot, PointerValue(owner));
+      href_set.object->Set(kOwnerSlot, PointerValue(owner));
       prototype->object->DefineAccessor("href", href_get.object, href_set.object);
     }
 
@@ -529,7 +536,7 @@ void DomBindings::InstallHyperlinkElementUtils() {
         continue;  // installed above: its failure answer is not the empty string
       }
       const Value get =
-          interpreter_->NewNativeValue(PartName(part), [part, url_of](NativeCall& call) {
+          owner->interpreter_->NewNativeValue(PartName(part), [part, url_of](NativeCall& call) {
             const std::optional<url::Url> url = url_of(call.self);
             if (!url.has_value()) {
               // The standard spells these out one by one, and `protocol` is the odd one: a
@@ -542,16 +549,16 @@ void DomBindings::InstallHyperlinkElementUtils() {
       if (!get.IsObject()) {
         continue;
       }
-      get.object->Set(kOwnerSlot, PointerValue(this));
+      get.object->Set(kOwnerSlot, PointerValue(owner));
       if (part == Part::Origin) {
         prototype->object->DefineAccessor(PartName(part), get.object, nullptr);
         continue;
       }
-      const Value set = interpreter_->NewNativeValue(
+      const Value set = owner->interpreter_->NewNativeValue(
           PartName(part), [part, url_of](NativeCall& call) -> Value {
-            DomBindings* owner = OwnerOf(call);
+            DomBindings* target = OwnerOf(call);
             dom::Element* element = ElementOf(call.self);
-            if (owner == nullptr || element == nullptr) {
+            if (target == nullptr || element == nullptr) {
               return Value::Undefined();
             }
             std::string value;
@@ -565,11 +572,11 @@ void DomBindings::InstallHyperlinkElementUtils() {
             WritePart(*url, part, value);
             // "Update href": the whole serialized URL goes back into the content attribute, so the
             // element and its href agree afterwards.
-            owner->SetElementAttribute(*element, "href", url->Serialize());
+            target->SetElementAttribute(*element, "href", url->Serialize());
             return Value::Undefined();
           });
       if (set.IsObject()) {
-        set.object->Set(kOwnerSlot, PointerValue(this));
+        set.object->Set(kOwnerSlot, PointerValue(owner));
         prototype->object->DefineAccessor(PartName(part), get.object, set.object);
       }
     }

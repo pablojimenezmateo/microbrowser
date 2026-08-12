@@ -5126,3 +5126,216 @@ Also left: **TD-0052**, and the `DomBindings` split it forced a first step of. T
 really members (`InstallTemplateShadowReflection`, `InstallElementInternals`) out to a private
 `ShadowDom.h`, the standing `LiveRanges.h` already has. A *member* cannot leave a class's header, so
 that is where the split has to start.
+
+## 2026-08-12 — C10: reflected IDL attributes, as a table and twelve algorithms
+
+**Status:** `html/dom/` **35.8% → 95.9%** (21,450 of 59,930 → 57,694 of 60,138 subtests).
+`html/dom/reflection-*.html` is **56,660 of 56,660**, from 35,560 recorded failures to none.
+**35,847 expectation lines deleted.**
+
+**The shape of the work is the finding, and it is not "add the missing attributes".** HTML states a
+dozen reflection *algorithms* — a string, a URL, an enumerated value limited to known keywords, a
+boolean, five integer kinds, two doubles — and then applies them a few hundred times across the
+element interfaces. The browser had about fifty hand-written accessor pairs, which is the shape
+that guarantees `td.colSpan` clamps and `col.span` does not, from the same paragraph of the same
+specification, with nothing to compare them against. So:
+
+- `src/bindings/Reflection.h` is the vocabulary (the twelve kinds and their per-attribute
+  parameters), `ReflectionTable.cpp` is ~430 rows of data, and `ReflectedAttributes.cpp` is the
+  algorithms, once each.
+- The parsers are transcriptions of HTML's "rules for parsing integers", "…non-negative integers"
+  and "…floating-point number values". They are **not** `util::ParseInt`: that one rejects trailing
+  garbage and these must stop at it, and `"1. 1"` is the number 1 to HTML and an error to everyone
+  else. A vertical tab is whitespace to C and is not to HTML — that difference alone is tested
+  thirty-odd times per numeric attribute.
+
+**A table of a few hundred rows needs a checker, and it got one that is not the suite.**
+`tools/`-free: a throwaway script read WPT's own `elements-*.js` and the browser's tag→interface
+table and compared every (interface, property, attribute, kind) against `ReflectionTable.cpp`. The
+suite proves the tested rows behave; that comparison proves the *untested* rows spell their content
+attribute right — and a mistyped content-attribute name reads as an absent property, which is
+silent.
+
+### Three things this uncovered that the reflection tests do not test
+
+**`<canvas>`'s `width` and `height` were a resize that only one spelling reached.**
+`InstallCanvas` owned an accessor pair that wrote the attribute and resized the surface, so
+`canvas.width = 50` resized and `canvas.setAttribute('width', '50')` did not. It also parsed with
+`ToNumber` rather than HTML's rules, so `width="50px"` was a **zero-width canvas** where every
+other browser draws 50. The accessors are gone: `width`/`height` are ordinary reflected
+`unsigned long`s with the defaults 300 and 150, and the resize hangs off the attribute *write*,
+which is the one place every spelling converges. `html/canvas/element/canvas-host/` 24.2% → 50.0%,
+0 regressions.
+
+**`<a href>` did not resolve, so `a.pathname` was not a path.** A reflected URL answers with the
+attribute resolved against the document's address — that is what a page follows — while the setter
+still stores what was written. The hyperlink parts (`protocol`, `host`, `pathname`, …) now split
+the *resolved* href rather than the attribute, so `a.href = 'c.png'` on a page at `/a/b` has the
+pathname `/a/c.png` instead of `c.png`. `<area>` got the same set; it had none.
+
+**`nonce` reflects in one direction, and that is a security property rather than a quirk.** The
+content attribute feeds an internal slot and the IDL setter does not feed it back, because a
+stylesheet may say `script[nonce^=a] { background: url(…) }` — an attribute a page can read back
+through the DOM is a nonce an injected stylesheet exfiltrates one character at a time. The suite
+asserts the attribute does not move.
+
+### The remaining gap in `html/dom/`, ranked, because "95.9%" is not a plan
+
+Two thirds of what is left is one file, and it is a file this browser should not pass:
+
+| subtests | file | what it needs |
+|---:|---|---|
+| 1,160 | `aria-attribute-reflection-enumerated.tentative.html` | **nothing — a refusal** |
+| 505 | `the-innertext-and-outertext-properties/*` | `innerText`, which is a layout-dependent serialisation |
+| 181 | `partial-updates/tentative/*` | a proposal no browser ships |
+| 26 | `aria-element-reflection.html` | element *references* + named access on `window` |
+| ~90 | `dom-tree-accessors/{title,body,getElementsByName,nameditem}*` | four separate accessors |
+| 26 | `global-attributes/dir-*` | `dir=auto` directionality, which is a bidi question |
+
+**The 1,160 are a deliberate refusal, and the refusal was *measured* rather than argued.** That
+file is w3c/aria PR 2484 — a proposal to convert twenty `aria-*` attributes from `DOMString?` to
+enumerated — and it contradicts the shipped specification rather than extending it: with
+`aria-busy` absent the proposal wants `"false"` and `aria-attribute-reflection.html` wants `null`.
+Reading two specifications and concluding "these disagree" is not evidence, so the proposal was
+implemented, both files run, and it was reverted:
+
+| implementation | `aria-attribute-reflection.html` | `…-enumerated.tentative.html` |
+|---|---:|---:|
+| `DOMString?` — shipped, and what landed | **41 / 41 (100%)** | 562 / 1722 (32.6%) |
+| enumerated — PR 2484 | 28 / 41 (68.3%) | **1696 / 1722 (98.5%)** |
+
+**The proposal is worth +1,134 subtests there and −13 here, and it is still refused.** That number
+is the reason to write the refusal down rather than to reverse it: those 13 are the shipped
+behaviour of every browser — `el.ariaBusy` on an element with no `aria-busy` is `null` in all of
+them — so taking the trade buys 1,134 points by giving a page an answer no other engine gives.
+AGENTS.md puts correctness first and a pass rate nowhere. The stable behaviour is what landed:
+every `aria-*` and `role` is a nullable string on `Element`, which took
+`aria-attribute-reflection.html` and its `.tentative` sibling from 3 of 44 to **44 of 44** and is
+worth 282 subtests across the area.
+
+**This is the shape to expect from the rest of the gap, and it is why "`html/dom/` at 100%" is not
+a goal anyone should adopt.** Of the 2,311 subtests left, 1,341 are two tentative proposals and 505
+are `innerText`; a browser that passed all of them would be one that had implemented a
+contradiction and a layout-dependent serialisation, in that order.
+
+**`html/dom/render-blocking/` is flaky by construction and it is not this change.** Two *identical*
+runs of the same binary against the same expectations reported **0 unexpected and then 2**. Those
+tests measure "did rendering block" with timers, and this browser paints a page when it is finished
+rather than as it arrives (ADR 0030), so they race the runner. Re-recording the area does not
+settle it. The residual unexpected results in any `html/dom/` run are confined to that directory
+and to `partial-updates/tentative/`; nothing else in the area moves between runs.
+
+### What was checked, and what was not
+
+`ctest` **2,099 tests, 0 failed** (two new: one for the twelve algorithms, one for URL
+resolution). ASan: 2,099 tests, no memory errors — the one LeakSanitizer report is
+`ConstructableStylesheets.cpp` and is **byte-for-byte identical with these changes stashed**
+(368 bytes in 12 allocations, before and after), so it is pre-existing and now TD-worthy on its own.
+`html/dom/` re-measured with **0 subtests going PASS → FAIL**.
+
+**What was compared against the pre-change binary**, which is the only way to tell a regression from
+an expectation file that was already stale: `dom/`, `custom-elements/`, `shadow-dom/`,
+`domparsing/`, `content-security-policy/` and `html/canvas/element/canvas-host/`. The only
+difference anywhere is **45 new subtests** in `shadow-dom/reference-target/tentative/` that exist
+only because `label.htmlFor` exists now (813 subtests in that area became 858), and all 45 die on
+the test's own cleanup line, `host_container.setHTMLUnsafe("")`, which this browser does not
+implement. The area scores **0.0% in both directions**, so those are not reference-target failures
+yet; they are recorded with a `#` naming the cause. Every one of the 90 PASS → FAIL lines a full
+sweep reports sits in those three files and nowhere else. Four `dom/` timeouts and two in `html/dom/render-blocking/` are load flakes — each passes
+run alone, and the pre-change binary times out on the same two.
+
+**Two areas were deliberately not re-measured, and both are the next agent's inheritance.**
+`html/browsers/` is 751 tests of navigation this browser cannot do, almost all of them 20-second
+timeouts: four hours to learn nothing about reflection. `html/semantics/` is 2,597 tests at roughly
+eight a minute — a six-hour run that was started, watched to **367 tests with 3 subtests going
+PASS → FAIL** (all three in one `.tentative` file, all three `action_sequence() is not implemented
+by testdriver-vendor.js`, i.e. B5), and then stopped. **Its expectation file is now stale in the
+optimistic direction**: reflected attributes are read all over `html/semantics`, so its recorded
+failures overstate what fails today. Re-measuring it is one machine-hours task with no thinking in
+it.
+
+`docs/wpt-baseline.md`'s `html/dom` row was merged **by hand**, for the reason the note at the top
+of that file already gives — `--summary` refuses to write a document describing fewer areas than it
+already has, and the state file it wants lives in `/tmp`. That is task B6 and this is the fourth
+session to pay for it.
+
+### Known gaps, written down rather than half-built
+
+- **`img.width` / `img.height` / `video.width` return the attribute, not the rendered size.** HTML
+  says the rendered width when the image is being rendered, the density-corrected natural width
+  when it is not, and 0 otherwise. The reflection suite marks these `customGetter` and does not
+  test the getter at all, which is why they read as passing. The setter is correct.
+- **A `nonce` set from script on a *detached* element is invisible to CSP.** The spec has CSP read
+  the internal slot; `src/csp` reads the content attribute, and `src/csp` may not see `src/js`. The
+  failure is closed rather than open — a style this browser cannot prove was nonced is blocked —
+  and it is unreachable from the paths that exist today, because scripts are collected once at
+  parse.
+- **`Document`'s five colour reflections and `document.dir` resolve against the binding layer's
+  one document URL**, like every other URL answer here.
+- **ARIA *element* reflection is absent** (`ariaActiveDescendantElement`,
+  `ariaLabelledByElements`): 26 subtests, and it is a different mechanism -- an IDL attribute
+  holding an explicitly-set *element* that survives the target's id changing, plus a FrozenArray
+  form. Those tests also want named access on `window` (`ReferenceError: input1 is not defined`),
+  which is its own feature and is what half of `dom-tree-accessors` measures too.
+- **`usvstring-reflection.https.html` is not a reflection problem.** Its 19 failures are unpaired
+  surrogates surviving where the Web IDL USVString conversion should replace them with U+FFFD, and
+  they are spread across `location`, `window.open`, `EventSource` and `sendBeacon` -- a string-layer
+  question, not a table one.
+
+## 2026-08-12 — `document.title` and `document.body` were lookups, and both are algorithms
+
+**Status:** `html/dom/` **95.9% → 96.0%**; `html/dom/documents/` **203 recorded failures → 141**.
+`document.title-0{3,5,7,9}.html` and `Document.body.html` are **72 of 72**, from 5.
+
+Ranking `html/dom/` after the reflection work put ARIA first (done) and this cluster second. It is
+not reflection, and it is included here because the ranking is what found it and because both
+accessors were **silently wrong in the same way**: written as one-line lookups beside
+`documentElement`, the getters answered with the first matching tag *anywhere in the tree* and the
+setters did not exist at all. `document.title = 'x'` succeeded, read back the old title, and left
+the tab named whatever the markup said.
+
+**What the specification actually says, and what a descendant search gets wrong.** The body element
+is "the first of the html element's children that is either a body or a frameset element". Three
+clauses, and a search for the first `<body>` breaks all three:
+
+- **A child of the html element**, not a descendant of the document. A `<body>` inside something
+  else is not the body, and a `<body>` that *is* the document element has no html element above it,
+  so that document has no body at all.
+- **A frameset counts.** A frameset document's body element is its `<frameset>` — which is where
+  `onload` is set on either kind of page.
+- **In the HTML namespace.** `createElementNS('urn:x', 'body')` appended to `<html>` is not a body,
+  and answering with it hands a page an element with none of the members it is about to use.
+
+`dom::Document::Head` had the same three-clause shape and the same bug, and it matters for the same
+reason: `document.title = x` appends into the head, so a head found anywhere in the tree is a title
+put where no parser would have placed one.
+
+**Two failures where there was one, and Web IDL decides which.** `document.body = 'a string'` is a
+**TypeError** — the setter's type is `HTMLElement?` and a string fails the argument conversion
+before any algorithm runs — while `document.body = someDiv` is a `HierarchyRequestError`. Answering
+one for both reports a tree problem for what is a type problem.
+
+**`document.title` was missing "strip and collapse ASCII whitespace" entirely**, which is what makes
+`<title>\n  Hello\n  world\n</title>` the tab name `Hello world` rather than the five lines the
+author indented. It also reads *child* text content rather than `textContent`: `<title>a<b>c</b></title>`
+is `a`, because a title is not supposed to contain elements and a browser reading the whole subtree
+names the tab after markup nobody meant as a title. And an SVG document's title is an SVG `<title>`
+*child of the root* — one nested deeper titles a shape.
+
+### The instrument bit somebody again, and the tell was the denominator
+
+A `--update-expectations` run of `html/dom/` on a loaded machine took **169s where the same run
+takes 88s**, three `reflection-*.html` files exceeded their deadline, and the writer recorded
+`harness=TIMEOUT` for each. That would have **silently deleted 24,000 subtests** from the
+measurement and left the area looking three points worse forever, with an expectation diff of
+eleven added lines that reads as ordinary churn.
+
+**It was caught by the subtest count falling from 60,138 to 32,743, not by anything in the diff.**
+The rule that follows: re-record an area at low concurrency, and check the denominator before
+committing. This is the same class as the two "the measurement was fake before the browser was"
+findings from 2026-08-11 — the third in two days, and the first where the tooling would have
+written the wrong number down rather than merely reported it.
+
+**Checked:** `ctest` 2,099 tests 0 failed. ASan 2,099 tests, no memory errors. `html/dom/`
+re-verified at `--jobs 4`: 57,759 of 60,138, **0 subtests going PASS → FAIL**, and the four
+unexpected results are three `render-blocking/` flakes and `idlharness`.

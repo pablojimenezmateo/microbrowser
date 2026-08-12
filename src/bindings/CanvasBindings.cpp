@@ -64,48 +64,15 @@ void DomBindings::InstallCanvas(const js::Value& target) {
     return;
   }
 
-  // `width` and `height`, which are the *backing store's* size rather than the CSS box -- and assigning
-  // either resets the canvas, which is the specification's rule and the reason
-  // `canvas.width = canvas.width` is the idiomatic clear.
-  const auto dimension = [this, &target](const char* name, bool is_width) {
-    const Value get = interpreter_->NewNativeValue(name, [is_width](NativeCall& call) -> Value {
-      DomBindings* owner = OwnerOf(call);
-      dom::Node* node = NodeOf(call.self);
-      if (owner == nullptr || owner->canvas_ == nullptr || node == nullptr || !node->IsElement()) {
-        return Value::Number(0.0);
-      }
-      const auto& element = static_cast<const dom::Element&>(*node);
-      return Value::Number(static_cast<double>(is_width ? owner->canvas_->CanvasWidth(element)
-                                                        : owner->canvas_->CanvasHeight(element)));
-    });
-    const Value set = interpreter_->NewNativeValue(name, [is_width](NativeCall& call) -> Value {
-      DomBindings* owner = OwnerOf(call);
-      dom::Node* node = NodeOf(call.self);
-      if (owner == nullptr || owner->canvas_ == nullptr || node == nullptr || !node->IsElement()) {
-        return Value::Undefined();
-      }
-      auto& element = static_cast<dom::Element&>(*node);
-      const double value = js::ToNumber(Argument(call.arguments, 0));
-      if (!std::isfinite(value) || value < 0.0) {
-        return Value::Undefined();
-      }
-      const int rounded = static_cast<int>(value);
-      // The attribute is written too, so `getAttribute('width')` agrees -- and so that layout, which
-      // sizes the replaced box from the attribute, sees the same number.
-      element.SetAttribute(is_width ? "width" : "height", std::to_string(rounded));
-      owner->canvas_->SetCanvasSize(element,
-                                    is_width ? rounded : owner->canvas_->CanvasWidth(element),
-                                    is_width ? owner->canvas_->CanvasHeight(element) : rounded);
-      return Value::Undefined();
-    });
-    if (get.IsObject() && set.IsObject()) {
-      get.object->Set(kOwnerSlot, PointerValue(this));
-      set.object->Set(kOwnerSlot, PointerValue(this));
-      target.object->DefineAccessor(name, get.object, set.object);
-    }
-  };
-  dimension("width", true);
-  dimension("height", false);
+  // `width` and `height` are *not* here, and that is a fix rather than a gap.
+  // They are ordinary reflected `unsigned long`s with the defaults 300 and 150
+  // (ReflectionTable.cpp), and the resize hangs off the attribute *write*
+  // instead -- `DomBindings::ResizeCanvasIfDimension`, reached from the one
+  // place every spelling of an attribute write converges. The accessor pair
+  // that used to live here owned the resize, so it happened for
+  // `canvas.width = 50` and not for `canvas.setAttribute('width', '50')`, and
+  // it parsed with `ToNumber` rather than with HTML's rules -- so `width="50px"`
+  // was a zero-width canvas where every other browser draws 50.
 
   const Value get_context = interpreter_->NewNativeValue("getContext", [](NativeCall& call) -> Value {
     DomBindings* owner = OwnerOf(call);
