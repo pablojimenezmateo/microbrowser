@@ -176,32 +176,56 @@ class Page : private layout::ImageProvider,
   // The external scripts this document referenced, in document order. Fetched
   // by the caller for the same reason a stylesheet is: a fetch needs a privacy
   // verdict, and producing one is the loader's job.
-  const std::vector<SubresourceRequest>& PendingScripts() const { return script_.PendingUrls(); }
+  const std::vector<SubresourceRequest>& PendingScripts() const { return script_->PendingUrls(); }
   // Whether `PendingScripts()[index]` is one the page said it would not wait
   // for. The caller asks so it knows which outstanding scripts hold the first
   // paint and which do not -- see PageScript::Timing and ADR 0011.
-  bool PendingScriptIsAsync(std::size_t index) const { return script_.IsAsync(index); }
+  bool PendingScriptIsAsync(std::size_t index) const { return script_->IsAsync(index); }
   void AddScript(std::size_t pending_index, std::string source);
   // A pending script was refused or failed before Run — fire `error` on the
   // element so a page waiting on `load` (YouTube At7 / GXC) does not hang.
   void NotifyScriptFetchFailed(std::size_t pending_index) {
-    script_.NotifyFetchFailed(pending_index);
+    script_->NotifyFetchFailed(pending_index);
   }
   // Finds `<script>` elements added after the parse-time walk and queues them.
   // True when any were found.
   bool CollectInsertedScripts();
   std::vector<SubresourceRequest> TakeUnrequestedScripts() {
-    return script_.TakeUnrequestedScripts();
+    return script_->TakeUnrequestedScripts();
   }
-  bool HasOutstandingScriptFetches() const { return script_.HasOutstandingScriptFetches(); }
-  void MarkScriptsRequested() { script_.MarkScriptsRequested(); }
+  bool HasOutstandingScriptFetches() const { return script_->HasOutstandingScriptFetches(); }
+  void MarkScriptsRequested() { script_->MarkScriptsRequested(); }
   // Runs any `async` script whose source arrived after RunScripts. True when
   // one did, which means the document may have changed.
-  bool RunReadyAsyncScripts() { return script_.RunReadyAsync(); }
-  bool RunPendingScripts() { return script_.RunPendingScripts(); }
+  bool RunReadyAsyncScripts() { return script_->RunReadyAsync(); }
+  bool RunPendingScripts() { return script_->RunPendingScripts(); }
   // Runs the document's scripts. Idempotent, so a caller that fetches
   // subresources first and one that does not can both end with it.
   void RunScripts(std::int64_t now_ms);
+
+  // --- browsing contexts and realms, ADR 0042 §5 ----------------------------
+
+  // This document's script runs in `host`'s realm `realm`. What a **same-origin**
+  // child context is given, by the engine, because deciding same-origin needs
+  // `src/url` and this class may not see it -- the same inversion `same_origin`
+  // on a `Frame` already is (ADR 0027 §2).
+  void AttachScriptRealm(js::Interpreter& host, js::RealmId realm) {
+    script_->AttachToRealm(host, realm);
+  }
+  // The interpreter this page's script runs in, built if it has none yet. Asked
+  // of a *parent* when a same-origin child needs a realm: a parent with no
+  // script of its own still has to supply the heap its child's objects live in,
+  // because a child that allocated from an interpreter nobody else held would
+  // hand its parent pointers into a heap that dies with it.
+  //
+  // Null when there is no document to build one against, which is a frame whose
+  // response has not arrived.
+  js::Interpreter* EnsureScriptInterpreter(std::int64_t now_ms) {
+    if (document_ == nullptr) {
+      return nullptr;
+    }
+    return &script_->EnsureHostInterpreter(*document_, url_, now_ms);
+  }
 
   // Samples this page's `IntersectionObserver`s and `ResizeObserver`s against
   // the layout about to be painted, and runs the callbacks whose answers
@@ -220,18 +244,18 @@ class Page : private layout::ImageProvider,
   // forbids, which is why these exist rather than the observer alone.
   void SetNavigationTiming(double dom_content_loaded_ms, double load_event_ms,
                            double duration_ms) {
-    script_.SetNavigationTiming(dom_content_loaded_ms, load_event_ms, duration_ms);
+    script_->SetNavigationTiming(dom_content_loaded_ms, load_event_ms, duration_ms);
   }
   // The legacy `performance.timing`. A separate call from the one above because
   // it is a separate moment: this is what the engine knows when the document's
   // bytes land, and the entry above cannot exist until the load is over.
   void SetDocumentTiming(std::int64_t navigation_start_wall_ms, double response_end_ms) {
-    script_.SetDocumentTiming(navigation_start_wall_ms, response_end_ms);
+    script_->SetDocumentTiming(navigation_start_wall_ms, response_end_ms);
   }
   void AddResourceTiming(const std::string& name, const std::string& initiator, double start_ms,
                          double response_end_ms, std::size_t encoded_size,
                          std::size_t decoded_size) {
-    script_.AddResourceTiming(name, initiator, start_ms, response_end_ms, encoded_size,
+    script_->AddResourceTiming(name, initiator, start_ms, response_end_ms, encoded_size,
                               decoded_size);
   }
 
@@ -312,14 +336,14 @@ class Page : private layout::ImageProvider,
   // --- modules -------------------------------------------------------------
   // The engine fetches; the page decides what needs fetching. See
   // engine/ModuleLoader.h for why the two are split.
-  std::vector<std::string> TakeModuleFetches() { return script_.TakeModuleFetches(); }
+  std::vector<std::string> TakeModuleFetches() { return script_->TakeModuleFetches(); }
   void AddModuleSource(std::string url, std::string source) {
-    script_.AddModuleSource(std::move(url), std::move(source));
+    script_->AddModuleSource(std::move(url), std::move(source));
   }
   // Settles every dynamic import whose graph has closed. True when one did, which
   // means a page's code ran.
-  bool AdvanceModules() { return script_.AdvanceModules(); }
-  bool HasPendingModules() const { return script_.HasPendingModules(); }
+  bool AdvanceModules() { return script_->AdvanceModules(); }
+  bool HasPendingModules() const { return script_->HasPendingModules(); }
 
   // Milliseconds until the page's soonest timer or animation frame, or nothing
   // when it has asked for neither. The loop asks this to decide how long it may
@@ -429,13 +453,13 @@ class Page : private layout::ImageProvider,
 
   // Fires `load` and moves `readyState` to "complete". True when something was
   // listening and the document may therefore have changed.
-  bool NotifyLoad() { return script_.NotifyLoad(); }
+  bool NotifyLoad() { return script_->NotifyLoad(); }
 
   // Fires `resize` at the window after the viewport changed and the page was
   // relaid out. Polymer iron-fit / iron-resizable listen on window for this;
   // without it a dialog that opened at the wrong size never refits on a
   // chrome resize (TD-0022). True when something was listening.
-  bool NotifyWindowResize() { return script_.NotifyWindowResize(); }
+  bool NotifyWindowResize() { return script_->NotifyWindowResize(); }
 
   // Moves this document's address without replacing the document: a
   // `pushState`, a `replaceState`, or a traversal between two entries that
@@ -445,10 +469,10 @@ class Page : private layout::ImageProvider,
   // it, which wins.
   void UpdateUrl(std::string url);
   // Fires `popstate` at the window. True when something was listening.
-  bool NotifyPopState() { return script_.NotifyPopState(); }
+  bool NotifyPopState() { return script_->NotifyPopState(); }
   // Fires `hashchange`. True when something was listening.
   bool NotifyHashChange(const std::string& old_url, const std::string& new_url) {
-    return script_.NotifyHashChange(old_url, new_url);
+    return script_->NotifyHashChange(old_url, new_url);
   }
 
   // Primary-button press: `pointerdown`, `mousedown`, then focus. Sets user
@@ -913,7 +937,7 @@ class Page : private layout::ImageProvider,
   // One member rather than an interpreter and a binding layer, which is what
   // the fan-out lint asked for the moment script arrived: Page coordinates,
   // and each thing it coordinates owns itself.
-  PageScript script_;
+  RealmBoundScript script_;
   std::unique_ptr<layout::Box> boxes_;
   std::string url_;
   std::string title_;

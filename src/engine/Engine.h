@@ -243,6 +243,15 @@ class Engine : private bindings::NetworkSource,
   // Re-collects the child contexts, fetches the new ones, and fires the `load` events owed to
   // those whose documents arrived. True when a handler ran, so the document may have moved.
   bool ProcessDynamicFrames();
+  // Gives every child context that has a document somewhere to run script, and runs it. ADR 0042
+  // §5, and the recursion is the point: a frame inside a frame is a realm of the same interpreter,
+  // because same-origin is transitive and so is the heap they share.
+  //
+  // Here rather than in `Page` because deciding *whose* interpreter a child borrows is a
+  // same-origin question, and `Page` may not see `src/url` -- the same inversion that put
+  // `Frame::same_origin` on this side of the seam (ADR 0027 §2). True when any script ran, which
+  // is the caller's signal that some document in the tree may have moved.
+  bool RunFrameScripts(Page& parent);
   // The above, plus what a handler having run implies: the navigation it asked for, or a relayout
   // and a paint. `navigated` says the document is gone and the caller must touch nothing else.
   bool SettleFrameLoads(bool& navigated);

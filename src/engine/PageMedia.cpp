@@ -218,7 +218,7 @@ void Page::FlushMediaEvents(dom::Element& element) {
   // decides *which* events happened -- that is the machine's job and it is tested on its own,
   // which is the whole reason this function is four lines.
   for (const std::string_view type : state->TakeEvents()) {
-    script_.DispatchMediaEvent(element, std::string(type));
+    script_->DispatchMediaEvent(element, std::string(type));
   }
 }
 

@@ -606,7 +606,7 @@ bool Page::DispatchPendingFrameLoads() {
     if (element == nullptr || element->ConnectedDocument() != document_.get()) {
       continue;
     }
-    script_.NotifyElementEvent(*element, "load");
+    script_->NotifyElementEvent(*element, "load");
     AddPerformanceCounter(PerfCounterId::EngineFrameLoadEvents);
     dispatched = true;
   }

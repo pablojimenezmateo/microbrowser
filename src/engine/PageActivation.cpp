@@ -124,7 +124,7 @@ ClickActivation Page::ResolveClickActivation(dom::Element* click_target) {
           // The `toggle` event, which is what a page listens to rather than
           // polling the attribute. Through the same trusted entry point every
           // other browser-produced event uses.
-          script_.DispatchMediaEvent(details, "toggle");
+          script_->DispatchMediaEvent(details, "toggle");
           activation.toggled_details = true;
           return activation;
         }

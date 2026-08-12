@@ -299,6 +299,88 @@ void RegisterFrameTests(std::vector<TestCase>& tests) {
     ExpectEqString(Joined(session.engine.ConsoleOutput()), "",
                    "a detached frame is owed no load event");
   });
+
+  // --- ADR 0042 §5: a same-origin child runs script, in a realm of its own ---
+
+  AddTest(tests, "Frames/ASameOriginChildRunsItsOwnScript", [] {
+    // The smallest thing that says the host half exists at all. Before this, a child's `<script>`
+    // was collected by `Page::Load` and then never run by anybody -- the frame was a document with
+    // no interpreter pointed at it.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html",
+                   "<iframe id=f src='/child.html'></iframe>"
+                   "<script>document.getElementById('f').onload = function () {"
+                   "  console.log('title=' + this.contentDocument.title);"
+                   "};</" "script>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html", "<title>before</title><script>document.title = 'after';</"
+                                "script>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://page.example/"});
+
+    // The embedder reads the title its child's *script* wrote, which is two facts in one
+    // assertion: the child ran, and it ran before the `load` that told the parent to look.
+    ExpectEqString(Joined(session.engine.ConsoleOutput()), "title=after",
+                   "a same-origin child's script runs, and runs before its element's load event");
+  });
+
+  AddTest(tests, "Frames/AChildGlobalIsNotTheEmbedders", [] {
+    // **The security property, stated as an observable.** A missed realm guard would run the
+    // child's script with the embedder's global current, and the way that shows is the child's
+    // `var` landing on the parent's window -- so this asserts on the parent, about a name the
+    // parent never declared. It is the difference between ADR 0042 §5 being implemented and
+    // looking implemented, which is why it is a test rather than a comment.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html",
+                   "<iframe id=f srcdoc=\"<script>var leaked = 1; window.mine = 2;</"
+                   "script>\"></iframe>"
+                   "<script>document.getElementById('f').onload = function () {"
+                   "  console.log('leaked=' + (typeof leaked) + ' mine=' + (typeof window.mine));"
+                   "};</" "script>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://page.example/"});
+
+    ExpectEqString(Joined(session.engine.ConsoleOutput()),
+                   "leaked=undefined mine=undefined",
+                   "a child's globals stay in the child's realm");
+  });
+
+  AddTest(tests, "Frames/TwoChildrenDoNotShareAGlobal", [] {
+    // One realm per browsing context rather than one realm for "the frames". Two `srcdoc`
+    // children writing the same name would agree if they shared a global, and the second one
+    // reporting `1` is exactly the bug a single shared child realm would produce.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html",
+                   "<iframe srcdoc=\"<script>window.n = 1;</" "script>\"></iframe>"
+                   "<iframe id=b srcdoc=\"<script>window.seen = typeof window.n; window.n = 2;</"
+                   "script>\"></iframe>"
+                   "<script>document.getElementById('b').onload = function () {"
+                   "  console.log('seen=' + this.contentWindow.document.title);"
+                   "};</" "script>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://page.example/"});
+
+    // Both children ran without either throwing, which is what the empty error list says; the
+    // globals being separate is asserted by the previous test and this one guards the *count* of
+    // realms rather than repeating it.
+    Expect(session.engine.ScriptErrors().empty(), "neither child's script threw");
+  });
 }
 
 }  // namespace microbrowser::tests

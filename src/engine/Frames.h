@@ -64,6 +64,15 @@ struct Frame {
   // URLs, and recorded rather than recomputed so that one frame cannot be same-origin to one caller
   // and not to another.
   bool same_origin = false;
+  // Whether this context has been given somewhere to run script: a realm of the embedder's
+  // interpreter when it is same-origin, an interpreter of its own when it is not. ADR 0042 §5.
+  //
+  // A flag rather than a re-derivation, for two separate reasons. A realm is *created* by that
+  // step, and creating a second one for the same document would give it two globals with the
+  // first one's objects stranded in a realm nothing points at any more. And `CreateRealm` refuses
+  // past `kMaxRealms`, which is a page-controlled count -- so a refusal has to be remembered, or
+  // every turn of the loop would ask again on behalf of a frame that will never get one.
+  bool scripting_attached = false;
 };
 
 // Every `<iframe>` in `document`, in tree order, with the `src` exactly as written. A frame inside

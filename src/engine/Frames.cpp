@@ -111,6 +111,10 @@ std::vector<std::size_t> FrameTree::Collect(
       if (existing->requested && RequestedSourceOf(*element) != existing->requested_source) {
         existing->requested = false;
         existing->loaded = false;
+        // A fresh `Page`, so a fresh script half, so a fresh realm: the flag has to go with it or
+        // the new document would run in the realm the old one's objects are still in, which is the
+        // "one global per document" rule this whole file is downstream of. ADR 0042 §5.
+        existing->scripting_attached = false;
         existing->page = make_page();
         element->SetNestedDocument(nullptr);
         AddPerformanceCounter(PerfCounterId::EngineFramesRenavigated);

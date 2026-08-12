@@ -423,7 +423,19 @@ budget: PageTextContext header_lines=30 public_methods=5 members=2
 # +1 header line, +1 method and +1 member for SetIndexedDbSource and the
 # IndexedDbSource pointer it stores, the same shape as every other Set*Source.
 # +SetAnimationSource / animations_ / DeliverFinishedAnimations (TD-0021).
-budget: PageScript header_lines=500 public_methods=69 members=32
+# +4 methods and +3 members for ADR 0042 §5's realm attachment. A same-origin
+# child borrows its parent's interpreter and owns a realm of it, so "who owns
+# it", "which one is it" and "which realm of it" stopped being one question and
+# `interpreter_` became `owned_interpreter_` + `interpreter_` +
+# `host_interpreter_` + `realm_`. The guard itself costs this class nothing: it
+# is `RealmBoundScript`, below, and what it took from here is the *constructor*,
+# which is now private with that class as its one friend.
+budget: PageScript header_lines=540 public_methods=75 members=36
+# ADR 0042 §5's realm guard, and it is meant to stay this small. One member --
+# the `PageScript` it is the sole friend of -- and three methods, two of which
+# are the same `operator->` differing in constness. If this grows, something has
+# started living in the guard that belongs in the thing being guarded.
+budget: RealmBoundScript header_lines=60 public_methods=5 members=1
 # This document's policy plus the two things every question about one needs.
 # Three members and one of them mutable: a refusal is recorded where it is
 # decided, because eight call sites remembering to log is how a browser ends up

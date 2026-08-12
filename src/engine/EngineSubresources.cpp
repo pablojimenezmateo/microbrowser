@@ -474,6 +474,12 @@ bool Engine::ProcessDynamicFrames() {
     // that runs on every turn at all (see TD-0021 for the shape it would otherwise be).
     page_.CollectFrames();
     StartFrameRequests();
+    // **Before the `load` events below, and that ordering is the specification's.** A child's own
+    // scripts run as its document is processed; the `load` its element fires in the embedder is
+    // what says they are finished. A page that reads `frame.contentWindow.result` from `onload` --
+    // which is most of how the suite gets an answer out of a frame -- sees nothing at all if these
+    // two are the other way round.
+    RunFrameScripts(page_);
     // And the `load` events owed to frames whose documents have arrived. Dispatched here rather
     // than where the document was set, because this is a *task* boundary: `iframe.onload = f` runs
     // after `appendChild` in the source, and a synchronous dispatch inside the collection pass
@@ -485,6 +491,45 @@ bool Engine::ProcessDynamicFrames() {
     dispatched = true;
   }
   return dispatched;
+}
+
+bool Engine::RunFrameScripts(Page& parent) {
+  bool ran = false;
+  for (Frame& frame : parent.MutableFrames().MutableFrames()) {
+    if (frame.page == nullptr || !frame.loaded) {
+      continue;
+    }
+    if (!frame.scripting_attached) {
+      frame.scripting_attached = true;  // once, whatever the answer below is; see Frames.h
+      if (frame.same_origin) {
+        // **A realm of the embedder's interpreter, and only for a same-origin child.** They hand
+        // each other live objects -- `parent.document.body` from the frame is the embedder's node,
+        // not a copy -- so they have to share a heap, and an object from one heap reached from
+        // another is a use-after-free waiting for the first collection (ADR 0042 §3). A
+        // cross-origin child falls through to the branch below and builds its own interpreter,
+        // which *is* the isolation rather than a check on top of it.
+        js::Interpreter* host = parent.EnsureScriptInterpreter(NowMilliseconds());
+        if (host == nullptr) {
+          continue;
+        }
+        const std::optional<js::RealmId> realm = host->CreateRealm();
+        if (!realm.has_value()) {
+          // Past `kMaxRealms`. The frame simply does not run script -- there is nothing to tear
+          // down and nothing to report, because the count is page-controlled and a page that made
+          // sixty-four scripted frames is outside everything in ADR 0007.
+          continue;
+        }
+        frame.page->AttachScriptRealm(*host, *realm);
+      }
+    }
+    frame.page->RunScripts(NowMilliseconds());
+    ran = true;
+    // A frame inside a frame, and it recurses rather than iterating a flat list because the realm
+    // a grandchild borrows is *its* parent's -- which for a same-origin chain is the same
+    // interpreter all the way up, and for a chain with a cross-origin link in it is not.
+    ran = RunFrameScripts(*frame.page) || ran;
+  }
+  return ran;
 }
 
 bool Engine::ProcessDynamicScripts() {

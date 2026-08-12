@@ -338,7 +338,7 @@ void Page::DeliverImageLoad(const std::string& src) {
     if (selected == resources_.selected_image_urls.end() || selected->second != src) {
       continue;
     }
-    script_.NotifyElementEvent(*element, "load");
+    script_->NotifyElementEvent(*element, "load");
   }
 }
 

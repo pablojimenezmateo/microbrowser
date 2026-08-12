@@ -111,8 +111,8 @@ bool Page::MoveFocus(dom::Element* target, bool visible) {
   // blur the field rather than focus the div, whether or not the page has
   // script.
   bool moved = false;
-  if (script_.HasListeners()) {
-    moved = script_.MoveFocus(target, visible);
+  if (script_->HasListeners()) {
+    moved = script_->MoveFocus(target, visible);
   } else if (target == nullptr || html::IsFocusable(*target)) {
     moved = document_->Focus().element != target;
     document_->SetFocus(target, visible);
@@ -194,8 +194,8 @@ DispatchOutcome Page::DispatchKeyToFocus(const bindings::KeyInput& key) {
     document_->NoteUserActivation();
   }
   DispatchOutcome outcome;
-  outcome.ran = script_.HasListeners();
-  outcome.prevented = script_.DispatchKey(FocusedElement(), key);
+  outcome.ran = script_->HasListeners();
+  outcome.prevented = script_->DispatchKey(FocusedElement(), key);
   return outcome;
 }
 
@@ -215,7 +215,7 @@ bool Page::InsertTextIntoFocusedTextControl(std::string_view text) {
   InvalidateBoxTree();
   // The edit is done; `input` tells listeners (youtube search syncs Polymer
   // from this). Not cancelable — the character is already in the control.
-  (void)script_.DispatchInput(*control);
+  (void)script_->DispatchInput(*control);
   return true;
 }
 
@@ -231,7 +231,7 @@ bool Page::DeleteBackwardFromFocusedTextControl() {
   value.erase(PreviousUtf8Boundary(value));
   control->SetAttribute("value", std::move(value));
   InvalidateBoxTree();
-  (void)script_.DispatchInput(*control);
+  (void)script_->DispatchInput(*control);
   return true;
 }
 

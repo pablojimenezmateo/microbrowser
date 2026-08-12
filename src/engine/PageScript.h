@@ -38,6 +38,11 @@ namespace microbrowser::engine {
 // fresh style resolver follows and for a stronger reason: leaving the previous
 // page's globals in place would let one document's script see another's state,
 // which is a same-origin violation rather than a stale stylesheet.
+//
+// **Not constructible.** The only instance of this class is the one inside a
+// `RealmBoundScript`, which is what makes ADR 0042 §5's realm guard structural
+// rather than remembered; see that class at the bottom of this header before
+// adding a method here.
 class PageScript {
  public:
   // When a script runs, relative to the rest of the load.
@@ -390,6 +395,42 @@ class PageScript {
   // interpreter would answer about a page that never ran.
   std::string Evaluate(dom::Document& document, const std::string& url, std::string_view source);
 
+  // --- realms, ADR 0042 §5 --------------------------------------------------
+
+  // Runs this document's script in `host`'s realm `realm` rather than in an
+  // interpreter of its own. What a **same-origin** child browsing context gets,
+  // and only ever that: two same-origin documents hand each other live objects,
+  // so they have to share a heap, and a cross-origin child keeps its own
+  // `Interpreter` precisely so that it cannot.
+  //
+  // Called before anything runs -- `EnsureInterpreter` reads it -- for the reason
+  // every source setter above is called early: a document whose first script ran
+  // in the wrong realm cannot be corrected afterwards, because the objects it
+  // made are already in the wrong one.
+  void AttachToRealm(js::Interpreter& host, js::RealmId realm);
+
+  // The interpreter this document's script runs in, and which realm of it is its
+  // global. Null before there is either -- a page that has neither borrowed an
+  // interpreter nor built one.
+  //
+  // Read by `RealmBoundScript` to build the guard, and by the engine to hand a
+  // child a realm of the parent's. They are two questions and not one: the realm
+  // is known at attach time and the interpreter pointer only at
+  // `EnsureInterpreter`, which is why the guard can be entered before the first
+  // script and `HasListeners()` still means "this page ran script".
+  js::Interpreter* HostInterpreter() const {
+    return interpreter_ != nullptr ? interpreter_ : host_interpreter_;
+  }
+  js::RealmId Realm() const { return realm_; }
+  // The interpreter, built if this page does not have one yet. What a parent is
+  // asked for when a same-origin child needs a realm: a parent with no script of
+  // its own still has to supply the heap its child's objects live in.
+  js::Interpreter& EnsureHostInterpreter(dom::Document& document, const std::string& url,
+                                         std::int64_t now_ms) {
+    EnsureInterpreter(document, url, now_ms);
+    return *interpreter_;
+  }
+
  private:
   // One script in document order.
   //
@@ -432,7 +473,27 @@ class PageScript {
   // from one, its position when it was inline.
   std::string SourceName(std::size_t slot) const;
 
-  std::unique_ptr<js::Interpreter> interpreter_;
+  // The interpreter this document's script runs in, and the realm of it that is
+  // this document's global. **Four fields rather than one**, because "who owns
+  // it", "which one is it" and "which realm of it" stopped being the same
+  // question when a same-origin frame started borrowing its parent's:
+  //
+  // - `owned_interpreter_` is non-null only for a document that has one of its
+  //   own -- a top-level page, or a cross-origin child, which is the same thing
+  //   from here (ADR 0042 §3: a separate interpreter *is* the isolation).
+  // - `interpreter_` is what runs script, owned or borrowed, and stays null
+  //   until `EnsureInterpreter`. That is load-bearing beyond convenience:
+  //   `HasListeners()` is this pointer, and it has to keep meaning "this page
+  //   ran script" rather than "this page could".
+  // - `host_interpreter_` is the borrowed one from `AttachToRealm`, recorded
+  //   separately so the realm can be entered *before* the first script -- the
+  //   binding layer is installed into whichever realm is current, so a guard
+  //   that only worked once script had run would install the child's `document`
+  //   onto the embedder's global.
+  std::unique_ptr<js::Interpreter> owned_interpreter_;
+  js::Interpreter* interpreter_ = nullptr;
+  js::Interpreter* host_interpreter_ = nullptr;
+  js::RealmId realm_ = js::kMainRealm;
   std::unique_ptr<bindings::DomBindings> bindings_;
   std::vector<Slot> slots_;
   std::vector<SubresourceRequest> pending_urls_;
@@ -495,6 +556,77 @@ class PageScript {
   // on the new ones.
   bool inline_handlers_allowed_ = false;
   std::function<void()> trusted_insertion_flush_;
+
+  // The only thing that may build one. See RealmBoundScript.
+  friend class RealmBoundScript;
+  PageScript() = default;
+};
+
+// One document's script half, with its realm made current for the whole of any
+// call into it. ADR 0042 §5, and this class *is* that section's decision.
+//
+// **The hazard it exists for.** A same-origin `<iframe>` runs its script in its
+// parent's interpreter, in a realm of its own -- they share a heap because they
+// hand each other live objects. So every host entry that could reach that
+// document's script has to make its realm current first, and a missed one is not
+// a bug but a same-origin escape: the child's click handler would run with the
+// embedder's `window` current, which is strictly worse than the stub it
+// replaces.
+//
+// **Why it is a wrapper type and not a `RealmScope` at each entry point.** The
+// ADR checked, and there are two findings worth repeating here. The ~40
+// `interpreter_->` uses inside `PageScript` are *not* the boundary -- a third of
+// them run no script at all, and `PageScript` reaches script through
+// `bindings_` far more often, from inside `src/bindings` where no realm is in
+// scope and none can be. And a guard written at N call sites is correct on the
+// day it is written and silently wrong at call site N+1. So the guard is
+// applied by the only route to the object: `PageScript`'s constructor is
+// private, this class is its one friend, and `operator->` hands back a proxy
+// holding the scope. `operator->` on a class type is applied repeatedly until it
+// yields a pointer, and the temporary lives until the end of the full
+// expression -- which is exactly the extent one host entry into script needs,
+// with nothing to remember. A method added to `PageScript` tomorrow is guarded
+// because there is no way to call it that is not this one.
+class RealmBoundScript {
+ public:
+  RealmBoundScript() = default;
+  RealmBoundScript(const RealmBoundScript&) = delete;
+  RealmBoundScript& operator=(const RealmBoundScript&) = delete;
+
+  // Two of these, differing only in the constness of what they hand back: a
+  // `const Page` still asks its script half questions -- `ConsoleOutput`,
+  // `NextWakeDelay` -- and those still enter the realm, because a question
+  // answered by running a getter is a question that runs script.
+  template <typename Target>
+  class AccessTo {
+   public:
+    AccessTo(const AccessTo&) = delete;
+    AccessTo& operator=(const AccessTo&) = delete;
+    Target* operator->() const { return script_; }
+
+   private:
+    friend class RealmBoundScript;
+    explicit AccessTo(Target& script) : script_(&script) {
+      // No scope at all for a page that has neither borrowed an interpreter nor
+      // built one: there is no realm to enter. A top-level page is realm 0 and
+      // entering it from realm 0 costs one comparison, so the common case pays
+      // nothing measurable either.
+      if (js::Interpreter* host = script.HostInterpreter(); host != nullptr) {
+        scope_.emplace(*host, script.Realm());
+      }
+    }
+
+    Target* script_;
+    std::optional<js::Interpreter::RealmScope> scope_;
+  };
+
+  AccessTo<PageScript> operator->() { return AccessTo<PageScript>(script_); }
+  AccessTo<const PageScript> operator->() const {
+    return AccessTo<const PageScript>(script_);
+  }
+
+ private:
+  PageScript script_;
 };
 
 }  // namespace microbrowser::engine

@@ -113,28 +113,28 @@ Page::Page(gfx::FontProvider& fonts)
   // constructor rather than per navigation because it is this object for the
   // life of the page, and a source that arrived later would leave the first
   // script of a document without one.
-  script_.SetGeometrySource(this);
+  script_->SetGeometrySource(this);
   // Element.animate → this Page's Animations (TD-0021). Same lifetime as geometry.
-  script_.SetAnimationSource(AsAnimationSource());
+  script_->SetAnimationSource(AsAnimationSource());
   // And its media questions, for the same reason and with the same lifetime: the state machines
   // are this object's, so `<video>` has its API from the first script of the first document.
-  script_.SetMediaController(this);
+  script_->SetMediaController(this);
   // And its canvas commands. Same lifetime and same reason: a `<canvas>` in the first document must have
   // its context from the first script, and a surface handed over later would leave that script without
   // one -- which for a page whose whole rendering is a canvas is a blank page.
-  script_.SetCanvasSurface(this);
-  script_.SetWorkerHost(this);
+  script_->SetCanvasSurface(this);
+  script_->SetWorkerHost(this);
 }
 
-const std::vector<std::string>& Page::ConsoleOutput() const { return script_.ConsoleOutput(); }
+const std::vector<std::string>& Page::ConsoleOutput() const { return script_->ConsoleOutput(); }
 
-const std::vector<std::string>& Page::ScriptErrors() const { return script_.ScriptErrors(); }
+const std::vector<std::string>& Page::ScriptErrors() const { return script_->ScriptErrors(); }
 
 std::string Page::EvaluateScript(std::string_view source) {
   if (document_ == nullptr) {
     return {};
   }
-  const std::string answer = script_.Evaluate(*document_, url_, source);
+  const std::string answer = script_->Evaluate(*document_, url_, source);
   // A probe can mutate the document -- and a probe that *renders* something is
   // the useful kind. Laying out afterwards means the caller's next frame shows
   // what it did rather than what the page looked like before it.
@@ -143,14 +143,14 @@ std::string Page::EvaluateScript(std::string_view source) {
 }
 
 void Page::AddScript(std::size_t pending_index, std::string source) {
-  script_.AddFetched(pending_index, std::move(source));
+  script_->AddFetched(pending_index, std::move(source));
 }
 
 bool Page::CollectInsertedScripts() {
   if (document_ == nullptr) {
     return false;
   }
-  return script_.CollectInserted(*document_, policy_);
+  return script_->CollectInserted(*document_, policy_);
 }
 
 void Page::RunScripts(std::int64_t now_ms) {
@@ -162,7 +162,7 @@ void Page::RunScripts(std::int64_t now_ms) {
   // full BuildBoxTree per such turn even when MutationVersion was unchanged.
   const std::uint64_t doc_before = document_->MutationVersion();
   const std::uint64_t cascade_before = resolver_.Generation();
-  script_.Run(*document_, url_, now_ms);
+  script_->Run(*document_, url_, now_ms);
   if (document_->MutationVersion() != doc_before ||
       resolver_.Generation() != cascade_before) {
     // A script can change the tree or the cascade, so anything derived from
@@ -189,7 +189,7 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
   // holds a reference to it, so dropping the script half after replacing the
   // document would leave that reference dangling for exactly as long as it took
   // the next page's first script to read the tree.
-  script_.Detach();
+  script_->Detach();
   // Before the document goes, for the reason the line above is: every frame's element lives in the
   // document that is about to be replaced, and the borrowed pointer each one holds has to be
   // cleared while that element is still there to clear it on. ADR 0027 §1, and see Frames.h.
@@ -263,8 +263,8 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
     // Before Collect, because a module script's source can arrive and be asked
     // what it imports long before there is an interpreter -- and resolving a
     // relative specifier needs a base.
-    script_.SetModuleDocumentUrl(url_);
-    script_.Collect(*document_, policy_);
+    script_->SetModuleDocumentUrl(url_);
+    script_->Collect(*document_, policy_);
   }
   if (document_ != nullptr) {
     document_->ForEachDescendant([&](const dom::Node& node) {
@@ -401,14 +401,14 @@ std::optional<FormSubmission> Page::SubmitForm(const dom::Element& form,
   // The event first. A page that adds fields in `onsubmit` -- which is what
   // reddit's interstitial does -- has to have run before the data set is
   // built, and one that calls `preventDefault` must not be submitted at all.
-  if (script_.DispatchSubmit(const_cast<dom::Element&>(form))) {
+  if (script_->DispatchSubmit(const_cast<dom::Element&>(form))) {
     return std::nullopt;
   }
   return BuildFormSubmission(form, submitter, *document_, url_, policy_.Encoding());
 }
 
 std::optional<FormSubmission> Page::TakeScriptFormSubmission() {
-  const std::optional<bindings::PendingSubmit> pending = script_.TakePendingSubmit();
+  const std::optional<bindings::PendingSubmit> pending = script_->TakePendingSubmit();
   if (!pending.has_value() || pending->form == nullptr || document_ == nullptr) {
     return std::nullopt;
   }
@@ -423,7 +423,7 @@ std::optional<FormSubmission> Page::ApplyScriptActivation(bool& changed_document
                                                           std::optional<std::string>& href) {
   changed_document = false;
   href.reset();
-  const std::vector<dom::Element*> clicked = script_.TakePendingActivations();
+  const std::vector<dom::Element*> clicked = script_->TakePendingActivations();
   if (clicked.empty()) {
     return std::nullopt;
   }
@@ -490,8 +490,8 @@ bool Page::DispatchPointerDownAt(gfx::FloatPoint document_point,
   }
   auto& element = *const_cast<dom::Element*>(target);
   pointer_down_target_ = &element;
-  (void)script_.DispatchPointerMouse(element, "pointerdown", pointer);
-  (void)script_.DispatchPointerMouse(element, "mousedown", pointer);
+  (void)script_->DispatchPointerMouse(element, "pointerdown", pointer);
+  (void)script_->DispatchPointerMouse(element, "mousedown", pointer);
   (void)FocusFromClickAt(document_point);
   return true;
 }
@@ -553,12 +553,12 @@ DispatchOutcome Page::DispatchPointerReleaseAt(gfx::FloatPoint document_point,
   if (up_event_target == nullptr) {
     return outcome;
   }
-  outcome.ran = script_.HasListeners();
+  outcome.ran = script_->HasListeners();
   outcome.click_target = click_target;
-  (void)script_.DispatchPointerMouse(*up_event_target, "pointerup", pointer);
-  (void)script_.DispatchPointerMouse(*up_event_target, "mouseup", pointer);
+  (void)script_->DispatchPointerMouse(*up_event_target, "pointerup", pointer);
+  (void)script_->DispatchPointerMouse(*up_event_target, "mouseup", pointer);
   if (click_target != nullptr) {
-    outcome.prevented = script_.DispatchClick(*click_target, pointer);
+    outcome.prevented = script_->DispatchClick(*click_target, pointer);
   }
   return outcome;
 }
@@ -573,13 +573,13 @@ DispatchOutcome Page::DispatchClickAt(gfx::FloatPoint document_point,
 void Page::AbandonForNavigation() {
   // Interpreter, timers, rAF, idle, host tasks. The DOM stays until Load; it
   // must not schedule against the in-flight document GET (TD-0048).
-  script_.Detach();
+  script_->Detach();
   animations_.Clear();
   util::AddPerformanceCounter(util::PerfCounterId::EngineScriptAbandonedForNavigation);
 }
 
 std::optional<std::uint32_t> Page::NextWakeDelay(std::int64_t now_ms) const {
-  std::optional<std::uint32_t> from_script = script_.NextWakeDelay(now_ms);
+  std::optional<std::uint32_t> from_script = script_->NextWakeDelay(now_ms);
   // A running transition or animation asks for a frame. **Nothing when nothing is running**, which is
   // the whole of how ADR 0014 §5's invariant is kept: a page with a `:hover` transition costs nothing
   // while the pointer is elsewhere, because there is no transition to ask.
@@ -612,7 +612,7 @@ Page::DueWorkKind Page::RunDueWork(std::int64_t now_ms, bool* script_ran) {
       document_ != nullptr ? document_->StructureVersion() : 0;
   const std::uint64_t cascade_before = resolver_.Generation();
   bool ran = DispatchPendingScrollEvents();
-  ran = script_.RunDueWork(now_ms) || ran;
+  ran = script_->RunDueWork(now_ms) || ran;
   if (script_ran != nullptr) {
     *script_ran = ran;
   }
@@ -627,7 +627,7 @@ Page::DueWorkKind Page::RunDueWork(std::int64_t now_ms, bool* script_ran) {
   // After Advance *and* after script: cancel() queues a finished notice while
   // Running() may already be false, so delivery cannot sit inside the Running
   // branch alone.
-  if (script_.DeliverFinishedAnimations()) {
+  if (script_->DeliverFinishedAnimations()) {
     ran = true;
   }
   const bool video_updated =
@@ -693,31 +693,31 @@ Page::DueWorkKind Page::RunDueWork(std::int64_t now_ms, bool* script_ran) {
 }
 
 void Page::SetNetworkSource(bindings::NetworkSource* network) {
-  script_.SetNetworkSource(network);
+  script_->SetNetworkSource(network);
 }
 
 void Page::SetTrustedInsertionFlush(std::function<void()> hook) {
-  script_.SetTrustedInsertionFlush(std::move(hook));
+  script_->SetTrustedInsertionFlush(std::move(hook));
 }
 
 void Page::SetHistorySource(bindings::HistorySource* history) {
-  script_.SetHistorySource(history);
+  script_->SetHistorySource(history);
 }
 
 void Page::SetStorageSource(bindings::StorageSource* storage) {
-  script_.SetStorageSource(storage);
+  script_->SetStorageSource(storage);
 }
 
 void Page::SetIndexedDbSource(bindings::IndexedDbSource* indexed_db) {
-  script_.SetIndexedDbSource(indexed_db);
+  script_->SetIndexedDbSource(indexed_db);
 }
 
 void Page::SetCookieSource(bindings::CookieSource* cookies) {
-  script_.SetCookieSource(cookies);
+  script_->SetCookieSource(cookies);
 }
 
 void Page::SetSocketSource(bindings::SocketSource* sockets) {
-  script_.SetSocketSource(sockets);
+  script_->SetSocketSource(sockets);
 }
 
 std::string Page::RegisterBlobUrl(std::string body, std::string mime_type) {
@@ -726,28 +726,28 @@ std::string Page::RegisterBlobUrl(std::string body, std::string mime_type) {
 
 void Page::RevokeBlobUrl(const std::string& url) { blob_urls_.Revoke(url); }
 
-bool Page::DeliverSocketOpen(std::uint64_t id) { return script_.DeliverSocketOpen(id); }
+bool Page::DeliverSocketOpen(std::uint64_t id) { return script_->DeliverSocketOpen(id); }
 
 bool Page::DeliverEventSourceOpen(std::uint64_t id) {
-  return script_.DeliverEventSourceOpen(id);
+  return script_->DeliverEventSourceOpen(id);
 }
 
 bool Page::DeliverEventSourceMessage(std::uint64_t id, const std::string& type,
                                      const std::string& data, const std::string& last_id) {
-  return script_.DeliverEventSourceMessage(id, type, data, last_id);
+  return script_->DeliverEventSourceMessage(id, type, data, last_id);
 }
 
 bool Page::DeliverEventSourceError(std::uint64_t id, bool permanent) {
-  return script_.DeliverEventSourceError(id, permanent);
+  return script_->DeliverEventSourceError(id, permanent);
 }
 
 bool Page::DeliverSocketMessage(std::uint64_t id, const std::string& data, bool text) {
-  return script_.DeliverSocketMessage(id, data, text);
+  return script_->DeliverSocketMessage(id, data, text);
 }
 
 bool Page::DeliverSocketClose(std::uint64_t id, std::uint16_t code, const std::string& reason,
                               bool clean, bool failed) {
-  return script_.DeliverSocketClose(id, code, reason, clean, failed);
+  return script_->DeliverSocketClose(id, code, reason, clean, failed);
 }
 
 void Page::UpdateUrl(std::string url) {
@@ -755,7 +755,7 @@ void Page::UpdateUrl(std::string url) {
   policy_.UpdateDocumentUrl(url_);
   // What a page reads back. One address, and it is the one the URL bar shows --
   // ADR 0026 §2's sentence, and the reason this is not two separate updates.
-  script_.SetDocumentUrl(url_);
+  script_->SetDocumentUrl(url_);
   // From the address rather than from the markup, and recomputed here so that
   // `#section` in a `pushState` URL styles the same element it would have styled
   // had the page been loaded at it. ADR 0016 §2: one copy.
@@ -767,12 +767,12 @@ void Page::UpdateUrl(std::string url) {
 }
 
 bool Page::DeliverFetchResponse(std::uint64_t id, const bindings::ScriptResponse& response) {
-  return script_.DeliverFetchResponse(id, response);
+  return script_->DeliverFetchResponse(id, response);
 }
 
 bool Page::DeliverObservations(std::int64_t now_ms) {
   // The page's clock, published before anything a script can read it from runs.
-  script_.TickClock(now_ms);
+  script_->TickClock(now_ms);
   if (document_ == nullptr) {
     return false;
   }
@@ -790,7 +790,7 @@ bool Page::DeliverObservations(std::int64_t now_ms) {
   int depth = 0;
   for (; depth < kObservationDepthLimit; ++depth) {
     EnsureLayoutClean();
-    if (!script_.DeliverViewObservations(now_ms)) {
+    if (!script_->DeliverViewObservations(now_ms)) {
       break;
     }
     ran = true;
