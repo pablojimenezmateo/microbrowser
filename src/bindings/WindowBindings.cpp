@@ -76,7 +76,17 @@ void DomBindings::SyncNamedAccess() {
     // every API name are properties of the global, and an `<a id=location>`
     // taking `location` away from the page would break far more than it fixed --
     // the specification agrees: named access loses to anything else.
-    if (global->HasOwn(*id)) {
+    //
+    // **Both halves of "already there", and the second is not a refinement.**
+    // A `function test(...)` at the top level of a script is a *global scope
+    // binding*, not an own property of the global object -- MakeInterface says
+    // the same thing about why it Declares rather than Sets. An own property
+    // wins over a binding, so checking only `HasOwn` let `<ul id=test>` take
+    // the name away from testharness.js's own `test()`, and every WPT file
+    // with an `id=test` in it stopped reporting: `test is not a function`, no
+    // subtests, harness TIMEOUT. Nine files in `dom/` alone.
+    if (global->HasOwn(*id) ||
+        (interpreter_->GlobalScope() != nullptr && interpreter_->GlobalScope()->HasOwn(*id))) {
       return;
     }
     const std::string name = *id;
@@ -96,9 +106,38 @@ void DomBindings::SyncNamedAccess() {
           // get without a named-property hook to remove it from.
           return found == nullptr ? Value::Undefined() : owner->WrapperFor(found);
         });
-    if (getter.IsObject()) {
+    // **A setter, and it is not optional.** In the specification a named
+    // property lives on the *named properties object*, which is Window's
+    // prototype -- so `window.foo = x` on a page with `<div id=foo>` makes an
+    // own property that shadows it, and every later read sees `x`. Installed
+    // getter-only on the global itself, the same assignment is a silent no-op
+    // in sloppy mode: the write goes nowhere and the name keeps answering with
+    // the element.
+    //
+    // That is how this was found. testharness.js ends with
+    // `expose(test, 'test')`, which is a plain `global_scope['test'] = test`,
+    // and on any file with an `id=test` in it the assignment vanished. `test`
+    // stayed the element, `test(function(){...})` threw "not a function"
+    // before a single subtest ran, and the runner saw a harness TIMEOUT with
+    // no output to explain it -- nine files in `dom/` alone, and it looked
+    // exactly like a hang.
+    //
+    // Replacing the accessor rather than storing through it is what makes the
+    // shadowing permanent: the next SyncNamedAccess pass finds `HasOwn` true
+    // and leaves the page's value alone.
+    const Value setter =
+        interpreter_->NewNativeValue(name.c_str(), [name](NativeCall& call) -> Value {
+          js::Object* target = call.interpreter.Global();
+          if (target != nullptr) {
+            target->Delete(name);
+            target->Set(name, Argument(call.arguments, 0));
+          }
+          return Value::Undefined();
+        });
+    if (getter.IsObject() && setter.IsObject()) {
       getter.object->Set(kOwnerSlot, PointerValue(this));
-      global->DefineAccessor(name, getter.object, nullptr);
+      setter.object->Set(kOwnerSlot, PointerValue(this));
+      global->DefineAccessor(name, getter.object, setter.object);
     }
   });
 }

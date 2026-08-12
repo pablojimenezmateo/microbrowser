@@ -135,18 +135,6 @@ FAIL:esc= Calling stopPropagation() prior to dispatchEvent()
 [dom/events/Event-dispatch-redispatch.html]
 harness=TIMEOUT
 [dom/events/Event-dispatch-single-activation-behavior.html]
-FAIL=When clicking child <A></A> of parent <AREA></AREA>, only child should be activated.
-FAIL=When clicking child <A></A> of parent <DETAILS><SUMMARY></SUMMARY></DETAILS>, only child should be activated.
-FAIL=When clicking child <A></A> of parent <FORM><BUTTON type=reset></BUTTON></FORM>, only child should be activated.
-FAIL=When clicking child <A></A> of parent <FORM><BUTTON type=submit></BUTTON></FORM>, only child should be activated.
-FAIL=When clicking child <A></A> of parent <FORM><INPUT type=image></INPUT></FORM>, only child should be activated.
-FAIL=When clicking child <A></A> of parent <FORM><INPUT type=reset></INPUT></FORM>, only child should be activated.
-FAIL=When clicking child <A></A> of parent <FORM><INPUT type=submit></INPUT></FORM>, only child should be activated.
-FAIL=When clicking child <A></A> of parent <INPUT type=checkbox></INPUT>, only child should be activated.
-FAIL=When clicking child <A></A> of parent <INPUT type=radio></INPUT>, only child should be activated.
-FAIL=When clicking child <A></A> of parent <LABEL><BUTTON type=button></BUTTON></LABEL>, only child should be activated.
-FAIL=When clicking child <A></A> of parent <LABEL><INPUT type=checkbox></INPUT><SPAN></SPAN></LABEL>, only child should be activated.
-FAIL=When clicking child <AREA></AREA> of parent <A></A>, only child should be activated.
 FAIL=When clicking child <AREA></AREA> of parent <DETAILS><SUMMARY></SUMMARY></DETAILS>, only child should be activated.
 FAIL=When clicking child <AREA></AREA> of parent <FORM><BUTTON type=reset></BUTTON></FORM>, only child should be activated.
 FAIL=When clicking child <AREA></AREA> of parent <FORM><BUTTON type=submit></BUTTON></FORM>, only child should be activated.
@@ -460,7 +448,7 @@ FAIL=scrollTop and scrollLeft when scrolling above maximum offset.
 [dom/events/scrolling/scroll-event-fired-to-iframe.html]
 harness=TIMEOUT
 [dom/events/scrolling/scrollIntoView-in-onscroll-to-sticky.html]
-harness=TIMEOUT
+FAIL=scrollIntoView-in-onscroll-to-sticky
 [dom/events/scrolling/scrollend-event-fired-after-instant-scroll-in-microtask.html]
 FAIL=scrolling state is false at the end of the test
 [dom/events/scrolling/scrollend-event-fired-after-sequence-of-scrolls.tentative.html]
@@ -494,14 +482,11 @@ harness=TIMEOUT
 [dom/events/scrolling/scrollend-event-not-fired-after-removing-scroller.tentative.html]
 harness=TIMEOUT
 [dom/events/scrolling/scrollend-event-not-fired-on-no-scroll.html]
-FAIL=No scroll via keys on div shouldn't fire scrollend.
-FAIL=No scroll via keys on document shouldn't fire scrollend.
-FAIL=No scroll via wheel on div shouldn't fire scrollend.
-FAIL=No scroll via wheel on document shouldn't fire scrollend.
+harness=ERROR
 [dom/events/scrolling/scrollend-fires-to-text-input.html]
 harness=TIMEOUT
 [dom/events/scrolling/scrollend-with-snap-on-fractional-offset.html]
-harness=TIMEOUT
+FAIL=snap to fractional offset fires scrollend exactly once.
 [dom/events/scrolling/wheel-event-composed.html]
 harness=TIMEOUT
 [dom/events/scrolling/wheel-event-no-scroll-after-prevent-default.html]
@@ -521,7 +506,8 @@ FAIL=Remove the initial wheel event target.
 [dom/events/scrolling/wheel-event-transactions-target-resize.html]
 harness=TIMEOUT
 [dom/events/shadow-relatedTarget.html]
-harness=TIMEOUT
+FAIL=relatedTarget should not leak at capturing phase, at window object.
+FAIL=relatedTarget should not leak at target.
 [dom/events/webkit-animation-end-event.html]
 harness=TIMEOUT
 [dom/events/webkit-animation-iteration-event.html]
@@ -532,9 +518,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [dom/events/window-event-restored-after-throwing-onerror.html]
 FAIL=window.event is restored after a throwing window.onerror handler
-[dom/historical.html]
-FAIL=Attr member must be removed: isId
-FAIL=Attr member must be removed: schemaTypeInfo
 [dom/idlharness.window.html?exclude=Node]
 FAIL=idl_test setup
 [dom/idlharness.window.html?include=Node]
@@ -596,7 +579,6 @@ FAIL=createDocument test: undefined,undefined,undefined,null
 [dom/nodes/DOMImplementation-createHTMLDocument-with-saved-implementation.html]
 FAIL=createHTMLDocument(): from a saved and detached implementation does not return null
 [dom/nodes/DOMImplementation-createHTMLDocument.html]
-FAIL=createHTMLDocument(): URL parsing
 FAIL=createHTMLDocument(): metadata
 [dom/nodes/Document-URL.html]
 harness=TIMEOUT
@@ -606,8 +588,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [dom/nodes/Document-constructor-svg.svg]
 harness=TIMEOUT
-[dom/nodes/Document-constructor.html]
-FAIL=new Document(): URL parsing
 [dom/nodes/Document-contentType/contentType/contenttype_bmp.html]
 harness=TIMEOUT
 [dom/nodes/Document-contentType/contentType/contenttype_css.html]
@@ -1213,10 +1193,6 @@ FAIL=getElementsByTagNameNS() should be a live collection
 FAIL=Import an Attr node with namespace/prefix correctly.
 [dom/nodes/DocumentFragment-getElementById.html]
 FAIL=Empty string ID values
-FAIL=It must return null when there are no matches
-FAIL=It must return the first element when there are matches
-FAIL=It must return the first element when there are matches, using a template
-FAIL=The method must exist
 [dom/nodes/Element-childElement-null-svg.svg]
 harness=TIMEOUT
 [dom/nodes/Element-childElement-null-xhtml.xhtml]
@@ -1642,15 +1618,9 @@ FAIL=When disconnectedCallback is not defined, no crash
 FAIL=connectedMove runs when custom element is nested within a shadow root
 FAIL=the disconnected/connected callbacks should be called when no other callback is defined
 FAIL=the element should stay connected during the callbacks
-[dom/nodes/moveBefore/fieldset-child-blur-event.html]
-FAIL=The 'blur' event is not fired on children of HTMLFieldSetElement during moveBefore()
-[dom/nodes/moveBefore/fieldset-child-date-input-blur-event.html]
-FAIL=Neither 'blur' nor 'focusout' is fired on a focused <input type=date> child of HTMLFieldSetElement during moveBefore()
 [dom/nodes/moveBefore/fire-focusin-focusout.html]
 FAIL=Don't fire focusin and then correct when moving to a tree that is made inert using style
 FAIL=Don't fire focusin and then correct when moving to an inert subtree
-FAIL=Don't fire focusin/out when reparenting an element that has focus within
-FAIL=Don't fire focusin/out when reparenting focused element directly
 [dom/nodes/moveBefore/focus-preserve.html]
 FAIL=when reparenting a focused element into a hidden parent, reset the document focus
 FAIL=when reparenting a focused element into an inert parent, reset the document focus
@@ -1677,36 +1647,14 @@ FAIL=moveBefore still results in range startContainer snapping up to parent when
 FAIL=when reparenting a modal dialog, the dialog should stay modal
 [dom/nodes/moveBefore/moveBefore-as-flex-item.html]
 harness=FAIL
-[dom/nodes/moveBefore/moveBefore-dir.html]
-FAIL=moveBefore() correctly updates the computed dir for moved nodes
-[dom/nodes/moveBefore/moveBefore-from-light-to-shadow.html]
-FAIL=moveBefore-from-light-to-shadow
-[dom/nodes/moveBefore/moveBefore-id-map.html]
-FAIL=moveBefore() correctly updates id map when moving between shadow roots
-FAIL=moveBefore() correctly updates id map when moving into shadow root
-FAIL=moveBefore() correctly updates window map when moving id-mapped element into shadow root
-[dom/nodes/moveBefore/moveBefore-lang.html]
-FAIL=moveBefore() correctly updates the computed lang for moved nodes
 [dom/nodes/moveBefore/moveBefore-name-map.html]
 FAIL=moveBefore() correctly updates name map ordering in document
 FAIL=moveBefore() correctly updates name map when moving into shadow root
 FAIL=moveBefore() correctly updates window map
-[dom/nodes/moveBefore/moveBefore-option-recalc-style.html]
-FAIL=moveBefore() of an option element between two selects
-[dom/nodes/moveBefore/moveBefore-selector-matching.html]
-FAIL=moveBefore() should invalidate target when descendant selector changes
-[dom/nodes/moveBefore/moveBefore-shadow-inside.html]
-FAIL=moveBefore-shadow-inside
-[dom/nodes/moveBefore/moveBefore-shadow-root.html]
-FAIL=moveBefore() is allowed in ShadowRoots (i.e., connected DocumentFragments)
 [dom/nodes/moveBefore/moveBefore-size-query.html]
 FAIL=moveBefore() between different size containers invalidates target
-[dom/nodes/moveBefore/mutation-observer.html]
-FAIL=[Connected move] MutationObserver removal + insertion is tracked by moveBefore()
 [dom/nodes/moveBefore/nonce.html]
 FAIL=Element nonce content attribute is not cleared after move
-[dom/nodes/moveBefore/object-crash-regression.html]
-FAIL=Moving an object element does not crash
 [dom/nodes/moveBefore/pointer-events.html]
 FAIL=Pointer capture should not be released when moving
 [dom/nodes/moveBefore/popover-preserve.html]
@@ -1750,7 +1698,6 @@ FAIL=Document.createTextNode() creates a node in the target document's realm
 FAIL=Range.cloneContents() builds the fragment in the range's node document realm
 FAIL=cloneNode() clones into the node's node document realm
 FAIL=importNode() imports into the target document's realm
-FAIL=innerHTML parses Text and Comment nodes in the node document's realm after adoption
 [dom/nodes/node-realm-adoption-after-frame-removal.html]
 FAIL=Never-wrapped node keeps its creation realm: iframe removed before adoption (subtree not pre-detached)
 FAIL=Never-wrapped node keeps its creation realm: subtree detached, iframe removed, then adopted
@@ -1759,7 +1706,6 @@ FAIL=Node reached through the adopting document still reports its creation realm
 FAIL=Custom element parsed into an adopted container uses the node-document realm and registry
 FAIL=Element parsed into an adopted container takes the node-document realm, not the container's creation realm
 FAIL=Never-wrapped node keeps its creation realm across multiple adoptions
-FAIL=Text parsed into an adopted container takes the node-document realm, not the container's creation realm
 [dom/nodes/node-realm-preserved-across-adoption.html]
 FAIL=Built-in element keeps its creation realm after adoption
 FAIL=Comment node keeps its creation realm after adoption
@@ -1912,10 +1858,6 @@ FAIL=check attribute value: "some<>" (source: "xml-dom")
 FAIL=check attribute value: "some<>" (source: "xml-parser")
 [dom/nodes/query-target-in-load-event.html]
 harness=TIMEOUT
-[dom/nodes/querySelector-empty-id.html]
-FAIL=querySelector attribute matching empty id
-[dom/nodes/querySelector-id-nth-child.html]
-FAIL=querySelector matching #id + constant nth-child()
 [dom/nodes/querySelector-mixed-case.html]
 FAIL=Mixed HTML/SVG/MathML tree with various mixed-case attributes
 [dom/nodes/remove-and-adopt-thcrash.html]
@@ -2323,6 +2265,8 @@ harness=TIMEOUT
 FAIL=Range in shadow should stay in the shadow after the host is removed
 FAIL=Range in shadow should stay in the shadow after the host parent is removed
 [dom/ranges/Range-insertNode.html]
+harness=TIMEOUT
+[dom/ranges/Range-mutations-dataChange.html]
 harness=TIMEOUT
 [dom/ranges/Range-mutations-splitText.html]
 FAIL=detachedForeignTextNode.splitText(1), with selected range on detachedForeignTextNode from 1 to 3

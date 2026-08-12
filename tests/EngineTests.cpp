@@ -266,6 +266,38 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
     ExpectEqString(output.front(), "external ran", "and it was the fetched source");
   });
 
+  AddTest(tests, "Page/NamedAccessLosesToAScriptThatWritesTheSameName", [] {
+    // HTML §7.3.3 puts named access on the *named properties object*, which is
+    // Window's prototype -- so `window.foo = x` on a page with `<div id=foo>`
+    // makes an own property that shadows the element, permanently.
+    //
+    // This is a regression test with a real bill attached. The name was
+    // installed as a getter-only own property of the global, which makes that
+    // assignment a silent no-op in sloppy mode. testharness.js ends with
+    // `expose(test, 'test')` -- a plain `global_scope['test'] = test` -- so on
+    // every web-platform-test with an `id=test` in it the write vanished,
+    // `test` kept answering with the element, and `test(function(){...})` threw
+    // "not a function" before one subtest ran. Nine files in `dom/` reported
+    // nothing at all and looked exactly like a hang.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<html><body><div id='thing'></div>"
+        "<script>console.log('element first: ' + (thing.tagName || 'not an element'));</script>"
+        "<script>window.thing = 'a page value';</script>"
+        "<script>console.log('after the write: ' + thing);</script>"
+        "</body></html>",
+        "https://example.org/");
+    page.RunScripts(0);
+    const std::vector<std::string>& output = page.ConsoleOutput();
+    ExpectEqInt(static_cast<long long>(output.size()), 2, "both reporting scripts ran");
+    if (output.size() == 2) {
+      ExpectEqString(output[0], "element first: DIV", "the id is a bare global to begin with");
+      ExpectEqString(output[1], "after the write: a page value",
+                     "and the page's own assignment wins from then on");
+    }
+  });
+
   AddTest(tests, "Page/AScriptThatNeverArrivesDoesNotStopTheOnesAfterIt", [] {
     // Its slot stays empty rather than shifting every later script's turn. A
     // page whose analytics tag is blocked is still a page, which is the whole
