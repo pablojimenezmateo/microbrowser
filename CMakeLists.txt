@@ -433,6 +433,7 @@ microbrowser_module(engine
     src/engine/Workers.cpp
     src/engine/PageCanvas.cpp
     src/engine/PageWorkers.cpp
+    src/engine/PageActivation.cpp
     src/engine/PageAnimations.cpp
     src/engine/MediaElements.cpp
     src/engine/DecoderClient.cpp

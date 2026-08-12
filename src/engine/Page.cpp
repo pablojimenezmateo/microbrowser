@@ -902,47 +902,4 @@ bool Page::ResetFormOn(const dom::Element& reset) {
   return true;
 }
 
-ClickActivation Page::ResolveClickActivation(dom::Element* click_target) {
-  ClickActivation activation;
-  if (click_target == nullptr || document_ == nullptr) {
-    return activation;
-  }
-  EnsureLayoutClean();
-
-  auto parent_element = [](dom::Element* element) -> dom::Element* {
-    return ComposedParentElement(element);
-  };
-
-  for (dom::Element* at = click_target; at != nullptr; at = parent_element(at)) {
-    if (html::IsSubmitControl(*at)) {
-      const dom::Element* form = html::FormOwner(*at, *document_);
-      if (form != nullptr) {
-        activation.form = SubmitForm(*form, at);
-      }
-      return activation;
-    }
-    if (html::IsResetControl(*at)) {
-      activation.reset_form = ResetFormOn(*at);
-      return activation;
-    }
-    if (html::IsCheckableInput(*at)) {
-      activation.toggled_checkable = ActivateCheckableInputOn(*at);
-      return activation;
-    }
-    if (at->TagName() == "a") {
-      const std::string* href = at->GetAttribute("href");
-      if (href != nullptr && !href->empty()) {
-        activation.href = *href;
-        return activation;
-      }
-    }
-  }
-
-  if (ToggleMediaPlaybackOn(*click_target)) {
-    activation.toggled_media = true;
-  }
-  return activation;
-}
-
-
 }  // namespace microbrowser::engine
