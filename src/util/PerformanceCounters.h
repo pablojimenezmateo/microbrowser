@@ -358,6 +358,16 @@ namespace microbrowser::util {
   /* collection. The number to read against the hard limit when a page gets    */ \
   /* close: a peak near the limit with heap_oom still zero is headroom left.   */ \
   X(JsHeapLivePeak, "js.heap_live_peak")                                          \
+  /* How many collections ran, and how many cells each of them had to walk.    */ \
+  /* Read as a *ratio*: `cells_traced / collections` is the average live set   */ \
+  /* a mark-sweep pass costs, and `cells_traced` against `js.steps` is what    */ \
+  /* says whether a slow script is running or collecting. `heap_live_peak`     */ \
+  /* alone cannot answer that -- it is one number at one moment, and a         */ \
+  /* collector that runs too often on a large live set looks identical to one  */ \
+  /* that never runs. That shape was quadratic here until 2026-08-11: a flat   */ \
+  /* 4096-allocation trigger against a live set that grows without bound.      */ \
+  X(JsCollections, "js.collections")                                              \
+  X(JsCellsTraced, "js.cells_traced")                                             \
   /* The module graph. `dynamic_imports` against `dynamic_imports_settled` is   */ \
   /* the pair to read: the difference is a page waiting on a promise nobody     */ \
   /* answered, which is a page that hangs with no error anywhere.               */ \
