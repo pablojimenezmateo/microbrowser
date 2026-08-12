@@ -332,6 +332,27 @@ un-nonced inline script, and the general form refuses both. And the compile is
 attribute and dispatches would refresh the budget metering it, which is a hang a
 page can drive.
 
+**`dom/collections` was written, measured at 7 -> 36 of 53, and then set aside
+rather than landed — read this before writing it again.** A live
+`HTMLCollection` is the right answer and the shape is settled: a Proxy over a
+target holding (root, kind, two strings), with the match list cached against
+`dom::Document::MutationVersion` so that `for (i = 0; i < coll.length; i++)` is
+not quadratic. Two things that pass measured tests are worth keeping from that
+attempt: the cache must key on **`ConnectedDocument`**, not `NodeDocument` — a
+collection rooted at a detached element has a node document whose version never
+moves, so caching against it freezes the collection at its first answer — and
+the supported property names are **id then name per element in tree order**,
+not all ids followed by all names.
+
+It was set aside because it cost `Document-getElementsByTagName.html` eight
+subtests with a symptom nobody should ship without understanding: for a
+non-HTML-namespace or non-ASCII element, `assert_array_equals` reported
+`coll.length` as correct and `0 in coll` as **false** — the `has` trap and the
+`length` getter disagreeing while reading the same cache slot through the same
+target. A probe reproducing the same query in isolation passes, so the
+disagreement needs the shared `Document-Element-getElementsByTagName.js` driver
+to appear. Find that before rebuilding the rest.
+
 **The next block after C11 is `Body-FrameSet-Event-Handlers.html`, 48 subtests,
 and it is worth writing down because it is not what its name suggests.** The six
 names (`onblur`, `onerror`, `onfocus`, `onload`, `onresize`, `onscroll`) on
