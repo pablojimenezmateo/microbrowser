@@ -133,6 +133,26 @@ double ParseIntPrefix(std::string_view text, int radix) {
 
 Object* Interpreter::NewNative(const char* name, NativeFunction function) {
   Object* object = heap_.AllocateObject(Object::Kind::Native);
+  if (object == nullptr) {
+    // The heap is at its bound (ADR 0034). Null rather than a dereference, and every caller already
+    // expects it: `NewNativeValue` answers undefined and `ResolvePromise` returns early on exactly
+    // this. This function was the one link in that chain that did not check, and the whole chain was
+    // only as good as it.
+    //
+    // **It was a segfault a page could cause on purpose.** `fetch/metadata/generated/
+    // element-video-poster.sub.html` does it by accident: it polls
+    // `new Promise(r => step_timeout(r, 0)).then(poll)` until a condition that never becomes true,
+    // and each turn allocates the resolve/reject pair that `ResolvePromise` makes here. When the
+    // heap fills, the *bound working correctly* turned into a null dereference -- which is the
+    // opposite of what a bound is for. ADR 0034 exists so that running out of heap is a RangeError
+    // a page can catch, not a crash it can trigger.
+    //
+    // Invisible under both sanitizers, which is worth knowing before trusting a clean asan run here:
+    // the asan build is slow enough that the test times out before the heap fills, and the perf
+    // build reaches the limit in five seconds. UBSan found it, because "member call on null" is a
+    // thing it checks and a segfault is not.
+    return nullptr;
+  }
   object->SetPrototype(intrinsics().function_prototype);
   object->MakeNative(std::move(function));
   // Non-enumerable, which is what the specification says a function's `name` is -- and it matters
@@ -144,7 +164,14 @@ Object* Interpreter::NewNative(const char* name, NativeFunction function) {
 }
 
 void Interpreter::InstallNative(Object* target, const char* name, NativeFunction function) {
-  target->Set(name, Value::Obj(NewNative(name, std::move(function))));
+  Object* native = NewNative(name, std::move(function));
+  if (native == nullptr) {
+    // Out of heap. The name is simply absent, which is the same answer a page gets for any builtin
+    // this browser does not have -- and far better than a property whose value is `Value::Obj(nullptr)`,
+    // which is not undefined, is not an object, and would fault at whatever touched it next.
+    return;
+  }
+  target->Set(name, Value::Obj(native));
 }
 
 void Interpreter::InstallGlobals() {
