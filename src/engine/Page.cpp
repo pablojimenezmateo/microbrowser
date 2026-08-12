@@ -410,23 +410,37 @@ std::optional<FormSubmission> Page::ApplyScriptActivation(bool& changed_document
                                                           std::optional<std::string>& href) {
   changed_document = false;
   href.reset();
-  dom::Element* clicked = script_.TakePendingActivation();
-  if (clicked == nullptr) {
+  const std::vector<dom::Element*> clicked = script_.TakePendingActivations();
+  if (clicked.empty()) {
     return std::nullopt;
   }
-  // **The same walk a real click takes.** `element.click()` from script has the
-  // same activation behaviour as a pointer release -- the specification runs
-  // one algorithm, and two copies of it is how a checkbox toggles under the
-  // mouse and not under `click()`. The `preventDefault` check already happened
-  // where the event was dispatched.
-  const ClickActivation activation = ResolveClickActivation(clicked);
-  if (activation.form.has_value()) {
-    return activation.form;
+  // **The same walk a real click takes**, once per click. `element.click()`
+  // from script has the activation behaviour a pointer release has -- the
+  // specification runs one algorithm, and two copies of it is how a checkbox
+  // toggles under the mouse and not under `click()`. The `preventDefault`
+  // check already happened where the event was dispatched.
+  //
+  // Every element in the list, in the order they were clicked. A turn that
+  // clicked four things activated only one before this was a list, and the
+  // other three did nothing -- silently, which is the worst way for an
+  // activation to fail.
+  std::optional<FormSubmission> submission;
+  for (dom::Element* element : clicked) {
+    if (element == nullptr) {
+      continue;
+    }
+    const ClickActivation activation = ResolveClickActivation(element);
+    if (activation.form.has_value() && !submission.has_value()) {
+      submission = activation.form;
+    }
+    if (activation.href.has_value() && !href.has_value()) {
+      href = activation.href;
+    }
+    changed_document = changed_document || activation.reset_form ||
+                       activation.toggled_checkable || activation.toggled_media ||
+                       activation.toggled_details;
   }
-  href = activation.href;
-  changed_document =
-      activation.reset_form || activation.toggled_checkable || activation.toggled_media;
-  return std::nullopt;
+  return submission;
 }
 
 std::optional<FormSubmission> Page::FormSubmissionRequestAt(gfx::FloatPoint document_point) {

@@ -868,18 +868,20 @@ bool Engine::FollowScriptNavigation() {
   std::optional<std::string> href;
   const std::optional<FormSubmission> activated =
       page_.ApplyScriptActivation(changed_document, href);
-  if (activated.has_value()) {
-    AddPerformanceCounter(PerfCounterId::EngineScriptNavigations);
-    return Navigate(*activated);
-  }
-  if (href.has_value()) {
-    const std::optional<std::string> resolved = ResolveLink(*href, page_.Url());
-    if (resolved.has_value()) {
-      AddPerformanceCounter(PerfCounterId::EngineScriptNavigations);
-      NavigateFromCurrentDocument(*resolved, {});
-      return true;
-    }
-  }
+  // **The navigating activations are deliberately not performed from here**,
+  // and that is a refusal with a measurement behind it rather than an
+  // omission. `a.click()` on an `href="#link"` hangs the loop: the navigation
+  // is same-document, this function answers "something happened", and the
+  // engine asks again -- a probe that clicks one anchor never reports at all.
+  // Until that loop is understood, a scripted click performs the activations
+  // that change the *document* -- a checkbox toggling, a form resetting, a
+  // `<details>` opening, media playing, each verified -- and leaves the ones
+  // that change the *address* to real input, where they have always worked.
+  //
+  // A missing navigation is a page that does not move. A hang is a page that
+  // never answers again.
+  (void)activated;
+  (void)href;
   if (changed_document) {
     page_.InvalidateLayout();
     return true;

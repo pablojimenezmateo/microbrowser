@@ -164,7 +164,13 @@ void DomBindings::InstallFocus(const js::Value& target) {
     // stops the default action, and that is the whole contract of a
     // cancelable click.
     if (!owner->DispatchClick(element, pointer)) {
-      owner->pending_activation_ = &element;
+      // Bounded: a page can call `click()` in a loop, and this list is drained
+      // once per turn. Past the bound the activation is dropped rather than
+      // the list grown, which is the same choice the live-range ring makes.
+      constexpr std::size_t kMaxPendingActivations = 256;
+      if (owner->pending_activations_.size() < kMaxPendingActivations) {
+        owner->pending_activations_.push_back(&element);
+      }
     }
     return Value::Undefined();
   });

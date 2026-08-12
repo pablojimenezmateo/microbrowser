@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <optional>
+#include <vector>
 #include <string>
 
 #include "dom/FlatTree.h"

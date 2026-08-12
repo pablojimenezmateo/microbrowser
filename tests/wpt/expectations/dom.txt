@@ -157,17 +157,6 @@ FAIL=When clicking child <AREA></AREA> of parent <INPUT type=checkbox></INPUT>, 
 FAIL=When clicking child <AREA></AREA> of parent <INPUT type=radio></INPUT>, only child should be activated.
 FAIL=When clicking child <AREA></AREA> of parent <LABEL><BUTTON type=button></BUTTON></LABEL>, only child should be activated.
 FAIL=When clicking child <AREA></AREA> of parent <LABEL><INPUT type=checkbox></INPUT><SPAN></SPAN></LABEL>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <A></A>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <AREA></AREA>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <FORM><BUTTON type=reset></BUTTON></FORM>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <FORM><BUTTON type=submit></BUTTON></FORM>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <FORM><INPUT type=image></INPUT></FORM>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <FORM><INPUT type=reset></INPUT></FORM>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <FORM><INPUT type=submit></INPUT></FORM>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <INPUT type=checkbox></INPUT>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <INPUT type=radio></INPUT>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <LABEL><BUTTON type=button></BUTTON></LABEL>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <LABEL><INPUT type=checkbox></INPUT><SPAN></SPAN></LABEL>, only child should be activated.
 FAIL=When clicking child <FORM><BUTTON type=reset></BUTTON></FORM> of parent <A></A>, only child should be activated.
 FAIL=When clicking child <FORM><BUTTON type=reset></BUTTON></FORM> of parent <AREA></AREA>, only child should be activated.
 FAIL=When clicking child <FORM><BUTTON type=reset></BUTTON></FORM> of parent <DETAILS><SUMMARY></SUMMARY></DETAILS>, only child should be activated.
@@ -179,17 +168,8 @@ FAIL=When clicking child <FORM><BUTTON type=reset></BUTTON></FORM> of parent <IN
 FAIL=When clicking child <FORM><BUTTON type=reset></BUTTON></FORM> of parent <INPUT type=radio></INPUT>, only child should be activated.
 FAIL=When clicking child <FORM><BUTTON type=reset></BUTTON></FORM> of parent <LABEL><BUTTON type=button></BUTTON></LABEL>, only child should be activated.
 FAIL=When clicking child <FORM><BUTTON type=reset></BUTTON></FORM> of parent <LABEL><INPUT type=checkbox></INPUT><SPAN></SPAN></LABEL>, only child should be activated.
-FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <A></A>, only child should be activated.
-FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <AREA></AREA>, only child should be activated.
-FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <DETAILS><SUMMARY></SUMMARY></DETAILS>, only child should be activated.
-FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <FORM><BUTTON type=reset></BUTTON></FORM>, only child should be activated.
 FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <FORM><INPUT type=image></INPUT></FORM>, only child should be activated.
-FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <FORM><INPUT type=reset></INPUT></FORM>, only child should be activated.
 FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <FORM><INPUT type=submit></INPUT></FORM>, only child should be activated.
-FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <INPUT type=checkbox></INPUT>, only child should be activated.
-FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <INPUT type=radio></INPUT>, only child should be activated.
-FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <LABEL><BUTTON type=button></BUTTON></LABEL>, only child should be activated.
-FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <LABEL><INPUT type=checkbox></INPUT><SPAN></SPAN></LABEL>, only child should be activated.
 FAIL=When clicking child <FORM><INPUT type=image></INPUT></FORM> of parent <A></A>, only child should be activated.
 FAIL=When clicking child <FORM><INPUT type=image></INPUT></FORM> of parent <AREA></AREA>, only child should be activated.
 FAIL=When clicking child <FORM><INPUT type=image></INPUT></FORM> of parent <DETAILS><SUMMARY></SUMMARY></DETAILS>, only child should be activated.
@@ -212,17 +192,8 @@ FAIL=When clicking child <FORM><INPUT type=reset></INPUT></FORM> of parent <INPU
 FAIL=When clicking child <FORM><INPUT type=reset></INPUT></FORM> of parent <INPUT type=radio></INPUT>, only child should be activated.
 FAIL=When clicking child <FORM><INPUT type=reset></INPUT></FORM> of parent <LABEL><BUTTON type=button></BUTTON></LABEL>, only child should be activated.
 FAIL=When clicking child <FORM><INPUT type=reset></INPUT></FORM> of parent <LABEL><INPUT type=checkbox></INPUT><SPAN></SPAN></LABEL>, only child should be activated.
-FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <A></A>, only child should be activated.
-FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <AREA></AREA>, only child should be activated.
-FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <DETAILS><SUMMARY></SUMMARY></DETAILS>, only child should be activated.
-FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <FORM><BUTTON type=reset></BUTTON></FORM>, only child should be activated.
 FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <FORM><BUTTON type=submit></BUTTON></FORM>, only child should be activated.
 FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <FORM><INPUT type=image></INPUT></FORM>, only child should be activated.
-FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <FORM><INPUT type=reset></INPUT></FORM>, only child should be activated.
-FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <INPUT type=checkbox></INPUT>, only child should be activated.
-FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <INPUT type=radio></INPUT>, only child should be activated.
-FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <LABEL><BUTTON type=button></BUTTON></LABEL>, only child should be activated.
-FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <LABEL><INPUT type=checkbox></INPUT><SPAN></SPAN></LABEL>, only child should be activated.
 FAIL=When clicking child <INPUT type=checkbox></INPUT> of parent <A></A>, only child should be activated.
 FAIL=When clicking child <INPUT type=checkbox></INPUT> of parent <AREA></AREA>, only child should be activated.
 FAIL=When clicking child <INPUT type=checkbox></INPUT> of parent <DETAILS><SUMMARY></SUMMARY></DETAILS>, only child should be activated.
@@ -245,6 +216,9 @@ FAIL=When clicking child <INPUT type=radio></INPUT> of parent <FORM><INPUT type=
 FAIL=When clicking child <INPUT type=radio></INPUT> of parent <INPUT type=checkbox></INPUT>, only child should be activated.
 FAIL=When clicking child <INPUT type=radio></INPUT> of parent <LABEL><BUTTON type=button></BUTTON></LABEL>, only child should be activated.
 FAIL=When clicking child <INPUT type=radio></INPUT> of parent <LABEL><INPUT type=checkbox></INPUT><SPAN></SPAN></LABEL>, only child should be activated.
+FAIL=When clicking child <LABEL><BUTTON type=button></BUTTON></LABEL> of parent <DETAILS><SUMMARY></SUMMARY></DETAILS>, only child should be activated.
+FAIL=When clicking child <LABEL><BUTTON type=button></BUTTON></LABEL> of parent <FORM><BUTTON type=submit></BUTTON></FORM>, only child should be activated.
+FAIL=When clicking child <LABEL><BUTTON type=button></BUTTON></LABEL> of parent <FORM><INPUT type=submit></INPUT></FORM>, only child should be activated.
 FAIL=When clicking child <LABEL><INPUT type=checkbox></INPUT><SPAN></SPAN></LABEL> of parent <A></A>, only child should be activated.
 FAIL=When clicking child <LABEL><INPUT type=checkbox></INPUT><SPAN></SPAN></LABEL> of parent <AREA></AREA>, only child should be activated.
 FAIL=When clicking child <LABEL><INPUT type=checkbox></INPUT><SPAN></SPAN></LABEL> of parent <DETAILS><SUMMARY></SUMMARY></DETAILS>, only child should be activated.
@@ -386,7 +360,7 @@ FAIL=non-passive touchmove event listener on body
 [dom/events/non-cancelable-when-passive/non-passive-touchmove-event-listener-on-div.html]
 FAIL=non-passive touchmove event listener on div
 [dom/events/non-cancelable-when-passive/non-passive-touchmove-event-listener-on-document.html]
-harness=TIMEOUT
+FAIL=non-passive touchmove event listener on document
 [dom/events/non-cancelable-when-passive/non-passive-touchmove-event-listener-on-root.html]
 FAIL=non-passive touchmove event listener on root
 [dom/events/non-cancelable-when-passive/non-passive-touchmove-event-listener-on-window.html]
@@ -402,11 +376,11 @@ FAIL=non-passive touchstart event listener on root
 [dom/events/non-cancelable-when-passive/non-passive-touchstart-event-listener-on-window.html]
 FAIL=non-passive touchstart event listener on window
 [dom/events/non-cancelable-when-passive/non-passive-wheel-event-listener-on-body.html]
-harness=TIMEOUT
+FAIL=non-passive wheel event listener on body
 [dom/events/non-cancelable-when-passive/non-passive-wheel-event-listener-on-div.html]
-harness=TIMEOUT
+FAIL=non-passive wheel event listener on div
 [dom/events/non-cancelable-when-passive/non-passive-wheel-event-listener-on-document.html]
-harness=TIMEOUT
+FAIL=non-passive wheel event listener on document
 [dom/events/non-cancelable-when-passive/non-passive-wheel-event-listener-on-root.html]
 FAIL=non-passive wheel event listener on root
 [dom/events/non-cancelable-when-passive/non-passive-wheel-event-listener-on-window.html]
@@ -444,7 +418,7 @@ FAIL=passive touchstart event listener on window
 [dom/events/non-cancelable-when-passive/passive-wheel-event-listener-on-body.html]
 FAIL=passive wheel event listener on body
 [dom/events/non-cancelable-when-passive/passive-wheel-event-listener-on-div.html]
-harness=TIMEOUT
+FAIL=passive wheel event listener on div
 [dom/events/non-cancelable-when-passive/passive-wheel-event-listener-on-document.html]
 FAIL=passive wheel event listener on document
 [dom/events/non-cancelable-when-passive/passive-wheel-event-listener-on-root.html]
@@ -1765,7 +1739,6 @@ FAIL=Moving default content out of a slot fires 'slotchange' event
 FAIL=moveBefore() on a cross-document target node
 [dom/nodes/name-validation.html]
 FAIL=Valid and invalid characters in createElementNS and createDocument.
-FAIL=Valid and invalid characters in setAttribute, toggleAttribute, and createAttribute.
 FAIL=Valid and invalid characters in setAttributeNS and createAttributeNS.
 [dom/nodes/node-creation-realm.html]
 FAIL=DOMImplementation.createDocument() creates the document in the target realm

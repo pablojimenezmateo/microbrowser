@@ -181,7 +181,7 @@ class DomBindings {
   // of which this module may see. `Page::ResolveClickActivation` already
   // implements all of it for real pointer input; this is the same act arriving
   // from script, and running it here would be a second copy that disagrees.
-  dom::Element* TakePendingActivation();
+  std::vector<dom::Element*> TakePendingActivations();
 
   // Samples every `IntersectionObserver` and `ResizeObserver` against the
   // layout about to be painted and runs the callbacks whose answers changed.
@@ -912,10 +912,15 @@ class DomBindings {
   std::vector<std::unique_ptr<dom::Node>> detached_;
   // The submission a script asked for. See PendingSubmit for why it waits.
   std::optional<PendingSubmit> pending_submit_;
-  // The element a script's `click()` activated, waiting for the engine. A raw
-  // pointer for the reason every node pointer here is one: the tree outlives
-  // this class, and nothing frees a node before its document.
-  dom::Element* pending_activation_ = nullptr;
+  // The elements a script's `click()` activated, waiting for the engine.
+  //
+  // A *list*, and one element was a bug: four `click()` calls in one turn --
+  // which is what a test that clicks four things does -- left only the last,
+  // and the other three silently did nothing. Raw pointers for the reason
+  // every node pointer here is one: the tree outlives this class and nothing
+  // frees a node before its document. Bounded, because a page can click in a
+  // loop and this list is drained once per turn.
+  std::vector<dom::Element*> pending_activations_;
   // Borrowed, like the interpreter and the document, and null when there is no
   // layout behind this binding layer.
   GeometrySource* geometry_ = nullptr;

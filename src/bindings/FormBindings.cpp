@@ -95,9 +95,9 @@ std::optional<PendingSubmit> DomBindings::TakePendingSubmit() {
   return taken;
 }
 
-dom::Element* DomBindings::TakePendingActivation() {
-  dom::Element* taken = pending_activation_;
-  pending_activation_ = nullptr;
+std::vector<dom::Element*> DomBindings::TakePendingActivations() {
+  std::vector<dom::Element*> taken;
+  taken.swap(pending_activations_);
   return taken;
 }
 
