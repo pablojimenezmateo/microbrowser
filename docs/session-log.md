@@ -5798,3 +5798,65 @@ no public method.
   ADR 0012 would name a stub. Unchanged.
 - **A child's own subresources are never fetched**, because `Engine` drives one `Page`. A frame
   inside a frame therefore never loads, even though `FrameTree::AllLoaded` recurses for it.
+
+## 2026-08-12 — the test server's own 501, and the HEAD request that hung the browser
+
+**Status:** in_progress (task A2). 21 of WPT's 308 `.py` handlers are native, POST works, and a
+browser bug the handlers exposed is fixed. `xhr/` 135 → 120 harness failures, `cors/` 7 → 8,
+`fetch/` 204 → 192; **672 recorded subtest failures became passes**.
+
+### The point of this task, which is not the handlers
+
+`tools/wpt/Server.cpp` answered 501 to every `.py` handler and to every method that is not GET or
+HEAD. 2,214 in-scope test files reference a handler. It went unnoticed for as long as it did
+because it does not look like a browser problem — and that is exactly why it was worth doing
+first: **it is the only large blocker in the tree that is entirely our own code**, so nothing had
+to be designed, only transcribed.
+
+POST needed real work rather than a case label. `ReadFrom` framed a request at the blank line and
+left the entity in the buffer, where the next pass read it as a request line — so the server could
+not have answered a POST even if the dispatch had let it. It frames by `Content-Length` now, and
+`Respond` takes the head and the body as two arguments.
+
+**An unimplemented handler is still an honest 501, and that is a decision.** Answering an empty 200
+would convert "nobody has written this handler yet" into "this test fails for an unknown reason",
+which removes it from the ranked-cause table in `docs/wpt-baseline.md` — and that table is how the
+next handler gets chosen. Same trade ADR 0012 makes for a web API, for the same reason.
+
+### What the handlers found within minutes, which is the real result
+
+`xhr/send-usp.any.html` timed out at 20 seconds on its very first subtest: *"HEAD sends neither a
+body nor a Content-Type"*. RFC 9110 §6.4.1 — **a response to HEAD carries no body whatever its
+`Content-Length` says**; the header describes what a GET would have returned. `net::ResponseParser`
+has no way to see the request, so it sat waiting for five bytes no server would ever send.
+
+**Every HEAD request against every server that sets `Content-Length` hung this browser, forever,
+with no error anywhere.** It had survived because no page this browser has ever loaded sent a HEAD:
+a document, a stylesheet, a script and an image are all GETs, and `fetch`/XHR only reached a real
+HEAD when a test asked for one. `ResponseParser::SetHeadRequest` is the fix, set at all three
+places `Fetch` resets the parser — including the retry path, because a retry that forgot would hang
+exactly the request that had already been slow once. That test is now 114ms.
+
+Three tests in `tests/NetTests.cpp` cover it. The second one is the one worth keeping: a kept
+connection carries the next response immediately after, and a parser that consumed five bytes of it
+as a body would desynchronise the connection permanently — so "no body" has to mean *complete at
+the blank line*, not "stop reading and hope".
+
+### Two tests went OK → TIMEOUT, and neither is a regression
+
+`cors/preflight-cache-partitioning.sub.window.html` and
+`fetch/api/redirect/redirect-keepalive.any.html` used to fail fast because the handler 501'd. They
+now run far enough to block on a cross-origin `postMessage` — **TD-0059**, the same wall the frame
+work stopped at, reached from a third direction. They cost 20 seconds each of run time to fail
+where they used to cost none, which is the honest price of the 26 that started reporting.
+
+### Left
+
+- 287 handlers unwritten. The head of the distribution is done; pick the next from the ranked-cause
+  table rather than from the reference counts, because a reference is not a request.
+- **`slow.py`, `delay.py` and `trickle.py` answer immediately.** The server is single-threaded and
+  forked before anything else exists (ADR 0040), so sleeping in it stops every other test in the
+  run. A test that genuinely measures lateness will fail, and should, until the server grows a
+  timer queue — which is a real change to its loop and wants deciding rather than sneaking in.
+- Nothing here touched the `.asis` files or the `.sub.py` variants, both of which appear in the
+  same directories and neither of which is handled.

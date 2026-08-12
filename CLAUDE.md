@@ -142,7 +142,7 @@ That bucket is the score, and it is three projects rather than a long tail:
 |--:|---|---|
 | 2,446 | a worker global that can run testharness (`.any.worker.html`) | ADR 0022 §1, task G5 |
 | 1,083 | an `<iframe>` | ADR 0027, **TD-0059**, task J1 |
-| ~2,214 files | **our own server's `.py` handlers** | ADR 0040, task **A2** |
+| ~2,214 files | **our own server's `.py` handlers** — 21 landed, 287 to go | ADR 0040, task **A2** |
 | 226 | the module loader | — |
 
 Read that table with two caveats. **Workers are bigger by count and smaller by information**: a
@@ -150,6 +150,13 @@ Read that table with two caveats. **Workers are bigger by count and smaller by i
 already. And **the third row is the only one that needs no browser feature at all** — `tools/wpt/Server.cpp`
 answers 501 to every `.py` handler *and* to every method that is not GET or HEAD, which is probably
 the cheapest points in the tree and had not been written down before A2.
+
+**A2's first 21 handlers landed 2026-08-12, with POST**, and the arithmetic is the argument for
+the rest: xhr 135 → 120 harness failures, cors 7 → 8, fetch 204 → 192, and **672 recorded subtest
+failures became passes**. They also found a browser bug no page had ever hit — a response to HEAD
+carries no body whatever its `Content-Length` says, and `net::ResponseParser` waited for one, so
+**every HEAD request hung the browser forever**. That is the shape to expect from this task: the
+handlers are not the point, what they let the suite reach is.
 
 **The expectation files are stale in the *pessimistic* direction.** 599 tests sampled from the
 harness-failure bucket and re-run against the current tree produced 8,283 subtests with 6,327
