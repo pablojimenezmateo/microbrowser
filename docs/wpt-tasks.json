@@ -38,6 +38,13 @@
   ],
   "tasks": [
     {
+      "id": "A2", "milestone": "M-A", "title": "the server's built-in handlers", "area": "",
+      "scope": "WPT's `.py` handlers, as a table of native handlers in tools/wpt/Server.cpp. Not a Python interpreter -- ADR 0040 rules that out and is right. The head of the distribution is short and mechanical: slow.py, stash.py, redirect.py, serve-custom-response.py, report.py, content.py, serve-with-content-type.py, message.py, inspect-headers.py, cors-makeheader.py, status.py, echo-headers.py. POST is also refused outright today -- Server.cpp answers 501 for any method that is not GET or HEAD -- which blocks every xhr/ and fetch/ test that sends one, whatever the handler.",
+      "check": "xhr/ and fetch/api/ re-measured, with the `Python handlers are not implemented` cause gone from the ranked-cause table in docs/wpt-baseline.md.",
+      "depends": [], "target": "", "status": "not_started", "agent": null, "adr": "0040",
+      "notes": "**Measured 2026-08-12, and unclaimed until then: 2,214 in-scope test files reference a `.py` handler** -- 976 css/, 434 html/, 203 xhr/, 171 fetch/, 88 content-security-policy/, 57 eventsource/, 57 referrer-policy/. 308 distinct handlers, but the head is short (slow.py 216 references, stash.py 199, redirect.py 182). This is the only large blocker in the tree that is **entirely our own code** and needs no browser feature at all, which probably makes it the cheapest points available. Found by re-running a 599-test sample of the harness-failure bucket against the current tree: 26 of them reported `Error: Python handlers are not implemented`."
+    },
+    {
       "id": "B1", "milestone": "M-B", "title": "full baseline run", "area": "",
       "scope": "Run every checked-out area, commit the expectation files it produces.",
       "check": "tests/wpt/expectations/ has a file per top-level area and `microbrowser_wpt` exits 0 against it.",
@@ -108,8 +115,8 @@
       "id": "J1", "milestone": "M-J", "title": "nested browsing contexts", "area": "",
       "scope": "ADR 0027: a browsing-context tree, contentDocument/contentWindow for a same-origin child, frames/parent/top, iframe loading, and the cross-origin WindowProxy -- from the first commit, not as a later hardening pass.",
       "check": "dom/ >= 90%, and the seven iframe-driven dom/ranges files report instead of timing out.",
-      "depends": [], "target": "90%", "status": "not_started", "agent": null, "adr": "0027",
-      "notes": "**Measured 2026-08-11, and it is the only route to dom/ at 90%.** dom/ is at 83.1% (35,899 of 43,207). 2,280 subtests are visibly failing and fixing *every one of them* reaches 88.4%; the other ~5,028 are behind 208 tests whose harness never reported. **~4,176 of those are seven files** -- Range-{cloneContents,deleteContents,extractContents,insertNode,surroundContents,set,compareBoundaryPoints}.html -- each driven entirely by iframe.onload over two <iframe>s, with every assertion inside an async_test that never starts. Another 498 are Document-createElement{,NS}.html, also iframes and also XML documents (src/xml landed with C9, so the parser exists). A stub does not pay here: those tests mutate iframe.contentDocument and call iframe.contentWindow.run(), so they need a fully scriptable same-origin child. The hard part is not rendering -- src/engine's Page is 16,000 lines that all assume there is exactly one document, which is what ADR 0027 s1 means by making Page a tree."
+      "depends": [], "target": "90%", "status": "in_progress", "agent": "iframe-lifecycle", "adr": "0027",
+      "notes": "**Measured 2026-08-11, and it is the only route to dom/ at 90%.** dom/ is at 83.1% (35,899 of 43,207). 2,280 subtests are visibly failing and fixing *every one of them* reaches 88.4%; the other ~5,028 are behind 208 tests whose harness never reported. **~4,176 of those are seven files** -- Range-{cloneContents,deleteContents,extractContents,insertNode,surroundContents,set,compareBoundaryPoints}.html -- each driven entirely by iframe.onload over two <iframe>s, with every assertion inside an async_test that never starts. Another 498 are Document-createElement{,NS}.html, also iframes and also XML documents (src/xml landed with C9, so the parser exists). A stub does not pay here: those tests mutate iframe.contentDocument and call iframe.contentWindow.run(), so they need a fully scriptable same-origin child. The hard part is not rendering -- src/engine's Page is 16,000 lines that all assume there is exactly one document, which is what ADR 0027 s1 means by making Page a tree.\n\n**2026-08-12, first half landed.** The frame *lifecycle* is in: a script-appended `<iframe>` loads, `iframe.src = other` re-navigates, `srcdoc` parses inline, a 404 still fires `load`, and `load` fires from a *task* rather than from where the document was set -- which is the ordering the whole feature turns on, see docs/session-log.md. **31 `dom/` tests went TIMEOUT -> OK.** What is left is TD-0059 and it is the larger half: `js::Interpreter` has one global and one set of intrinsics, so `contentWindow` is a plain object with a `.document`, the child\u0027s scripts never run, and `parent`/`top`/`postMessage` are absent. The seven `Range-*.html` files this check names call `iframe.contentWindow.run()`, so they need the realm rather than more lifecycle."
     },
     {
       "id": "C5", "milestone": "M-C", "title": "traversal and ranges", "area": "dom/ranges/",
@@ -461,15 +468,15 @@
     },
 
     {
-      "id": "J1", "milestone": "M-J", "title": "same-origin iframes", "area": "html/browsers/",
+      "id": "J1b", "milestone": "M-J", "title": "same-origin iframes", "area": "html/browsers/",
       "scope": "Roadmap session 40. The binding layer is already receiver-based for document, which was the hard part.",
       "check": "html/browsers/the-window-object/ >= 60%.", "depends": [], "target": "60%",
-      "status": "not_started", "agent": null, "adr": "0027", "notes": "Blocks J2, J3, G6, and three acceptance sites."
+      "status": "not_started", "agent": null, "adr": "0027", "notes": "Blocks J2, J3, G6, and three acceptance sites. Renumbered from a duplicate `J1` that arrived in the 2026-08-12 five-worktree merge: two tasks answered to one id, which is how two agents come to claim one piece of work. This is the `html/browsers/` half; J1 is the `dom/` half and lands first."
     },
     {
       "id": "J2", "milestone": "M-J", "title": "cross-origin iframes and the Window proxy", "area": "html/browsers/",
       "scope": "Roadmap session 41.",
-      "check": "The cross-origin subset of html/browsers/ >= 50%.", "depends": ["J1"], "target": "50%",
+      "check": "The cross-origin subset of html/browsers/ >= 50%.", "depends": ["J1", "J1b"], "target": "50%",
       "status": "not_started", "agent": null, "adr": "0027", "notes": ""
     },
     {

@@ -5693,3 +5693,108 @@ silently: the request never reaches the network and nothing anywhere says why. A
 it looked exactly like a frame whose URL did not parse. `Subdocument` is the right type and is what
 every blocklist means by a frame load, but the silence is worth a look — it is the second
 "refused with no way to see it" in this area in two sessions.
+
+## 2026-08-12 — ADR 0027, second increment: the frame lifecycle, and the ranked measurement behind what is next
+
+**Status:** in_progress. A child browsing context now loads when a script makes one, re-navigates
+when a script assigns `src`, parses `srcdoc`, and fires `load` at its element. **31 `dom/` tests
+went from "the harness never reported" to OK.** Nested layout, nested display lists, hit-test
+descent, and the whole cross-origin half are still absent, and `contentWindow` is still not a
+window — that last one now has a name and a measurement: **TD-0059**.
+
+### The measurement, because it is the part that does not follow from a diff
+
+The question this session opened with was "is `<iframe>` the biggest remaining item". It is second,
+and knowing what is first changes what the next session should do. Against the 2026-08-12
+expectations, **8,417 tests report no subtests at all** — the harness never got to `done()`, so
+every one of them is invisible in the pass rate. Bucketed by what the test file actually needs:
+
+| tests | needs |
+|--:|---|
+| 2,446 | a worker global that can run testharness (`.any.worker.html`) |
+| 1,083 | an `<iframe>` |
+| 226 | the module loader |
+| 83 | canvas |
+| 4,337 | something else, ranked below |
+
+**Workers are bigger by count and smaller by information.** A `.any.worker.html` is the same
+assertions as its `.any.html` twin, and the twin mostly passes already — so it is real score and
+duplicate coverage. An iframe test is the only place its behaviour is tested at all, which is why
+three independent areas name it: TD-0057 from `url/` (188 subtests, all
+`frame.contentWindow.location = badUrl`), C6 from `dom/` (~4,176 subtests behind two `<iframe>`s),
+and now this.
+
+**And a third thing outranks both, which nobody had written down: our own server.** A sample of 599
+of the "something else" tests, re-run against the current tree, found `Error: Python handlers are
+not implemented` in 26 of them — and across the whole in-scope checkout, **2,214 test files
+reference a `.py` handler** (976 in `css/`, 434 in `html/`, 203 in `xhr/`, 171 in `fetch/`). 308
+distinct handlers, but the head is short: `slow.py` 216, `stash.py` 199, `redirect.py` 182,
+`serve-custom-response.py` 71, `report.py` 57, `content.py` 57. ADR 0040 rules out running Python,
+and rightly; it does not rule out a table of built-in handlers in `tools/wpt/Server.cpp`, which is
+the only item of the three that is entirely our code and needs no browser feature at all. It is
+unclaimed and it is probably the cheapest points in the tree.
+
+**Also learned from that sample: the expectation files are stale in the pessimistic direction.**
+599 tests recorded as harness failures re-ran as 8,283 subtests with 6,327 passing. Re-measure
+before planning against any number in `docs/wpt-baseline.md` that is not dated today.
+
+### What landed, and the one ordering that is the whole feature
+
+Two gaps compounded. `Page::CollectFrames` was called exactly once, from `Page::Load` — so a frame
+a script appended never loaded — and nothing ever fired `load`, so a frame that did load could not
+be observed. `iframe.onload = f; document.body.appendChild(iframe)` produced an empty box and
+silence, and that is the shape almost every test in the suite uses to make a second document.
+
+**`load` must fire from a task, not from where the document was set.** An `<iframe srcdoc>` is
+handed its document *synchronously*, inside the subresource pass, which is over before the page's
+own scripts have run — so dispatching there fires the event before the line assigning the handler
+exists. Every `assert_unreached` in the suite's iframe tests is that ordering. The queue of owed
+events is `FrameTree::TakePendingLoadEvents` and it is drained at a turn boundary.
+
+**The collection gate cannot be the structure version alone.** `iframe.src = other` is an attribute
+write: it moves `MutationVersion` and leaves `StructureVersion` untouched, so a structure-only gate
+made renavigation silently do nothing. `NeedsCollect` asks two questions — has the structure moved,
+and does any *existing* frame's element now ask for something other than what was requested — and
+the second is a loop over the frames rather than a walk of the document, so a page with no frames
+still pays one integer comparison. The recorded key (`Frame::requested_source`) is written when the
+request goes out rather than when it lands, and that ordering is load-bearing: recorded at delivery,
+a frame in flight differs from its element for the whole round trip, and every collection pass in
+that window reads it as a fresh navigation and re-requests. A request per turn, to whoever the
+frame points at.
+
+**A frame that 404s still fires `load`, with an empty document.** That is what every browser does —
+a 404 in an `<iframe>` is a rendered error document, not a failed subresource — and the difference
+is a hang: a page that waits on `onload` before reading `contentDocument` never proceeds otherwise,
+and the hang is caused by a server the page does not control.
+
+### One bug written and caught here, because the shape recurs
+
+`FrameTree::Collect` called `Clear`, and `Clear` empties the owed-`load` queue. The collection pass
+runs in exactly the window between a frame being handed its document and the event being dispatched,
+so **every `<iframe srcdoc>` silently lost its `load`** — the feature looked implemented and the
+event never arrived. Split into `DropFrames` (the frames) and `Clear` (the frames *and* the queue);
+`Collect` uses the first and then forgets only the queue entries naming elements that just died.
+This is the third time in this area that a correct-looking path has failed silently.
+
+### Where the code went, and why the lint was right
+
+`Page` was at its member budget with `frames_` alone, and a pass that runs every turn needs two
+fields more. The frames left for a `FrameTree` — which is ADR 0027's "`Page` stops meaning *the
+document*" arriving as a lint failure rather than as a refactor somebody chose. `Engine::Advance`'s
+completion drain moved to `EngineSubresources.cpp` in the same spirit (which table an id is in is
+the question that file exists to answer), so `Engine.cpp` came out **sixty lines shorter** than it
+went in despite the feature. Only `Engine`'s header budget was raised, and it gained no member and
+no public method.
+
+### Left
+
+- **TD-0059** is the next thing in this ADR and the largest: `js::Interpreter` has one global and
+  one set of intrinsics, so `contentWindow` is a plain object with a `.document`, the child's
+  scripts do not run, and `parent`/`top`/`postMessage` are absent. The fix is a `Realm` in
+  `src/js` (151 uses of `well_known_` to move), after which same-origin contexts share one heap and
+  cross-origin ones do not — which makes ADR 0027 §2 structural and is strictly stronger than the
+  check `Engine::OnFrameFetch` performs today.
+- **A child still lays out and paints nothing**, which the previous entry already called a hole
+  ADR 0012 would name a stub. Unchanged.
+- **A child's own subresources are never fetched**, because `Engine` drives one `Page`. A frame
+  inside a frame therefore never loads, even though `FrameTree::AllLoaded` recurses for it.

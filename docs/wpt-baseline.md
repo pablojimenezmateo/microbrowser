@@ -7,6 +7,25 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
+**`dom/` re-measured 2026-08-12, after the `<iframe>` lifecycle landed, and it is the row below to
+trust.** 667 tests, **46,530 subtests, 38,589 passed (82.9%)**, 132 timeouts. Merged in by hand for
+the reason four paragraphs down. **35 tests went from reporting nothing at all to reporting**, and
+what they are worth is the number to quote: run alone, those tests are **9,874 subtests of which
+4,996 pass** — every one of which was previously invisible in both the numerator and the
+denominator, because a harness that never reaches `done()` contributes neither. The remaining 134
+harness failures are 37 `.any.worker.html` and 97 others, and the largest identifiable group in the
+second is cross-realm (`Event-dispatch-throwing-multiple-globals`,
+`Event-timestamp-cross-realm-getter`, the seven `Range-*.html`) — which is **TD-0059**, not more
+frame work.
+
+**Do not pass `--long-timeout 20000` when re-recording this area, whatever the command in
+`CLAUDE.md` says.** The default is 60,000 and the flag *shortens* it. Two runs of the same binary
+recorded 46,530 subtests and 39,837 subtests, and the only difference was that flag: `dom/`'s
+`timeout=long` tests are its biggest, so cutting their deadline silently deletes ~6,700 subtests
+from the measurement and looks like a slow machine. It was caught by the denominator falling
+between two runs, which is the same check the `html/dom/` note below records — twice now, and the
+lesson is the same both times: **compare the subtest count before believing a re-record**.
+
 **`url/` re-measured 2026-08-12, and it is the one row below that is current.** 21.7% -> **97.9%**
 (9,696 of 9,909), 32 timeouts -> 31. Merged in by hand for the reason the next-but-one paragraph
 gives. **What is left of that area is not URL work**, and it is worth knowing before picking it up:

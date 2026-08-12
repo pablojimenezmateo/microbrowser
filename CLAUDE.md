@@ -134,6 +134,34 @@ serializes the bitmap inline rather than naming it in a resource table. Roadmap 
 
 ## Where To Pick Up
 
+**What is actually blocking the WPT score, ranked, measured 2026-08-12.** 8,417 tests report *no
+subtests at all* — the harness never reached `done()`, so none of them is visible in the pass rate.
+That bucket is the score, and it is three projects rather than a long tail:
+
+| tests | needs | where |
+|--:|---|---|
+| 2,446 | a worker global that can run testharness (`.any.worker.html`) | ADR 0022 §1, task G5 |
+| 1,083 | an `<iframe>` | ADR 0027, **TD-0059**, task J1 |
+| ~2,214 files | **our own server's `.py` handlers** | ADR 0040, task **A2** |
+| 226 | the module loader | — |
+
+Read that table with two caveats. **Workers are bigger by count and smaller by information**: a
+`.any.worker.html` is the same assertions as its `.any.html` twin, and the twin mostly passes
+already. And **the third row is the only one that needs no browser feature at all** — `tools/wpt/Server.cpp`
+answers 501 to every `.py` handler *and* to every method that is not GET or HEAD, which is probably
+the cheapest points in the tree and had not been written down before A2.
+
+**The expectation files are stale in the *pessimistic* direction.** 599 tests sampled from the
+harness-failure bucket and re-run against the current tree produced 8,283 subtests with 6,327
+passing. Re-measure before planning against any number in `docs/wpt-baseline.md` not dated today.
+
+**`<iframe>`'s lifecycle landed 2026-08-12 and its realm did not.** A script-appended frame loads,
+`iframe.src = other` re-navigates, `srcdoc` parses inline, a 404 still fires `load`, and `load`
+fires from a *task* — 31 `dom/` tests went TIMEOUT → OK. What remains is **TD-0059**: `js::Interpreter`
+has one global and one set of intrinsics, so `contentWindow` is a plain object with a `.document`,
+the child's scripts never run, and `parent`/`top`/`postMessage` are absent. Every remaining
+iframe-shaped failure in `url/`, `dom/` and `html/` is that one missing concept.
+
 **Five parallel worktrees were merged into master on 2026-08-12** — `url/`, declarative shadow DOM,
 reflected IDL attributes, `dom/`, and the legacy multi-byte encodings. All five branched from the
 same commit, so most of what a merge had to decide was not textual. Four decisions are worth
@@ -543,7 +571,7 @@ tools/wpt/fetch.sh                                       # once; ~600MB, pinned 
 # Re-measure an area into the baseline document. `--summary-state` is what makes a
 # sharded run add up: an area this run measured replaces what the file said about it.
 ./build/microbrowser-perf/microbrowser/microbrowser_wpt --update-expectations \
-    --testharness-only --long-timeout 20000 \
+    --testharness-only \
     --summary docs/wpt-baseline.md --summary-state /tmp/microbrowser-wpt-state.tsv dom/
 
 # The URL half of it, against `src/url` directly and in about a second. Four vector sets, all
@@ -552,6 +580,13 @@ cmake --build --preset microbrowser-perf --target microbrowser_urlconf
 ./build/microbrowser-perf/microbrowser/microbrowser_urlconf            # all four
 ./build/microbrowser-perf/microbrowser/microbrowser_urlconf --show 30 setters
 ```
+
+**`--long-timeout` shortens rather than lengthens, and it used to be in the line above.** The
+default is 60,000 ms and a test marked `timeout=long` is the biggest one in its area. Passing
+20,000 recorded 39,837 subtests for `dom/` where the default recorded 46,530 -- ~6,700 subtests
+silently deleted from the measurement, reading exactly like a slow machine. **Compare the subtest
+count against the previous record before committing a re-record**; that check has now caught two
+different causes of the same failure (see `docs/wpt-baseline.md`).
 
 **Use the perf build.** The expectations were recorded there, and a WPT result is
 timing-sensitive in one specific way — a page that has not reported inside testharness.js's own
