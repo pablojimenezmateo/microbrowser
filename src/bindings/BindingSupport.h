@@ -92,6 +92,112 @@ inline bool CoerceToString(js::NativeCall& call, const js::Value& value, std::st
   return true;
 }
 
+// The same conversion, to a Web IDL **USVString** rather than a DOMString: a JavaScript string is
+// a sequence of UTF-16 code units and may hold an unpaired surrogate, and a USVString may not, so
+// every lone one becomes U+FFFD. One replacement per *code unit* -- see ScrubLoneSurrogates for
+// why the byte-oriented decoder is the wrong tool here.
+//
+// It is a separate function rather than a flag because the choice belongs to the *interface*: the
+// URL Standard takes USVStrings everywhere, because a URL becomes bytes on a wire and a lone
+// surrogate has no encoding. `setAttribute` takes a DOMString and must keep whatever it was given.
+inline bool CoerceToUsvString(js::NativeCall& call, const js::Value& value, std::string& out) {
+  if (!CoerceToString(call, value, out)) {
+    return false;
+  }
+  out = util::ScrubLoneSurrogates(out);
+  return true;
+}
+
+// Reads a property the way script reads one: an accessor **runs**, and a throw out of it reaches
+// the caller. False when it threw, in which case the caller returns `call.ThrownValue()`.
+//
+// `js::Object::Get` returns the property *slot*, which for an accessor is the wrong answer twice
+// over -- it skips the call and it cannot report a throw. That is fine for the internal slots this
+// module reads by name and wrong for anything a page can put an accessor on, which is every object
+// Web IDL converts to a `record`.
+inline bool ReadProperty(js::NativeCall& call, const js::Value& base, const std::string& key,
+                         js::Value& out) {
+  out = js::Value::Undefined();
+  if (!base.IsObject()) {
+    return true;
+  }
+  const js::Object::Property* property = base.object->GetProperty(js::PropertyKey(key));
+  if (property == nullptr) {
+    return true;
+  }
+  if (property->getter == nullptr) {
+    out = property->setter != nullptr ? js::Value::Undefined() : property->value;
+    return true;
+  }
+  // `this` is the object the property was read *from*, not the one that owns it, which is what a
+  // brand check on a prototype accessor is looking at.
+  const js::Result answered = call.interpreter.CallFunction(js::Value::Obj(property->getter), base,
+                                                            {});
+  if (answered.IsAbrupt()) {
+    (void)call.ThrowValue(answered.value);
+    return false;
+  }
+  out = answered.value;
+  return true;
+}
+
+// Walks a value with the iterator protocol into `out`. False when something threw, in which case
+// the caller returns `call.ThrownValue()`.
+//
+// Web IDL's `sequence<T>` conversion is *not* "read the indices": it is `@@iterator`, called, and
+// stepped. The difference is every iterable that is not an array -- a `Map`, a `Set`, a `FormData`,
+// a `URLSearchParams`, or a page's own object with a custom `@@iterator` -- all of which have no
+// indices at all and would convert to an empty sequence.
+//
+// Bounded, because the iterator is a page's and `next` need never say it is done.
+inline bool IterateValue(js::NativeCall& call, const js::Value& value,
+                         std::vector<js::Value>& out) {
+  if (!value.IsObject()) {
+    (void)call.Throw("TypeError", "value is not iterable");
+    return false;
+  }
+  const js::Value* method =
+      value.object->Get(js::PropertyKey::Symbol(call.interpreter.SymbolIterator()));
+  if (method == nullptr || !method->IsObject() || !method->object->IsCallable()) {
+    (void)call.Throw("TypeError", "value is not iterable");
+    return false;
+  }
+  const js::Result iterator = call.interpreter.CallFunction(*method, value, {});
+  if (iterator.IsAbrupt()) {
+    (void)call.ThrowValue(iterator.value);
+    return false;
+  }
+  if (!iterator.value.IsObject()) {
+    (void)call.Throw("TypeError", "iterator is not an object");
+    return false;
+  }
+  const js::Value* next = iterator.value.object->Get("next");
+  if (next == nullptr) {
+    (void)call.Throw("TypeError", "iterator has no next()");
+    return false;
+  }
+  constexpr std::size_t kMaxSteps = 1u << 22;
+  for (std::size_t step = 0; step < kMaxSteps; ++step) {
+    const js::Result stepped = call.interpreter.CallFunction(*next, iterator.value, {});
+    if (stepped.IsAbrupt()) {
+      (void)call.ThrowValue(stepped.value);
+      return false;
+    }
+    if (!stepped.value.IsObject()) {
+      (void)call.Throw("TypeError", "iterator result is not an object");
+      return false;
+    }
+    const js::Value* done = stepped.value.object->Get("done");
+    if (done != nullptr && js::ToBoolean(*done)) {
+      return true;
+    }
+    const js::Value* item = stepped.value.object->Get("value");
+    out.push_back(item == nullptr ? js::Value::Undefined() : *item);
+  }
+  (void)call.Throw("TypeError", "iterator did not finish");
+  return false;
+}
+
 // `DOMException`: the type a *web API* throws, as against the `Error` types the
 // language throws. Defined in DomExceptions.cpp, where the WebIDL error-names
 // table lives.
@@ -685,23 +791,5 @@ inline bool IsTemplateBindingToken(std::string_view value) {
   }
   return false;
 }
-
-// URL parts a page reads off `location`, `URL`, and `HTMLAnchorElement`
-// (HTMLHyperlinkElementUtils). One splitter so `a.pathname` cannot disagree
-// with `location.pathname` for the same string — youtube's searchbox parses
-// `location.href` through a throwaway `<a>` (`n0n` / `w1v.pathname`) and
-// threw when pathname was missing (TD-0026).
-struct HrefParts {
-  std::string protocol;  // "https:"
-  std::string host;      // "example.org:8080"
-  std::string hostname;  // "example.org"
-  std::string port;
-  std::string pathname;  // "/a/b"
-  std::string search;    // "?q=1"
-  std::string hash;      // "#top"
-  std::string origin;    // "https://example.org:8080", or "null"
-};
-
-HrefParts SplitHref(std::string_view href);
 
 }  // namespace microbrowser::bindings

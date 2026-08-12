@@ -224,6 +224,15 @@ microbrowser_module(util
     src/util/UrlEncoded.cpp
   EXTERN ${MICROBROWSER_BROTLI_TARGET})
 
+microbrowser_module(text
+  SOURCES
+    src/text/LineBreak.cpp
+    src/text/Bidi.cpp
+    src/text/Idna.cpp
+    src/text/Normalize.cpp
+    src/text/UnicodeProperties.cpp
+  DEPS microbrowser_util)
+
 microbrowser_module(url
   SOURCES
     src/url/Host.cpp
@@ -231,7 +240,8 @@ microbrowser_module(url
     src/url/PartitionKey.cpp
     src/url/PublicSuffixList.cpp
     src/url/Url.cpp
-  DEPS microbrowser_util)
+    src/url/UrlParser.cpp
+  DEPS microbrowser_util microbrowser_text)
 
 microbrowser_module(privacy
   SOURCES
@@ -355,13 +365,6 @@ microbrowser_module(storage
     src/storage/PartitionedStorage.cpp
     src/storage/StorageArea.cpp
   DEPS microbrowser_util microbrowser_url)
-
-microbrowser_module(text
-  SOURCES
-    src/text/LineBreak.cpp
-    src/text/Bidi.cpp
-    src/text/UnicodeProperties.cpp
-  DEPS microbrowser_util)
 
 microbrowser_module(gfx
   SOURCES
@@ -490,7 +493,7 @@ microbrowser_module(bindings
     src/bindings/HistoryBindings.cpp
     src/bindings/NodeInterfaces.cpp
     src/bindings/ReflectedAttributes.cpp
-    src/bindings/HrefParts.cpp
+    src/bindings/UrlObject.cpp
     src/bindings/ShadowBindings.cpp
     src/bindings/MediaBindings.cpp
     src/bindings/MediaSourceBindings.cpp
@@ -521,9 +524,11 @@ microbrowser_module(bindings
     src/bindings/EventDispatch.cpp
     src/bindings/FocusBindings.cpp
     src/bindings/FormBindings.cpp
+    src/bindings/FormDataBindings.cpp
     src/bindings/WindowBindings.cpp
     src/bindings/XhrBindings.cpp
-  DEPS microbrowser_js microbrowser_dom microbrowser_html microbrowser_css microbrowser_xml)
+  DEPS microbrowser_js microbrowser_dom microbrowser_html microbrowser_css microbrowser_xml
+       microbrowser_url)
 
 microbrowser_module(js
   SOURCES
@@ -628,6 +633,16 @@ target_link_libraries(microbrowser_bidiconf PRIVATE microbrowser_text)
 
 add_executable(microbrowser_jsshell tools/jsshell/main.cpp)
 target_link_libraries(microbrowser_jsshell PRIVATE microbrowser_js)
+
+# The URL conformance runner. A tool rather than a test target, for the reason
+# microbrowser_bidiconf is one: the vectors it reads live in third_party/wpt,
+# which is pinned but not vendored, so this must build whether or not the
+# checkout is there and say so when it is not. See tools/urlconf/main.cpp.
+add_executable(microbrowser_urlconf tools/urlconf/main.cpp tools/urlconf/Json.cpp)
+target_include_directories(microbrowser_urlconf PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tools")
+target_compile_definitions(microbrowser_urlconf PRIVATE
+  MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(microbrowser_urlconf PRIVATE microbrowser_url)
 
 # web-platform-tests: the server, the runner, and the expectations. See
 # docs/adr/0036-web-platform-tests.md. The checkout itself is not vendored --

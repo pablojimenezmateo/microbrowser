@@ -19,7 +19,8 @@ bool InQuerySet(unsigned char byte) {
 }
 
 bool InPathSet(unsigned char byte) {
-  return InQuerySet(byte) || byte == '?' || byte == '`' || byte == '{' || byte == '}';
+  return InQuerySet(byte) || byte == '?' || byte == '^' || byte == '`' || byte == '{' ||
+         byte == '}';
 }
 
 bool InUserinfoSet(unsigned char byte) {

@@ -33,9 +33,14 @@ void RegisterUrlEncodedTests(std::vector<TestCase>& tests) {
   });
 
   AddTest(tests, "UrlEncoded/ParsesTheFormsAQueryStringComesIn", [] {
-    std::vector<util::QueryPair> pairs = util::ParseUrlEncoded("?a=1&b=2");
-    ExpectEqInt(static_cast<long long>(pairs.size()), 2, "a leading ? is dropped, not treated as a name");
+    // A *query*, with no leading `?`. Stripping one here would be a second place the question mark
+    // is removed -- `new URLSearchParams(location.search)` already does it, once -- and `??a=b` is
+    // a query whose first parameter is genuinely named `?a`.
+    std::vector<util::QueryPair> pairs = util::ParseUrlEncoded("a=1&b=2");
+    ExpectEqInt(static_cast<long long>(pairs.size()), 2, "two pairs");
     ExpectEqString(pairs[0].first, "a", "first name");
+    ExpectEqString(util::ParseUrlEncoded("?a=1")[0].first, "?a",
+                   "a leading ? is part of the first name, because the caller strips it");
     ExpectEqString(pairs[1].second, "2", "second value");
 
     pairs = util::ParseUrlEncoded("flag&x=1");
@@ -55,7 +60,8 @@ void RegisterUrlEncodedTests(std::vector<TestCase>& tests) {
     ExpectEqString(pairs[0].second, "1=2", "only the first = splits");
 
     ExpectEqInt(static_cast<long long>(util::ParseUrlEncoded("").size()), 0, "an empty query has no pairs");
-    ExpectEqInt(static_cast<long long>(util::ParseUrlEncoded("?").size()), 0, "and neither does a bare ?");
+    ExpectEqInt(static_cast<long long>(util::ParseUrlEncoded("?").size()), 1,
+                "a bare ? is a parameter named ?, because this parses a query rather than a search");
   });
 
   AddTest(tests, "UrlEncoded/SerializesTheSpecificationsKeepSet", [] {
@@ -82,10 +88,10 @@ void RegisterUrlEncodedTests(std::vector<TestCase>& tests) {
     // reddit's challenge reads location.search into a URLSearchParams and
     // submits the result as a form, so parse-then-serialize is a path a real
     // page takes and a lossy one would be silent.
-    ExpectEqString(Roundtrip("?token=a%2Bb&js_challenge=1"), "token=a%2Bb&js_challenge=1",
+    ExpectEqString(Roundtrip("token=a%2Bb&js_challenge=1"), "token=a%2Bb&js_challenge=1",
                    "an encoded plus survives the round trip");
-    ExpectEqString(Roundtrip("?q=hello+world"), "q=hello+world", "and so does a space");
-    ExpectEqString(Roundtrip("?utf8=%E2%9C%93"), "utf8=%E2%9C%93",
+    ExpectEqString(Roundtrip("q=hello+world"), "q=hello+world", "and so does a space");
+    ExpectEqString(Roundtrip("utf8=%E2%9C%93"), "utf8=%E2%9C%93",
                    "multi-byte UTF-8 is encoded byte by byte");
   });
 }

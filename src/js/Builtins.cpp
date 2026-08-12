@@ -135,7 +135,11 @@ Object* Interpreter::NewNative(const char* name, NativeFunction function) {
   Object* object = heap_.AllocateObject(Object::Kind::Native);
   object->SetPrototype(well_known_.function_prototype);
   object->MakeNative(std::move(function));
-  object->Set("name", Value::String(name));
+  // Non-enumerable, which is what the specification says a function's `name` is -- and it matters
+  // beyond tidiness. Anything that walks an object's own enumerable keys (`Object.keys`, a spread,
+  // Web IDL's `record` conversion) would otherwise find `name` on every function and on every
+  // interface object; `new URLSearchParams(DOMException)` is where that was noticed.
+  object->SetHidden("name", Value::String(name));
   return object;
 }
 

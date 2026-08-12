@@ -3,6 +3,7 @@
 #include <cstddef>
 
 #include "util/PercentEncoding.h"
+#include "util/StringUtil.h"
 
 namespace microbrowser::util {
 
@@ -53,9 +54,6 @@ std::string SerializeUrlEncoded(const std::vector<QueryPair>& pairs) {
 }
 
 std::vector<QueryPair> ParseUrlEncoded(std::string_view input) {
-  if (!input.empty() && input.front() == '?') {
-    input.remove_prefix(1);
-  }
   // `+` means a space, and only after the split: a name containing an encoded
   // `%2B` must survive as a plus sign, which is why the substitution happens on
   // the component rather than on the whole string.
@@ -66,7 +64,10 @@ std::vector<QueryPair> ParseUrlEncoded(std::string_view input) {
         c = ' ';
       }
     }
-    return PercentDecode(plussed);
+    // Percent-decoding produces *bytes*; the standard's parser produces text, so the result is
+    // UTF-8 decoded here and every byte that is not part of a scalar value becomes U+FFFD. A page
+    // that reads `%C2` back as one high byte would be holding a string no other browser produces.
+    return Utf8DecodeLossy(PercentDecode(plussed));
   };
 
   std::vector<QueryPair> pairs;

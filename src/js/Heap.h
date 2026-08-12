@@ -251,6 +251,14 @@ class Object {
     return kind_ == Kind::Proxy && ProxyTargetIsCallable();
   }
 
+  // Whether the *language* may copy this object. False for a host object -- a `URL`, a `Node`, a
+  // `URLSearchParams` -- which is a handle onto something outside the heap: structured cloning one
+  // would produce a plain object wearing its properties, and a page would carry it around until
+  // something called a method on it. The specification's answer is a DataCloneError, and this flag
+  // is how the module that *knows* an object is a host object tells the one that does the copying.
+  bool IsSerializable() const { return serializable_; }
+  void MarkHostObject() { serializable_ = false; }
+
   Object* Prototype() const { return prototype_; }
   void SetPrototype(Object* prototype) { prototype_ = prototype; }
 
@@ -444,6 +452,16 @@ class Object {
     kind_ = Kind::Native;
     native_ = std::move(native);
   }
+  // Marks an already-allocated object as an error, which is what `ToString` looks at to print
+  // "TypeError: message" rather than "[object Object]". A construct call allocates the receiver
+  // *before* the constructor runs, so a native error constructor -- `DOMException`, and any that
+  // follows it -- has no other way to say what it just built. It only ever tightens: a plain object
+  // becomes an error, and nothing here turns an error back.
+  void MakeError() {
+    if (kind_ == Kind::Plain) {
+      kind_ = Kind::Error;
+    }
+  }
   // What `super.x` resolves against: the object the method was *defined* on,
   // not the one it was called through. Using the receiver instead makes a
   // three-level hierarchy recurse into itself.
@@ -492,6 +510,7 @@ class Object {
   const CompiledFunction* code_ = nullptr;
   Environment* closure_ = nullptr;
   bool arrow_ = false;
+  bool serializable_ = true;
   Value bound_this_;
   NativeFunction native_;
   Object* home_object_ = nullptr;

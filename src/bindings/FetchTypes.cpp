@@ -390,6 +390,10 @@ void DomBindings::InstallResponse() {
     }
     return SettledPromise(call.interpreter, buffer.value, false);
   });
+  // `formData()` is installed from FormDataBindings.cpp, over the same body slot and the same
+  // used flag, so the "a body may be read once" rule above covers it too.
+  InstallBodyFormData(prototype, kBodySlot, kBodyUsedSlot);
+
   method("clone", [](NativeCall& call) {
     if (!HasSlot(call.self, kBodySlot)) {
       return call.Throw("TypeError", "not a Response");
@@ -476,6 +480,23 @@ void DomBindings::InstallResponse() {
           if (const Value* text = init.object->Get("statusText")) {
             made.status_text = js::ToString(*text);
           }
+          // The headers, which were being dropped. `new Response(body, {headers: {"Content-Type":
+          // …}})` is how a page describes bytes it made itself, and a response whose type went
+          // missing is one `formData()` and `json()` cannot decide what to do with.
+          if (const Value* given = init.object->Get("headers");
+              given != nullptr && given->IsObject()) {
+            if (given->object->GetOwn(kHeaderPairsSlot) != nullptr) {
+              for (const Value& pair : ReadPairs(*given, kHeaderPairsSlot)) {
+                made.headers.push_back(ScriptHeader{PairPart(pair, 0), PairPart(pair, 1)});
+              }
+            } else {
+              for (const std::string& key : given->object->EnumerableKeys()) {
+                const Value* value = given->object->Get(key);
+                made.headers.push_back(ScriptHeader{
+                    LowerCase(key), value == nullptr ? std::string() : js::ToString(*value)});
+              }
+            }
+          }
         }
         Value response = MakeResponse(made);
         if (response.IsObject() && prototype.IsObject()) {
@@ -504,6 +525,11 @@ void DomBindings::InstallRequest() {
     return;
   }
   interfaces_.object->Set("Request", prototype);
+
+  // A `Request` carries a body too, and `formData()` is the one body method a page reaches for on
+  // one -- a service-worker-shaped `onfetch` handler reads the form a page submitted. The used flag
+  // is the request's own, so reading a request's body does not mark a response's.
+  InstallBodyFormData(prototype, kRequestBodySlot, "#requestBodyUsed");
 
   // Deliberately thin. A `Request` here is the *arguments* to a fetch as a
   // value a page can pass around and clone -- which is what a router or an

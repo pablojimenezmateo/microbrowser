@@ -34,8 +34,9 @@ std::string SerializeUrlEncoded(const std::vector<QueryPair>& pairs);
 // the literal bytes -- which is what PercentDecode already promises and what
 // every other browser does.
 //
-// A leading `?` is accepted and ignored, because that is what
-// `new URLSearchParams(location.search)` hands it.
+// It parses a *query*, with no leading `?`. Stripping one here would be a second place the
+// question mark is removed -- `new URLSearchParams(location.search)` already does it, once -- and
+// `??a=b` is a query whose first parameter is genuinely named `?a`.
 std::vector<QueryPair> ParseUrlEncoded(std::string_view input);
 
 }  // namespace microbrowser::util

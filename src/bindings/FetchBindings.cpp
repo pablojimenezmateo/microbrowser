@@ -209,6 +209,8 @@ void DomBindings::InstallFetch() {
   InstallReadableStream();
   InstallResponse();
   InstallRequest();
+  // After both, because it hangs `formData()` off each of their prototypes.
+  InstallFormData();
   InstallAbortController();
   // Over the same machinery, and installed here rather than beside it in
   // `Install` so that "there is a network behind this layer" is asked once.

@@ -850,7 +850,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         const bool arrow = instruction.op == Op::ClosureArrow;
         function->SetPrototype(well_known_.function_prototype);
         function->MakeCompiled(&target, CurrentScope(), arrow);
-        function->Set("name", Value::String(target.name));
+        function->SetHidden("name", Value::String(target.name));
         function->Set("length", Value::Number(static_cast<double>(target.parameter_count)));
         if (arrow) {
           // Captured now, not at call time. That is the entire semantic

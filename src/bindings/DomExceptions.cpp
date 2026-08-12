@@ -52,6 +52,45 @@ struct ErrorName {
   std::string_view constant;
 };
 
+// The twenty-five legacy code constants, in numeric order, which is the order Web IDL lists them
+// in and therefore the order they enumerate in.
+//
+// Their own table rather than a column of the one below, because five of them (2, 6, 16, 17, 21)
+// name no error the modern table has: the numbering was abandoned mid-way, and the constants that
+// outlived their names still have to be there and still have to be in order.
+struct LegacyConstant {
+  std::string_view constant;
+  int code;
+};
+
+constexpr LegacyConstant kLegacyConstants[] = {
+    {"INDEX_SIZE_ERR", 1},
+    {"DOMSTRING_SIZE_ERR", 2},
+    {"HIERARCHY_REQUEST_ERR", 3},
+    {"WRONG_DOCUMENT_ERR", 4},
+    {"INVALID_CHARACTER_ERR", 5},
+    {"NO_DATA_ALLOWED_ERR", 6},
+    {"NO_MODIFICATION_ALLOWED_ERR", 7},
+    {"NOT_FOUND_ERR", 8},
+    {"NOT_SUPPORTED_ERR", 9},
+    {"INUSE_ATTRIBUTE_ERR", 10},
+    {"INVALID_STATE_ERR", 11},
+    {"SYNTAX_ERR", 12},
+    {"INVALID_MODIFICATION_ERR", 13},
+    {"NAMESPACE_ERR", 14},
+    {"INVALID_ACCESS_ERR", 15},
+    {"VALIDATION_ERR", 16},
+    {"TYPE_MISMATCH_ERR", 17},
+    {"SECURITY_ERR", 18},
+    {"NETWORK_ERR", 19},
+    {"ABORT_ERR", 20},
+    {"URL_MISMATCH_ERR", 21},
+    {"QUOTA_EXCEEDED_ERR", 22},
+    {"TIMEOUT_ERR", 23},
+    {"INVALID_NODE_TYPE_ERR", 24},
+    {"DATA_CLONE_ERR", 25},
+};
+
 constexpr ErrorName kErrorNames[] = {
     {"IndexSizeError", 1, "INDEX_SIZE_ERR"},
     {"HierarchyRequestError", 3, "HIERARCHY_REQUEST_ERR"},
@@ -188,13 +227,32 @@ void InstallDomException(js::Interpreter& interpreter) {
     }
   }
 
-  // The defaults an exception built by something other than this file would
-  // read: `DOMException.prototype.name` is "Error" and its code is 0, which is
-  // what the specification says an unnamed one is. Every instance shadows all
-  // three with its own.
-  prototype.object->SetHidden("name", Value::String(std::string("Error")));
-  prototype.object->SetHidden("message", Value::String(std::string()));
-  prototype.object->SetHidden("code", Value::Number(0.0));
+  // `name`, `message` and `code` on the prototype, as the *brand-checked accessors* Web IDL says
+  // they are — and reachable only when the receiver is not a DOMException, because every instance
+  // shadows all three with own data properties (see FillException, which explains why the data
+  // properties have to be there: the two things that print an exception are pure functions with no
+  // interpreter to call a getter with, and a DOMException whose values lived only in accessors
+  // logged as "[object Object]").
+  //
+  // So both halves hold at once: an instance reads its own value with no call at all, and
+  // `DOMException.prototype.name` throws a TypeError the way it does in every other engine. They
+  // are **enumerable**, which is what Web IDL says an attribute on a prototype is, and is what
+  // makes anything converting this object to a record run the check rather than skip it.
+  for (const char* attribute : {"name", "message", "code"}) {
+    const std::string key(attribute);
+    const Value getter = interpreter.NewNativeValue(attribute, [key](NativeCall& call) -> Value {
+      const Value* own = call.self.IsObject() ? call.self.object->GetOwn(key) : nullptr;
+      if (own == nullptr) {
+        return call.Throw("TypeError",
+                          "DOMException.prototype." + key + " called on something that is not a "
+                                                            "DOMException");
+      }
+      return *own;
+    });
+    if (getter.IsObject()) {
+      prototype.object->DefineAccessor(key, getter.object, nullptr);
+    }
+  }
 
   const Value constructor =
       interpreter.NewNativeValue("DOMException", [](NativeCall& call) -> Value {
@@ -216,6 +274,11 @@ void InstallDomException(js::Interpreter& interpreter) {
         // prototype. Filling that one in rather than allocating a second is
         // what makes the subclass work at all.
         if (call.interpreter.IsConstructCall(call.self) && call.self.IsObject()) {
+          // The receiver was allocated before this ran, as a *plain* object -- so `String(e)` and
+          // every uncaught-error line printed "[object Object]" for an exception a page built with
+          // `new DOMException(...)`, while one this file built in C++ printed properly. Marking it
+          // is the whole fix, and it has to happen here because the allocation is not ours.
+          call.self.object->MakeError();
           FillException(call.interpreter, call.self, name, std::move(message));
           return call.self;
         }
@@ -226,17 +289,19 @@ void InstallDomException(js::Interpreter& interpreter) {
   }
   constructor.object->SetHidden("prototype", prototype);
   prototype.object->SetHidden("constructor", constructor);
-  // The legacy code constants, which live on both the constructor and the
-  // prototype: `DOMException.NOT_FOUND_ERR` and `e.NOT_FOUND_ERR` are both
-  // written, and both were 8 before anyone stopped writing either.
-  for (const ErrorName& entry : kErrorNames) {
-    if (entry.constant.empty()) {
-      continue;
-    }
+  // The legacy code constants, on both the constructor and the prototype:
+  // `DOMException.NOT_FOUND_ERR` and `e.NOT_FOUND_ERR` are both written, and both were 8 before
+  // anyone stopped writing either.
+  //
+  // **Enumerable**, which is what Web IDL says a constant on an interface object is, and is not a
+  // detail: `Object.keys(DOMException)` is these twenty-five names, and anything that converts an
+  // interface object to a record sees all of them or none. The URL Standard's own suite converts
+  // this one, which is how the non-enumerable version was found.
+  for (const LegacyConstant& entry : kLegacyConstants) {
     const std::string constant(entry.constant);
     const Value code = Value::Number(static_cast<double>(entry.code));
-    constructor.object->SetHidden(constant, code);
-    prototype.object->SetHidden(constant, code);
+    constructor.object->Set(constant, code);
+    prototype.object->Set(constant, code);
   }
   interpreter.Global()->Set("DOMException", constructor);
   interpreter.GlobalScope()->Declare("DOMException", constructor, false);

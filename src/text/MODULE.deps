@@ -1,4 +1,4 @@
-purpose: Unicode character properties, and the line-break and bidirectional algorithms over them.
+purpose: Unicode character properties, and the line-break, bidirectional and IDNA algorithms over them.
 
 # util only. This module answers questions about *characters* -- which class a code point belongs
 # to, how wide it is, where a line may break -- and it must not be able to ask about a font, a box
@@ -6,7 +6,7 @@ purpose: Unicode character properties, and the line-break and bidirectional algo
 # property lookup. `src/layout` and `src/gfx` depend on it; it depends on neither.
 allow: util
 
-public: LineBreak.h UnicodeProperties.h Bidi.h
+public: LineBreak.h UnicodeProperties.h Bidi.h Normalize.h Idna.h
 
 extern:
 

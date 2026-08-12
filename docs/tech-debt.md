@@ -2387,3 +2387,60 @@ remasure already closed TD-0049/0050).
   elements, per cascade pass. Copy-on-write. 4.7x.
 - **A punctuator was lexed by walking all 57 of them** (`8e30e3a`). Indexed by first byte. 1.6x on
   the parse.
+
+---
+
+## TD-0052 — Assignment ignores strict mode, so a read-only accessor is a silent no-op
+
+`Interpreter::AssignToProperty` ends a getter-only property with `return Result::Normal(value)`
+and a comment saying so: *"Assigning is a silent no-op outside strict mode, which is the mode this
+engine is in."* It is the mode the engine is in because **nothing anywhere records strictness** —
+`grep -rn 'use strict\|strict_' src/js/` matches nothing in the parser, the AST or the
+interpreter. Every program runs sloppy.
+
+**Measured** (2026-08-12, `microbrowser_wpt url/url-searchparams.any.html`): one subtest,
+`URL.searchParams setter, invalid values`, which is a `'use strict'` function assigning to a
+read-only accessor and expecting a `TypeError`. That is the *whole* cost inside `url/`, which is
+why it is debt rather than a session: the number is one, and the fix is a language feature.
+
+It is written down because the number is one **here**. Strict mode changes eight other things —
+`delete` on a non-configurable property, assigning to an undeclared name, `arguments.callee`,
+duplicate parameter names, `this` in a plain call, octal literals, `with`, and function
+declarations in blocks — and every one of them is a place this engine currently disagrees with
+every other. A page's modules are strict whether or not they say so, so the disagreement is not
+confined to code carrying the pragma.
+
+**End state**: the parser records strictness per program and per function (inherited by nested
+ones, set by the directive prologue or by being a class body or a module), the AST carries it, and
+the interpreter and the machine read it at the eight sites above. Not a knob and not a global: two
+functions in one file differ.
+
+---
+
+## TD-0053 — `url/`'s last 188 subtests are an iframe, and its last 24 test files are a worker
+
+`url/` is 9,696 of 9,909 subtests (2026-08-12). Everything a URL parser can be asked, it answers:
+the WHATWG's own vectors are 891/891 parses, 278/278 setters, 87/87 `toascii` and 2,670/2,671
+`IdnaTestV2`. What is left is two features that have nothing to do with URLs, and the point of
+this entry is that **no amount of URL work reaches them**:
+
+| what | cost, measured |
+|---|---|
+| `failure.html`'s `frame.contentWindow.location = badUrl` third | **188 subtests**, which is 99% of what is left |
+| `data-uri-fragment`, `javascript-urls.window`, `percent-encoding.window` | **3 test files**, all `iframe.onload`, all TIMEOUT |
+| `*.any.worker.html` | **24 test files**, all TIMEOUT |
+
+The first two are **ADR 0027**, nested browsing contexts, and `docs/session-log.md`'s C6 entry
+reached the same wall from `dom/` — seven `Range-*.html` files and ~4,176 subtests behind two
+`<iframe>`s. That is the same feature paying twice, which is the argument for its priority.
+
+The third is **ADR 0022 §2**. `engine::Workers::Run` builds a bare `js::Interpreter` whose global
+has `self`, `postMessage`, `name` and an `onmessage` — no binding layer, so no `URL` and no
+`URLSearchParams` to test, and no `importScripts`, which the generated worker harness calls first.
+`src/engine/PageWorkers.cpp` says why a worker cannot fetch (*"The script has to already be
+here"*), and `importScripts` is synchronous by contract, so this is a design question about the
+worker's relationship to the network rather than a missing binding.
+
+Neither is a stub away. A `contentWindow` that was a plain object, or an `importScripts` that
+resolved nothing, is exactly what ADR 0012 forbids: the test would still fail and a real page
+would fail later and further away.

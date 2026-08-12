@@ -4924,3 +4924,96 @@ Two further things the goal should be judged against. **431 subtests are tentati
 (`dom/observable/`, `OpaqueRange`) and **126 are a WICG proposal** no browser ships — 1.3 points of
 the remaining gap is specs that are not stable, and ADR 0012's rule about stubs is the argument for
 leaving them where they are rather than chasing a percentage into them.
+
+## url/ — one URL parser, and the two things that are not URL work · 2026-08-12
+
+**Status:** done
+**Check:** `microbrowser_wpt url/` prints
+`71 tests in 108032 ms: 9909 subtests, 9695 passed (97.8%), 0 crashes, 31 timeouts` —
+from 3,690 of 9,909 (37.2%). `microbrowser_tests` is 2097/2097. `dom/` re-measured at
+36,003/43,206 (83.3%) against the 35,899 the C6 entry recorded, so nothing regressed there;
+`xhr/`'s nineteen "unexpected" results are all test *names* carrying the server's port number,
+which moves between runs.
+**Landed:** "One URL parser, and it is the standard's"; "The base element, and three URL failures
+that were not URLs"; "FormData, a live iterator, and a string that was two surrogates";
+"A sequence is an iterator, and a function's name is not a key"; "A host object is not clonable,
+and an href is not a scalar string".
+
+**Left:** 190 subtests and 31 timeouts, and **none of them is a URL bug**:
+
+- **188** are `failure.html`'s iframe third: `frame.contentWindow.location = badUrl` must throw
+  that frame's own `SyntaxError`. Plus `data-uri-fragment.html`, `javascript-urls.window.html` and
+  `percent-encoding.window.html`, which are three of the 31 timeouts and are entirely
+  `iframe.onload`. **ADR 0027**, and the C6 entry above reached the same wall from `dom/`.
+- **24** of the timeouts are `*.any.worker.html`. `engine::Workers` runs a worker's script on its
+  own thread with its own heap, and its global has `self`, `postMessage`, `name` and nothing else
+  — no `importScripts`, no binding layer, so no `URL` or `URLSearchParams` to test. That is
+  ADR 0022 §2 rather than a gap: the file says "no fetch, no DOM, no storage" on purpose.
+- **1** is JavaScript conformance rather than URL: assigning to a getter-only accessor must throw
+  in strict mode, and `Interpreter.cpp` treats the whole engine as sloppy and says so in a comment.
+  Nothing anywhere records strictness. TD-0052.
+- **1** is `idlharness`, which wants the whole IDL surface introspectable.
+
+**Found:**
+
+**The parser was 97% right and the 3% was structural.** `urltestdata.json` went 865/891 -> 891/891,
+but not by fixing a list of cases: **a null host and an empty host were the same state**, so
+`sc://x` and `sc:x` serialized alike, and there was **no state override**, which is how the
+standard defines every setter — so there were no setters at all, and `url-setters*` (975 subtests)
+could not have passed whatever else was fixed. Structure first; the remaining cases (`^` in the
+path percent-encode set, an IPv6 tail that stopped early so `[::1.2.3.4x]` parsed, a too-large
+IPv4 number becoming a *domain* rather than a failure) fell out in an afternoon after it.
+
+**`tools/urlconf` is why this took an afternoon rather than a week, and it is the transferable
+part.** 3,900 pinned vectors against `src/url` directly, in one second, printing the field that
+differed. The same vectors through web-platform-tests take three minutes and report
+`subtest failed`. Build the direct runner first for any area whose data is a checked-in table —
+`encoding/`, `css/parsing/`, `mimesniff/` all qualify.
+
+**The bug was never in the parser anyway.** `URL`, `location.pathname` and `a.host` were answered
+by a *string cut* in `src/bindings` — find the first colon, find the next two slashes — because
+`src/bindings` may not see `src/url`. That module's `allow:` line is a security boundary about
+`js` and `dom`; `src/url` can see neither, so adding it does not widen the model, exactly as
+`html`, `css` and `xml` did not. Deleting the cut moved 4,000 subtests. **When a module's
+allow-list forces a second implementation of something the tree already has, check whether the
+line was actually about that dependency.**
+
+**`<base href>` was not implemented at all**, and it was worth 1,763 subtests on its own: the
+standard's `<a>` test page sets `<base>` before each of nine hundred resolutions and got the same
+answer for all of them. It is not an ordinary reflected attribute — the getter reads back absolute
+— which is presumably why it was skipped when the reflection table was written.
+
+**IDNA needed Unicode 17.0.0, and the version is load-bearing.** Four code points found by running
+the vectors: U+04C0 and U+2183 became *mapped* rather than disallowed in 16.0, U+180E became
+ignored, and CJK Extension J went from reserved to valid in 17.0. The rest of `src/text` is on
+15.1.0 and the two sets do not meet — nothing here reads a line-break class and nothing there
+reads an IDNA status — but a session that regenerates one should not assume the other moves.
+
+**The URL Standard's ASCII fast path is not an optimisation.** An all-ASCII domain is lowercased
+and returned *whatever UTS #46 thinks of it*: `xn--a` is invalid Punycode, decodes to U+0080, and
+reaches a real host in every browser. `xn--a.ß` still fails, because one non-ASCII code point
+anywhere puts the whole domain back on the full path. Both halves are in the standard in as many
+words, and neither is derivable from UTS #46.
+
+**Three bugs found here were not about URLs at all**, which is the argument for running an area
+you did not write: a surrogate *pair* written as two `\u` escapes was stored as two WTF-8
+surrogates rather than one code point (so it compared unequal to the identical `\u{...}` literal
+and encoded as six bytes where every engine writes four); a function's `name` was an **enumerable**
+own property on every function and interface object in the browser; and `new Response(body,
+{headers})` dropped the headers, so a response a page built itself arrived with no type.
+
+**Two things about the checks themselves, found while verifying the above.**
+
+**`tools/run-checks.sh` writes to a fixed `/tmp/microbrowser-<target>.log`, and worktrees share
+`/tmp`.** A concurrent agent in `.claude/worktrees/wpt-declarative-shadow-dom` was running its own
+`asan` at the same time, and its three `heap-use-after-free` reports (in
+`TreeBuilder::FlushDeclarativeShadow`, code that does not exist in this worktree) landed in the log
+this session was reading. **Check the paths in an ASan report before believing it is yours** — the
+file names in the stack are the giveaway. The durable fix is a per-worktree log path; until then,
+run the sanitizer binary directly (`./build/microbrowser-asan/microbrowser/microbrowser_tests`)
+rather than through the wrapper when another worktree is active.
+
+**The `ubsan` preset had not compiled since `c52dfbf`** and nothing had noticed, because only that
+preset carries `-Werror`. Four `-Wsign-conversion` errors in two copies of the same UTF-8 decoder.
+Fixed in its own commit. Under it: 2097/2097 and zero runtime errors, which is the first time the
+undefined-behaviour checker has said anything about this tree in a while.

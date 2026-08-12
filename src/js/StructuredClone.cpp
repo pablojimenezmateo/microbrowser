@@ -153,6 +153,13 @@ class Writer {
       // call rather than a navigation later.
       return false;
     }
+    if (!object->IsSerializable()) {
+      // A host object -- a `URL`, a `Node`, a `URLSearchParams`. Its properties are a facade over
+      // something outside this heap, so a copy of them is a plain object that looks right until a
+      // method is called on it. The binding layer sets the flag; this module knows only that
+      // something outside said no.
+      return false;
+    }
     if (object->GetKind() == Object::Kind::Proxy || object->GetKind() == Object::Kind::Error) {
       // A proxy's behaviour is its handler, which is a function. An Error's
       // `stack` is a string but its identity is not, and the specification's

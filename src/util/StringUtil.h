@@ -230,4 +230,138 @@ inline bool DecodeUtf8(std::string_view text, std::size_t& at, std::uint32_t& co
   return true;
 }
 
+// "UTF-8 decode without BOM", the Encoding Standard's own algorithm, expressed as UTF-8 in and
+// UTF-8 out: every byte that is not part of a well-formed scalar value becomes U+FFFD.
+//
+// It is stricter than `DecodeUtf8` above on purpose, and the difference is the point. That one
+// answers "is this a sequence" for a lexer, which never sees bytes off the network; this one is for
+// the places a *byte sequence* arrives and has to become text — a percent-decoded query, a form
+// body — where an overlong `%C0%AF` decoding to `/` is the classic path-traversal escape and a lone
+// surrogate is a string no other browser would produce.
+inline std::string Utf8DecodeLossy(std::string_view input) {
+  std::string out;
+  out.reserve(input.size());
+  std::size_t at = 0;
+  while (at < input.size()) {
+    const auto lead = static_cast<unsigned char>(input[at]);
+    if (lead < 0x80u) {
+      out.push_back(static_cast<char>(lead));
+      ++at;
+      continue;
+    }
+    std::size_t extra = 0;
+    std::uint32_t value = 0;
+    std::uint32_t lowest = 0;
+    if ((lead & 0xE0u) == 0xC0u) {
+      extra = 1;
+      value = lead & 0x1Fu;
+      lowest = 0x80;
+    } else if ((lead & 0xF0u) == 0xE0u) {
+      extra = 2;
+      value = lead & 0x0Fu;
+      lowest = 0x800;
+    } else if ((lead & 0xF8u) == 0xF0u) {
+      extra = 3;
+      value = lead & 0x07u;
+      lowest = 0x10000;
+    } else {
+      AppendUtf8(out, 0xFFFD);
+      ++at;
+      continue;
+    }
+    bool ok = at + extra < input.size();
+    for (std::size_t i = 1; ok && i <= extra; ++i) {
+      const auto byte = static_cast<unsigned char>(input[at + i]);
+      if ((byte & 0xC0u) != 0x80u) {
+        ok = false;
+        break;
+      }
+      value = (value << 6) | (byte & 0x3Fu);
+    }
+    // An overlong encoding, a surrogate, or a value past the last code point is not a scalar value
+    // however well-formed its bytes look.
+    if (!ok || value < lowest || value > 0x10FFFF || (value >= 0xD800 && value <= 0xDFFF)) {
+      AppendUtf8(out, 0xFFFD);
+      ++at;
+      continue;
+    }
+    AppendUtf8(out, value);
+    at += extra + 1;
+  }
+  return out;
+}
+
+// Replaces every unpaired surrogate with U+FFFD, leaving everything else alone.
+//
+// This is the Web IDL DOMString-to-USVString conversion, and it is **not** `Utf8DecodeLossy` above.
+// A JavaScript string is UTF-16, and this engine stores one as UTF-8 that may carry a surrogate
+// encoded in three bytes; converting it means replacing that *code unit* with one U+FFFD. Running
+// the byte-oriented decoder over it instead produces three, because the standard's decoder rejects
+// the sequence one byte at a time -- which is right for bytes off a network and wrong for a string
+// a page already holds.
+inline std::string ScrubLoneSurrogates(std::string_view text) {
+  std::string out;
+  out.reserve(text.size());
+  std::size_t at = 0;
+  while (at < text.size()) {
+    std::uint32_t code = 0;
+    const std::size_t start = at;
+    if (!DecodeUtf8(text, at, code)) {
+      at = start + 1;
+      code = 0xFFFD;
+    } else if (code >= 0xD800 && code <= 0xDFFF) {
+      code = 0xFFFD;  // a pair would already have been one code point
+    }
+    AppendUtf8(out, code);
+  }
+  return out;
+}
+
+// Compares two UTF-8 strings as JavaScript compares them: by **UTF-16 code unit**.
+//
+// The two orders are not the same, and the difference is not exotic. A supplementary character
+// (U+10000 and up) is three-or-four bytes beginning 0xF0 in UTF-8, which sorts *after* U+FB03; in
+// UTF-16 it is a surrogate pair beginning 0xD83C, which sorts *before* it. Anything a page can
+// observe the order of -- `URLSearchParams.sort`, `Array.prototype.sort` on strings -- has to use
+// this one, or a list this browser sorted differs from the same list anywhere else.
+inline int CompareUtf16(std::string_view left, std::string_view right) {
+  std::size_t left_at = 0;
+  std::size_t right_at = 0;
+  // The pending low surrogate of a supplementary character, held between steps so a pair compares
+  // as its two units rather than as one code point.
+  std::uint32_t left_pending = 0;
+  std::uint32_t right_pending = 0;
+  const auto next = [](std::string_view text, std::size_t& at, std::uint32_t& pending) -> long {
+    if (pending != 0) {
+      const std::uint32_t unit = pending;
+      pending = 0;
+      return static_cast<long>(unit);
+    }
+    if (at >= text.size()) {
+      return -1;
+    }
+    std::uint32_t code = 0;
+    const std::size_t start = at;
+    if (!DecodeUtf8(text, at, code)) {
+      at = start + 1;
+      code = 0xFFFD;
+    }
+    if (code >= 0x10000) {
+      pending = 0xDC00 + ((code - 0x10000) & 0x3FF);
+      return static_cast<long>(0xD800 + ((code - 0x10000) >> 10));
+    }
+    return static_cast<long>(code);
+  };
+  while (true) {
+    const long a = next(left, left_at, left_pending);
+    const long b = next(right, right_at, right_pending);
+    if (a != b) {
+      return a < b ? -1 : 1;
+    }
+    if (a < 0) {
+      return 0;
+    }
+  }
+}
+
 }  // namespace microbrowser::util

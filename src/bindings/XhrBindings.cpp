@@ -34,6 +34,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "url/Url.h"
 #include "bindings/FetchSupport.h"
 #include "bindings/Network.h"
 #include "util/PerformanceCounters.h"
@@ -120,12 +121,8 @@ void DomBindings::InstallXhr() {
     if (call.arguments.size() >= 3 && !js::ToBoolean(call.arguments[2])) {
       // See the note at the top of this file. One loop, and a page that gets a
       // throw here can fall back; a page that gets a lie cannot.
-      Value error = call.interpreter.MakeError(
-          "Error", "synchronous XMLHttpRequest is not supported");
-      if (error.IsObject()) {
-        error.object->Set("name", Value::String("InvalidAccessError"));
-      }
-      return call.ThrowValue(error);
+      return ThrowDom(call, "InvalidAccessError",
+                      "synchronous XMLHttpRequest is not supported");
     }
     std::string method;
     if (!CoerceToString(call, Argument(call.arguments, 0), method)) {
@@ -139,6 +136,19 @@ void DomBindings::InstallXhr() {
     }
     if (url == "[object Object]") {
       return call.Throw("TypeError", "Failed to parse URL from [object Object]");
+    }
+    // The URL is parsed here rather than at `send()`, and a failure is a `SyntaxError` rather than
+    // a request that quietly never happens. That is what the standard says, and the reason it says
+    // it is that `open()` is where a page can still do something about it -- by the time `send()`
+    // returns, the fallback path is gone.
+    {
+      const std::optional<url::Url> base = url::Url::Parse(DocumentBaseUrl(DocumentOf(call.self)));
+      const std::optional<url::Url> parsed =
+          base.has_value() ? url::Url::Parse(url, *base) : url::Url::Parse(url);
+      if (!parsed.has_value()) {
+        return ThrowDom(call, "SyntaxError", "Failed to parse URL: " + url);
+      }
+      url = parsed->Serialize();
     }
     call.self.object->SetHidden(kXhrUrlSlot, Value::String(url));
     // A re-open discards whatever the last exchange left behind. Without this a
