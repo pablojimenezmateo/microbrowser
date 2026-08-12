@@ -45,6 +45,11 @@ struct HandlerRequest {
   // This server's own origin for the port the request arrived on, for a handler that has to name
   // itself in a redirect or a CORS header.
   std::string_view origin;
+  // Root of the WPT checkout, for the handful of handlers that serve a file out of it rather than
+  // synthesising a body -- `image.py` reads `images/blue96x96.png`. Empty when the caller has no
+  // checkout to offer, and a handler that needs one then answers as if the file were missing rather
+  // than reading from wherever the process happens to be.
+  std::string_view wpt_root;
 };
 
 struct HandlerResponse {
@@ -57,6 +62,25 @@ struct HandlerResponse {
   // Whole lines, `Name: value`.
   std::vector<std::string> headers;
   std::string body;
+
+  // The whole response, byte for byte, status line included -- and when this is set every field
+  // above is ignored and the connection is closed afterwards.
+  //
+  // It exists because a family of handlers is *about* the bytes. `fetch/h1-parsing/`'s
+  // `status-code.py` writes `HTTP/1.1 <whatever the test asked for>` with a bare LF and no
+  // `Content-Length`; `fetch/nosniff/`'s writes status `220 YOU HAVE NO POWER HERE`;
+  // `content-length.py` writes a `Content-Length` line the test supplied, which is frequently a
+  // wrong one. Every one of those is testing this browser's HTTP parser against a response no
+  // well-formed server would send, so a handler that could only describe a *valid* response could
+  // not express the test at all -- and the ordinary path here adds `Content-Length`,
+  // `Cache-Control` and a `Connection` header, each of which would repair exactly the malformation
+  // under test.
+  //
+  // `close_connection` follows from it rather than being separate: every one of these originals
+  // sets `response.close_connection = True`, and it has to, because a response with no framing can
+  // only be delimited by the close.
+  std::string raw;
+  bool has_raw = false;
 };
 
 // The per-run scratch space `stash.py` and its relatives read and write. One process and one

@@ -740,8 +740,24 @@ void Server::Respond(Connection& connection, std::string_view head, std::string_
     handler_request.headers = &headers;
     handler_request.body = body_in;
     handler_request.origin = origin;
+    handler_request.wpt_root = options_.wpt_root;
     HandlerResponse answer;
     if (InvokeHandler(handler_request, stash_, &answer)) {
+      if (answer.has_raw) {
+        // Written verbatim and the connection closed, with none of the framing below. See
+        // HandlerResponse::raw: these handlers exist to hand this browser's parser a response no
+        // well-formed server would send, and every header the ordinary path adds --
+        // `Content-Length`, `Cache-Control`, `Connection` -- would repair the malformation under
+        // test. Returning here rather than setting a flag, so there is no path on which half of the
+        // framing is applied.
+        connection.output += answer.raw;
+        connection.closing = true;
+        if (options_.verbose) {
+          std::fprintf(stderr, "[wptserve] raw %.*s\n", static_cast<int>(target.size()),
+                       target.data());
+        }
+        return;
+      }
       status = answer.status;
       status_text = std::move(answer.status_text);
       body = std::move(answer.body);

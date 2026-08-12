@@ -2727,3 +2727,58 @@ Neither is worth doing against a 2.9% microbenchmark delta before there is a pag
 that names it. `array-index` at +10.2% is the row to re-measure first if one ever does: it is the
 only one large enough to be a mechanism rather than noise, and no prototype lookup is on that path,
 so what it is actually measuring is not yet understood.
+
+## TD-0061 — A WPT handler is dispatched by file name, and ten names mean more than one handler
+
+`wpt::InvokeHandler` chooses a handler by the *file name* of the requested path -- `status.py`,
+`redirect.py` -- because that is how the table was written and because most names are unique. Ten of
+the twenty-one names that predate 2026-08-12 are not unique, and each extra copy is a different
+handler that the table answers with the transcribed one's behaviour.
+
+**Audited 2026-08-12** by hashing every copy of every implemented name in the checkout:
+
+| name | files | distinct bodies |
+|---|--:|--:|
+| `redirect.py` | 8 | **8** |
+| `slow.py` | 3 | 3 |
+| `trickle.py` | 3 | 3 |
+| `preflight.py` | 3 | 3 |
+| `status.py` | 3 | 2 |
+| `inspect-headers.py` | 2 | 2 |
+| `echo-headers.py` | 2 | 2 |
+| `delay.py` | 2 | 2 |
+| `stash-take.py` | 2 | 2 |
+| `content-type.py` | 2 | 2 |
+
+**Why this is worse than a 501, which is the whole argument of `Handlers.h`.** A 501 says "nobody has
+written this handler" and puts the name in the ranked report, so the next session can pick it. A
+plausible wrong answer says nothing, and moves the failure to wherever the test first notices --
+which for a redirect handler means a test failing on a URL comparison three redirects later.
+
+**It is not uniformly a bug, which is why it was recorded rather than fixed under time pressure.**
+Several copies are compatible *subsets* of the transcription: the four-line
+`html/browsers/browsing-the-web/navigating-across-documents/resources/redirect.py` sets `Location`
+and status 302, which is exactly what `common/redirect.py` does with fewer parameters, so serving the
+transcription is correct there. Others are not subsets at all: `xhr/resources/redirect.py` defaults
+`location` to `<path>?followed`, appends `&code=` when the target is itself, and answers
+`MAGIC HAPPENED` for the followed request -- none of which `common/redirect.py` does. A blanket
+directory match would turn the working cases into 501s and the score would fall for no correctness
+gain.
+
+**So the fix is per-copy and needs a decision each time**: for each of the ~40 copies, either it is a
+subset of what is implemented (allow the name to match it, and say so) or it is a different handler
+(match on the directory, leave it a 501, and let the report rank it). That is an afternoon of reading
+small Python files, and the report added on 2026-08-12 is what makes the result checkable -- a copy
+that is refused shows up in it by name.
+
+**Three names were scoped on 2026-08-12** because they were introduced that day and were unambiguously
+wrong without it, and they are the worked example for the rest:
+
+- `image.py`, four files: a PNG with `nosniff`, a *different* PNG with `Cross-Origin-Resource-Policy`,
+  a BMP generated in Python, and one that alternates green and red across two requests to test an
+  ETag. Nothing subsets anything.
+- `status-code.py`, two files, both now implemented and *both kept*, which is the shape to aim for:
+  `fetch/h1-parsing/`'s writes a raw malformed status line and `resource-timing/`'s sets an ordinary
+  status plus `Timing-Allow-Origin`. Two handlers, one name, one directory match each.
+- `corsenabled.py`, three files: `xhr/resources/`'s echoes the request; the two under `auth*/`
+  delegate to `authentication.py` and are HTTP-auth handlers.
