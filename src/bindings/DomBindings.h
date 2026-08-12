@@ -554,11 +554,11 @@ class DomBindings {
   void AfterAttributeWrite(dom::Element& element, const std::string& name,
                            const js::Value& old_value, const js::Value& new_value,
                            std::string_view attribute_namespace = {});
-  // The IDL attributes that reflect content attributes (Reflection.h). A friend
-  // rather than more methods here: it needs exactly two things from this class,
-  // the attribute-write path above and the document's address, and this header
-  // being at its line cap is the module asking for that split.
+  // Friends rather than more methods here, because this header is at its line
+  // cap and that cap is the question "is this class doing another job":
+  // `Reflector` is HTML's reflection table, `DocumentTree` is body and title.
   friend class Reflector;
+  friend class DocumentTree;
 
   // --- Geometry, in GeometryBindings.cpp ------------------------------------
   // `getBoundingClientRect`, `offsetWidth`/`offsetHeight` and

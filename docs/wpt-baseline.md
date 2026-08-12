@@ -9,12 +9,19 @@ WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
 **Partly re-measured, 2026-08-12 (C10, reflected IDL attributes).** The one row for `html/dom`
 is from that run and was merged in **by hand**, for the reason three paragraphs below: 35.8% ->
-**95.9%** (21,450 of 59,930 -> 57,694 of 60,138 subtests), 0 subtests going PASS -> FAIL, 35,847
+**96.0%** (21,450 of 59,930 -> 57,759 of 60,138 subtests), 0 subtests going PASS -> FAIL, 35,917
 expectation lines deleted. `html/dom/reflection-*.html` alone went from 35,560 recorded failures to none --
 56,660 of 56,660. **Every other `html/` row is still the M-B baseline and is now wrong in the
 optimistic direction**: reflected attributes are read everywhere, so `html/semantics` in particular
 should be re-measured before anyone plans against its number. `html/browsers/` was deliberately not
 run -- 751 tests of navigation this browser cannot do, almost all of them 20-second timeouts.
+**Re-record an area at low concurrency or not at all.** A `--update-expectations` run of
+`html/dom/` on a loaded machine took 169s where the same run takes 88s, three `reflection-*.html`
+files exceeded their deadline, and the writer recorded `harness=TIMEOUT` for each -- which would
+have silently deleted 24,000 subtests from the measurement and made the area look 3 points worse
+forever. It was caught by the *subtest count* falling from 60,138 to 32,743, not by anything in the
+diff. Check the denominator before committing a re-record.
+
 **`html/dom/render-blocking/` is flaky by construction**: two identical runs of the same binary
 against the same expectations reported 0 unexpected results and then 2, because those tests measure
 "did rendering block" with timers against a browser that has no incremental paint (ADR 0030). Do
@@ -225,7 +232,7 @@ it is a page that never reported, which almost always means something threw befo
 | `html/cross-origin-embedder-policy` | 88 | 45 | 5 | 38 | 0 | 345 | 15 | 4.3 |
 | `html/cross-origin-opener-policy` | 114 | 90 | 2 | 22 | 0 | 583 | 2 | 0.3 |
 | `html/document-isolation-policy` | 38 | 35 | 1 | 2 | 0 | 150 | 0 | 0.0 |
-| `html/dom` | 264 | 237 | 0 | 27 | 0 | 60138 | 57694 | 95.9 |
+| `html/dom` | 264 | 237 | 0 | 27 | 0 | 60138 | 57759 | 96.0 |
 | `html/editing` | 115 | 58 | 0 | 57 | 0 | 614 | 39 | 6.4 |
 | `html/embedded-content` | 1 | 1 | 0 | 0 | 0 | 2 | 0 | 0.0 |
 | `html/infrastructure` | 65 | 35 | 0 | 29 | 1 | 463 | 45 | 9.7 |

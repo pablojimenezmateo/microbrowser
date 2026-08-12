@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "bindings/BindingSupport.h"
+#include "bindings/DocumentTree.h"
 #include "bindings/DomBindings.h"
 #include "bindings/WebIdl.h"
 #include "css/StyleSheet.h"
@@ -383,25 +384,10 @@ void DomBindings::Install() {
     target.object->DefineAccessor("readyState", ready.object, nullptr);
   }
 
-  // `document.body` and `document.documentElement`, as accessors so they
-  // follow the tree rather than freezing whatever it looked like at install.
-  const auto element_accessor = [this, &target](const char* name, const char* tag) {
-    const Value native =
-        interpreter_->NewNativeValue(name, [tag](NativeCall& call) {
-          DomBindings* owner = OwnerOf(call);
-          return owner == nullptr
-                     ? Value::Null()
-                     : owner->WrapperFor(FindElementIn(
-                           *owner->DocumentOf(call.self), [tag](const dom::Element& element) {
-                             return element.TagName() == tag;
-                           }));
-        });
-    if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
-      target.object->DefineAccessor(name, native.object, nullptr);
-    }
-  };
-  element_accessor("body", "body");
+  // `document.body` and `document.title` are DocumentTree.h: both are
+  // algorithms rather than lookups, and both write somewhere other than where
+  // they read.
+  DocumentTree(*this).Install(target);
 
   // `documentElement` is the **first element child**, not the first `<html>`
   // in the tree. The two agree on every parsed page and disagree the moment a
@@ -518,22 +504,17 @@ void DomBindings::Install() {
   // `document.head`, `document.title` and the two element accessors, as
   // accessors so they follow the tree rather than freezing what it looked like
   // at install.
-  element_accessor("head", "head");
-  const Value title_getter = interpreter_->NewNativeValue("title", [](NativeCall& call) {
+  // `document.head`, which is the first `<head>` *child of the html element*
+  // rather than the first anywhere -- dom::Document::Head is the one answer.
+  const Value head_get = interpreter_->NewNativeValue("head", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
-    if (owner == nullptr) {
-      return Value::String(std::string());
-    }
-    dom::Element* title = FindElementIn(
-        *owner->DocumentOf(call.self),
-        [](const dom::Element& element) { return element.TagName() == "title"; });
-    return Value::String(title == nullptr ? std::string() : title->TextContent());
+    return owner == nullptr ? Value::Null()
+                            : owner->WrapperFor(owner->DocumentOf(call.self)->Head());
   });
-  if (title_getter.IsObject()) {
-    title_getter.object->Set(kOwnerSlot, PointerValue(this));
-    target.object->DefineAccessor("title", title_getter.object, nullptr);
+  if (head_get.IsObject()) {
+    head_get.object->Set(kOwnerSlot, PointerValue(this));
+    target.object->DefineAccessor("head", head_get.object, nullptr);
   }
-
   InstallTreeWalkers(target);
   InstallImplementation(target);
   InstallMessageChannel();

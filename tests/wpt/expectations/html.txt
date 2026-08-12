@@ -11385,26 +11385,6 @@ FAIL=aria-labelledby.
 FAIL=aria-owns.
 FAIL=ariaErrorMessageElement is not defined
 FAIL=shadow DOM behaviour for FrozenArray element reflection.
-[html/dom/documents/dom-tree-accessors/Document.body.html]
-FAIL=Body as the root node
-FAIL=Body as the root node with a frameset child
-FAIL=Body followed by frameset inside a non-HTML html element
-FAIL=Body inside an x element followed by a body
-FAIL=Frameset as the root node with a body child
-FAIL=Frameset followed by body inside a non-HTML html element
-FAIL=Frameset followed by body inside the html element
-FAIL=Frameset inside an x element followed by a frameset
-FAIL=Non-HTML body as the root node
-FAIL=Non-HTML body followed by body inside the html element
-FAIL=Setting document.body to a body will replace an existing frameset if there is one.
-FAIL=Setting document.body to a div element.
-FAIL=Setting document.body to a frameset will replace an existing body if there is one.
-FAIL=Setting document.body to a frameset will replace the first existing body/frameset.
-FAIL=Setting document.body to a new body element when the root element is a test element.
-FAIL=Setting document.body to a new body element.
-FAIL=Setting document.body to a new frameset element.
-FAIL=Setting document.body to a string.
-FAIL=Setting document.body when there's no root element.
 [html/dom/documents/dom-tree-accessors/Document.currentScript.html]
 harness=TIMEOUT
 [html/dom/documents/dom-tree-accessors/document.embeds-document.plugins-01.html]
@@ -11487,56 +11467,6 @@ FAIL=document.images should contain all HTML img elements
 FAIL=Document.links should be a live collection
 [html/dom/documents/dom-tree-accessors/document.scripts.html]
 FAIL=Document.scripts should be a live collection
-[html/dom/documents/dom-tree-accessors/document.title-03.html]
-FAIL=document.title after setting to "one space"
-FAIL=document.title after setting to "one\fform feed"
-FAIL=document.title after setting to "one\nnewline"
-FAIL=document.title after setting to "one\rcarriage return"
-FAIL=document.title after setting to "one\ttab"
-FAIL=document.title after setting to "two  spaces"
-FAIL=document.title after setting to "two\f\fform feeds"
-FAIL=document.title after setting to "two\n\nnewlines"
-FAIL=document.title after setting to "two\r\rcarriage returns"
-FAIL=document.title after setting to "two\t\ttabs"
-FAIL=document.title initial value
-[html/dom/documents/dom-tree-accessors/document.title-04.xhtml]
-FAIL:esc= document.title  and space normalization  
-[html/dom/documents/dom-tree-accessors/document.title-05.html]
-FAIL=Removing whitespace in document.title: U+1680
-FAIL=Removing whitespace in document.title: U+180e
-FAIL=Removing whitespace in document.title: U+2000
-FAIL=Removing whitespace in document.title: U+2001
-FAIL=Removing whitespace in document.title: U+2002
-FAIL=Removing whitespace in document.title: U+2003
-FAIL=Removing whitespace in document.title: U+2004
-FAIL=Removing whitespace in document.title: U+2005
-FAIL=Removing whitespace in document.title: U+2006
-FAIL=Removing whitespace in document.title: U+2007
-FAIL=Removing whitespace in document.title: U+2008
-FAIL=Removing whitespace in document.title: U+2009
-FAIL=Removing whitespace in document.title: U+200a
-FAIL=Removing whitespace in document.title: U+2028
-FAIL=Removing whitespace in document.title: U+2029
-FAIL=Removing whitespace in document.title: U+202f
-FAIL=Removing whitespace in document.title: U+205f
-FAIL=Removing whitespace in document.title: U+3000
-FAIL=Removing whitespace in document.title: U+85
-FAIL=Removing whitespace in document.title: U+a0
-FAIL=Removing whitespace in document.title: U+b
-[html/dom/documents/dom-tree-accessors/document.title-06.html]
-FAIL=document.title and the empty string
-[html/dom/documents/dom-tree-accessors/document.title-07.html]
-FAIL=createHTMLDocument test 3: "foo  bar baz","foo  bar baz","foo bar baz"
-FAIL=createHTMLDocument test 4: "foo\t\tbar baz","foo\t\tbar baz","foo bar baz"
-FAIL=createHTMLDocument test 5: "foo\n\nbar baz","foo\n\nbar baz","foo bar baz"
-FAIL=createHTMLDocument test 6: "foo\f\fbar baz","foo\f\fbar baz","foo bar baz"
-FAIL=createHTMLDocument test 7: "foo\r\rbar baz","foo\r\rbar baz","foo bar baz"
-[html/dom/documents/dom-tree-accessors/document.title-09.html]
-FAIL=No title element in SVG document
-FAIL=Root element not named "svg"
-FAIL=Title element in SVG document
-FAIL=Title element not child of SVG root
-FAIL=Title element not in SVG namespace
 [html/dom/documents/dom-tree-accessors/nameditem-01.html]
 FAIL=Dynamically removing the id attribute from img elements, should still be accessible by name value.
 FAIL=Dynamically removing the name attribute from img elements, should not be accessible.

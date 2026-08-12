@@ -5079,3 +5079,61 @@ session to pay for it.
   surrogates surviving where the Web IDL USVString conversion should replace them with U+FFFD, and
   they are spread across `location`, `window.open`, `EventSource` and `sendBeacon` -- a string-layer
   question, not a table one.
+
+## 2026-08-12 — `document.title` and `document.body` were lookups, and both are algorithms
+
+**Status:** `html/dom/` **95.9% → 96.0%**; `html/dom/documents/` **203 recorded failures → 141**.
+`document.title-0{3,5,7,9}.html` and `Document.body.html` are **72 of 72**, from 5.
+
+Ranking `html/dom/` after the reflection work put ARIA first (done) and this cluster second. It is
+not reflection, and it is included here because the ranking is what found it and because both
+accessors were **silently wrong in the same way**: written as one-line lookups beside
+`documentElement`, the getters answered with the first matching tag *anywhere in the tree* and the
+setters did not exist at all. `document.title = 'x'` succeeded, read back the old title, and left
+the tab named whatever the markup said.
+
+**What the specification actually says, and what a descendant search gets wrong.** The body element
+is "the first of the html element's children that is either a body or a frameset element". Three
+clauses, and a search for the first `<body>` breaks all three:
+
+- **A child of the html element**, not a descendant of the document. A `<body>` inside something
+  else is not the body, and a `<body>` that *is* the document element has no html element above it,
+  so that document has no body at all.
+- **A frameset counts.** A frameset document's body element is its `<frameset>` — which is where
+  `onload` is set on either kind of page.
+- **In the HTML namespace.** `createElementNS('urn:x', 'body')` appended to `<html>` is not a body,
+  and answering with it hands a page an element with none of the members it is about to use.
+
+`dom::Document::Head` had the same three-clause shape and the same bug, and it matters for the same
+reason: `document.title = x` appends into the head, so a head found anywhere in the tree is a title
+put where no parser would have placed one.
+
+**Two failures where there was one, and Web IDL decides which.** `document.body = 'a string'` is a
+**TypeError** — the setter's type is `HTMLElement?` and a string fails the argument conversion
+before any algorithm runs — while `document.body = someDiv` is a `HierarchyRequestError`. Answering
+one for both reports a tree problem for what is a type problem.
+
+**`document.title` was missing "strip and collapse ASCII whitespace" entirely**, which is what makes
+`<title>\n  Hello\n  world\n</title>` the tab name `Hello world` rather than the five lines the
+author indented. It also reads *child* text content rather than `textContent`: `<title>a<b>c</b></title>`
+is `a`, because a title is not supposed to contain elements and a browser reading the whole subtree
+names the tab after markup nobody meant as a title. And an SVG document's title is an SVG `<title>`
+*child of the root* — one nested deeper titles a shape.
+
+### The instrument bit somebody again, and the tell was the denominator
+
+A `--update-expectations` run of `html/dom/` on a loaded machine took **169s where the same run
+takes 88s**, three `reflection-*.html` files exceeded their deadline, and the writer recorded
+`harness=TIMEOUT` for each. That would have **silently deleted 24,000 subtests** from the
+measurement and left the area looking three points worse forever, with an expectation diff of
+eleven added lines that reads as ordinary churn.
+
+**It was caught by the subtest count falling from 60,138 to 32,743, not by anything in the diff.**
+The rule that follows: re-record an area at low concurrency, and check the denominator before
+committing. This is the same class as the two "the measurement was fake before the browser was"
+findings from 2026-08-11 — the third in two days, and the first where the tooling would have
+written the wrong number down rather than merely reported it.
+
+**Checked:** `ctest` 2,099 tests 0 failed. ASan 2,099 tests, no memory errors. `html/dom/`
+re-verified at `--jobs 4`: 57,759 of 60,138, **0 subtests going PASS → FAIL**, and the four
+unexpected results are three `render-blocking/` flakes and `idlharness`.

@@ -357,3 +357,11 @@ budget: DocumentReflection header_lines=10 public_methods=0 members=2
 # was at its header cap and this is what that cap is for -- the two things it
 # borrows are named on the `friend` line in DomBindings.h.
 budget: Reflector header_lines=45 public_methods=3 members=1
+
+# `document.body` and `document.title` (DocumentTree.h). One member -- the
+# binding layer it borrows -- and it stays one: both accessors are algorithms
+# over the document they are handed, so anything this held would be state the
+# next call could disagree with. It exists because `DomBindings.h` is at its
+# line cap and that cap is the question "is this class doing another job";
+# `Reflector` above is the same answer to the same question.
+budget: DocumentTree header_lines=20 public_methods=3 members=1
