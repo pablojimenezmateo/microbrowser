@@ -349,19 +349,30 @@ subtests with a symptom nobody should ship without understanding: for a
 non-HTML-namespace or non-ASCII element, `assert_array_equals` reported
 `coll.length` as correct and `0 in coll` as **false**.
 
-**The isolated case is not the bug — that was checked.** A probe that appends
-`createElementNS("test", "st")` to a div and then asks both
+**Two probes ruled out the obvious causes, and their results are the reason
+this note exists rather than a fix.** A probe that appends
+`createElementNS("test", "st")` to a div and asks both
 `document.getElementsByTagName("st")` and `element.getElementsByTagName("st")`
-reports `length=1 0in=true idx0=true item0=true keys=["0"]` for both. So the
-disagreement only appears with the ten earlier tests in
-`Document-Element-getElementsByTagName.js` having run first, and it is
-therefore **state leaking between collections or into the target**, not a
-matching bug. Two candidates worth checking first, in order: the `set` trap
-(the third test does `l[5] = "foopy"` on a collection and the fourth reads it
-back), and whether `Object.getOwnPropertyNames` on a Proxy in this engine
-re-validates each reported key through `getOwnPropertyDescriptor` -- the
-seventh test calls it and asserts the descriptors. Start there rather than at
-the matcher.
+reports `length=1 0in=true idx0=true item0=true keys=["0"]` for both — so the
+matcher, the `has` trap, the indexed getter and the cache all agree in
+isolation. A second probe that replays the earlier operations of
+`Document-Element-getElementsByTagName.js` first — the `l[5] = "foopy"` expando
+on an index, and the uppercase-HTML-tagName append — and *then* asks, reports
+`len=1 0in=true idx0eq=true`. So neither the isolated query nor the two
+obvious prior interactions reproduce it.
+
+The measurement, so the trade is on the record: with the collection in place,
+`Document-getElementsByTagName.html` + `Element-getElementsByTagName.html` go
+**23 → 11 of 37**, against `dom/collections` **7 → 36 of 53**. Net +17 and a
+mechanism nobody understands, which is the wrong side of this project's rules.
+
+What is left to check, in order: whether `instanceof` on a Proxy consults a
+`getPrototypeOf` trap this handler does not define (the file's *first* test is
+`coll instanceof HTMLCollection`), and whether `Object.getOwnPropertyNames` on
+a Proxy re-validates each reported key through `getOwnPropertyDescriptor`. Both
+are engine questions in `src/js`, not binding questions — which is the useful
+part of this: the next attempt should start in the Proxy implementation, not in
+the collection.
 
 **The next block after C11 is `Body-FrameSet-Event-Handlers.html`, 48 subtests,
 and it is worth writing down because it is not what its name suggests.** The six
