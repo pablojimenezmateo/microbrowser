@@ -144,12 +144,15 @@ void DomBindings::InsertFragmentChildren(dom::Node& parent, dom::Node& fragment,
 }
 
 void DomBindings::InsertParsedHtml(std::string_view context_tag_name, dom::Node& parent,
-                                   dom::Node* reference, const std::string& markup) {
+                                   dom::Node* reference, const std::string& markup,
+                                   bool allow_declarative_shadow_roots) {
   // Quirks mode is carried in because it changes the tree: a `<table>` does not
   // close an open `<p>` in quirks mode, and a fragment that assumed standards
   // mode would build a different tree from the document it is going into.
-  std::unique_ptr<dom::DocumentFragment> parsed = html::ParseFragment(
-      markup, context_tag_name, document_ != nullptr && document_->InQuirksMode());
+  std::unique_ptr<dom::DocumentFragment> parsed =
+      html::ParseFragment(markup, context_tag_name, document_ != nullptr &&
+                                                        document_->InQuirksMode(),
+                          allow_declarative_shadow_roots);
   if (parsed == nullptr) {
     return;
   }
@@ -271,6 +274,92 @@ void DomBindings::InstallHtmlParsing(const js::Value& element_interface) {
       element_interface.object->Set(name, native);
     }
   };
+
+  // `setHTMLUnsafe`: `innerHTML` plus the declarative-shadow-root opt-in, and
+  // the name is the API. It is the *only* string-to-tree entry point that builds
+  // shadow roots, which is why the opt-in is a parameter threaded from here
+  // rather than a mode: `innerHTML` two lines up must not acquire it by accident.
+  //
+  // "Unsafe" is about the shadow roots and not about scripts -- a `<script>`
+  // that arrives through any of these paths still does not run, because
+  // `PageScript::Collect` gathers a document's scripts once when the document is
+  // parsed. There is no sanitizer argument here yet, so the name is currently
+  // the whole of the warning.
+  method("setHTMLUnsafe", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr) {
+      return call.Throw("TypeError", "setHTMLUnsafe called on something that is not a node");
+    }
+    // The same context-element choice `innerHTML` makes, and for the same
+    // reason: a shadow root parses against its *host*, so `<td>` inside a root
+    // hosted by a `<tr>` is a cell rather than bare text.
+    dom::Node* target = self;
+    std::string context = "div";
+    if (self->IsElement()) {
+      auto& element = static_cast<dom::Element&>(*self);
+      target = &HtmlHost(element);
+      context = element.TagName();
+    } else if (self->GetKind() == dom::Node::Kind::DocumentFragment) {
+      const dom::Element* shadow_host = static_cast<dom::DocumentFragment*>(self)->Host();
+      if (shadow_host != nullptr) {
+        context = shadow_host->TagName();
+      }
+    } else {
+      return Value::Undefined();
+    }
+    std::string markup;
+    if (!ToDomStringOrEmptyForNull(call, Argument(call.arguments, 0), markup)) {
+      return call.ThrownValue();
+    }
+    owner->ClearChildren(*target);
+    owner->InsertParsedHtml(context, *target, nullptr, markup,
+                            /*allow_declarative_shadow_roots=*/true);
+    return Value::Undefined();
+  });
+
+  // `getHTML({serializableShadowRoots, shadowRoots})`: `innerHTML`'s getter with
+  // a say in which shadow trees come with it. With no options it *is*
+  // `innerHTML`, which is the property the suite checks in both directions --
+  // a shadow root must never appear in the string unless the page asked twice
+  // over, either by marking the root serializable or by naming it here.
+  method("getHTML", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    if (self == nullptr) {
+      return call.Throw("TypeError", "getHTML called on something that is not a node");
+    }
+    dom::SerializeOptions options;
+    std::vector<const dom::DocumentFragment*> named;
+    const Value arguments = Argument(call.arguments, 0);
+    if (arguments.IsObject()) {
+      if (const Value* serializable = arguments.object->Get("serializableShadowRoots")) {
+        options.serializable_shadow_roots = js::ToBoolean(*serializable);
+      }
+      if (const Value* roots = arguments.object->Get("shadowRoots"); roots != nullptr &&
+                                                                     roots->IsObject()) {
+        const std::size_t count = roots->object->ElementCount();
+        for (std::size_t i = 0; i < count; ++i) {
+          const Value entry = roots->object->GetElement(i);
+          dom::Node* node = NodeOf(entry);
+          // Only an actual shadow root counts. A page naming a plain fragment
+          // here is naming something that is not in the tree being serialized,
+          // and silently serializing it would put nodes in the output that are
+          // nowhere under the element asked about.
+          if (node != nullptr && node->IsDocumentFragment() &&
+              static_cast<dom::DocumentFragment*>(node)->Host() != nullptr) {
+            named.push_back(static_cast<const dom::DocumentFragment*>(node));
+          }
+        }
+      }
+    }
+    if (!named.empty()) {
+      options.shadow_roots = &named;
+    }
+    // "Serialize an HTML fragment", which resolves a template to its contents
+    // *and* emits the receiver's own shadow root before its children -- the
+    // element being asked is a host as much as any element beneath it.
+    return Value::String(dom::SerializeFragment(*self, options));
+  });
 
   method("insertAdjacentHTML", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);

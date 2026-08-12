@@ -2318,6 +2318,47 @@ remasure already closed TD-0049/0050).
 
 ---
 
+## TD-0052 — the WPT runner ignores `<meta name="variant">` in HTML tests
+
+**Opened** 2026-08-12, found while landing declarative shadow DOM.
+
+`tools/wpt/TestList.cpp` calls `AppendVariants` for the generated paths --
+`.any.js`, `.window.js`, `.worker.js` -- and **not** for a plain `.html`
+testharness document, which is pushed straight into the list. A `<meta
+name="variant" content="?mode=open">` in an HTML file is therefore read by
+`ReadHead` and dropped.
+
+**What it costs, measured.** `dom/ranges/Range-in-shadow-after-the-shadow-removed.html`
+declares `?mode=open` and `?mode=closed` and is run once, bare. Its script is
+`(new URLSearchParams(location.search)).get("mode")`, which with no query is
+`null`, so it calls `attachShadow({mode: null})` -- and a correct engine throws
+`TypeError` there, because `mode` is a required `ShadowRootMode` and `null` is
+not one of its two values. **The test cannot pass at the bare URL in any
+browser.** It was passing here only because `attachShadow` treated anything that
+was not the string `"closed"` as `"open"`; making that check spec-correct turned
+two accidental passes into two honest failures, and its two expectation lines
+now say so.
+
+That is the shape of the cost: a variant test run bare does not fail loudly, it
+runs *one arbitrary configuration* and records whatever that produces. Two lines
+in `dom.txt` are the visible part; how many of the other ~40 areas have the same
+silent mis-measurement is not known, and finding out is the first half of the
+fix.
+
+**Fix.** Parse `<meta name="variant">` out of `head` in the `is_document` branch
+and hand it to the same `AppendVariants` the generated paths already use. The
+parsing is four lines. What makes this an entry rather than a commit is the
+second half: every variant test in the checkout becomes N tests instead of one,
+so the test list changes under every area at once and each has to be re-measured
+before its expectations mean anything again. Do it as its own session, one area
+per commit, the way `--summary-state` is designed for.
+
+**Close when.** `EnumerateTests` yields `?mode=open` and `?mode=closed` for the
+Range test above, both pass, and every area's expectations have been re-measured
+against the widened list.
+
+---
+
 ## Closed
 
 - **TD-0051 — `Element.getClientRects` was absent** (2026-08-10). Installed

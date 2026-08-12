@@ -23,6 +23,85 @@ using js::Value;
 
 }  // namespace
 
+void DomBindings::SyncNamedAccess() {
+  // HTML §7.3.3, "named access on the Window object": an element with an `id`
+  // is reachable as a bare global, so `<div id=host>` makes `host` resolve
+  // without `getElementById`. Pages written as tests lean on it constantly --
+  // seven subtests across shadow-dom/declarative fail with nothing but
+  // `multiple1 is not defined` -- and enough real pages do that a missing name
+  // is a ReferenceError that stops a script dead.
+  //
+  // Two decisions here, both about *when* rather than what.
+  //
+  // The property is an **accessor that looks the element up when read**, not the
+  // element itself. A stored wrapper would be a strong reference from the global
+  // to a node, which is the shape that keeps a removed subtree alive forever;
+  // and it would answer with the old element after the page replaced it.
+  //
+  // The set of *names* is refreshed once per script, gated on the document's
+  // structure version. That gate is the whole cost model: a page whose tree did
+  // not change between two scripts pays one integer compare, and a page that
+  // changed pays one walk. The deviation it buys is narrow and worth naming --
+  // an id created by the *currently running* script is not a bare global until
+  // the next one. `document.getElementById` sees it immediately either way, and
+  // a script that adds an element and then reaches for it by bare name in the
+  // same turn is reaching for a name the specification says exists. That is the
+  // gap; closing it wants a named-property hook on the global object, which this
+  // interpreter does not have.
+  if (interpreter_ == nullptr || document_ == nullptr) {
+    return;
+  }
+  // MutationVersion and not StructureVersion: `el.id = 'x'` is an attribute
+  // write, which bumps only the former, and it is one of the two ways a name
+  // comes into existence.
+  const std::uint64_t version = document_->MutationVersion();
+  if (named_access_version_ == version) {
+    return;
+  }
+  named_access_version_ = version;
+  js::Object* global = interpreter_->Global();
+  if (global == nullptr) {
+    return;
+  }
+  document_->ForEachDescendant([&](const dom::Node& node) {
+    if (!node.IsElement()) {
+      return;
+    }
+    const std::string* id = static_cast<const dom::Element&>(node).GetAttribute("id");
+    if (id == nullptr || id->empty()) {
+      return;
+    }
+    // Never shadow something that is already there. `window.length`, `top` and
+    // every API name are properties of the global, and an `<a id=location>`
+    // taking `location` away from the page would break far more than it fixed --
+    // the specification agrees: named access loses to anything else.
+    if (global->HasOwn(*id)) {
+      return;
+    }
+    const std::string name = *id;
+    const Value getter =
+        interpreter_->NewNativeValue(name.c_str(), [name](NativeCall& call) -> Value {
+          DomBindings* owner = OwnerOf(call);
+          if (owner == nullptr || owner->document_ == nullptr) {
+            return Value::Undefined();
+          }
+          dom::Element* found =
+              FindElementIn(*owner->document_, [&name](const dom::Element& element) {
+                const std::string* candidate = element.GetAttribute("id");
+                return candidate != nullptr && *candidate == name;
+              });
+          // Undefined rather than null when the element has gone: the property
+          // should not exist at all then, and undefined is the closest this can
+          // get without a named-property hook to remove it from.
+          return found == nullptr ? Value::Undefined() : owner->WrapperFor(found);
+        });
+    if (getter.IsObject()) {
+      getter.object->Set(kOwnerSlot, PointerValue(this));
+      global->DefineAccessor(name, getter.object, nullptr);
+    }
+  });
+}
+
 void DomBindings::InstallWindow() {
   // `window` is the global object, and that is not a convenience alias -- a
   // page writes `window.foo = 1` and then reads `foo`, and the two have to be

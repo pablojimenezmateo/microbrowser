@@ -241,16 +241,142 @@ Element* Node::ClosestAncestor(std::string_view tag_name) const {
   return nullptr;
 }
 
-std::string Node::SerializeChildren() const {
+std::string Node::SerializeChildren() const { return SerializeNodeChildren(*this, {}); }
+
+std::string Node::Serialize() const { return SerializeNode(*this, {}); }
+
+std::string SerializeNodeChildren(const Node& node, const SerializeOptions& options) {
   std::string out;
-  for (const std::unique_ptr<Node>& child : children_) {
-    out += child->Serialize();
+  for (const std::unique_ptr<Node>& child : node.Children()) {
+    out += SerializeNode(*child, options);
   }
   return out;
 }
 
-std::string Node::Serialize() const {
-  return SerializeChildren();
+namespace {
+
+// Whether this root goes into the string, which is two separate permissions:
+// the page marked it serializable when it attached it, or the page named it in
+// this very call. Never "because it is there" -- see SerializeOptions.
+bool ShouldSerializeShadowRoot(const DocumentFragment& root, const SerializeOptions& options) {
+  if (options.serializable_shadow_roots && root.IsSerializable()) {
+    return true;
+  }
+  if (options.shadow_roots == nullptr) {
+    return false;
+  }
+  return std::find(options.shadow_roots->begin(), options.shadow_roots->end(), &root) !=
+         options.shadow_roots->end();
+}
+
+// A shadow root as the `<template shadowrootmode>` that would rebuild it.
+//
+// The attribute order is the specification's and is observable: mode,
+// delegatesfocus, serializable, slotassignment, clonable. A page comparing
+// `getHTML()` against a string it wrote is comparing bytes, and
+// declarative-shadow-dom-slot-assignment-serialization.html asserts the awkward
+// middle placement of `shadowrootslotassignment` twice over precisely because
+// it is the one an implementation is likely to append at the end.
+void AppendShadowRoot(const DocumentFragment& root, const SerializeOptions& options,
+                      std::string& out) {
+  out += "<template shadowrootmode=\"";
+  out += root.IsOpen() ? "open" : "closed";
+  out += '"';
+  if (root.DelegatesFocus()) {
+    out += " shadowrootdelegatesfocus=\"\"";
+  }
+  if (root.IsSerializable()) {
+    out += " shadowrootserializable=\"\"";
+  }
+  // Only the non-default direction is written: "named" is what a root with no
+  // attribute already is, so emitting it would add a token to every serialized
+  // shadow tree to say nothing.
+  if (root.HasManualSlotAssignment()) {
+    out += " shadowrootslotassignment=\"manual\"";
+  }
+  if (root.IsClonable()) {
+    out += " shadowrootclonable=\"\"";
+  }
+  out += '>';
+  out += SerializeNodeChildren(root, options);
+  out += "</template>";
+}
+
+}  // namespace
+
+std::string SerializeFragment(const Node& node, const SerializeOptions& options) {
+  std::string out;
+  const Node* children_of = &node;
+  if (node.IsElement()) {
+    const auto& element = static_cast<const Element&>(node);
+    const DocumentFragment* shadow = element.ShadowRoot();
+    if (shadow != nullptr && ShouldSerializeShadowRoot(*shadow, options)) {
+      AppendShadowRoot(*shadow, options, out);
+    }
+    if (const DocumentFragment* content = element.Content()) {
+      children_of = content;
+    }
+  }
+  out += SerializeNodeChildren(*children_of, options);
+  return out;
+}
+
+std::string SerializeNode(const Node& node, const SerializeOptions& options) {
+  switch (node.GetKind()) {
+    case Node::Kind::Element: {
+      const auto& element = static_cast<const Element&>(node);
+      std::string out;
+      out.push_back('<');
+      out += element.TagName();
+      for (const Attribute& attribute : element.Attributes()) {
+        out.push_back(' ');
+        out += attribute.name;
+        out += "=\"";
+        AppendEscaped(attribute.value, true, out);
+        out.push_back('"');
+      }
+      out.push_back('>');
+      if (IsVoidElement(element.TagName())) {
+        return out;
+      }
+      // The shadow root comes *before* the light-DOM children, which is what
+      // makes the string reparse into the same tree: the declarative template
+      // must be seen while the host is still empty.
+      const DocumentFragment* shadow = element.ShadowRoot();
+      if (shadow != nullptr && ShouldSerializeShadowRoot(*shadow, options)) {
+        AppendShadowRoot(*shadow, options, out);
+      }
+      // A template serializes its *contents*, which is where its markup went.
+      const DocumentFragment* content = element.Content();
+      out += content != nullptr ? SerializeNodeChildren(*content, options)
+                                : SerializeNodeChildren(element, options);
+      out += "</";
+      out += element.TagName();
+      out.push_back('>');
+      return out;
+    }
+    case Node::Kind::Text: {
+      std::string out;
+      AppendEscaped(static_cast<const Text&>(node).Data(), false, out);
+      return out;
+    }
+    case Node::Kind::Comment:
+      return "<!--" + static_cast<const Comment&>(node).Data() + "-->";
+    case Node::Kind::DocumentType:
+      return "<!DOCTYPE " + static_cast<const DocumentType&>(node).Name() + ">";
+    case Node::Kind::ProcessingInstruction: {
+      // The HTML serializer's form (HTML §13.3): no `?` before the closing `>`,
+      // which is the one place it differs from XML's.
+      const auto& instruction = static_cast<const ProcessingInstruction&>(node);
+      return "<?" + instruction.Target() + " " + instruction.Data() + ">";
+    }
+    case Node::Kind::Document:
+    case Node::Kind::DocumentFragment:
+      // Its children and no markup of its own, which is what a fragment is: it
+      // has no tag, so serializing one is serializing what it holds.
+      return SerializeNodeChildren(node, options);
+  }
+  return {};
 }
 
 const std::string* Element::GetAttribute(std::string_view name) const {
@@ -395,77 +521,79 @@ Element::Element(NamespaceRef name_space, std::string qualified_name,
 
 Element::~Element() = default;
 
-DocumentFragment* Element::AttachShadow(bool open) {
-  if (shadow_ == nullptr) {
-    shadow_ = std::make_unique<DocumentFragment>();
-    shadow_->SetHost(this);
-    // A shadow root's node document is its host's, and the host is usually
-    // already in a tree when `attachShadow` is called -- so this cannot wait
-    // for an insertion that has already happened.
-    shadow_->SetNodeDocument(NodeDocument());
-    shadow_open_ = open;
+// The elements a shadow root may be attached to (DOM §"attach a shadow root"
+// step 2). A safelist and not a denylist: the list is what the HTML spec says
+// may host one, and anything not on it -- including every element added to the
+// platform after this was written -- is refused rather than silently allowed.
+bool CanHostShadowRoot(const NamespaceRef& name_space, std::string_view local_name) {
+  if (!name_space.IsHtml()) {
+    return false;
+  }
+  static constexpr std::string_view kSafelist[] = {
+      "article", "aside", "blockquote", "body", "div",  "footer", "h1",      "h2",   "h3",
+      "h4",      "h5",    "h6",         "header", "main", "nav",  "p",       "section", "span"};
+  for (const std::string_view allowed : kSafelist) {
+    if (local_name == allowed) {
+      return true;
+    }
+  }
+  // A valid custom element name, which is a name with an interior dash. That is
+  // the whole rule and it is what keeps a page from redefining `<div>` -- and it
+  // is why this is not simply the safelist: every Polymer component on
+  // youtube.com is a host, and none of them is on it.
+  return !local_name.empty() && local_name.front() != '-' &&
+         local_name.find('-') != std::string_view::npos;
+}
+
+bool Element::ShadowIsOpen() const { return shadow_ != nullptr && shadow_->IsOpen(); }
+
+ShadowAttachResult Element::AttachShadow(ShadowFlags flags) {
+  if (!CanHostShadowRoot(namespace_, LocalName())) {
+    return {};
+  }
+  if (shadow_ != nullptr) {
+    // A second `attachShadow` on a root script attached is an error rather than
+    // a replacement: the page holds references into the first tree, and swapping
+    // it silently would strand them.
+    //
+    // A *declarative* root is the exception the DOM carves out, and it is the
+    // only way a page can reach into one whose mode is closed: the parser made
+    // it, so no script can be holding anything, and emptying it is how a page
+    // takes ownership of markup the parser attached on its behalf.
+    if (!shadow_->IsDeclarative() ||
+        Any(shadow_->Flags() & ShadowFlags::Open) != Any(flags & ShadowFlags::Open)) {
+      return {};
+    }
+    shadow_->SetShadowFlag(ShadowFlags::Declarative, false);
     NoteStructureChange();
+    return {shadow_.get(), ShadowAttachStatus::Reused};
   }
-  // The existing one, not a replacement. A second `attachShadow` is an error the
-  // caller reports, and handing back the first is what makes that reportable
-  // rather than a silent replacement of a subtree the page holds references into.
-  return shadow_.get();
+  shadow_ = std::make_unique<DocumentFragment>();
+  shadow_->SetHost(this);
+  // A shadow root's node document is its host's, and the host is usually
+  // already in a tree when `attachShadow` is called -- so this cannot wait
+  // for an insertion that has already happened.
+  shadow_->SetNodeDocument(NodeDocument());
+  shadow_->SetFlags(flags & ~ShadowFlags::TemplateContent);
+  NoteStructureChange();
+  return {shadow_.get(), ShadowAttachStatus::Created};
 }
 
-std::string Element::Serialize() const {
-  std::string out;
-  out.push_back('<');
-  out += tag_name_;
-  for (const Attribute& attribute : attributes_) {
-    out.push_back(' ');
-    out += attribute.name;
-    out += "=\"";
-    AppendEscaped(attribute.value, true, out);
-    out.push_back('"');
-  }
-  out.push_back('>');
-  if (IsVoidElement(tag_name_)) {
-    return out;
-  }
-  // A template serializes its *contents*, which is where its markup went. The
-  // spec says the same thing, and it is what makes a round trip through
-  // `innerHTML` preserve a template rather than empty it.
-  out += content_ != nullptr ? content_->SerializeChildren() : SerializeChildren();
-  out += "</";
-  out += tag_name_;
-  out.push_back('>');
-  return out;
-}
+// Every node kind serializes through the one switch in SerializeNode above.
+// These overrides remain because `Serialize()` is virtual and widely called;
+// each is the same call with default options, which is what keeps the
+// shadow-aware serializer and the plain one from being two answers.
+std::string Element::Serialize() const { return SerializeNode(*this, {}); }
 
-std::string Text::Serialize() const {
-  std::string out;
-  AppendEscaped(data_, false, out);
-  return out;
-}
+std::string Text::Serialize() const { return SerializeNode(*this, {}); }
 
-std::string Comment::Serialize() const {
-  return "<!--" + data_ + "-->";
-}
+std::string Comment::Serialize() const { return SerializeNode(*this, {}); }
 
-std::string DocumentFragment::Serialize() const {
-  // Its children and no markup of its own, which is what a fragment is: it
-  // has no tag, so serializing one is serializing what it holds.
-  std::string out;
-  for (const std::unique_ptr<Node>& child : Children()) {
-    out += child->Serialize();
-  }
-  return out;
-}
+std::string DocumentFragment::Serialize() const { return SerializeNode(*this, {}); }
 
-std::string DocumentType::Serialize() const {
-  return "<!DOCTYPE " + name_ + ">";
-}
+std::string DocumentType::Serialize() const { return SerializeNode(*this, {}); }
 
-std::string ProcessingInstruction::Serialize() const {
-  // The HTML serializer's form (HTML §13.3): no `?` before the closing `>`,
-  // which is the one place it differs from XML's.
-  return "<?" + target_ + " " + data_ + ">";
-}
+std::string ProcessingInstruction::Serialize() const { return SerializeNode(*this, {}); }
 
 Element* Document::DocumentElement() const {
   for (const std::unique_ptr<Node>& child : Children()) {

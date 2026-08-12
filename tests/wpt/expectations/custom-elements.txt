@@ -27,7 +27,6 @@ FAIL=Nested createElementNS calls do not corrupt prefix state
 FAIL=Reentrant construction does not leak prefix between instances
 [custom-elements/Document-createElementNS.html]
 FAIL=autonomous: document.createElementNS should create custom elements with prefixes.
-FAIL=autonomous: document.createElementNS should not create HTMLUnknownElement for a valid custom element name
 [custom-elements/ElementInternals-accessibility.html]
 FAIL=ariaActiveDescendantElement is defined in ElementInternals
 FAIL=ariaAtomic is defined in ElementInternals
@@ -44,7 +43,6 @@ FAIL=ariaCurrent is defined in ElementInternals
 FAIL=ariaDescribedByElements is defined in ElementInternals
 FAIL=ariaDetailsElements is defined in ElementInternals
 FAIL=ariaDisabled is defined in ElementInternals
-FAIL=ariaErrorMessageElement is not defined in ElementInternals
 FAIL=ariaErrorMessageElements is defined in ElementInternals
 FAIL=ariaExpanded is defined in ElementInternals
 FAIL=ariaFlowToElements is defined in ElementInternals
@@ -525,13 +523,7 @@ FAIL=Throwing exception in customized built-in constructor should not crash and 
 [custom-elements/disconnected-callbacks.html]
 harness=TIMEOUT
 [custom-elements/element-internals-aria-element-reflection.html]
-FAIL=Caching invariant different attributes.
-FAIL=Caching invariant different elements.
-FAIL=Getting ARIA element reflection properties on ElementInternals should return the value that was set.
 FAIL=Getting previously-unset ARIA element reflection properties on ElementInternals should return null.
-FAIL=Reading an ARIA element reflection array property that was set to an empty array, on an ElementInternals with no previously cached value, should return an empty array.
-FAIL=Setting ARIA element reflection properties on ElementInternals to null should delete any previous value, and not crash
-FAIL=Setting ARIA element reflection properties to an empty array should work as expected.
 FAIL=Setting aria-labelledby or ariaLabelledByElements on the custom element should supersede the value of ariaLabelledByElements on ElementInternals
 FAIL=Setting ariaLabelledByElements on ElementInternals should change the accessible name of the custom element
 [custom-elements/element-internals-behaviors.tentative.html]
@@ -540,17 +532,13 @@ FAIL=HTMLSubmitButtonBehavior cannot be subclassed
 FAIL=attachInternals throws TypeError for duplicate behavior instance
 FAIL=attachInternals throws TypeError for multiple instances of same behavior type
 FAIL=attachInternals throws TypeError when behavior is already attached to another element
-FAIL=attachInternals({ behaviors: [] }) accepts empty behaviors array
 FAIL=behaviors array cannot be modified after attachment
 FAIL=behaviors is a read-only frozen array
 FAIL=behaviors returns empty array when no behaviors configured
 [custom-elements/element-internals-shadowroot.html]
 FAIL=ElementInternals *can* be called after constructor, upgrade case
-FAIL=ElementInternals cannot be called after constructor calls it, create case
 FAIL=ElementInternals cannot be called before constructor, upgrade case
 FAIL=ElementInternals disabled by disabledFeatures
-FAIL=ElementInternals.shadowRoot allows access to closed shadow root
-FAIL=ElementInternals.shadowRoot allows access to open shadow root
 FAIL=ElementInternals.shadowRoot doesn't reveal pre-attached closed shadowRoot
 [custom-elements/enqueue-custom-element-callback-reactions-inside-another-callback.html]
 harness=TIMEOUT
@@ -574,8 +562,6 @@ harness=TIMEOUT
 harness=ERROR
 [custom-elements/form-associated/ElementInternals-submit-behavior.tentative.html]
 harness=ERROR
-[custom-elements/form-associated/ElementInternals-target-element-is-held-strongly.html]
-FAIL=Target element of ElementsInternals is held strongly and doesn't get GCed if there are no other references
 [custom-elements/form-associated/ElementInternals-validation.html]
 FAIL="anchor" argument of setValidity()
 FAIL="anchor" argument of setValidity(): passing self
@@ -886,12 +872,7 @@ FAIL=prepend on ParentNode must enqueue a disconnected reaction, an adopted reac
 FAIL=cloneContents on Range must enqueue an attributeChanged reaction when cloning an element only for observed attributes
 FAIL=cloneContents on Range must enqueue an attributeChanged reaction when cloning an element with an observed attribute
 FAIL=cloneContents on Range must not enqueue an attributeChanged reaction when cloning an element with an unobserved attribute
-FAIL=createContextualFragment on Range must construct a custom element
-FAIL=deleteContents on Range must enqueue a disconnected reaction
-FAIL=extractContents on Range must enqueue a disconnected reaction
-FAIL=insertNode on Range must enqueue a connected reaction
 FAIL=insertNode on Range must enqueue a disconnected reaction, an adopted reaction, and a connected reaction when the custom element was in another document
-FAIL=surroundContents on Range must enqueue a connected reaction
 FAIL=surroundContents on Range must enqueue a disconnected reaction, an adopted reaction, and a connected reaction when the custom element was in another document
 [custom-elements/reactions/Selection.html]
 FAIL=deleteFromDocument on Selection must enqueue a disconnected reaction

@@ -4924,3 +4924,80 @@ Two further things the goal should be judged against. **431 subtests are tentati
 (`dom/observable/`, `OpaqueRange`) and **126 are a WICG proposal** no browser ships — 1.3 points of
 the remaining gap is specs that are not stable, and ADR 0012's rule about stubs is the argument for
 leaving them where they are rather than chasing a percentage into them.
+
+## 2026-08-12 — declarative shadow DOM, and three false passes it exposed
+
+**Status:** done
+**Check:** `microbrowser_wpt --testharness-only --long-timeout 180000 shadow-dom/declarative/`
+prints `7788 subtests, 7724 passed (99.2%) … 0 unexpected results`, from **114 passed (1.5%)**
+at the start. `microbrowser_tests` is 2097/2097 including `ArchitectureInvariants`.
+`shadow-dom.txt` lost 8,568 lines net.
+
+**Landed.** The whole of `<template shadowrootmode>`, in the four places it lives:
+
+- `dom` — `ShadowFlags` (open / delegatesFocus / clonable / serializable / declarative /
+  manual-slot-assignment / template-content) as one mask on the *root*, and
+  `Element::AttachShadow` rewritten as the DOM's "attach a shadow root" with the safelist, the
+  mode check and the declarative reuse. `Element` **lost** a member doing it (`shadow_open_`
+  moved into the mask) and `DocumentFragment` gained none, because `template_content_` folded in.
+- `html` — the §13.2.6.4.4 steps, behind an opt-in that defaults to **off**. Document parsing and
+  `setHTMLUnsafe` turn it on; `innerHTML`, `insertAdjacentHTML`, `DOMParser` and
+  `createContextualFragment` do not, which is the security-relevant half and is what
+  declarative-shadow-dom-opt-in.html spends 60 subtests checking.
+- `bindings` — `setHTMLUnsafe`, `getHTML({serializableShadowRoots, shadowRoots})`, the four
+  `shadowRoot*` reflections on HTMLTemplateElement, `delegatesFocus`/`clonable`/`serializable`/
+  `slotAssignment` on ShadowRoot, `attachShadow`'s full init dictionary, and clonable-root cloning.
+- `dom` again — one serializer instead of six. `SerializeNode` is a switch and the six virtual
+  `Serialize()` overrides call it with default options, so the shadow-aware serializer and the
+  plain one cannot disagree.
+
+**Found — the one bug worth the whole session.** `getHTML` was serializing an element's children
+and **not the element's own shadow root**. That is 2,176 of gethtml.html's 6,908 subtests, and the
+symptom named the wrong thing: every failure had `serializable=true` in its title, which reads as
+"the serializable flag is broken". It is not. `serializable=true` is simply the only branch of that
+test that calls `getHTML()` *on the host itself* rather than on its wrapper. HTML's "serialize an
+HTML fragment" emits the root of the subtree you asked about, and a child walk never does.
+`dom::SerializeFragment` is that step, and it is why `innerHTML` and `getHTML` are now different
+functions rather than one with a flag.
+
+**Found — three sets of passing tests that were passing for no reason.** All three were exposed by
+this work rather than broken by it, and all three are recorded as failures now:
+
+- **45** in `shadow-dom/reference-target/tentative/property-reflection*.html`. They build hosts with
+  `setHTMLUnsafe` + `shadowrootreferencetarget`. With no `setHTMLUnsafe` and no declarative shadow
+  DOM, no root was ever attached and a chunk of the reflection matrix agreed with the expected
+  answer by coincidence. They now reach their actual subject, which is unimplemented.
+- **2** in `dom/ranges/Range-in-shadow-after-the-shadow-removed.html`, and this one is a **harness**
+  bug: **TD-0052**, the runner does not expand `<meta name="variant">` for a plain `.html` test.
+  The file declares `?mode=open` and `?mode=closed`, runs bare, reads `null` out of an empty query
+  and calls `attachShadow({mode: null})` — which a correct engine throws on. It passed until now
+  only because `attachShadow` treated everything that was not `"closed"` as `"open"`. **A variant
+  test run bare does not fail loudly; it silently measures one arbitrary configuration**, and how
+  many other areas that has quietly mis-measured is unknown.
+- **6** in `custom-elements/element-internals-behaviors.tentative.html`, which asserted that
+  `attachInternals({behaviors: [x]})` throws TypeError and got one because `attachInternals` did
+  not exist. Now it exists and validates `behaviors` — no behavior type is implemented, so every
+  entry is invalid and TypeError is the *correct* answer, not a placeholder.
+
+**Found — the run that measures this is not the run to trust.** The first sweep of
+`dom/ shadow-dom/ custom-elements/ domparsing/` took 564 s; the `--update-expectations` sweep of the
+same tests took 1,004 s on a loaded machine and produced **31 extra shadow-dom "failures" and a
+dozen dom ones that were pure timing flakes** — whole tests flipping `FAIL`→`harness=TIMEOUT`,
+scroll/wheel/testdriver files mostly. Committing that would have baked load into the expectations.
+Each suspect block was re-run on its own against the *old* expectations to see whether it was really
+a regression; 31 of 78 shadow-dom additions and all but two of the dom ones were not. **Re-run a
+suspicious block alone before you write it down** — `--update-expectations` believes whatever the
+machine was doing at the time.
+
+**Left.** 64 declarative subtests, in three groups, none of them declarative shadow DOM: six need a
+script to run *during* the parse (ADR 0030 — each puts an inline `<script>` inside the template so a
+MutationObserver fires mid-parse), two need iframes (ADR 0027), and 40 are
+`tentative/shadowrootadoptedstylesheets`, which is HTML PR 12339 — import maps resolving CSS module
+scripts — and wants the module loader first. The comment block at the head of the declarative
+section in `shadow-dom.txt` says the same thing where the next agent will trip over it.
+
+Also left: **TD-0052**, and the `DomBindings` split it forced a first step of. The class has been
+"the missing module" for five cap raises; this session moved the two installers that were never
+really members (`InstallTemplateShadowReflection`, `InstallElementInternals`) out to a private
+`ShadowDom.h`, the standing `LiveRanges.h` already has. A *member* cannot leave a class's header, so
+that is where the split has to start.

@@ -41,4 +41,24 @@ budget: Tokenizer      header_lines=65 public_methods=13 members=18
 # The tenth and eleventh public methods are the fragment constructor and
 # BuildFragment. Header lines are one declaration per new algorithm plus the
 # comments that say which spec section each is.
-budget: TreeBuilder    header_lines=125 public_methods=11 members=16
+#
+# Raised again for declarative shadow DOM, HTML §13.2.6.4.4. The two new members
+# are the spec's own state and both are load-bearing:
+#
+#   * `declarative_shadows_` owns the `<template shadowrootmode>` elements the
+#     parser created but did *not* insert. The spec says to add such a template
+#     to the stack of open elements only -- so it has no parent, and in a tree
+#     where a parent owns its children there is nowhere else for it to live.
+#     Everything parsed inside one lands in its contents and moves to the shadow
+#     root when it closes.
+#   * `allow_declarative_shadow_roots_` is the opt-in. It is a member rather than
+#     a parameter because the token handler is five frames below the caller, and
+#     its *default of false* is the security-relevant half: `innerHTML`,
+#     `insertAdjacentHTML` and `DOMParser` parse markup a page may have taken
+#     from somewhere else, and a shadow root appearing in one of those is a tree
+#     the page's sanitizer never saw. Only whole-document parsing and the
+#     explicitly-named `setHTMLUnsafe` turn it on.
+#
+# Header lines are one declaration per new algorithm plus the comment saying
+# which spec step each is, and the DeclarativeShadow struct.
+budget: TreeBuilder    header_lines=165 public_methods=11 members=18

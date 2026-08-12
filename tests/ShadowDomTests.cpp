@@ -180,7 +180,7 @@ void RegisterShadowDomTests(std::vector<TestCase>& tests) {
     // The property every framework depends on: text written inside a component
     // does not appear unless the component asks for it with a `<slot>`.
     dom::Element host("div");
-    dom::DocumentFragment* root = host.AttachShadow(true);
+    dom::DocumentFragment* root = host.AttachShadow(dom::ShadowFlags::Open).root;
     Expect(root != nullptr, "a root");
     root->Append(std::make_unique<dom::Text>("shadow"));
     host.Append(std::make_unique<dom::Text>("light"));
@@ -197,7 +197,7 @@ void RegisterShadowDomTests(std::vector<TestCase>& tests) {
 
   AddTest(tests, "ShadowDom/ASlotIsFilledByTheHostsChildrenAndFallsBackWhenEmpty", [] {
     dom::Element host("div");
-    dom::DocumentFragment* root = host.AttachShadow(true);
+    dom::DocumentFragment* root = host.AttachShadow(dom::ShadowFlags::Open).root;
     auto slot = std::make_unique<dom::Element>("slot");
     slot->Append(std::make_unique<dom::Text>("fallback"));
     dom::Element* slot_ptr = slot.get();
@@ -218,7 +218,7 @@ void RegisterShadowDomTests(std::vector<TestCase>& tests) {
 
   AddTest(tests, "ShadowDom/ANamedSlotTakesOnlyTheChildrenThatAskForIt", [] {
     dom::Element host("div");
-    dom::DocumentFragment* root = host.AttachShadow(true);
+    dom::DocumentFragment* root = host.AttachShadow(dom::ShadowFlags::Open).root;
     auto named = std::make_unique<dom::Element>("slot");
     named->SetAttribute("name", "title");
     dom::Element* named_ptr = named.get();
@@ -245,7 +245,7 @@ void RegisterShadowDomTests(std::vector<TestCase>& tests) {
     // The bug a materialised tree produces: a slotted node rendering both where
     // it is written and where it is slotted.
     dom::Element host("div");
-    dom::DocumentFragment* root = host.AttachShadow(true);
+    dom::DocumentFragment* root = host.AttachShadow(dom::ShadowFlags::Open).root;
     root->Append(std::make_unique<dom::Element>("slot"));
     host.Append(std::make_unique<dom::Text>("once"));
 
@@ -262,7 +262,7 @@ void RegisterShadowDomTests(std::vector<TestCase>& tests) {
     // DOM: later same-named slots get nothing. Without this, youtube painted
     // every label twice ("YouYouTube", stacked channel names).
     dom::Element host("div");
-    dom::DocumentFragment* root = host.AttachShadow(true);
+    dom::DocumentFragment* root = host.AttachShadow(dom::ShadowFlags::Open).root;
     auto first = std::make_unique<dom::Element>("slot");
     auto second = std::make_unique<dom::Element>("slot");
     second->Append(std::make_unique<dom::Text>("fallback"));
@@ -285,7 +285,7 @@ void RegisterShadowDomTests(std::vector<TestCase>& tests) {
 
   AddTest(tests, "ShadowDom/TheHostOfAShadowNodeIsReachableAndOfALightNodeIsNot", [] {
     dom::Element host("div");
-    dom::DocumentFragment* root = host.AttachShadow(true);
+    dom::DocumentFragment* root = host.AttachShadow(dom::ShadowFlags::Open).root;
     auto inner = std::make_unique<dom::Element>("span");
     dom::Element* inner_ptr = inner.get();
     root->Append(std::move(inner));
@@ -625,6 +625,133 @@ void RegisterShadowDomTests(std::vector<TestCase>& tests) {
             "console.log('al=' + (el._$AL instanceof Map ? 'ok' : 'no'));"),
         "opts=ok|shadow=ok|al=ok",
         "Lit-like comma-super constructors leave renderOptions and _$AL intact");
+  });
+
+  // --- declarative shadow DOM, HTML §13.2.6.4.4 -----------------------------
+
+  AddTest(tests, "ShadowDom/DeclarativeTemplateBecomesARootAndLeavesNoTemplate", [] {
+    // The template is *never* in the tree: not moved, not emptied -- never
+    // inserted. A page that finds one has found a root that did not attach.
+    ExpectEqString(Run("<div id=h><template shadowrootmode=open><slot></slot></template>"
+                       "<span slot>light</span></div>",
+                       "const h = document.getElementById('h');"
+                       "console.log('root=' + !!h.shadowRoot);"
+                       "console.log('tmpl=' + (h.querySelector('template') === null));"
+                       "console.log('slot=' + !!h.shadowRoot.querySelector('slot'));"
+                       "console.log('kids=' + h.children.length);"),
+                   "root=true|tmpl=true|slot=true|kids=1",
+                   "the template becomes the root and the light DOM stays put");
+  });
+
+  AddTest(tests, "ShadowDom/InnerHtmlDoesNotBuildADeclarativeRootAndSetHtmlUnsafeDoes", [] {
+    // **The security property, and the reason it gets a test of its own.**
+    // `innerHTML` is where a page puts a string it may have taken from
+    // somewhere else, and a shadow root appearing in one would be a subtree
+    // that the page's own sanitizer never saw and that `innerHTML` cannot read
+    // back. Only the call that says "unsafe" in its name opts in.
+    const std::string markup =
+        "<div id=x><template shadowrootmode=open><b>shadow</b></template></div>";
+    ExpectEqString(
+        Run("<div id=h></div>",
+            "const h = document.getElementById('h');"
+            "h.innerHTML = '" + markup + "';"
+            "const viaInner = h.querySelector('#x');"
+            "console.log('inner.root=' + !!viaInner.shadowRoot);"
+            "console.log('inner.tmpl=' + !!viaInner.querySelector('template'));"
+            "h.setHTMLUnsafe('" + markup + "');"
+            "const viaUnsafe = h.querySelector('#x');"
+            "console.log('unsafe.root=' + !!viaUnsafe.shadowRoot);"
+            "console.log('unsafe.tmpl=' + !!viaUnsafe.querySelector('template'));"),
+        "inner.root=false|inner.tmpl=true|unsafe.root=true|unsafe.tmpl=false",
+        "innerHTML leaves the template alone; setHTMLUnsafe attaches the root");
+  });
+
+  AddTest(tests, "ShadowDom/AnElementOffTheSafelistKeepsItsTemplateRatherThanThrowing", [] {
+    // The parser has nobody to throw to, so a refusal is an ordinary template
+    // left in the tree. `<progress>` is not a shadow host and never becomes one.
+    ExpectEqString(Run("<progress id=p><template shadowrootmode=open>x</template></progress>",
+                       "const p = document.getElementById('p');"
+                       "console.log('root=' + !!p.shadowRoot);"
+                       "console.log('tmpl=' + !!p.querySelector('template'));"),
+                   "root=false|tmpl=true",
+                   "a non-host keeps the template and the parse does not fail");
+  });
+
+  AddTest(tests, "ShadowDom/ASecondDeclarativeRootOnOneHostIsLeftAsATemplate", [] {
+    ExpectEqString(Run("<div id=h><template shadowrootmode=open><i>first</i></template>"
+                       "<template shadowrootmode=closed><i>second</i></template></div>",
+                       "const h = document.getElementById('h');"
+                       "console.log('text=' + h.shadowRoot.textContent);"
+                       "const left = h.querySelector('template');"
+                       "console.log('left=' + left.getAttribute('shadowrootmode'));"),
+                   "text=first|left=closed", "the first root wins and the second stays markup");
+  });
+
+  AddTest(tests, "ShadowDom/AttachShadowReusesADeclarativeRootAndEmptiesIt", [] {
+    // The one case where attaching twice is not an error -- and the only way a
+    // page reaches into a *closed* root the parser made for it.
+    ExpectEqString(Run("<div id=h><template shadowrootmode=closed><b>x</b></template></div>",
+                       "const h = document.getElementById('h');"
+                       "console.log('closed=' + (h.shadowRoot === null));"
+                       "const r = h.attachShadow({mode: 'closed'});"
+                       "console.log('empty=' + (r.childNodes.length === 0));"
+                       "try { h.attachShadow({mode: 'closed'}); console.log('again=no') }"
+                       "catch (e) { console.log('again=' + e.name) }"
+                       "try { h.attachShadow({mode: 'open'}); console.log('mode=no') }"
+                       "catch (e) { console.log('mode=' + e.name) }"),
+                   "closed=true|empty=true|again=NotSupportedError|mode=NotSupportedError",
+                   "a declarative root is handed back once, emptied, and then refuses");
+  });
+
+  AddTest(tests, "ShadowDom/GetHtmlSerializesOnlyTheRootsThePageAskedFor", [] {
+    // Three ways to ask, and the default is *no*. The receiver's own root is
+    // included, which is the half a child walk misses.
+    ExpectEqString(
+        Run("<div id=h><template shadowrootmode=open shadowrootserializable><b>s</b></template>"
+            "light</div>",
+            "const h = document.getElementById('h');"
+            "console.log('default=' + (h.getHTML() === h.innerHTML));"
+            "console.log('off=' + h.getHTML({serializableShadowRoots: false}));"
+            "console.log('on=' + h.getHTML({serializableShadowRoots: true}));"),
+        "default=true|off=light|"
+        "on=<template shadowrootmode=\"open\" shadowrootserializable=\"\"><b>s</b></template>light",
+        "getHTML defaults to innerHTML and emits the host's own root when asked");
+  });
+
+  AddTest(tests, "ShadowDom/OnlyAClonableRootTravelsWithItsHost", [] {
+    ExpectEqString(
+        Run("<template id=t><div class=c>"
+            "<template shadowrootmode=open shadowrootclonable>yes</template></div></template>"
+            "<template id=u><div class=c>"
+            "<template shadowrootmode=open>no</template></div></template>",
+            "const c = document.getElementById('t').content.cloneNode(true);"
+            "console.log('clonable=' + c.querySelector('div.c').shadowRoot.textContent);"
+            "const d = document.getElementById('u').content.cloneNode(true);"
+            "console.log('plain=' + (d.querySelector('div.c').shadowRoot === null));"),
+        "clonable=yes|plain=true", "cloning carries a clonable root and leaves the others behind");
+  });
+
+  AddTest(tests, "ShadowDom/TemplateShadowAttributesReflectWithoutAttachingAnything", [] {
+    // Reflection and nothing else: the parser has been past, so writing one of
+    // these later attaches no root. A page uses them to feature-detect.
+    ExpectEqString(
+        Run("<div id=h></div>",
+            "const t = document.createElement('template');"
+            "console.log('detect=' + "
+            "HTMLTemplateElement.prototype.hasOwnProperty('shadowRootMode'));"
+            "t.setAttribute('shadowrootmode','OpEn');"
+            "console.log('folded=' + t.shadowRootMode);"
+            "t.setAttribute('shadowrootmode','nonsense');"
+            "console.log('invalid=[' + t.shadowRootMode + ']');"
+            "t.shadowRootClonable = true;"
+            "console.log('bool=' + t.getAttribute('shadowrootclonable') + ',' + "
+            "t.shadowRootClonable);"
+            "t.setAttribute('shadowrootslotassignment','MANUAL');"
+            "console.log('slots=' + t.shadowRootSlotAssignment);"
+            "document.getElementById('h').appendChild(t);"
+            "console.log('noroot=' + (document.getElementById('h').shadowRoot === null));"),
+        "detect=true|folded=open|invalid=[]|bool=,true|slots=manual|noroot=true",
+        "the shadowroot* attributes reflect and attach nothing");
   });
 }
 

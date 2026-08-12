@@ -323,6 +323,11 @@ bool PageScript::RunTiming(Timing timing) {
     }
     const dom::Element* element = entry.element;
     if (bindings_ != nullptr) {
+      // HTML §7.3.3's named access, refreshed here because this is the moment a
+      // bare global can next be read. Gated on the document's mutation version,
+      // so a page whose tree has not moved since the last script pays one
+      // integer compare.
+      bindings_->SyncNamedAccess();
       bindings_->SetTrustedScriptInsertion(true);
     }
     const js::Result result = entry.module

@@ -17,7 +17,14 @@ public: Node.h FlatTree.h Namespaces.h
 
 extern:
 
-max_tu_lines: 800
+# Raised from 800 for declarative shadow DOM (ADR 0019 + HTML §13.2.6.4.4).
+# What arrived is one enum and one free function family, and neither is a new
+# subject: `ShadowFlags` is the state a shadow root already had spread across
+# two bools, and `SerializeNode`/`SerializeFragment` are the serializer that was
+# already here, now written once instead of six times. The file got longer
+# because the *arguments* got longer -- most of the added lines are the comments
+# saying why serializing a shadow tree needs the page to ask twice.
+max_tu_lines: 830
 
 # Twenty-one, for `IsDocumentFragment`. It sits beside IsElement and IsText
 # for the same reason those do: the kind is a switch a caller would
@@ -131,4 +138,22 @@ budget: Document     header_lines=130 public_methods=24 members=7
 # it. ADR 0019 §2.
 # members=2: `template_content_` distinguishes `<template>.content` from ShadyDOM
 # roots and `createDocumentFragment()` — all three are host-less fragments.
-budget: DocumentFragment header_lines=55 public_methods=10 members=3
+#
+# +5 public methods and **no new member** for declarative shadow DOM. The five
+# are `Flags`/`SetFlags`/`SetShadowFlag` and the six one-line predicates over
+# them, and the member count did not move because `template_content_` folded
+# *into* the mask: a bool and a bitmask are one field, and the two questions --
+# "is this template contents" and "how was this root attached" -- are asked of
+# the same three kinds of parentless fragment.
+#
+# The state landed here rather than on Element deliberately. Every one of these
+# is a fact about the *root*: `attachShadow` takes them, `getHTML` reports them,
+# and an element with no root has no opinion on any of them. Putting them on
+# Element would also have needed a budget raise there, where this needed none --
+# `shadow_open_` moved off Element in the same change, so Element went 9 members
+# to 8 while gaining the whole feature.
+budget: DocumentFragment header_lines=75 public_methods=15 members=3
+# The bitmask itself. A budget so that later growth is visible, which is the
+# point of the mechanism: the next bit added to a shadow root shows up in a diff
+# against this line rather than disappearing into a header.
+budget: ShadowFlags header_lines=45 public_methods=0 members=0

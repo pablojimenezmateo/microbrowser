@@ -29,6 +29,7 @@
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
 #include "bindings/LiveRanges.h"
+#include "bindings/ShadowDom.h"
 
 namespace microbrowser::bindings {
 
@@ -358,6 +359,7 @@ void DomBindings::EnsureInterfaces() {
   // page feature-detects. Absent when no AnimationSource (ADR 0012 / TD-0021).
   InstallWaapi(element);
   const Value html_element = MakeInterface("HTMLElement", element);
+  InstallElementInternals(*this, *interpreter_, html_element);
   // On HTMLElement rather than Element, which is where the specification puts
   // them: focus is an HTML concept, and an SVG element in this tree is an
   // Element with no HTML semantics at all.
@@ -485,6 +487,18 @@ void DomBindings::EnsureInterfaces() {
     if (getter.IsObject() && template_interface->IsObject()) {
       getter.object->Set(kOwnerSlot, PointerValue(this));
       template_interface->object->DefineAccessor("content", getter.object, nullptr);
+    }
+    // The four `shadowroot*` content attributes, reflected.
+    //
+    // They are reflection and nothing more: setting `shadowRootMode` on a
+    // template already in the tree attaches no shadow root, because the parser
+    // is the only thing that acts on them and it has already been past. A page
+    // uses them for feature detection -- `'shadowRootMode' in
+    // HTMLTemplateElement.prototype` is the documented test for declarative
+    // shadow DOM -- which is the reason they must exist even though nothing
+    // reads them back.
+    if (template_interface->IsObject()) {
+      InstallTemplateShadowReflection(*this, *interpreter_, *template_interface);
     }
   }
   // Text and Comment share a base, and it is not decoration: a polyfill that
@@ -640,6 +654,44 @@ void DomBindings::EnsureInterfaces() {
     if (mode.IsObject()) {
       mode.object->Set(kOwnerSlot, PointerValue(this));
       shadow_root.object->DefineAccessor("mode", mode.object, nullptr);
+    }
+    // The three booleans `attachShadow` took and `<template shadowroot*>` set.
+    // Read-only and read off the root itself: they are how it was attached, and
+    // nothing may change that afterwards -- `serializable` in particular decides
+    // whether `getHTML` will hand this subtree out, so a setter would be a way
+    // to opt a tree into serialization after the page decided otherwise.
+    const auto shadow_flag = [this, &shadow_root](const char* name, dom::ShadowFlags flag) {
+      const Value getter = interpreter_->NewNativeValue(name, [flag](js::NativeCall& call) {
+        dom::Node* self = NodeOf(call.self);
+        if (self == nullptr || !self->IsDocumentFragment()) {
+          return Value::Bool(false);
+        }
+        const auto& root = *static_cast<dom::DocumentFragment*>(self);
+        // A fragment that is not a shadow root is not delegating focus to
+        // anything, so false rather than null: these are booleans in the IDL.
+        return Value::Bool(root.Host() != nullptr && Any(root.Flags() & flag));
+      });
+      if (getter.IsObject()) {
+        getter.object->Set(kOwnerSlot, PointerValue(this));
+        shadow_root.object->DefineAccessor(name, getter.object, nullptr);
+      }
+    };
+    shadow_flag("delegatesFocus", dom::ShadowFlags::DelegatesFocus);
+    shadow_flag("clonable", dom::ShadowFlags::Clonable);
+    shadow_flag("serializable", dom::ShadowFlags::Serializable);
+    // `slotAssignment` is the one that is a string rather than a boolean, and
+    // "named" is the default -- so a fragment that is not a shadow root at all
+    // answers "named" too, which is what the IDL's default says.
+    const Value slot_assignment =
+        interpreter_->NewNativeValue("slotAssignment", [](js::NativeCall& call) {
+          dom::Node* self = NodeOf(call.self);
+          const bool manual = self != nullptr && self->IsDocumentFragment() &&
+                              static_cast<dom::DocumentFragment*>(self)->HasManualSlotAssignment();
+          return Value::String(manual ? "manual" : "named");
+        });
+    if (slot_assignment.IsObject()) {
+      slot_assignment.object->Set(kOwnerSlot, PointerValue(this));
+      shadow_root.object->DefineAccessor("slotAssignment", slot_assignment.object, nullptr);
     }
   }
   // A Document is a ParentNode too: `document.querySelector` and

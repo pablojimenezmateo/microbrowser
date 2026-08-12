@@ -489,6 +489,115 @@ bool TreeBuilder::ProcessHeadElement(const Token& token) {
   return false;
 }
 
+// The `shadowrootmode` attribute as the DOM's enumerated value: open, closed, or
+// neither. Anything else -- including the empty string and a missing attribute --
+// is "none", which is what makes `<template shadowrootmode=invalid>` an ordinary
+// template rather than an error.
+bool TreeBuilder::ProcessDeclarativeShadowRoot(const Token& token) {
+  if (!allow_declarative_shadow_roots_) {
+    return false;
+  }
+  const std::string* mode = nullptr;
+  bool delegates_focus = false;
+  bool clonable = false;
+  bool serializable = false;
+  bool manual_slots = false;
+  for (const Attribute& attribute : token.attributes) {
+    if (attribute.name == "shadowrootmode") {
+      mode = &attribute.value;
+    } else if (attribute.name == "shadowrootdelegatesfocus") {
+      delegates_focus = true;
+    } else if (attribute.name == "shadowrootclonable") {
+      clonable = true;
+    } else if (attribute.name == "shadowrootserializable") {
+      serializable = true;
+    } else if (attribute.name == "shadowrootslotassignment") {
+      // Enumerated with "named" as the invalid-value default, so only the one
+      // spelling turns it on and everything else -- including the empty string
+      // -- leaves it alone.
+      manual_slots = util::AsciiLowerCase(attribute.value) == "manual";
+    }
+  }
+  if (mode == nullptr) {
+    return false;
+  }
+  const std::string folded = util::AsciiLowerCase(*mode);
+  if (folded != "open" && folded != "closed") {
+    return false;
+  }
+  // The host is the current node, and it must not be the bottom of the stack.
+  // That last condition is what makes a `<template shadowrootmode>` at the root
+  // of a fragment an ordinary template: in a fragment parse the bottom is the
+  // context element, and a root that attached to it would be a shadow root the
+  // caller has no host to reach it through.
+  if (open_elements_.size() < 2) {
+    return false;
+  }
+  dom::Element& host = *open_elements_.back();
+
+  dom::ShadowFlags flags = dom::ShadowFlags::Declarative;
+  if (folded == "open") {
+    flags |= dom::ShadowFlags::Open;
+  }
+  if (delegates_focus) {
+    flags |= dom::ShadowFlags::DelegatesFocus;
+  }
+  if (clonable) {
+    flags |= dom::ShadowFlags::Clonable;
+  }
+  if (serializable) {
+    flags |= dom::ShadowFlags::Serializable;
+  }
+  if (manual_slots) {
+    flags |= dom::ShadowFlags::ManualSlotAssignment;
+  }
+  const dom::ShadowAttachResult attached = host.AttachShadow(flags);
+  if (attached.status != dom::ShadowAttachStatus::Created) {
+    // Refused: not a shadow host, or already one. The token becomes an ordinary
+    // `<template>` element, which is what the page sees left in the tree.
+    ++errors_;
+    return false;
+  }
+
+  // Created but *not inserted*: the spec adds it to the stack of open elements
+  // only. It is owned here for the life of the parse; everything inside lands in
+  // its contents, and the flush moves that into the root.
+  auto templ = std::make_unique<dom::Element>(token.data);
+  for (const Attribute& attribute : token.attributes) {
+    templ->SetAttribute(attribute.name, attribute.value);
+  }
+  open_elements_.push_back(templ.get());
+  declarative_shadows_.push_back(DeclarativeShadow{std::move(templ), attached.root});
+  return true;
+}
+
+void TreeBuilder::FlushDeclarativeShadow(const dom::Element* templ) {
+  for (std::size_t i = declarative_shadows_.size(); i-- > 0;) {
+    DeclarativeShadow& pending = declarative_shadows_[i];
+    if (pending.templ.get() != templ) {
+      continue;
+    }
+    dom::DocumentFragment* content = pending.templ->Content();
+    if (content != nullptr && pending.root != nullptr) {
+      while (content->FirstChild() != nullptr) {
+        std::unique_ptr<dom::Node> moved = content->Detach(content->FirstChild());
+        if (moved == nullptr) {
+          break;
+        }
+        pending.root->Append(std::move(moved));
+      }
+    }
+    declarative_shadows_.erase(declarative_shadows_.begin() + static_cast<std::ptrdiff_t>(i));
+    return;
+  }
+}
+
+void TreeBuilder::FlushDeclarativeShadows() {
+  while (!declarative_shadows_.empty()) {
+    FlushDeclarativeShadow(declarative_shadows_.back().templ.get());
+  }
+}
+
 bool TreeBuilder::HasOpenTemplate() const {
   return std::any_of(open_elements_.begin(), open_elements_.end(),
                      [](const dom::Element* element) { return element->TagName() == "template"; });
@@ -515,7 +624,9 @@ bool TreeBuilder::ProcessTemplateToken(const Token& token) {
   }
 
   if (token.kind == Token::Kind::StartTag) {
-    InsertElement(token);
+    if (!ProcessDeclarativeShadowRoot(token)) {
+      InsertElement(token);
+    }
     frameset_ok_ = false;
     template_modes_.push_back(InsertionMode::InTemplate);
     mode_ = InsertionMode::InTemplate;
@@ -531,7 +642,26 @@ bool TreeBuilder::ProcessTemplateToken(const Token& token) {
   if (!open_elements_.empty() && open_elements_.back()->TagName() != "template") {
     ++errors_;
   }
+  // Which template this end tag closes has to be found *before* the pop -- the
+  // innermost one on the stack -- but flushing it has to happen *after*.
+  //
+  // The flush destroys the template, because a declarative one is owned by
+  // `declarative_shadows_` and by nothing else. Doing it first left a freed
+  // pointer on `open_elements_` for `PopUntil` to read `TagName()` off, which
+  // is a use-after-free on a path any page can reach with
+  // `<div><template shadowrootmode=open></template></div>`. Found by ASan
+  // through ShadowDom/DeclarativeTemplateBecomesARootAndLeavesNoTemplate.
+  const dom::Element* closing = nullptr;
+  for (std::size_t i = open_elements_.size(); i-- > 0;) {
+    if (open_elements_[i]->TagName() == "template") {
+      closing = open_elements_[i];
+      break;
+    }
+  }
   PopUntil("template");
+  if (closing != nullptr) {
+    FlushDeclarativeShadow(closing);
+  }
   if (!template_modes_.empty()) {
     template_modes_.pop_back();
   }
@@ -822,6 +952,10 @@ void TreeBuilder::Process(const Token& token) {
 }
 
 std::unique_ptr<dom::Document> TreeBuilder::Build() {
+  // Parsing a whole document is the case that needs no opt-in: the markup is the
+  // document, so a shadow root in it is the page's own and there is no earlier
+  // sanitizing step for one to have slipped past. HTML says the same.
+  allow_declarative_shadow_roots_ = true;
   document_ = std::make_unique<dom::Document>();
   AddPerformanceCounter(PerfCounterId::HtmlDocumentsParsed);
 
@@ -832,6 +966,9 @@ std::unique_ptr<dom::Document> TreeBuilder::Build() {
     }
   }
   open_elements_.clear();
+  // A document that ended inside a `<template shadowrootmode>` still owes its
+  // shadow root the content that parsed into it.
+  FlushDeclarativeShadows();
   return std::move(document_);
 }
 
@@ -892,6 +1029,10 @@ std::unique_ptr<dom::DocumentFragment> TreeBuilder::BuildFragment() {
     }
   }
   open_elements_.clear();
+  // Before the nodes move out of the root: a fragment that ended inside a
+  // `<template shadowrootmode>` still owes its shadow root that content, and the
+  // host carrying the root is one of the nodes about to move.
+  FlushDeclarativeShadows();
 
   auto fragment = std::make_unique<dom::DocumentFragment>();
   while (dom::Node* first = root.FirstChild()) {
@@ -914,9 +1055,9 @@ std::unique_ptr<dom::Document> ParseDocument(std::string_view input) {
 }
 
 std::unique_ptr<dom::DocumentFragment> ParseFragment(std::string_view input,
-                                                     std::string_view context_tag_name,
-                                                     bool quirks) {
-  TreeBuilder builder(input, context_tag_name, quirks);
+                                                     std::string_view context_tag_name, bool quirks,
+                                                     bool allow_declarative_shadow_roots) {
+  TreeBuilder builder(input, context_tag_name, quirks, allow_declarative_shadow_roots);
   return builder.BuildFragment();
 }
 

@@ -14,10 +14,54 @@ class Document;
 class DocumentFragment;
 class Element;
 
+class DocumentFragment;
+class Node;
+
 // Parsed CSS text held by reference. A constructable stylesheet is shared by
 // every root that adopts it; the cascade reads this rather than cloning text
 // per root. ADR 0019 §4.
 using SharedConstructableSheet = std::shared_ptr<std::string>;
+
+// Which shadow roots the HTML fragment serializer descends into, and what a
+// page's `getHTML` asked for.
+//
+// A shadow tree is *not* markup: it does not round-trip through `innerHTML`, and
+// serializing one is opting a subtree the page kept separate into a string the
+// page is about to hand somewhere else. So both fields default to "no shadow
+// roots at all", and `innerHTML` -- which has no way to say otherwise -- gets
+// exactly that.
+struct SerializeOptions {
+  // Include every root whose `serializable` was set when it was attached.
+  bool serializable_shadow_roots = false;
+  // Include these roots whatever their `serializable` says. Named explicitly by
+  // the caller, so a page that holds a closed root can serialize the one it
+  // owns without opting in every root on the page. Not owned; must outlive the
+  // call.
+  const std::vector<const DocumentFragment*>* shadow_roots = nullptr;
+};
+
+// The HTML fragment serialization algorithm, with the shadow-root extension.
+//
+// A free function and the single implementation: `Node::Serialize()` is this
+// with default options. Two serializers -- one that knew about shadow roots and
+// one that did not -- would be two answers to "what is this subtree", and the
+// pair disagreeing is what makes a round trip lose a tree.
+std::string SerializeNode(const Node& node, const SerializeOptions& options);
+std::string SerializeNodeChildren(const Node& node, const SerializeOptions& options);
+
+// HTML's "serialize an HTML fragment" -- what `innerHTML` and `getHTML` return,
+// which is *not* the same as serializing `node`'s children.
+//
+// Two things it does that the plain child walk does not. A `<template>`
+// serializes its contents rather than its children, because that is where its
+// markup went. And **a shadow host emits its own root first**: the element being
+// asked is a host as much as any element below it, and leaving its root out was
+// worth 2,176 subtests of shadow-dom/declarative/gethtml.html -- the string a
+// page compares against contains the template it just declared.
+//
+// A shadow *root* asked directly answers with its children and no wrapping
+// template: it is already inside the tree the template would introduce.
+std::string SerializeFragment(const Node& node, const SerializeOptions& options);
 
 // A DOM node.
 //
@@ -279,6 +323,82 @@ inline constexpr ElementState kStoredElementStates =
     ElementState::Hover | ElementState::Active | ElementState::Target | ElementState::Checked |
     ElementState::Disabled | ElementState::Required | ElementState::PlaceholderShown;
 
+// What a shadow root remembers about how it was attached.
+//
+// A bitmask on the root rather than fields on the host, because every one of
+// these is a fact about the *root* -- `attachShadow` takes them, `getHTML`
+// reports them, and a host with no root has no opinion on any of them. Folding
+// `TemplateContent` in keeps `DocumentFragment` at three members: the two kinds
+// of parentless fragment already needed telling apart, and one mask answers
+// both questions.
+enum class ShadowFlags : std::uint8_t {
+  None = 0,
+  // `mode: "open"`. Not a security boundary -- see Element::ShadowRoot -- and
+  // the one thing it changes is whether `element.shadowRoot` answers.
+  Open = 1u << 0,
+  DelegatesFocus = 1u << 1,
+  // Whether cloning the host clones this root too.
+  Clonable = 1u << 2,
+  // Whether `getHTML({serializableShadowRoots: true})` includes it. Serializing
+  // a root the page did not mark is how a shadow tree leaks into markup the
+  // page then hands somewhere else, so the default is off.
+  Serializable = 1u << 3,
+  // Attached by the parser from `<template shadowrootmode>` rather than by
+  // script. The DOM's "attach a shadow root" reads this: a *declarative* root
+  // is the one case where a second `attachShadow` succeeds, emptying it and
+  // clearing this bit rather than throwing.
+  Declarative = 1u << 4,
+  // A `<template>`'s contents rather than a shadow root at all. Custom elements
+  // inside one stay inert until stamped. ShadyDOM roots and page-made fragments
+  // are *not* this -- they share "no Host()" with template content and must
+  // still upgrade, or Polymer stamps into a host-less root and never constructs.
+  TemplateContent = 1u << 5,
+  // `slotAssignment: "manual"`, where a slot is filled by `assign()` rather than
+  // by matching names. The bit is the non-default direction so that a root
+  // attached with no opinion is "named", which is what the DOM's default is.
+  ManualSlotAssignment = 1u << 6,
+};
+
+constexpr ShadowFlags operator|(ShadowFlags a, ShadowFlags b) {
+  return static_cast<ShadowFlags>(static_cast<std::uint8_t>(a) | static_cast<std::uint8_t>(b));
+}
+constexpr ShadowFlags operator&(ShadowFlags a, ShadowFlags b) {
+  return static_cast<ShadowFlags>(static_cast<std::uint8_t>(a) & static_cast<std::uint8_t>(b));
+}
+constexpr ShadowFlags operator~(ShadowFlags a) {
+  return static_cast<ShadowFlags>(static_cast<std::uint8_t>(~static_cast<std::uint8_t>(a)));
+}
+constexpr ShadowFlags& operator|=(ShadowFlags& a, ShadowFlags b) { return a = a | b; }
+constexpr ShadowFlags& operator&=(ShadowFlags& a, ShadowFlags b) { return a = a & b; }
+constexpr bool Any(ShadowFlags flags) { return flags != ShadowFlags::None; }
+
+// What `attachShadow` did, which the caller has to know because two of the three
+// outcomes are not "here is a new root".
+enum class ShadowAttachStatus : std::uint8_t {
+  // A root that did not exist now does.
+  Created,
+  // The host already had a *declarative* root, so this returned that one with
+  // its children removed -- which is what the DOM says and what lets a page
+  // reach into a closed declarative root by calling `attachShadow` again.
+  Reused,
+  // Refused: not a shadow host element, or a root already exists whose mode
+  // does not match. `NotSupportedError` at every caller above this one.
+  Refused,
+};
+
+struct ShadowAttachResult {
+  DocumentFragment* root = nullptr;
+  ShadowAttachStatus status = ShadowAttachStatus::Refused;
+};
+
+// Whether "attach a shadow root" would accept this element (DOM §"attach a
+// shadow root" step 2): an HTML element whose local name is on the safelist, or
+// any valid custom element name.
+//
+// In `dom` rather than at either caller because both the parser and the binding
+// layer ask it, and a safelist with two copies is a safelist with two answers.
+bool CanHostShadowRoot(const NamespaceRef& name_space, std::string_view local_name);
+
 class Element : public Node {
  public:
   // An HTML element with no prefix, which is what the parser and
@@ -333,12 +453,23 @@ class Element : public Node {
   // here rather than in the binding layer because the *tree* is what has a
   // shadow root, and layout and the cascade have to walk it either way.
   DocumentFragment* ShadowRoot() const { return shadow_.get(); }
-  bool ShadowIsOpen() const { return shadow_open_; }
-  // Attaches one, or returns the existing one -- a second `attachShadow` on the
-  // same element is an error the caller reports, and returning the first is what
-  // makes that reportable rather than a silent replacement of a subtree a page is
-  // holding references into.
-  DocumentFragment* AttachShadow(bool open);
+  bool ShadowIsOpen() const;
+  // The DOM's "attach a shadow root", whole: the safelist, the mode check, and
+  // the one case where attaching twice is not an error.
+  //
+  // Three outcomes rather than a pointer and a bool, because the callers do
+  // three different things with them -- script throws `NotSupportedError` on
+  // Refused, and the parser *inserts the template it was going to discard*,
+  // which is how `<progress><template shadowrootmode=open>` leaves the template
+  // in the tree instead of throwing at a page that only wrote markup.
+  //
+  // **`Reused` leaves the root's children in place and the caller owes their
+  // removal.** The DOM says to empty it, and this cannot: emptying means
+  // destroying nodes, script may hold a wrapper for any of them, and the module
+  // note at the top of MODULE.deps is the reason nothing in `dom` frees a node.
+  // `DomBindings::ClearChildren` is the one that can, and the one caller that
+  // can reach this case -- `attachShadow` -- calls it.
+  ShadowAttachResult AttachShadow(ShadowFlags flags);
 
   const std::vector<Attribute>& Attributes() const { return attributes_; }
 
@@ -396,7 +527,6 @@ class Element : public Node {
   std::uint32_t attr_version_ = 0;
   NamespaceRef namespace_ = NamespaceRef::kHtml;
   ElementState state_ = ElementState::None;
-  bool shadow_open_ = true;
 };
 
 class Text : public Node {
@@ -519,8 +649,25 @@ class DocumentFragment : public Node {
   // inert until stamped (HTML). ShadyDOM roots and page-made fragments are
   // *not* this — they share "no Host()" with template content and must still
   // upgrade, or Polymer stamps into a host-less root and never constructs.
-  bool IsTemplateContent() const { return template_content_; }
-  void SetTemplateContent(bool value) { template_content_ = value; }
+  bool IsTemplateContent() const { return Any(flags_ & ShadowFlags::TemplateContent); }
+  void SetTemplateContent(bool value) { SetShadowFlag(ShadowFlags::TemplateContent, value); }
+
+  // How this root was attached. Meaningless on a fragment that is not one, which
+  // is why every reader below goes through Host() or through the binding layer's
+  // ShadowRoot interface rather than asking a bare fragment.
+  ShadowFlags Flags() const { return flags_; }
+  void SetFlags(ShadowFlags flags) { flags_ = flags; }
+  void SetShadowFlag(ShadowFlags flag, bool on) {
+    flags_ = on ? (flags_ | flag) : (flags_ & ~flag);
+  }
+  bool IsOpen() const { return Any(flags_ & ShadowFlags::Open); }
+  bool DelegatesFocus() const { return Any(flags_ & ShadowFlags::DelegatesFocus); }
+  bool IsClonable() const { return Any(flags_ & ShadowFlags::Clonable); }
+  bool IsSerializable() const { return Any(flags_ & ShadowFlags::Serializable); }
+  bool IsDeclarative() const { return Any(flags_ & ShadowFlags::Declarative); }
+  bool HasManualSlotAssignment() const {
+    return Any(flags_ & ShadowFlags::ManualSlotAssignment);
+  }
 
   // Constructable stylesheets adopted by this root. Empty on every fragment
   // that is not a shadow root or the document.
@@ -533,7 +680,7 @@ class DocumentFragment : public Node {
 
  private:
   Element* host_ = nullptr;
-  bool template_content_ = false;
+  ShadowFlags flags_ = ShadowFlags::None;
   std::vector<SharedConstructableSheet> adopted_style_sheets_;
 };
 

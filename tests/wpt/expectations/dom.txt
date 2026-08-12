@@ -2594,6 +2594,17 @@ harness=TIMEOUT
 # that never starts -- so the TIMEOUT is the missing iframe, not the Range method
 # in the title. The method itself is implemented (src/bindings/RangeContents.cpp)
 # and is measured by dom/nodes/MutationObserver-{childList,characterData}.html.
+# TD-0052: this file declares `?mode=open` and `?mode=closed` variants, and the
+# runner does not expand `<meta name="variant">` for a plain HTML test -- so it
+# runs bare, `(new URLSearchParams(location.search)).get("mode")` is null, and
+# the test calls `attachShadow({mode: null})`. **A correct engine throws there**:
+# `mode` is a required `ShadowRootMode` and null is not one of its two values.
+# This passed until 2026-08-12 only because `attachShadow` treated anything that
+# was not "closed" as "open". Nothing about Ranges in shadow trees is broken;
+# fixing the harness is what makes this measurable, not fixing `dom` or `bindings`.
+[dom/ranges/Range-in-shadow-after-the-shadow-removed.html]
+FAIL=Range in shadow should stay in the shadow after the host is removed
+FAIL=Range in shadow should stay in the shadow after the host parent is removed
 [dom/ranges/Range-insertNode.html]
 harness=TIMEOUT
 [dom/ranges/Range-mutations-splitText.html]
@@ -2931,31 +2942,13 @@ FAIL=Constants for whatToShow on NodeFilter interface object.
 FAIL=Removing an ancestor of the in-flight position during filtering, pointer before it, with no following node within root
 FAIL=Removing the accepted node during its own filtering retargets the reference and returns the filtered node
 [dom/traversal/NodeIterator-removal.html]
-FAIL=Removing an inclusive ancestor of reference, pointer before reference is true, with a following node within root
-FAIL=Removing an inclusive ancestor of reference, pointer before reference is true, with no following node within root
-FAIL=Test removing node comment
 FAIL=Test removing node detachedPara1
-FAIL=Test removing node detachedPara1.firstChild
 FAIL=Test removing node detachedPara2
-FAIL=Test removing node detachedPara2.firstChild
-FAIL=Test removing node doctype
-FAIL=Test removing node foreignComment
-FAIL=Test removing node foreignDoctype
 FAIL=Test removing node foreignPara1
-FAIL=Test removing node foreignPara1.firstChild
-FAIL=Test removing node foreignPara2
-FAIL=Test removing node foreignTextNode
 FAIL=Test removing node paras[0]
-FAIL=Test removing node paras[0].firstChild
 FAIL=Test removing node paras[1]
-FAIL=Test removing node paras[1].firstChild
-FAIL=Test removing node paras[5].firstChild
-FAIL=Test removing node processingInstruction
 FAIL=Test removing node testDiv
-FAIL=Test removing node xmlComment
-FAIL=Test removing node xmlDoctype
 FAIL=Test removing node xmlElement
-FAIL=Test removing node xmlTextNode
 [dom/traversal/NodeIterator.html]
 FAIL=Recursive filters need to throw
 FAIL=createNodeIterator() parameter defaults
