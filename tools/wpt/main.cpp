@@ -69,6 +69,7 @@
 namespace {
 
 using microbrowser::wpt::ExpectationStore;
+using microbrowser::wpt::NormalizePortsInName;
 using microbrowser::wpt::Server;
 using microbrowser::wpt::ServerOptions;
 using microbrowser::wpt::TestExpectation;
@@ -177,7 +178,11 @@ std::vector<std::string_view> SplitTabs(std::string_view line) {
   return fields;
 }
 
-Report ParseReport(std::string_view text) {
+// `ports` are this run's bound ports, so a name the page built out of its own origin
+// becomes stable across runs. Normalized *here*, at the one place a page's name
+// becomes a key, so recording and comparing cannot disagree about what a subtest is
+// called. See NormalizePortsInName.
+Report ParseReport(std::string_view text, const std::vector<std::uint16_t>& ports) {
   Report report;
   bool saw_harness = false;
   std::size_t position = 0;
@@ -192,7 +197,7 @@ Report ParseReport(std::string_view text) {
       report.harness_message = fields.size() >= 3 ? Unescape(fields[2]) : "";
       saw_harness = true;
     } else if (!fields.empty() && fields[0] == "T" && fields.size() >= 3) {
-      const std::string name = Unescape(fields[2]);
+      const std::string name = NormalizePortsInName(Unescape(fields[2]), ports);
       report.subtests[name] = std::string(fields[1]);
       if (fields.size() >= 4) {
         report.messages[name] = Unescape(fields[3]);
@@ -925,7 +930,7 @@ int main(int argc, char** argv) {
         report.harness = "ERROR";
         report.harness_message = "the test process exited without a report";
       } else {
-        report = ParseReport(child.output);
+        report = ParseReport(child.output, server.Ports());
       }
       finish(child.index, report);
       running.erase(running.begin() + static_cast<std::ptrdiff_t>(index));
