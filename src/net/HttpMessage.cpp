@@ -219,6 +219,19 @@ bool ResponseParser::FinishHeaders() {
   const bool has_length = response_.headers.Has("content-length");
   const bool has_encoding = response_.headers.Has("transfer-encoding");
 
+  // **A response to HEAD has no body, whatever its framing headers say.** RFC 9110 §6.4.1: the
+  // `Content-Length` on one describes the body a GET would have returned, and reading it as a
+  // count of bytes to wait for means waiting for bytes no server will ever send. Decided here,
+  // before the two framings are looked at, because it outranks both -- and it is checked before
+  // the Content-Length/Transfer-Encoding conflict below for the same reason: a HEAD response
+  // carrying both is still a response with no body, and there is no smuggling risk in a message
+  // whose body is known to be empty.
+  if (head_request_) {
+    body_mode_ = BodyMode::None;
+    state_ = State::Body;
+    return Complete();
+  }
+
   // The request smuggling case. A message carrying both framings is ambiguous,
   // and every documented smuggling attack is two intermediaries resolving that
   // ambiguity differently. There is no safe way to pick one.

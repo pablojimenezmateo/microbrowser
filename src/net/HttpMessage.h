@@ -110,6 +110,14 @@ class ResponseParser {
 
   explicit ResponseParser(HttpLimits limits = {}) : limits_(limits) {}
 
+  // **Whether the request this answers was a HEAD**, which the parser cannot see and cannot do
+  // without. RFC 9110 §6.4.1: a response to HEAD is *never* accompanied by a body, whatever its
+  // `Content-Length` says -- the header describes what a GET would have returned. A parser that
+  // does not know this waits for bytes that will never arrive, so **every HEAD request against
+  // every server that sets Content-Length hangs the browser forever**, which is what it did until
+  // a WPT `.py` handler answered one. Set before the first `Consume`.
+  void SetHeadRequest(bool head) { head_request_ = head; }
+
   // Consumes as much of `data` as it can. Returns false once the message is
   // malformed; the parser stays failed and never produces a partial response.
   bool Consume(std::span<const std::byte> data);
@@ -153,6 +161,8 @@ class ResponseParser {
   bool Complete();
 
   HttpLimits limits_;
+  // See SetHeadRequest. Not part of the message; a property of the exchange.
+  bool head_request_ = false;
   State state_ = State::StatusLine;
   const char* error_ = nullptr;
   HttpResponse response_;

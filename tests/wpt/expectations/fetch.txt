@@ -4,10 +4,6 @@ FAIL=Signals are not stored in the cache API, even if they're already aborted
 [fetch/api/abort/destroyed-context.html]
 harness=TIMEOUT
 [fetch/api/abort/general.any.html]
-FAIL=Aborting rejects with AbortError
-FAIL=Aborting rejects with AbortError - no-cors
-FAIL=Already aborted signal can be used for many fetches
-FAIL=Already aborted signal does not make request
 FAIL=Call text() twice on aborted response
 FAIL=Clone aborts with original controller
 FAIL=Fetch aborted & connection closed when aborted after calling response.arrayBuffer()
@@ -19,13 +15,8 @@ FAIL=Fetch aborted & connection closed when aborted after calling response.text(
 FAIL=Readable stream synchronously cancels with AbortError if aborted before reading
 FAIL=Request is still 'used' if signal is aborted before fetching
 FAIL=Request objects have a signal property
-FAIL=Signal can be used to abort other fetches, even if another fetch succeeded before aborting
 FAIL=Signal on request object
-FAIL=Signal on request object created from request object
-FAIL=Signal on request object created from request object, with signal on second request
-FAIL=Signal on request object created from request object, with signal on second request overriding another
 FAIL=Signal on request object should also have abort reason
-FAIL=Signal retained after unrelated properties are overridden by fetch
 FAIL=Signal state is cloned
 FAIL=Stream errors once aborted with abort reason. Underlying connection closed.
 FAIL=Stream errors once aborted, after reading. Underlying connection closed.
@@ -45,9 +36,26 @@ FAIL=response.json() rejects with abort reason if already aborted
 FAIL=response.text() rejects if already aborted
 FAIL=response.text() rejects with abort reason if already aborted
 [fetch/api/abort/keepalive.html]
-harness=TIMEOUT
+FAIL=aborting a detached keepalive fetch should not do anything
+FAIL=aborting a keepalive fetch should work
 [fetch/api/abort/request.any.html]
-harness=TIMEOUT
+FAIL=Aborting a request after calling arrayBuffer()
+FAIL=Aborting a request after calling blob()
+FAIL=Aborting a request after calling formData()
+FAIL=Aborting a request after calling json()
+FAIL=Aborting a request after calling text()
+FAIL=Calling arrayBuffer() on an aborted consumed empty request
+FAIL=Calling arrayBuffer() on an aborted consumed nonempty request
+FAIL=Calling arrayBuffer() on an aborted request
+FAIL=Calling blob() on an aborted consumed empty request
+FAIL=Calling blob() on an aborted consumed nonempty request
+FAIL=Calling blob() on an aborted request
+FAIL=Calling formData() on an aborted request
+FAIL=Calling json() on an aborted consumed nonempty request
+FAIL=Calling json() on an aborted request
+FAIL=Calling text() on an aborted consumed empty request
+FAIL=Calling text() on an aborted consumed nonempty request
+FAIL=Calling text() on an aborted request
 [fetch/api/abort/serviceworker-intercepted.https.html]
 FAIL=Abort reason serialization happens on abort
 FAIL=Already aborted request does not land in service worker
@@ -81,7 +89,7 @@ FAIL=GC/CC should not abruptly close the stream while being consumed by Response
 [fetch/api/basic/header-value-combining.any.html]
 FAIL=response.headers.get('content-length') expects 0
 FAIL=response.headers.get('content-length') expects 0, 0
-FAIL=response.headers.get('double-trouble') expects ,
+FAIL:esc=response.headers.get('double-trouble') expects , 
 FAIL=response.headers.get('foo-test') expects 1, 2, 3
 FAIL=response.headers.get('heya') expects , , 1, , , 2
 FAIL=response.headers.get('www-authenticate') expects 1, 2, 3, 4
@@ -92,135 +100,51 @@ FAIL=Fetch on 425 response should not be retried for non TLS early data.
 [fetch/api/basic/integrity.sub.any.html]
 FAIL=CORS SHA-512 integrity
 FAIL=CORS empty integrity
-FAIL=CORS invalid integrity
 FAIL=Empty string integrity for opaque response
 FAIL=Invalid integrity
 FAIL=Multiple integrities: both are invalid
 FAIL=Multiple integrities: invalid stronger than valid
-FAIL=SHA-* integrity for opaque response
 [fetch/api/basic/integrity.sub.any.worker.html]
 harness=TIMEOUT
 [fetch/api/basic/keepalive.any.html]
 harness=TIMEOUT
-[fetch/api/basic/mediasource.window.html]
-FAIL=Cannot fetch blob: URL from a MediaSource
 [fetch/api/basic/mode-no-cors.sub.any.html]
 FAIL=Fetch ../resources/top.txt with no-cors mode
-FAIL=Fetch http://localhost:42531/fetch/api/resources/top.txt with no-cors mode
-FAIL=Fetch http://localhost:42851/fetch/api/resources/top.txt with no-cors mode
+FAIL=Fetch http://localhost:36803/fetch/api/resources/top.txt with no-cors mode
+FAIL=Fetch http://localhost:40817/fetch/api/resources/top.txt with no-cors mode
 FAIL=Fetch https://localhost:1/fetch/api/resources/top.txt with no-cors mode
 [fetch/api/basic/mode-no-cors.sub.any.worker.html]
 harness=TIMEOUT
-[fetch/api/basic/mode-same-origin.any.html]
-FAIL=Fetch /fetch/api/basic/../resources/redirect.py?location=../resources/top.txt with same-origin mode
-FAIL=Fetch /fetch/api/basic/../resources/redirect.py?location=http://127.0.0.1:42851/fetch/api/resources/top.txt with same-origin mode
-FAIL=Fetch /fetch/api/basic/../resources/redirect.py?location=http://localhost:42851/fetch/api/resources/top.txt with same-origin mode
-FAIL=Fetch /fetch/api/basic/../resources/redirect.py?location=https://localhost:1/fetch/api/resources/top.txt with same-origin mode
-FAIL=Fetch http://127.0.0.1:42851/fetch/api/resources/top.txt with same-origin mode
-FAIL=Fetch https://localhost:1/fetch/api/resources/top.txt with same-origin mode
 [fetch/api/basic/mode-same-origin.any.worker.html]
 harness=TIMEOUT
 [fetch/api/basic/referrer.any.html]
-harness=TIMEOUT
+FAIL=Referrer with credentials should be stripped
+FAIL=Referrer with fragment ID should be stripped
+FAIL=origin-when-cross-origin policy on a cross-origin URL
+FAIL=origin-when-cross-origin policy on a cross-origin URL after same-origin redirection
+FAIL=origin-when-cross-origin policy on a same-origin URL
+FAIL=origin-when-cross-origin policy on a same-origin URL after cross-origin redirection
 [fetch/api/basic/referrer.any.worker.html]
 harness=TIMEOUT
 [fetch/api/basic/request-forbidden-headers.any.html]
-FAIL=Accept-Charset is a forbidden request header
-FAIL=Accept-Encoding is a forbidden request header
-FAIL=Access-Control-Request-Headers is a forbidden request header
-FAIL=Access-Control-Request-Method is a forbidden request header
-FAIL=Connection is a forbidden request header
-FAIL=Content-Length is a forbidden request header
-FAIL=Cookie is a forbidden request header
-FAIL=Cookie2 is a forbidden request header
-FAIL=DNT is a forbidden request header
-FAIL=Date is a forbidden request header
-FAIL=Expect is a forbidden request header
-FAIL=Host is a forbidden request header
-FAIL=Keep-Alive is a forbidden request header
-FAIL=Origin is a forbidden request header
-FAIL=Proxy- is a forbidden request header
-FAIL=Proxy-Test is a forbidden request header
-FAIL=Referer is a forbidden request header
-FAIL=Sec- is a forbidden request header
-FAIL=Sec-Test is a forbidden request header
-FAIL=TE is a forbidden request header
-FAIL=Trailer is a forbidden request header
-FAIL=Transfer-Encoding is a forbidden request header
-FAIL=Upgrade is a forbidden request header
-FAIL=Via is a forbidden request header
 FAIL=header X-HTTP-METHOD is allowed to use value ",TRACE",
 FAIL=header X-HTTP-METHOD is allowed to use value GET
 FAIL=header X-HTTP-METHOD is allowed to use value GETTRACE
-FAIL=header X-HTTP-METHOD is forbidden to use value  connect
-FAIL=header X-HTTP-METHOD is forbidden to use value CONNECT
-FAIL=header X-HTTP-METHOD is forbidden to use value GET,track
-FAIL=header X-HTTP-METHOD is forbidden to use value TRACE
-FAIL=header X-HTTP-METHOD is forbidden to use value TRACK
-FAIL=header X-HTTP-METHOD is forbidden to use value connect
-FAIL=header X-HTTP-METHOD is forbidden to use value trace
-FAIL=header X-HTTP-METHOD is forbidden to use value trace,
-FAIL=header X-HTTP-METHOD is forbidden to use value track
 FAIL=header X-HTTP-METHOD-OVERRIDE is allowed to use value ",TRACE",
 FAIL=header X-HTTP-METHOD-OVERRIDE is allowed to use value GET
 FAIL=header X-HTTP-METHOD-OVERRIDE is allowed to use value GETTRACE
-FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value  connect
-FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value CONNECT
-FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value GET,track
-FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value TRACE
-FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value TRACK
-FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value connect
-FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value trace
-FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value trace,
-FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value track
 FAIL=header X-METHOD-OVERRIDE is allowed to use value ",TRACE",
 FAIL=header X-METHOD-OVERRIDE is allowed to use value GET
 FAIL=header X-METHOD-OVERRIDE is allowed to use value GETTRACE
-FAIL=header X-METHOD-OVERRIDE is forbidden to use value  connect
-FAIL=header X-METHOD-OVERRIDE is forbidden to use value CONNECT
-FAIL=header X-METHOD-OVERRIDE is forbidden to use value GET,track
-FAIL=header X-METHOD-OVERRIDE is forbidden to use value TRACE
-FAIL=header X-METHOD-OVERRIDE is forbidden to use value TRACK
-FAIL=header X-METHOD-OVERRIDE is forbidden to use value connect
-FAIL=header X-METHOD-OVERRIDE is forbidden to use value trace
-FAIL=header X-METHOD-OVERRIDE is forbidden to use value trace,
-FAIL=header X-METHOD-OVERRIDE is forbidden to use value track
 FAIL=header x-http-method is allowed to use value ",TRACE",
 FAIL=header x-http-method is allowed to use value GET
 FAIL=header x-http-method is allowed to use value GETTRACE
-FAIL=header x-http-method is forbidden to use value  connect
-FAIL=header x-http-method is forbidden to use value CONNECT
-FAIL=header x-http-method is forbidden to use value GET,track
-FAIL=header x-http-method is forbidden to use value TRACE
-FAIL=header x-http-method is forbidden to use value TRACK
-FAIL=header x-http-method is forbidden to use value connect
-FAIL=header x-http-method is forbidden to use value trace
-FAIL=header x-http-method is forbidden to use value trace,
-FAIL=header x-http-method is forbidden to use value track
 FAIL=header x-http-method-override is allowed to use value ",TRACE",
 FAIL=header x-http-method-override is allowed to use value GET
 FAIL=header x-http-method-override is allowed to use value GETTRACE
-FAIL=header x-http-method-override is forbidden to use value  connect
-FAIL=header x-http-method-override is forbidden to use value CONNECT
-FAIL=header x-http-method-override is forbidden to use value GET,track
-FAIL=header x-http-method-override is forbidden to use value TRACE
-FAIL=header x-http-method-override is forbidden to use value TRACK
-FAIL=header x-http-method-override is forbidden to use value connect
-FAIL=header x-http-method-override is forbidden to use value trace
-FAIL=header x-http-method-override is forbidden to use value trace,
-FAIL=header x-http-method-override is forbidden to use value track
 FAIL=header x-method-override is allowed to use value ",TRACE",
 FAIL=header x-method-override is allowed to use value GET
 FAIL=header x-method-override is allowed to use value GETTRACE
-FAIL=header x-method-override is forbidden to use value  connect
-FAIL=header x-method-override is forbidden to use value CONNECT
-FAIL=header x-method-override is forbidden to use value GET,track
-FAIL=header x-method-override is forbidden to use value TRACE
-FAIL=header x-method-override is forbidden to use value TRACK
-FAIL=header x-method-override is forbidden to use value connect
-FAIL=header x-method-override is forbidden to use value trace
-FAIL=header x-method-override is forbidden to use value trace,
-FAIL=header x-method-override is forbidden to use value track
 [fetch/api/basic/request-head.any.html]
 FAIL=Fetch with HEAD with body
 [fetch/api/basic/request-headers-case.any.html]
@@ -229,13 +153,12 @@ FAIL=Multiple headers with the same name, different case (THIS-is-A-test first)
 [fetch/api/basic/request-headers-nonascii.any.html]
 FAIL=Non-ascii bytes in request headers
 [fetch/api/basic/request-headers.any.html]
-harness=TIMEOUT
-[fetch/api/basic/request-referrer-redirected-worker.html]
-harness=TIMEOUT
-[fetch/api/basic/request-referrer.any.html]
-FAIL=about:client referrer
-FAIL=url referrer
-[fetch/api/basic/request-upload.any.html]
+FAIL=Fetch with Chicken
+FAIL=Fetch with Chicken with body
+FAIL=Fetch with GET
+FAIL=Fetch with HEAD
+FAIL=Fetch with POST and mode "no-cors" needs an Origin header
+FAIL=Fetch with POST and mode "same-origin" needs an Origin header
 FAIL=Fetch with POST with ArrayBuffer body
 FAIL=Fetch with POST with Blob body
 FAIL=Fetch with POST with Blob body with mime type
@@ -243,36 +166,53 @@ FAIL=Fetch with POST with DataView body
 FAIL=Fetch with POST with Float16Array body
 FAIL=Fetch with POST with Float32Array body
 FAIL=Fetch with POST with Float64Array body
+FAIL=Fetch with POST with FormData body
 FAIL=Fetch with POST with Int8Array body
+FAIL=Fetch with POST with URLSearchParams body
+FAIL=Fetch with POST with Uint8Array body
+FAIL=Fetch with POST with text body
+FAIL=Fetch with POST without body
+FAIL=Fetch with PUT and mode "same-origin" needs an Origin header
+FAIL=Fetch with PUT with body
+FAIL=Fetch with PUT without body
+FAIL=Fetch with TacO and mode "cors" needs an Origin header
+FAIL=Fetch with TacO and mode "same-origin" needs an Origin header
+[fetch/api/basic/request-referrer-redirected-worker.html]
+harness=TIMEOUT
+[fetch/api/basic/request-referrer.any.html]
+FAIL=about:client referrer
+FAIL=url referrer
+[fetch/api/basic/request-upload.any.html]
+FAIL=Fetch with POST with Blob body
+FAIL=Fetch with POST with Blob body with mime type
+FAIL=Fetch with POST with Float16Array body
 FAIL=Fetch with POST with ReadableStream containing ArrayBuffer
 FAIL=Fetch with POST with ReadableStream containing Blob
 FAIL=Fetch with POST with ReadableStream containing String
 FAIL=Fetch with POST with ReadableStream containing null
 FAIL=Fetch with POST with ReadableStream containing number
 FAIL=Fetch with POST with URLSearchParams body
-FAIL=Fetch with POST with Uint8Array body
-FAIL=Fetch with POST with text body
 FAIL=Fetch with POST with text body on 421 response should be retried once on new connection.
-FAIL=Fetch with PUT with body
 FAIL=Streaming upload shouldn't work on Http/1.1.
 [fetch/api/basic/request-upload.h2.any.html]
 harness=TIMEOUT
 [fetch/api/basic/response-null-body.any.html]
-harness=TIMEOUT
+FAIL=Response.body is null for responses with method=HEAD
+FAIL=Response.body is null for responses with status=204 (method=GET)
+FAIL=Response.body is null for responses with status=204 (method=OPTIONS)
+FAIL=Response.body is null for responses with status=204 (method=POST)
+FAIL=Response.body is null for responses with status=205 (method=GET)
+FAIL=Response.body is null for responses with status=205 (method=OPTIONS)
+FAIL=Response.body is null for responses with status=205 (method=POST)
+FAIL=Response.body is null for responses with status=304 (method=GET)
+FAIL=Response.body is null for responses with status=304 (method=OPTIONS)
+FAIL=Response.body is null for responses with status=304 (method=POST)
 [fetch/api/basic/response-url.sub.any.html]
-FAIL=Testing response url getter with http://localhost:42851#ada
-FAIL=Testing response url getter with http://localhost:42851/#
-FAIL=Testing response url getter with http://localhost:42851/#ada
+FAIL=Testing response url getter with http://localhost:40817#ada
+FAIL=Testing response url getter with http://localhost:40817/#
+FAIL=Testing response url getter with http://localhost:40817/#ada
 [fetch/api/basic/response-url.sub.any.worker.html]
 harness=TIMEOUT
-[fetch/api/basic/scheme-about.any.html]
-FAIL=Fetching about:blank with method GET is KO
-FAIL=Fetching about:blank with method POST is KO
-FAIL=Fetching about:blank with method PUT is KO
-FAIL=Fetching about:blank with range header does not affect behavior
-FAIL=Fetching about:config with method GET is KO
-FAIL=Fetching about:invalid.com with method GET is KO
-FAIL=Fetching about:unicorn with method GET is KO
 [fetch/api/basic/scheme-blob.sub.any.html]
 FAIL=Blob content is not sniffed for a content type [image/png]
 FAIL=Blob content is not sniffed for a content type [text/xml]
@@ -281,21 +221,12 @@ FAIL=Fetching URL.createObjectURL(empty_blob) is OK
 FAIL=Fetching URL.createObjectURL(empty_data_blob) is OK
 FAIL=Fetching URL.createObjectURL(empty_type_blob) is OK
 FAIL=Fetching URL.createObjectURL(invalid_type_blob) is OK
-FAIL=Fetching [DELETE] URL.createObjectURL(blob) is KO
 FAIL=Fetching [GET] URL.createObjectURL(blob) is OK
-FAIL=Fetching [GET] blob:http://www.localhost:42851/ is KO
-FAIL=Fetching [GET] blob:not-backed-by-a-blob/ is KO
-FAIL=Fetching [HEAD] URL.createObjectURL(blob) is KO
-FAIL=Fetching [INVALID] URL.createObjectURL(blob) is KO
-FAIL=Fetching [OPTIONS] URL.createObjectURL(blob) is KO
-FAIL=Fetching [POST] URL.createObjectURL(blob) is KO
-FAIL=Fetching [PUT] URL.createObjectURL(blob) is KO
 FAIL=Set content type to the empty string for slice with invalid content type
-FAIL=Set content type to the empty string for slice with no content type
+FAIL:esc=Set content type to the empty string for slice with no content type 
 [fetch/api/basic/scheme-blob.sub.any.worker.html]
 harness=TIMEOUT
 [fetch/api/basic/scheme-data.any.html]
-FAIL=Fetching [GET] data:notAdataUrl.com is KO
 FAIL=Fetching [HEAD] data:,response%27s%20body is OK
 FAIL=Fetching [POST] data:,response%27s%20body is OK
 FAIL=Fetching data:,response%27s%20body is OK
@@ -303,23 +234,6 @@ FAIL=Fetching data:,response%27s%20body is OK (cors)
 FAIL=Fetching data:,response%27s%20body is OK (same-origin)
 FAIL=Fetching data:image/png;base64,cmVzcG9uc2UncyBib2[...] is OK
 FAIL=Fetching data:text/plain;base64,cmVzcG9uc2UncyBib[...] is OK
-[fetch/api/basic/scheme-others.sub.any.html]
-FAIL=Fetching aaa://localhost:42851/ is KO
-FAIL=Fetching cap://localhost:42851/ is KO
-FAIL=Fetching cid://localhost:42851/ is KO
-FAIL=Fetching dav://localhost:42851/ is KO
-FAIL=Fetching dict://localhost:42851/ is KO
-FAIL=Fetching dns://localhost:42851/ is KO
-FAIL=Fetching geo://localhost:42851/ is KO
-FAIL=Fetching im://localhost:42851/ is KO
-FAIL=Fetching imap://localhost:42851/ is KO
-FAIL=Fetching ipp://localhost:42851/ is KO
-FAIL=Fetching ldap://localhost:42851/ is KO
-FAIL=Fetching mailto://localhost:42851/ is KO
-FAIL=Fetching nfs://localhost:42851/ is KO
-FAIL=Fetching pop://localhost:42851/ is KO
-FAIL=Fetching rtsp://localhost:42851/ is KO
-FAIL=Fetching snmp://localhost:42851/ is KO
 [fetch/api/basic/status.h2.any.html]
 FAIL=statusText over H2 for status 200 should be the empty string
 FAIL=statusText over H2 for status 210 should be the empty string
@@ -376,8 +290,6 @@ FAIL=UTF-8 with BOM with fetched data (UTF-8 charset)
 FAIL=UTF-8 without BOM (Request object)
 FAIL=UTF-8 without BOM with Request.text()
 FAIL=UTF-8 without BOM with Response.text()
-FAIL=UTF-8 without BOM with fetched data (UTF-16 charset)
-FAIL=UTF-8 without BOM with fetched data (UTF-8 charset)
 [fetch/api/basic/url-parsing.sub.html]
 FAIL=Request uses the UTF-8 URL parser
 FAIL=Request's referrer uses the UTF-8 URL parser
@@ -414,25 +326,18 @@ FAIL=Request.textStream() with null body
 FAIL=Response.textStream() basic functionality
 FAIL=Response.textStream() ignores Content-Type charset (UTF-16LE)
 FAIL=Response.textStream() ignores invalid Content-Type charset (invalid-charset)
-FAIL=Response.textStream() on consumed body throws TypeError
-FAIL=Response.textStream() on locked body throws TypeError
 FAIL=Response.textStream() with empty body
 FAIL=Response.textStream() with null body
 FAIL=textStream method existence
 FAIL=textStream() handles chunked byte stream input
 [fetch/api/cors/cors-basic.any.html]
 FAIL=Cross domain basic usage [cors mode]
-FAIL=Cross domain basic usage [server forbid CORS]
 FAIL=Cross domain different port [cors mode]
-FAIL=Cross domain different port [server forbid CORS]
 FAIL=Cross domain different protocol [cors mode]
 FAIL=Cross domain different protocol [no-cors mode]
-FAIL=Cross domain different protocol [server forbid CORS]
 FAIL=Same domain different port [cors mode]
-FAIL=Same domain different port [server forbid CORS]
 FAIL=Same domain different protocol different port [cors mode]
 FAIL=Same domain different protocol different port [no-cors mode]
-FAIL=Same domain different protocol different port [server forbid CORS]
 [fetch/api/cors/cors-basic.any.worker.html]
 harness=TIMEOUT
 [fetch/api/cors/cors-cookies-redirect.any.html]
@@ -447,7 +352,6 @@ FAIL=Include mode: 1 cookie
 FAIL=Include mode: local cookies are not sent with remote request
 FAIL=Include mode: remote cookies are not sent with local request
 FAIL=Include mode: remote cookies are not sent with other remote request
-FAIL=Omit mode: no cookie sent
 FAIL=Same-origin mode: cookies are discarded in cors request
 [fetch/api/cors/cors-cookies.any.worker.html]
 harness=TIMEOUT
@@ -481,13 +385,6 @@ FAIL=CORS filter on Warning header, header is exposed
 harness=TIMEOUT
 [fetch/api/cors/cors-keepalive.any.html]
 harness=TIMEOUT
-[fetch/api/cors/cors-multiple-origins.sub.any.html]
-FAIL=Listing multiple origins is illegal: "",http://example.com,*
-FAIL=Listing multiple origins is illegal: "",http://example.com,http://localhost:42851
-FAIL=Listing multiple origins is illegal: "",http://localhost:42851,http://localhost:42851
-FAIL=Listing multiple origins is illegal: *,http://example.com,*
-FAIL=Listing multiple origins is illegal: *,http://example.com,http://localhost:42851
-FAIL=Listing multiple origins is illegal: ,http://example.com,https://example2.com
 [fetch/api/cors/cors-no-preflight.any.html]
 FAIL=Cross domain [GET] [Accept-Language: fr]
 FAIL=Cross domain [GET] [Accept: */*]
@@ -507,22 +404,7 @@ FAIL=Same domain different protocol different port [GET]
 [fetch/api/cors/cors-no-preflight.any.worker.html]
 harness=TIMEOUT
 [fetch/api/cors/cors-origin.any.html]
-FAIL=Allowed origin: "" [origin KO]
-FAIL=CORS preflight [PUT] [origin KO]
-FAIL=CORS preflight [PUT] [origin OK]
-FAIL=Cross domain [HEAD] [origin KO]
-FAIL=Cross domain [HEAD] [origin OK]
-FAIL=Cross domain [POST] [origin KO]
-FAIL=Cross domain [POST] [origin OK]
-FAIL=Cross domain different port [origin KO]
-FAIL=Cross domain different port [origin OK]
-FAIL=Cross domain different protocol [origin KO]
 FAIL=Cross domain different protocol [origin OK]
-FAIL=Cross domain different subdomain [origin KO]
-FAIL=Cross domain different subdomain [origin OK]
-FAIL=Same domain different port [origin KO]
-FAIL=Same domain different port [origin OK]
-FAIL=Same domain different protocol different port [origin KO]
 FAIL=Same domain different protocol different port [origin OK]
 [fetch/api/cors/cors-origin.any.worker.html]
 harness=TIMEOUT
@@ -545,17 +427,6 @@ FAIL=Need CORS-preflight for range/bytes 0- header
 FAIL=Need CORS-preflight for test/hi header
 [fetch/api/cors/cors-preflight-not-cors-safelisted.any.worker.html]
 harness=TIMEOUT
-[fetch/api/cors/cors-preflight-redirect.any.html]
-FAIL=Redirection 301 after preflight failed
-FAIL=Redirection 301 on preflight failed
-FAIL=Redirection 302 after preflight failed
-FAIL=Redirection 302 on preflight failed
-FAIL=Redirection 303 after preflight failed
-FAIL=Redirection 303 on preflight failed
-FAIL=Redirection 307 after preflight failed
-FAIL=Redirection 307 on preflight failed
-FAIL=Redirection 308 after preflight failed
-FAIL=Redirection 308 on preflight failed
 [fetch/api/cors/cors-preflight-referrer.any.html]
 FAIL=Referrer policy: "" and referrer: 'myreferrer'
 FAIL=Referrer policy: "" and referrer: default
@@ -577,7 +448,32 @@ FAIL=Preflight response with a bad Access-Control-Allow-Methods
 [fetch/api/cors/cors-preflight-response-validation.any.worker.html]
 harness=TIMEOUT
 [fetch/api/cors/cors-preflight-star.any.html]
-harness=TIMEOUT
+FAIL=CORS that fails with credentials: false; method: POST (allowed: *); header: Authorization,123 (allowed: *)
+FAIL=CORS that fails with credentials: true; method: GET (allowed: *); header: X-Test,1 (allowed: *)
+FAIL=CORS that fails with credentials: true; method: GET (allowed: get); header: X-Test,1 (allowed: *)
+FAIL=CORS that succeeds with credentials: false; method: GET (allowed: get); header: X-Test,1 (allowed: x-test)
+FAIL=CORS that succeeds with credentials: false; method: OK (allowed: *); header: X-Test,1 (allowed: *)
+FAIL=CORS that succeeds with credentials: false; method: POST (allowed: *); header: Authorization,123 (allowed: *, Authorization)
+FAIL=CORS that succeeds with credentials: false; method: SUPER (allowed: *); header: X-Test,1 (allowed: x-test)
+FAIL=CORS that succeeds with credentials: true; method: * (allowed: *); header: *,1 (allowed: *)
+FAIL=CORS that succeeds with credentials: true; method: DELETE (allowed: DELETE); header:  (allowed: *)
+FAIL=CORS that succeeds with credentials: true; method: GET (allowed: GET); header:  (allowed: *)
+FAIL=CORS that succeeds with credentials: true; method: GET (allowed: get); header:  (allowed: *)
+FAIL=CORS that succeeds with credentials: true; method: HEAD (allowed: HEAD); header:  (allowed: *)
+FAIL=CORS that succeeds with credentials: true; method: HEAD (allowed: head); header:  (allowed: *)
+FAIL=CORS that succeeds with credentials: true; method: PATCH (allowed: PATCH); header:  (allowed: *)
+FAIL=CORS that succeeds with credentials: true; method: POST (allowed: POST); header:  (allowed: *)
+FAIL=CORS that succeeds with credentials: true; method: POST (allowed: post); header:  (allowed: *)
+FAIL=CORS that succeeds with credentials: true; method: PUT (allowed: PUT); header:  (allowed: *)
+FAIL=CORS that succeeds with credentials: true; method: delete (allowed: DELETE); header:  (allowed: *)
+FAIL=CORS that succeeds with credentials: true; method: get (allowed: GET); header:  (allowed: *)
+FAIL=CORS that succeeds with credentials: true; method: get (allowed: get); header:  (allowed: *)
+FAIL=CORS that succeeds with credentials: true; method: head (allowed: HEAD); header:  (allowed: *)
+FAIL=CORS that succeeds with credentials: true; method: head (allowed: head); header:  (allowed: *)
+FAIL=CORS that succeeds with credentials: true; method: patch (allowed: patch); header:  (allowed: *)
+FAIL=CORS that succeeds with credentials: true; method: post (allowed: POST); header:  (allowed: *)
+FAIL=CORS that succeeds with credentials: true; method: post (allowed: post); header:  (allowed: *)
+FAIL=CORS that succeeds with credentials: true; method: put (allowed: PUT); header:  (allowed: *)
 [fetch/api/cors/cors-preflight-star.any.worker.html]
 harness=TIMEOUT
 [fetch/api/cors/cors-preflight-status.any.html]
@@ -611,121 +507,58 @@ FAIL=Preflight answered with status 505
 [fetch/api/cors/cors-preflight-status.any.worker.html]
 harness=TIMEOUT
 [fetch/api/cors/cors-preflight.any.html]
-FAIL="authorization" should be covered by "authorization"
 FAIL="authorization" should not be covered by the wildcard symbol
 FAIL=CORS [DELETE], server allows
-FAIL=CORS [DELETE], server refuses
 FAIL=CORS [GET] [several headers], server allows
 FAIL=CORS [GET] [several headers], server refuses
 FAIL=CORS [GET] [x-test-header: allowed], server allows
 FAIL=CORS [GET] [x-test-header: refused], server refuses
 FAIL=CORS [NEW], server allows
-FAIL=CORS [NEW], server refuses
 FAIL=CORS [PATCH], server allows
-FAIL=CORS [PATCH], server refuses
 FAIL=CORS [PUT] [only safe headers], server allows
 FAIL=CORS [PUT] [several headers], server allows
-FAIL=CORS [PUT] [several headers], server refuses
 FAIL=CORS [PUT], server allows
 FAIL=CORS [PUT], server allows, check preflight has user agent
-FAIL=CORS [PUT], server refuses
 FAIL=CORS [chicken], server allows
-FAIL=CORS [chicken], server refuses
 FAIL=CORS [patcH], server allows
-FAIL=CORS [patcH], server refuses
 [fetch/api/cors/cors-preflight.any.worker.html]
 harness=TIMEOUT
 [fetch/api/cors/cors-redirect-credentials.any.html]
-FAIL=Redirect 301 from remote to another remote with password
-FAIL=Redirect 301 from remote to another remote with user
-FAIL=Redirect 301 from remote to another remote with user and password
-FAIL=Redirect 301 from remote to same origin with password
-FAIL=Redirect 301 from remote to same origin with user
-FAIL=Redirect 301 from remote to same origin with user and password
-FAIL=Redirect 301 from remote to same remote with password
-FAIL=Redirect 301 from remote to same remote with user
-FAIL=Redirect 301 from remote to same remote with user and password
 FAIL=Redirect 301 from same origin to remote with password
 FAIL=Redirect 301 from same origin to remote with user
 FAIL=Redirect 301 from same origin to remote with user and password
-FAIL=Redirect 302 from remote to another remote with password
-FAIL=Redirect 302 from remote to another remote with user
-FAIL=Redirect 302 from remote to another remote with user and password
-FAIL=Redirect 302 from remote to same origin with password
-FAIL=Redirect 302 from remote to same origin with user
-FAIL=Redirect 302 from remote to same origin with user and password
-FAIL=Redirect 302 from remote to same remote with password
-FAIL=Redirect 302 from remote to same remote with user
-FAIL=Redirect 302 from remote to same remote with user and password
 FAIL=Redirect 302 from same origin to remote with password
 FAIL=Redirect 302 from same origin to remote with user
 FAIL=Redirect 302 from same origin to remote with user and password
-FAIL=Redirect 303 from remote to another remote with password
-FAIL=Redirect 303 from remote to another remote with user
-FAIL=Redirect 303 from remote to another remote with user and password
-FAIL=Redirect 303 from remote to same origin with password
-FAIL=Redirect 303 from remote to same origin with user
-FAIL=Redirect 303 from remote to same origin with user and password
-FAIL=Redirect 303 from remote to same remote with password
-FAIL=Redirect 303 from remote to same remote with user
-FAIL=Redirect 303 from remote to same remote with user and password
 FAIL=Redirect 303 from same origin to remote with password
 FAIL=Redirect 303 from same origin to remote with user
 FAIL=Redirect 303 from same origin to remote with user and password
-FAIL=Redirect 307 from remote to another remote with password
-FAIL=Redirect 307 from remote to another remote with user
-FAIL=Redirect 307 from remote to another remote with user and password
-FAIL=Redirect 307 from remote to same origin with password
-FAIL=Redirect 307 from remote to same origin with user
-FAIL=Redirect 307 from remote to same origin with user and password
-FAIL=Redirect 307 from remote to same remote with password
-FAIL=Redirect 307 from remote to same remote with user
-FAIL=Redirect 307 from remote to same remote with user and password
 FAIL=Redirect 307 from same origin to remote with password
 FAIL=Redirect 307 from same origin to remote with user
 FAIL=Redirect 307 from same origin to remote with user and password
-FAIL=Redirect 308 from remote to another remote with password
-FAIL=Redirect 308 from remote to another remote with user
-FAIL=Redirect 308 from remote to another remote with user and password
-FAIL=Redirect 308 from remote to same origin with password
-FAIL=Redirect 308 from remote to same origin with user
-FAIL=Redirect 308 from remote to same origin with user and password
-FAIL=Redirect 308 from remote to same remote with password
-FAIL=Redirect 308 from remote to same remote with user
-FAIL=Redirect 308 from remote to same remote with user and password
 FAIL=Redirect 308 from same origin to remote with password
 FAIL=Redirect 308 from same origin to remote with user
 FAIL=Redirect 308 from same origin to remote with user and password
 [fetch/api/cors/cors-redirect-credentials.any.worker.html]
 harness=TIMEOUT
 [fetch/api/cors/cors-redirect-preflight.any.html]
-FAIL=Redirect 301: cors to another cors (preflight after redirection failure case)
 FAIL=Redirect 301: cors to another cors (preflight after redirection success case)
-FAIL=Redirect 301: cors to same origin (preflight after redirection failure case)
 FAIL=Redirect 301: cors to same origin (preflight after redirection success case)
 FAIL=Redirect 301: same origin to cors (preflight after redirection failure case)
 FAIL=Redirect 301: same origin to cors (preflight after redirection success case)
-FAIL=Redirect 302: cors to another cors (preflight after redirection failure case)
 FAIL=Redirect 302: cors to another cors (preflight after redirection success case)
-FAIL=Redirect 302: cors to same origin (preflight after redirection failure case)
 FAIL=Redirect 302: cors to same origin (preflight after redirection success case)
 FAIL=Redirect 302: same origin to cors (preflight after redirection failure case)
 FAIL=Redirect 302: same origin to cors (preflight after redirection success case)
-FAIL=Redirect 303: cors to another cors (preflight after redirection failure case)
 FAIL=Redirect 303: cors to another cors (preflight after redirection success case)
-FAIL=Redirect 303: cors to same origin (preflight after redirection failure case)
 FAIL=Redirect 303: cors to same origin (preflight after redirection success case)
 FAIL=Redirect 303: same origin to cors (preflight after redirection failure case)
 FAIL=Redirect 303: same origin to cors (preflight after redirection success case)
-FAIL=Redirect 307: cors to another cors (preflight after redirection failure case)
 FAIL=Redirect 307: cors to another cors (preflight after redirection success case)
-FAIL=Redirect 307: cors to same origin (preflight after redirection failure case)
 FAIL=Redirect 307: cors to same origin (preflight after redirection success case)
 FAIL=Redirect 307: same origin to cors (preflight after redirection failure case)
 FAIL=Redirect 307: same origin to cors (preflight after redirection success case)
-FAIL=Redirect 308: cors to another cors (preflight after redirection failure case)
 FAIL=Redirect 308: cors to another cors (preflight after redirection success case)
-FAIL=Redirect 308: cors to same origin (preflight after redirection failure case)
 FAIL=Redirect 308: cors to same origin (preflight after redirection success case)
 FAIL=Redirect 308: same origin to cors (preflight after redirection failure case)
 FAIL=Redirect 308: same origin to cors (preflight after redirection success case)
@@ -774,7 +607,10 @@ FAIL=getAuthorizationHeaderValue - cross origin redirection
 FAIL=getAuthorizationHeaderValue - no redirection
 FAIL=getAuthorizationHeaderValue - same origin redirection
 [fetch/api/credentials/cookies.any.html]
-harness=TIMEOUT
+FAIL=Include mode: 1 cookie
+FAIL=Include mode: 2 cookies
+FAIL=Same-origin mode: 1 cookie
+FAIL=Same-origin mode: 2 cookies
 [fetch/api/headers/header-setcookie.any.html]
 FAIL=Adding Set-Cookie headers normalizes their value
 FAIL=Adding invalid Set-Cookie headers throws
@@ -899,68 +735,67 @@ FAIL=Create headers giving an array having one string as init argument
 FAIL=Create headers giving an array having three strings as init argument
 FAIL=Create headers giving bad header name as init argument
 FAIL=Create headers giving bad header value as init argument
-FAIL=Headers forEach throws if argument is not callable
 [fetch/api/headers/headers-forbidden-override.any.html]
-FAIL=header X-HTTP-METHOD is forbidden to use value
 FAIL=header X-HTTP-METHOD is forbidden to use value 	track
+FAIL:esc=header X-HTTP-METHOD is forbidden to use value \nconnect
 FAIL=header X-HTTP-METHOD is forbidden to use value  connect
 FAIL=header X-HTTP-METHOD is forbidden to use value CONNECT
-FAIL=header X-HTTP-METHOD is forbidden to use value GET,track
+FAIL:esc=header X-HTTP-METHOD is forbidden to use value GET,track 
 FAIL=header X-HTTP-METHOD is forbidden to use value TRACE
 FAIL=header X-HTTP-METHOD is forbidden to use value TRACK
 FAIL=header X-HTTP-METHOD is forbidden to use value connect
 FAIL=header X-HTTP-METHOD is forbidden to use value trace
 FAIL=header X-HTTP-METHOD is forbidden to use value trace,
 FAIL=header X-HTTP-METHOD is forbidden to use value track
-FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value
 FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value 	track
+FAIL:esc=header X-HTTP-METHOD-OVERRIDE is forbidden to use value \nconnect
 FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value  connect
 FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value CONNECT
-FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value GET,track
+FAIL:esc=header X-HTTP-METHOD-OVERRIDE is forbidden to use value GET,track 
 FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value TRACE
 FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value TRACK
 FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value connect
 FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value trace
 FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value trace,
 FAIL=header X-HTTP-METHOD-OVERRIDE is forbidden to use value track
-FAIL=header X-METHOD-OVERRIDE is forbidden to use value
 FAIL=header X-METHOD-OVERRIDE is forbidden to use value 	track
+FAIL:esc=header X-METHOD-OVERRIDE is forbidden to use value \nconnect
 FAIL=header X-METHOD-OVERRIDE is forbidden to use value  connect
 FAIL=header X-METHOD-OVERRIDE is forbidden to use value CONNECT
-FAIL=header X-METHOD-OVERRIDE is forbidden to use value GET,track
+FAIL:esc=header X-METHOD-OVERRIDE is forbidden to use value GET,track 
 FAIL=header X-METHOD-OVERRIDE is forbidden to use value TRACE
 FAIL=header X-METHOD-OVERRIDE is forbidden to use value TRACK
 FAIL=header X-METHOD-OVERRIDE is forbidden to use value connect
 FAIL=header X-METHOD-OVERRIDE is forbidden to use value trace
 FAIL=header X-METHOD-OVERRIDE is forbidden to use value trace,
 FAIL=header X-METHOD-OVERRIDE is forbidden to use value track
-FAIL=header x-http-method is forbidden to use value
 FAIL=header x-http-method is forbidden to use value 	track
+FAIL:esc=header x-http-method is forbidden to use value \nconnect
 FAIL=header x-http-method is forbidden to use value  connect
 FAIL=header x-http-method is forbidden to use value CONNECT
-FAIL=header x-http-method is forbidden to use value GET,track
+FAIL:esc=header x-http-method is forbidden to use value GET,track 
 FAIL=header x-http-method is forbidden to use value TRACE
 FAIL=header x-http-method is forbidden to use value TRACK
 FAIL=header x-http-method is forbidden to use value connect
 FAIL=header x-http-method is forbidden to use value trace
 FAIL=header x-http-method is forbidden to use value trace,
 FAIL=header x-http-method is forbidden to use value track
-FAIL=header x-http-method-override is forbidden to use value
 FAIL=header x-http-method-override is forbidden to use value 	track
+FAIL:esc=header x-http-method-override is forbidden to use value \nconnect
 FAIL=header x-http-method-override is forbidden to use value  connect
 FAIL=header x-http-method-override is forbidden to use value CONNECT
-FAIL=header x-http-method-override is forbidden to use value GET,track
+FAIL:esc=header x-http-method-override is forbidden to use value GET,track 
 FAIL=header x-http-method-override is forbidden to use value TRACE
 FAIL=header x-http-method-override is forbidden to use value TRACK
 FAIL=header x-http-method-override is forbidden to use value connect
 FAIL=header x-http-method-override is forbidden to use value trace
 FAIL=header x-http-method-override is forbidden to use value trace,
 FAIL=header x-http-method-override is forbidden to use value track
-FAIL=header x-method-override is forbidden to use value
 FAIL=header x-method-override is forbidden to use value 	track
+FAIL:esc=header x-method-override is forbidden to use value \nconnect
 FAIL=header x-method-override is forbidden to use value  connect
 FAIL=header x-method-override is forbidden to use value CONNECT
-FAIL=header x-method-override is forbidden to use value GET,track
+FAIL:esc=header x-method-override is forbidden to use value GET,track 
 FAIL=header x-method-override is forbidden to use value TRACE
 FAIL=header x-method-override is forbidden to use value TRACK
 FAIL=header x-method-override is forbidden to use value connect
@@ -1014,14 +849,10 @@ FAIL=Passing null to Headers constructor
 FAIL=idl_test setup
 [fetch/api/policies/csp-blocked-worker.html]
 harness=TIMEOUT
-[fetch/api/policies/csp-blocked.html]
-FAIL=Fetch is blocked by CSP, got a TypeError
 [fetch/api/policies/referrer-no-referrer-service-worker.https.html]
 harness=TIMEOUT
 [fetch/api/policies/referrer-no-referrer-worker.html]
 harness=TIMEOUT
-[fetch/api/policies/referrer-no-referrer.html]
-FAIL=Request's referrer is empty
 [fetch/api/policies/referrer-origin-service-worker.https.html]
 harness=TIMEOUT
 [fetch/api/policies/referrer-origin-when-cross-origin-service-worker.https.html]
@@ -1042,87 +873,47 @@ harness=TIMEOUT
 [fetch/api/policies/referrer-unsafe-url.html]
 FAIL=Request's referrer is the full url of current document/worker
 [fetch/api/redirect/redirect-back-to-original-origin.any.html]
-harness=TIMEOUT
+FAIL=original => remote => original with mode: "cors"
+FAIL=original => remote => original with mode: "no-cors"
 [fetch/api/redirect/redirect-count.any.html]
 FAIL=Redirect 301 20 times
-FAIL=Redirect 301 21 times
 FAIL=Redirect 302 20 times
-FAIL=Redirect 302 21 times
 FAIL=Redirect 303 20 times
-FAIL=Redirect 303 21 times
 FAIL=Redirect 307 20 times
-FAIL=Redirect 307 21 times
 FAIL=Redirect 308 20 times
-FAIL=Redirect 308 21 times
 [fetch/api/redirect/redirect-empty-location.any.html]
 FAIL=redirect response with empty Location, follow mode
 FAIL=redirect response with empty Location, manual mode
 [fetch/api/redirect/redirect-keepalive.any.html]
-FAIL=[keepalive][new window][unload] cross-origin redirect + preflight; setting up
-FAIL=[keepalive][new window][unload] cross-origin redirect; setting up
-FAIL=[keepalive][new window][unload] redirect to data URL; setting up
-FAIL=[keepalive][new window][unload] redirect to file URL; setting up
-FAIL=[keepalive][new window][unload] same-origin redirect + preflight; setting up
-FAIL=[keepalive][new window][unload] same-origin redirect; setting up
+harness=TIMEOUT
 [fetch/api/redirect/redirect-keepalive.https.any.html]
 harness=TIMEOUT
-[fetch/api/redirect/redirect-location-escape.tentative.any.html]
-FAIL=Escaping produces double-percent
-FAIL=Redirect to escaped UTF-8
-FAIL=Redirect to escaped and unescaped UTF-8
-FAIL=Redirect to invalid UTF-8
-FAIL=Redirect to unescaped UTF-8
 [fetch/api/redirect/redirect-location.any.html]
-FAIL=Redirect 301 in "error" mode with data location
-FAIL=Redirect 301 in "error" mode with invalid location
 FAIL=Redirect 301 in "error" mode with valid location
-FAIL=Redirect 301 in "follow" mode with data location
-FAIL=Redirect 301 in "follow" mode with invalid location
-FAIL=Redirect 301 in "follow" mode with valid location
 FAIL=Redirect 301 in "follow" mode without location
 FAIL=Redirect 301 in "manual" mode with data location
 FAIL=Redirect 301 in "manual" mode with invalid location
 FAIL=Redirect 301 in "manual" mode with valid location
 FAIL=Redirect 301 in "manual" mode without location
-FAIL=Redirect 302 in "error" mode with data location
-FAIL=Redirect 302 in "error" mode with invalid location
 FAIL=Redirect 302 in "error" mode with valid location
-FAIL=Redirect 302 in "follow" mode with data location
-FAIL=Redirect 302 in "follow" mode with invalid location
-FAIL=Redirect 302 in "follow" mode with valid location
 FAIL=Redirect 302 in "follow" mode without location
 FAIL=Redirect 302 in "manual" mode with data location
 FAIL=Redirect 302 in "manual" mode with invalid location
 FAIL=Redirect 302 in "manual" mode with valid location
 FAIL=Redirect 302 in "manual" mode without location
-FAIL=Redirect 303 in "error" mode with data location
-FAIL=Redirect 303 in "error" mode with invalid location
 FAIL=Redirect 303 in "error" mode with valid location
-FAIL=Redirect 303 in "follow" mode with data location
-FAIL=Redirect 303 in "follow" mode with invalid location
-FAIL=Redirect 303 in "follow" mode with valid location
 FAIL=Redirect 303 in "follow" mode without location
 FAIL=Redirect 303 in "manual" mode with data location
 FAIL=Redirect 303 in "manual" mode with invalid location
 FAIL=Redirect 303 in "manual" mode with valid location
 FAIL=Redirect 303 in "manual" mode without location
-FAIL=Redirect 307 in "error" mode with data location
-FAIL=Redirect 307 in "error" mode with invalid location
 FAIL=Redirect 307 in "error" mode with valid location
-FAIL=Redirect 307 in "follow" mode with data location
-FAIL=Redirect 307 in "follow" mode with invalid location
-FAIL=Redirect 307 in "follow" mode with valid location
 FAIL=Redirect 307 in "follow" mode without location
 FAIL=Redirect 307 in "manual" mode with data location
 FAIL=Redirect 307 in "manual" mode with invalid location
 FAIL=Redirect 307 in "manual" mode with valid location
 FAIL=Redirect 307 in "manual" mode without location
-FAIL=Redirect 308 in "error" mode with data location
-FAIL=Redirect 308 in "error" mode with invalid location
 FAIL=Redirect 308 in "error" mode with valid location
-FAIL=Redirect 308 in "follow" mode with data location
-FAIL=Redirect 308 in "follow" mode with invalid location
-FAIL=Redirect 308 in "follow" mode with valid location
 FAIL=Redirect 308 in "follow" mode without location
 FAIL=Redirect 308 in "manual" mode with data location
 FAIL=Redirect 308 in "manual" mode with invalid location
@@ -1145,65 +936,44 @@ FAIL=Redirect 307 with POST (blob body)
 FAIL=Redirect 307 with POST (string body)
 FAIL=Response.redirected should be false on not-redirected responses
 [fetch/api/redirect/redirect-mode.any.html]
-FAIL=cross-origin redirect 301 in error redirect and cors mode
 FAIL=cross-origin redirect 301 in error redirect and no-cors mode
 FAIL=cross-origin redirect 301 in follow redirect and cors mode
-FAIL=cross-origin redirect 301 in follow redirect and no-cors mode
 FAIL=cross-origin redirect 301 in manual redirect and cors mode
 FAIL=cross-origin redirect 301 in manual redirect and no-cors mode
-FAIL=cross-origin redirect 302 in error redirect and cors mode
 FAIL=cross-origin redirect 302 in error redirect and no-cors mode
 FAIL=cross-origin redirect 302 in follow redirect and cors mode
-FAIL=cross-origin redirect 302 in follow redirect and no-cors mode
 FAIL=cross-origin redirect 302 in manual redirect and cors mode
 FAIL=cross-origin redirect 302 in manual redirect and no-cors mode
-FAIL=cross-origin redirect 303 in error redirect and cors mode
 FAIL=cross-origin redirect 303 in error redirect and no-cors mode
 FAIL=cross-origin redirect 303 in follow redirect and cors mode
-FAIL=cross-origin redirect 303 in follow redirect and no-cors mode
 FAIL=cross-origin redirect 303 in manual redirect and cors mode
 FAIL=cross-origin redirect 303 in manual redirect and no-cors mode
-FAIL=cross-origin redirect 307 in error redirect and cors mode
 FAIL=cross-origin redirect 307 in error redirect and no-cors mode
 FAIL=cross-origin redirect 307 in follow redirect and cors mode
-FAIL=cross-origin redirect 307 in follow redirect and no-cors mode
 FAIL=cross-origin redirect 307 in manual redirect and cors mode
 FAIL=cross-origin redirect 307 in manual redirect and no-cors mode
-FAIL=cross-origin redirect 308 in error redirect and cors mode
 FAIL=cross-origin redirect 308 in error redirect and no-cors mode
 FAIL=cross-origin redirect 308 in follow redirect and cors mode
-FAIL=cross-origin redirect 308 in follow redirect and no-cors mode
 FAIL=cross-origin redirect 308 in manual redirect and cors mode
 FAIL=cross-origin redirect 308 in manual redirect and no-cors mode
-FAIL=manual redirect with a CORS error should be rejected
 FAIL=same-origin redirect 301 in error redirect and cors mode
 FAIL=same-origin redirect 301 in error redirect and no-cors mode
-FAIL=same-origin redirect 301 in follow redirect and cors mode
-FAIL=same-origin redirect 301 in follow redirect and no-cors mode
 FAIL=same-origin redirect 301 in manual redirect and cors mode
 FAIL=same-origin redirect 301 in manual redirect and no-cors mode
 FAIL=same-origin redirect 302 in error redirect and cors mode
 FAIL=same-origin redirect 302 in error redirect and no-cors mode
-FAIL=same-origin redirect 302 in follow redirect and cors mode
-FAIL=same-origin redirect 302 in follow redirect and no-cors mode
 FAIL=same-origin redirect 302 in manual redirect and cors mode
 FAIL=same-origin redirect 302 in manual redirect and no-cors mode
 FAIL=same-origin redirect 303 in error redirect and cors mode
 FAIL=same-origin redirect 303 in error redirect and no-cors mode
-FAIL=same-origin redirect 303 in follow redirect and cors mode
-FAIL=same-origin redirect 303 in follow redirect and no-cors mode
 FAIL=same-origin redirect 303 in manual redirect and cors mode
 FAIL=same-origin redirect 303 in manual redirect and no-cors mode
 FAIL=same-origin redirect 307 in error redirect and cors mode
 FAIL=same-origin redirect 307 in error redirect and no-cors mode
-FAIL=same-origin redirect 307 in follow redirect and cors mode
-FAIL=same-origin redirect 307 in follow redirect and no-cors mode
 FAIL=same-origin redirect 307 in manual redirect and cors mode
 FAIL=same-origin redirect 307 in manual redirect and no-cors mode
 FAIL=same-origin redirect 308 in error redirect and cors mode
 FAIL=same-origin redirect 308 in error redirect and no-cors mode
-FAIL=same-origin redirect 308 in follow redirect and cors mode
-FAIL=same-origin redirect 308 in follow redirect and no-cors mode
 FAIL=same-origin redirect 308 in manual redirect and cors mode
 FAIL=same-origin redirect 308 in manual redirect and no-cors mode
 [fetch/api/redirect/redirect-mode.any.worker.html]
@@ -1212,230 +982,160 @@ harness=TIMEOUT
 FAIL=[GET] Redirect 301 Other origin to other origin
 FAIL=[GET] Redirect 301 Other origin to same origin
 FAIL=[GET] Redirect 301 Same origin to other origin
-FAIL=[GET] Redirect 301 Same origin to same origin
 FAIL=[GET] Redirect 302 Other origin to other origin
 FAIL=[GET] Redirect 302 Other origin to same origin
 FAIL=[GET] Redirect 302 Same origin to other origin
-FAIL=[GET] Redirect 302 Same origin to same origin
 FAIL=[GET] Redirect 303 Other origin to other origin
 FAIL=[GET] Redirect 303 Other origin to same origin
 FAIL=[GET] Redirect 303 Same origin to other origin
-FAIL=[GET] Redirect 303 Same origin to same origin
 FAIL=[GET] Redirect 307 Other origin to other origin
 FAIL=[GET] Redirect 307 Other origin to same origin
 FAIL=[GET] Redirect 307 Same origin to other origin
-FAIL=[GET] Redirect 307 Same origin to same origin
 FAIL=[GET] Redirect 308 Other origin to other origin
 FAIL=[GET] Redirect 308 Other origin to same origin
 FAIL=[GET] Redirect 308 Same origin to other origin
-FAIL=[GET] Redirect 308 Same origin to same origin
 FAIL=[POST] Redirect 301 Other origin to other origin
 FAIL=[POST] Redirect 301 Other origin to same origin
 FAIL=[POST] Redirect 301 Same origin to other origin
-FAIL=[POST] Redirect 301 Same origin to same origin
 FAIL=[POST] Redirect 302 Other origin to other origin
 FAIL=[POST] Redirect 302 Other origin to same origin
 FAIL=[POST] Redirect 302 Same origin to other origin
-FAIL=[POST] Redirect 302 Same origin to same origin
 FAIL=[POST] Redirect 303 Other origin to other origin
 FAIL=[POST] Redirect 303 Other origin to same origin
 FAIL=[POST] Redirect 303 Same origin to other origin
-FAIL=[POST] Redirect 303 Same origin to same origin
 FAIL=[POST] Redirect 307 Other origin to other origin
 FAIL=[POST] Redirect 307 Other origin to same origin
 FAIL=[POST] Redirect 307 Same origin to other origin
-FAIL=[POST] Redirect 307 Same origin to same origin
 FAIL=[POST] Redirect 308 Other origin to other origin
 FAIL=[POST] Redirect 308 Other origin to same origin
 FAIL=[POST] Redirect 308 Same origin to other origin
-FAIL=[POST] Redirect 308 Same origin to same origin
 [fetch/api/redirect/redirect-origin.any.worker.html]
 harness=TIMEOUT
 [fetch/api/redirect/redirect-referrer-override.any.html]
-FAIL=Cross origin redirection, no-referrer init, no-referrer redirect header
-FAIL=Cross origin redirection, no-referrer init, no-referrer-when-downgrade redirect header
-FAIL=Cross origin redirection, no-referrer init, origin redirect header
-FAIL=Cross origin redirection, no-referrer init, origin-when-cross-origin redirect header
-FAIL=Cross origin redirection, no-referrer init, same-origin redirect header
-FAIL=Cross origin redirection, no-referrer init, strict-origin redirect header
-FAIL=Cross origin redirection, no-referrer init, strict-origin-when-cross-origin redirect header
-FAIL=Cross origin redirection, no-referrer init, unsafe-url redirect header
-FAIL=Cross origin redirection, no-referrer-when-downgrade init, no-referrer redirect header
-FAIL=Cross origin redirection, no-referrer-when-downgrade init, no-referrer-when-downgrade redirect header
-FAIL=Cross origin redirection, no-referrer-when-downgrade init, origin redirect header
-FAIL=Cross origin redirection, no-referrer-when-downgrade init, origin-when-cross-origin redirect header
-FAIL=Cross origin redirection, no-referrer-when-downgrade init, same-origin redirect header
-FAIL=Cross origin redirection, no-referrer-when-downgrade init, strict-origin redirect header
-FAIL=Cross origin redirection, no-referrer-when-downgrade init, strict-origin-when-cross-origin redirect header
-FAIL=Cross origin redirection, no-referrer-when-downgrade init, unsafe-url redirect header
-FAIL=Cross origin redirection, origin init, no-referrer redirect header
-FAIL=Cross origin redirection, origin init, no-referrer-when-downgrade redirect header
-FAIL=Cross origin redirection, origin init, origin redirect header
-FAIL=Cross origin redirection, origin init, origin-when-cross-origin redirect header
-FAIL=Cross origin redirection, origin init, same-origin redirect header
-FAIL=Cross origin redirection, origin init, strict-origin redirect header
-FAIL=Cross origin redirection, origin init, strict-origin-when-cross-origin redirect header
-FAIL=Cross origin redirection, origin init, unsafe-url redirect header
-FAIL=Cross origin redirection, origin-when-cross-origin init, no-referrer redirect header
-FAIL=Cross origin redirection, origin-when-cross-origin init, no-referrer-when-downgrade redirect header
-FAIL=Cross origin redirection, origin-when-cross-origin init, origin redirect header
-FAIL=Cross origin redirection, origin-when-cross-origin init, origin-when-cross-origin redirect header
-FAIL=Cross origin redirection, origin-when-cross-origin init, same-origin redirect header
-FAIL=Cross origin redirection, origin-when-cross-origin init, strict-origin redirect header
-FAIL=Cross origin redirection, origin-when-cross-origin init, strict-origin-when-cross-origin redirect header
-FAIL=Cross origin redirection, origin-when-cross-origin init, unsafe-url redirect header
-FAIL=Cross origin redirection, same-origin init, no-referrer redirect header
-FAIL=Cross origin redirection, same-origin init, no-referrer-when-downgrade redirect header
-FAIL=Cross origin redirection, same-origin init, origin redirect header
-FAIL=Cross origin redirection, same-origin init, origin-when-cross-origin redirect header
-FAIL=Cross origin redirection, same-origin init, same-origin redirect header
-FAIL=Cross origin redirection, same-origin init, strict-origin redirect header
-FAIL=Cross origin redirection, same-origin init, strict-origin-when-cross-origin redirect header
-FAIL=Cross origin redirection, same-origin init, unsafe-url redirect header
-FAIL=Cross origin redirection, strict-origin init, no-referrer redirect header
-FAIL=Cross origin redirection, strict-origin init, no-referrer-when-downgrade redirect header
-FAIL=Cross origin redirection, strict-origin init, origin redirect header
-FAIL=Cross origin redirection, strict-origin init, origin-when-cross-origin redirect header
-FAIL=Cross origin redirection, strict-origin init, same-origin redirect header
-FAIL=Cross origin redirection, strict-origin init, strict-origin redirect header
-FAIL=Cross origin redirection, strict-origin init, strict-origin-when-cross-origin redirect header
-FAIL=Cross origin redirection, strict-origin init, unsafe-url redirect header
-FAIL=Cross origin redirection, strict-origin-when-cross-origin init, no-referrer redirect header
-FAIL=Cross origin redirection, strict-origin-when-cross-origin init, no-referrer-when-downgrade redirect header
-FAIL=Cross origin redirection, strict-origin-when-cross-origin init, origin redirect header
-FAIL=Cross origin redirection, strict-origin-when-cross-origin init, origin-when-cross-origin redirect header
-FAIL=Cross origin redirection, strict-origin-when-cross-origin init, same-origin redirect header
-FAIL=Cross origin redirection, strict-origin-when-cross-origin init, strict-origin redirect header
-FAIL=Cross origin redirection, strict-origin-when-cross-origin init, strict-origin-when-cross-origin redirect header
-FAIL=Cross origin redirection, strict-origin-when-cross-origin init, unsafe-url redirect header
-FAIL=Cross origin redirection, unsafe-url init, no-referrer redirect header
-FAIL=Cross origin redirection, unsafe-url init, no-referrer-when-downgrade redirect header
-FAIL=Cross origin redirection, unsafe-url init, origin redirect header
-FAIL=Cross origin redirection, unsafe-url init, origin-when-cross-origin redirect header
-FAIL=Cross origin redirection, unsafe-url init, same-origin redirect header
-FAIL=Cross origin redirection, unsafe-url init, strict-origin redirect header
-FAIL=Cross origin redirection, unsafe-url init, strict-origin-when-cross-origin redirect header
-FAIL=Cross origin redirection, unsafe-url init, unsafe-url redirect header
-FAIL=Same origin redirection, no-referrer init, no-referrer redirect header
-FAIL=Same origin redirection, no-referrer init, no-referrer-when-downgrade redirect header
-FAIL=Same origin redirection, no-referrer init, origin redirect header
-FAIL=Same origin redirection, no-referrer init, origin-when-cross-origin redirect header
-FAIL=Same origin redirection, no-referrer init, same-origin redirect header
-FAIL=Same origin redirection, no-referrer init, strict-origin redirect header
-FAIL=Same origin redirection, no-referrer init, strict-origin-when-cross-origin redirect header
-FAIL=Same origin redirection, no-referrer init, unsafe-url redirect header
-FAIL=Same origin redirection, no-referrer-when-downgrade init, no-referrer redirect header
-FAIL=Same origin redirection, no-referrer-when-downgrade init, no-referrer-when-downgrade redirect header
-FAIL=Same origin redirection, no-referrer-when-downgrade init, origin redirect header
-FAIL=Same origin redirection, no-referrer-when-downgrade init, origin-when-cross-origin redirect header
-FAIL=Same origin redirection, no-referrer-when-downgrade init, same-origin redirect header
-FAIL=Same origin redirection, no-referrer-when-downgrade init, strict-origin redirect header
-FAIL=Same origin redirection, no-referrer-when-downgrade init, strict-origin-when-cross-origin redirect header
-FAIL=Same origin redirection, no-referrer-when-downgrade init, unsafe-url redirect header
-FAIL=Same origin redirection, origin init, no-referrer redirect header
-FAIL=Same origin redirection, origin init, no-referrer-when-downgrade redirect header
-FAIL=Same origin redirection, origin init, origin redirect header
-FAIL=Same origin redirection, origin init, origin-when-cross-origin redirect header
-FAIL=Same origin redirection, origin init, same-origin redirect header
-FAIL=Same origin redirection, origin init, strict-origin redirect header
-FAIL=Same origin redirection, origin init, strict-origin-when-cross-origin redirect header
-FAIL=Same origin redirection, origin init, unsafe-url redirect header
-FAIL=Same origin redirection, origin-when-cross-origin init, no-referrer redirect header
-FAIL=Same origin redirection, origin-when-cross-origin init, no-referrer-when-downgrade redirect header
-FAIL=Same origin redirection, origin-when-cross-origin init, origin redirect header
-FAIL=Same origin redirection, origin-when-cross-origin init, origin-when-cross-origin redirect header
-FAIL=Same origin redirection, origin-when-cross-origin init, same-origin redirect header
-FAIL=Same origin redirection, origin-when-cross-origin init, strict-origin redirect header
-FAIL=Same origin redirection, origin-when-cross-origin init, strict-origin-when-cross-origin redirect header
-FAIL=Same origin redirection, origin-when-cross-origin init, unsafe-url redirect header
-FAIL=Same origin redirection, same-origin init, no-referrer redirect header
-FAIL=Same origin redirection, same-origin init, no-referrer-when-downgrade redirect header
-FAIL=Same origin redirection, same-origin init, origin redirect header
-FAIL=Same origin redirection, same-origin init, origin-when-cross-origin redirect header
-FAIL=Same origin redirection, same-origin init, same-origin redirect header
-FAIL=Same origin redirection, same-origin init, strict-origin redirect header
-FAIL=Same origin redirection, same-origin init, strict-origin-when-cross-origin redirect header
-FAIL=Same origin redirection, same-origin init, unsafe-url redirect header
-FAIL=Same origin redirection, strict-origin init, no-referrer redirect header
-FAIL=Same origin redirection, strict-origin init, no-referrer-when-downgrade redirect header
-FAIL=Same origin redirection, strict-origin init, origin redirect header
-FAIL=Same origin redirection, strict-origin init, origin-when-cross-origin redirect header
-FAIL=Same origin redirection, strict-origin init, same-origin redirect header
-FAIL=Same origin redirection, strict-origin init, strict-origin redirect header
-FAIL=Same origin redirection, strict-origin init, strict-origin-when-cross-origin redirect header
-FAIL=Same origin redirection, strict-origin init, unsafe-url redirect header
-FAIL=Same origin redirection, strict-origin-when-cross-origin init, no-referrer redirect header
-FAIL=Same origin redirection, strict-origin-when-cross-origin init, no-referrer-when-downgrade redirect header
-FAIL=Same origin redirection, strict-origin-when-cross-origin init, origin redirect header
-FAIL=Same origin redirection, strict-origin-when-cross-origin init, origin-when-cross-origin redirect header
-FAIL=Same origin redirection, strict-origin-when-cross-origin init, same-origin redirect header
-FAIL=Same origin redirection, strict-origin-when-cross-origin init, strict-origin redirect header
-FAIL=Same origin redirection, strict-origin-when-cross-origin init, strict-origin-when-cross-origin redirect header
-FAIL=Same origin redirection, strict-origin-when-cross-origin init, unsafe-url redirect header
-FAIL=Same origin redirection, unsafe-url init, no-referrer redirect header
-FAIL=Same origin redirection, unsafe-url init, no-referrer-when-downgrade redirect header
-FAIL=Same origin redirection, unsafe-url init, origin redirect header
-FAIL=Same origin redirection, unsafe-url init, origin-when-cross-origin redirect header
-FAIL=Same origin redirection, unsafe-url init, same-origin redirect header
-FAIL=Same origin redirection, unsafe-url init, strict-origin redirect header
-FAIL=Same origin redirection, unsafe-url init, strict-origin-when-cross-origin redirect header
-FAIL=Same origin redirection, unsafe-url init, unsafe-url redirect header
+FAIL:esc=Cross origin redirection, no-referrer-when-downgrade init, no-referrer-when-downgrade redirect header 
+FAIL:esc=Cross origin redirection, no-referrer-when-downgrade init, origin redirect header 
+FAIL:esc=Cross origin redirection, no-referrer-when-downgrade init, origin-when-cross-origin redirect header 
+FAIL:esc=Cross origin redirection, no-referrer-when-downgrade init, strict-origin redirect header 
+FAIL:esc=Cross origin redirection, no-referrer-when-downgrade init, strict-origin-when-cross-origin redirect header 
+FAIL:esc=Cross origin redirection, no-referrer-when-downgrade init, unsafe-url redirect header 
+FAIL:esc=Cross origin redirection, origin init, no-referrer-when-downgrade redirect header 
+FAIL:esc=Cross origin redirection, origin init, origin redirect header 
+FAIL:esc=Cross origin redirection, origin init, origin-when-cross-origin redirect header 
+FAIL:esc=Cross origin redirection, origin init, strict-origin redirect header 
+FAIL:esc=Cross origin redirection, origin init, strict-origin-when-cross-origin redirect header 
+FAIL:esc=Cross origin redirection, origin init, unsafe-url redirect header 
+FAIL:esc=Cross origin redirection, origin-when-cross-origin init, no-referrer-when-downgrade redirect header 
+FAIL:esc=Cross origin redirection, origin-when-cross-origin init, origin redirect header 
+FAIL:esc=Cross origin redirection, origin-when-cross-origin init, origin-when-cross-origin redirect header 
+FAIL:esc=Cross origin redirection, origin-when-cross-origin init, strict-origin redirect header 
+FAIL:esc=Cross origin redirection, origin-when-cross-origin init, strict-origin-when-cross-origin redirect header 
+FAIL:esc=Cross origin redirection, origin-when-cross-origin init, unsafe-url redirect header 
+FAIL:esc=Cross origin redirection, same-origin init, no-referrer-when-downgrade redirect header 
+FAIL:esc=Cross origin redirection, same-origin init, origin redirect header 
+FAIL:esc=Cross origin redirection, same-origin init, origin-when-cross-origin redirect header 
+FAIL:esc=Cross origin redirection, same-origin init, strict-origin redirect header 
+FAIL:esc=Cross origin redirection, same-origin init, strict-origin-when-cross-origin redirect header 
+FAIL:esc=Cross origin redirection, same-origin init, unsafe-url redirect header 
+FAIL:esc=Cross origin redirection, strict-origin init, no-referrer-when-downgrade redirect header 
+FAIL:esc=Cross origin redirection, strict-origin init, origin redirect header 
+FAIL:esc=Cross origin redirection, strict-origin init, origin-when-cross-origin redirect header 
+FAIL:esc=Cross origin redirection, strict-origin init, strict-origin redirect header 
+FAIL:esc=Cross origin redirection, strict-origin init, strict-origin-when-cross-origin redirect header 
+FAIL:esc=Cross origin redirection, strict-origin init, unsafe-url redirect header 
+FAIL:esc=Cross origin redirection, strict-origin-when-cross-origin init, no-referrer-when-downgrade redirect header 
+FAIL:esc=Cross origin redirection, strict-origin-when-cross-origin init, origin redirect header 
+FAIL:esc=Cross origin redirection, strict-origin-when-cross-origin init, origin-when-cross-origin redirect header 
+FAIL:esc=Cross origin redirection, strict-origin-when-cross-origin init, strict-origin redirect header 
+FAIL:esc=Cross origin redirection, strict-origin-when-cross-origin init, strict-origin-when-cross-origin redirect header 
+FAIL:esc=Cross origin redirection, strict-origin-when-cross-origin init, unsafe-url redirect header 
+FAIL:esc=Cross origin redirection, unsafe-url init, no-referrer-when-downgrade redirect header 
+FAIL:esc=Cross origin redirection, unsafe-url init, origin redirect header 
+FAIL:esc=Cross origin redirection, unsafe-url init, origin-when-cross-origin redirect header 
+FAIL:esc=Cross origin redirection, unsafe-url init, strict-origin redirect header 
+FAIL:esc=Cross origin redirection, unsafe-url init, strict-origin-when-cross-origin redirect header 
+FAIL:esc=Cross origin redirection, unsafe-url init, unsafe-url redirect header 
+FAIL:esc=Same origin redirection, no-referrer-when-downgrade init, no-referrer-when-downgrade redirect header 
+FAIL:esc=Same origin redirection, no-referrer-when-downgrade init, origin redirect header 
+FAIL:esc=Same origin redirection, no-referrer-when-downgrade init, origin-when-cross-origin redirect header 
+FAIL:esc=Same origin redirection, no-referrer-when-downgrade init, same-origin redirect header 
+FAIL:esc=Same origin redirection, no-referrer-when-downgrade init, strict-origin redirect header 
+FAIL:esc=Same origin redirection, no-referrer-when-downgrade init, strict-origin-when-cross-origin redirect header 
+FAIL:esc=Same origin redirection, no-referrer-when-downgrade init, unsafe-url redirect header 
+FAIL:esc=Same origin redirection, origin init, no-referrer-when-downgrade redirect header 
+FAIL:esc=Same origin redirection, origin init, origin redirect header 
+FAIL:esc=Same origin redirection, origin init, origin-when-cross-origin redirect header 
+FAIL:esc=Same origin redirection, origin init, same-origin redirect header 
+FAIL:esc=Same origin redirection, origin init, strict-origin redirect header 
+FAIL:esc=Same origin redirection, origin init, strict-origin-when-cross-origin redirect header 
+FAIL:esc=Same origin redirection, origin init, unsafe-url redirect header 
+FAIL:esc=Same origin redirection, origin-when-cross-origin init, no-referrer-when-downgrade redirect header 
+FAIL:esc=Same origin redirection, origin-when-cross-origin init, origin redirect header 
+FAIL:esc=Same origin redirection, origin-when-cross-origin init, origin-when-cross-origin redirect header 
+FAIL:esc=Same origin redirection, origin-when-cross-origin init, same-origin redirect header 
+FAIL:esc=Same origin redirection, origin-when-cross-origin init, strict-origin redirect header 
+FAIL:esc=Same origin redirection, origin-when-cross-origin init, strict-origin-when-cross-origin redirect header 
+FAIL:esc=Same origin redirection, origin-when-cross-origin init, unsafe-url redirect header 
+FAIL:esc=Same origin redirection, same-origin init, no-referrer-when-downgrade redirect header 
+FAIL:esc=Same origin redirection, same-origin init, origin redirect header 
+FAIL:esc=Same origin redirection, same-origin init, origin-when-cross-origin redirect header 
+FAIL:esc=Same origin redirection, same-origin init, same-origin redirect header 
+FAIL:esc=Same origin redirection, same-origin init, strict-origin redirect header 
+FAIL:esc=Same origin redirection, same-origin init, strict-origin-when-cross-origin redirect header 
+FAIL:esc=Same origin redirection, same-origin init, unsafe-url redirect header 
+FAIL:esc=Same origin redirection, strict-origin init, no-referrer-when-downgrade redirect header 
+FAIL:esc=Same origin redirection, strict-origin init, origin redirect header 
+FAIL:esc=Same origin redirection, strict-origin init, origin-when-cross-origin redirect header 
+FAIL:esc=Same origin redirection, strict-origin init, same-origin redirect header 
+FAIL:esc=Same origin redirection, strict-origin init, strict-origin redirect header 
+FAIL:esc=Same origin redirection, strict-origin init, strict-origin-when-cross-origin redirect header 
+FAIL:esc=Same origin redirection, strict-origin init, unsafe-url redirect header 
+FAIL:esc=Same origin redirection, strict-origin-when-cross-origin init, no-referrer-when-downgrade redirect header 
+FAIL:esc=Same origin redirection, strict-origin-when-cross-origin init, origin redirect header 
+FAIL:esc=Same origin redirection, strict-origin-when-cross-origin init, origin-when-cross-origin redirect header 
+FAIL:esc=Same origin redirection, strict-origin-when-cross-origin init, same-origin redirect header 
+FAIL:esc=Same origin redirection, strict-origin-when-cross-origin init, strict-origin redirect header 
+FAIL:esc=Same origin redirection, strict-origin-when-cross-origin init, strict-origin-when-cross-origin redirect header 
+FAIL:esc=Same origin redirection, strict-origin-when-cross-origin init, unsafe-url redirect header 
+FAIL:esc=Same origin redirection, unsafe-url init, no-referrer-when-downgrade redirect header 
+FAIL:esc=Same origin redirection, unsafe-url init, origin redirect header 
+FAIL:esc=Same origin redirection, unsafe-url init, origin-when-cross-origin redirect header 
+FAIL:esc=Same origin redirection, unsafe-url init, same-origin redirect header 
+FAIL:esc=Same origin redirection, unsafe-url init, strict-origin redirect header 
+FAIL:esc=Same origin redirection, unsafe-url init, strict-origin-when-cross-origin redirect header 
+FAIL:esc=Same origin redirection, unsafe-url init, unsafe-url redirect header 
 [fetch/api/redirect/redirect-referrer-override.any.worker.html]
 harness=TIMEOUT
 [fetch/api/redirect/redirect-referrer.any.html]
-FAIL=Cross origin redirection, empty init, no-referrer redirect header
-FAIL=Cross origin redirection, empty init, no-referrer-when-downgrade redirect header
-FAIL=Cross origin redirection, empty init, origin redirect header
-FAIL=Cross origin redirection, empty init, origin-when-cross-origin redirect header
-FAIL=Cross origin redirection, empty init, same-origin redirect header
-FAIL=Cross origin redirection, empty init, strict-origin redirect header
-FAIL=Cross origin redirection, empty init, strict-origin-when-cross-origin redirect header
-FAIL=Cross origin redirection, empty init, unsafe-url redirect header
-FAIL=Cross origin redirection, empty redirect header, no-referrer init
-FAIL=Cross origin redirection, empty redirect header, no-referrer-when-downgrade init
-FAIL=Cross origin redirection, empty redirect header, origin init
-FAIL=Cross origin redirection, empty redirect header, origin-when-cross-origin init
-FAIL=Cross origin redirection, empty redirect header, same-origin init
-FAIL=Cross origin redirection, empty redirect header, strict-origin init
-FAIL=Cross origin redirection, empty redirect header, strict-origin-when-cross-origin init
-FAIL=Cross origin redirection, empty redirect header, unsafe-url init
-FAIL=Same origin redirection, empty init, no-referrer redirect header
-FAIL=Same origin redirection, empty init, no-referrer-when-downgrade redirect header
-FAIL=Same origin redirection, empty init, origin redirect header
-FAIL=Same origin redirection, empty init, origin-when-cross-origin redirect header
-FAIL=Same origin redirection, empty init, same-origin redirect header
-FAIL=Same origin redirection, empty init, strict-origin redirect header
-FAIL=Same origin redirection, empty init, strict-origin-when-cross-origin redirect header
-FAIL=Same origin redirection, empty init, unsafe-url redirect header
-FAIL=Same origin redirection, empty redirect header, no-referrer init
-FAIL=Same origin redirection, empty redirect header, no-referrer-when-downgrade init
-FAIL=Same origin redirection, empty redirect header, origin init
-FAIL=Same origin redirection, empty redirect header, origin-when-cross-origin init
-FAIL=Same origin redirection, empty redirect header, same-origin init
-FAIL=Same origin redirection, empty redirect header, strict-origin init
-FAIL=Same origin redirection, empty redirect header, strict-origin-when-cross-origin init
-FAIL=Same origin redirection, empty redirect header, unsafe-url init
+FAIL:esc=Cross origin redirection, empty init, no-referrer-when-downgrade redirect header 
+FAIL:esc=Cross origin redirection, empty init, origin redirect header 
+FAIL:esc=Cross origin redirection, empty init, origin-when-cross-origin redirect header 
+FAIL:esc=Cross origin redirection, empty init, strict-origin redirect header 
+FAIL:esc=Cross origin redirection, empty init, strict-origin-when-cross-origin redirect header 
+FAIL:esc=Cross origin redirection, empty init, unsafe-url redirect header 
+FAIL:esc=Cross origin redirection, empty redirect header, no-referrer-when-downgrade init 
+FAIL:esc=Cross origin redirection, empty redirect header, origin init 
+FAIL:esc=Cross origin redirection, empty redirect header, origin-when-cross-origin init 
+FAIL:esc=Cross origin redirection, empty redirect header, strict-origin init 
+FAIL:esc=Cross origin redirection, empty redirect header, strict-origin-when-cross-origin init 
+FAIL:esc=Cross origin redirection, empty redirect header, unsafe-url init 
+FAIL:esc=Same origin redirection, empty init, no-referrer-when-downgrade redirect header 
+FAIL:esc=Same origin redirection, empty init, origin redirect header 
+FAIL:esc=Same origin redirection, empty init, origin-when-cross-origin redirect header 
+FAIL:esc=Same origin redirection, empty init, same-origin redirect header 
+FAIL:esc=Same origin redirection, empty init, strict-origin redirect header 
+FAIL:esc=Same origin redirection, empty init, strict-origin-when-cross-origin redirect header 
+FAIL:esc=Same origin redirection, empty init, unsafe-url redirect header 
+FAIL:esc=Same origin redirection, empty redirect header, no-referrer-when-downgrade init 
+FAIL:esc=Same origin redirection, empty redirect header, origin init 
+FAIL:esc=Same origin redirection, empty redirect header, origin-when-cross-origin init 
+FAIL:esc=Same origin redirection, empty redirect header, same-origin init 
+FAIL:esc=Same origin redirection, empty redirect header, strict-origin init 
+FAIL:esc=Same origin redirection, empty redirect header, strict-origin-when-cross-origin init 
+FAIL:esc=Same origin redirection, empty redirect header, unsafe-url init 
 [fetch/api/redirect/redirect-referrer.any.worker.html]
 harness=TIMEOUT
-[fetch/api/redirect/redirect-schemes.any.html]
-FAIL=Fetch: handling different schemes in redirects
-FAIL=Fetch: handling different schemes in redirects 1
-FAIL=Fetch: handling different schemes in redirects 2
-FAIL=Fetch: handling different schemes in redirects 3
-FAIL=Fetch: handling different schemes in redirects 4
-FAIL=Fetch: handling different schemes in redirects 5
-[fetch/api/redirect/redirect-to-dataurl.any.html]
-FAIL=Testing data URL loading after cross-origin redirection (cors mode)
-FAIL=Testing data URL loading after cross-origin redirection (no-cors mode)
-FAIL=Testing data URL loading after same-origin redirection (cors mode)
-FAIL=Testing data URL loading after same-origin redirection (no-cors mode)
-FAIL=Testing data URL loading after same-origin redirection (same-origin mode)
 [fetch/api/redirect/redirect-upload.h2.any.html]
 FAIL=Fetch upload streaming should be accepted on 303
-FAIL=Fetch upload streaming should fail on 301
-FAIL=Fetch upload streaming should fail on 302
-FAIL=Fetch upload streaming should fail on 307
-FAIL=Fetch upload streaming should fail on 308
 [fetch/api/request/destination/fetch-destination-frame.https.html]
 FAIL=Initialize global state
 FAIL=frame fetches with a "frame" Request.destination
@@ -1501,90 +1201,6 @@ FAIL=Request() with a forbidden method track must throw.
 FAIL=creating a request from another request in a detached realm should work
 [fetch/api/request/multi-globals/url-parsing.html]
 FAIL=should parse the URL relative to the current settings object
-[fetch/api/request/request-bad-port.any.html]
-FAIL=Request on bad port 0 should throw TypeError.
-FAIL=Request on bad port 1 should throw TypeError.
-FAIL=Request on bad port 10080 should throw TypeError.
-FAIL=Request on bad port 101 should throw TypeError.
-FAIL=Request on bad port 102 should throw TypeError.
-FAIL=Request on bad port 103 should throw TypeError.
-FAIL=Request on bad port 104 should throw TypeError.
-FAIL=Request on bad port 109 should throw TypeError.
-FAIL=Request on bad port 11 should throw TypeError.
-FAIL=Request on bad port 110 should throw TypeError.
-FAIL=Request on bad port 111 should throw TypeError.
-FAIL=Request on bad port 113 should throw TypeError.
-FAIL=Request on bad port 115 should throw TypeError.
-FAIL=Request on bad port 117 should throw TypeError.
-FAIL=Request on bad port 119 should throw TypeError.
-FAIL=Request on bad port 123 should throw TypeError.
-FAIL=Request on bad port 13 should throw TypeError.
-FAIL=Request on bad port 135 should throw TypeError.
-FAIL=Request on bad port 137 should throw TypeError.
-FAIL=Request on bad port 139 should throw TypeError.
-FAIL=Request on bad port 143 should throw TypeError.
-FAIL=Request on bad port 15 should throw TypeError.
-FAIL=Request on bad port 161 should throw TypeError.
-FAIL=Request on bad port 17 should throw TypeError.
-FAIL=Request on bad port 1719 should throw TypeError.
-FAIL=Request on bad port 1720 should throw TypeError.
-FAIL=Request on bad port 1723 should throw TypeError.
-FAIL=Request on bad port 179 should throw TypeError.
-FAIL=Request on bad port 19 should throw TypeError.
-FAIL=Request on bad port 20 should throw TypeError.
-FAIL=Request on bad port 2049 should throw TypeError.
-FAIL=Request on bad port 21 should throw TypeError.
-FAIL=Request on bad port 22 should throw TypeError.
-FAIL=Request on bad port 23 should throw TypeError.
-FAIL=Request on bad port 25 should throw TypeError.
-FAIL=Request on bad port 3659 should throw TypeError.
-FAIL=Request on bad port 37 should throw TypeError.
-FAIL=Request on bad port 389 should throw TypeError.
-FAIL=Request on bad port 4045 should throw TypeError.
-FAIL=Request on bad port 4190 should throw TypeError.
-FAIL=Request on bad port 42 should throw TypeError.
-FAIL=Request on bad port 427 should throw TypeError.
-FAIL=Request on bad port 43 should throw TypeError.
-FAIL=Request on bad port 465 should throw TypeError.
-FAIL=Request on bad port 5060 should throw TypeError.
-FAIL=Request on bad port 5061 should throw TypeError.
-FAIL=Request on bad port 512 should throw TypeError.
-FAIL=Request on bad port 513 should throw TypeError.
-FAIL=Request on bad port 514 should throw TypeError.
-FAIL=Request on bad port 515 should throw TypeError.
-FAIL=Request on bad port 526 should throw TypeError.
-FAIL=Request on bad port 53 should throw TypeError.
-FAIL=Request on bad port 530 should throw TypeError.
-FAIL=Request on bad port 531 should throw TypeError.
-FAIL=Request on bad port 532 should throw TypeError.
-FAIL=Request on bad port 540 should throw TypeError.
-FAIL=Request on bad port 548 should throw TypeError.
-FAIL=Request on bad port 554 should throw TypeError.
-FAIL=Request on bad port 556 should throw TypeError.
-FAIL=Request on bad port 563 should throw TypeError.
-FAIL=Request on bad port 587 should throw TypeError.
-FAIL=Request on bad port 6000 should throw TypeError.
-FAIL=Request on bad port 601 should throw TypeError.
-FAIL=Request on bad port 636 should throw TypeError.
-FAIL=Request on bad port 6566 should throw TypeError.
-FAIL=Request on bad port 6665 should throw TypeError.
-FAIL=Request on bad port 6666 should throw TypeError.
-FAIL=Request on bad port 6667 should throw TypeError.
-FAIL=Request on bad port 6668 should throw TypeError.
-FAIL=Request on bad port 6669 should throw TypeError.
-FAIL=Request on bad port 6679 should throw TypeError.
-FAIL=Request on bad port 6697 should throw TypeError.
-FAIL=Request on bad port 69 should throw TypeError.
-FAIL=Request on bad port 7 should throw TypeError.
-FAIL=Request on bad port 77 should throw TypeError.
-FAIL=Request on bad port 79 should throw TypeError.
-FAIL=Request on bad port 87 should throw TypeError.
-FAIL=Request on bad port 9 should throw TypeError.
-FAIL=Request on bad port 95 should throw TypeError.
-FAIL=Request on bad port 989 should throw TypeError.
-FAIL=Request on bad port 990 should throw TypeError.
-FAIL=Request on bad port 993 should throw TypeError.
-FAIL=Request on bad port 995 should throw TypeError.
 [fetch/api/request/request-cache-default-conditional.any.html]
 FAIL=RequestCache "default" mode with an If-Match header (following a request without additional headers) is treated similarly to "no-store" with Etag and fresh response
 FAIL=RequestCache "default" mode with an If-Match header (following a request without additional headers) is treated similarly to "no-store" with Etag and stale response
@@ -1707,6 +1323,8 @@ FAIL=Check that the body of a new request can be overridden when created from an
 [fetch/api/request/request-constructor-init-body-override.any.worker.html]
 harness=TIMEOUT
 [fetch/api/request/request-consume-empty.any.html]
+FAIL=Consume empty ArrayBuffer request body as text
+FAIL=Consume empty FormData request body as text
 FAIL=Consume empty URLSearchParams request body as text
 FAIL=Consume empty blob request body as arrayBuffer
 FAIL=Consume empty blob request body as text
@@ -1853,8 +1471,8 @@ FAIL=Check redirect init value of manual and associated getter
 FAIL=Check referrer init value of  and associated getter
 FAIL=Check referrer init value of /relative/ressource and associated getter
 FAIL=Check referrer init value of about:client and associated getter
-FAIL=Check referrer init value of http://localhost:42851/ and associated getter
-FAIL=Check referrer init value of http://localhost:42851/relative/ressource?query=true#fragment and associated getter
+FAIL=Check referrer init value of http://localhost:40817/ and associated getter
+FAIL=Check referrer init value of http://localhost:40817/relative/ressource?query=true#fragment and associated getter
 FAIL=Check referrer init value of http://test.url and associated getter
 FAIL=Check referrerPolicy init value of  and associated getter
 FAIL=Check referrerPolicy init value of no-referrer and associated getter
@@ -1865,13 +1483,20 @@ FAIL=Check referrerPolicy init value of same-origin and associated getter
 FAIL=Check referrerPolicy init value of strict-origin and associated getter
 FAIL=Check referrerPolicy init value of strict-origin-when-cross-origin and associated getter
 FAIL=Check referrerPolicy init value of unsafe-url and associated getter
+[fetch/api/request/request-init-002.any.html]
+FAIL=Initialize Request's body with "This is a USVString", text/plain;charset=UTF-8
+FAIL=Initialize Request's body with "[object Object]", application/octet-binary
+FAIL=Initialize Request's body with "[object Object]", multipart/form-data
+FAIL=Initialize Request's body with "hi!", text/plain;charset=UTF-8
+FAIL=Initialize Request's body with "name=value", application/x-www-form-urlencoded;charset=UTF-8
+FAIL=Initialize Request's body with "null", null
+FAIL=Initialize Request's body with "undefined", undefined
 [fetch/api/request/request-init-003.sub.html]
 FAIL=Check request values when initialized from Request
 FAIL=Check request values when initialized from Request and init values
 FAIL=Check request values when initialized from url and init values
 FAIL=Check request values when initialized from url string
 [fetch/api/request/request-init-contenttype.any.html]
-FAIL=Can override Content-Type for Request with FormData body
 FAIL=Can override Content-Type for Request with ReadableStream body
 FAIL=Default Content-Type for Request with Blob body (set type)
 FAIL=Default Content-Type for Request with FormData body
@@ -1906,7 +1531,6 @@ FAIL=A Keep-Alive fetch() should not be allowed if the Quota is used up.
 FAIL=A Keep-Alive fetch() should return its allocated Quota upon promise resolution.
 FAIL=A Keep-Alive fetch() should return only its allocated Quota upon promise resolution.
 FAIL=A Keep-Alive fetch() with a body at the Quota Limit should succeed.
-FAIL=A Keep-Alive fetch() with a body over the Quota Limit should reject.
 [fetch/api/request/request-keepalive.any.html]
 FAIL=keepalive flag
 FAIL=keepalive flag with stream body
@@ -1933,23 +1557,21 @@ FAIL=Check url attribute
 FAIL=Request has arrayBuffer method
 FAIL=Request has blob method
 FAIL=Request has clone method
-FAIL=Request has formData method
 FAIL=Request has json method
 FAIL=Request has text method
 [fetch/api/request/url-encoding.html]
 FAIL=URL encoding and Request
 FAIL=URL encoding and fetch()
 [fetch/api/response/json.any.html]
-FAIL=Ensure UTF-16 results in an error
 FAIL=Ensure the correct JSON parser is used
 [fetch/api/response/json.any.worker.html]
 harness=TIMEOUT
 [fetch/api/response/multi-globals/url-parsing.html]
 FAIL=should parse the redirect Location URL relative to the current settings object
 [fetch/api/response/response-arraybuffer-realm.window.html]
-harness=TIMEOUT
+FAIL=realm of the ArrayBuffer from Response arrayBuffer()
 [fetch/api/response/response-blob-realm.any.html]
-harness=TIMEOUT
+FAIL=realm of the Uint8Array from Response bytes()
 [fetch/api/response/response-body-read-task-handling.html]
 FAIL=piping from a body stream to a JS-written WritableStream should occur in a microtask scope
 FAIL=reading from a body stream should occur in a microtask scope
@@ -1959,8 +1581,6 @@ FAIL=Cancelling a closed blob Response stream
 harness=TIMEOUT
 [fetch/api/response/response-clone.any.html]
 FAIL=Cancelling stream should not affect cloned one
-FAIL=Cannot clone a disturbed response
-FAIL=Check Response's clone has the expected attribute values
 FAIL=Check Response's clone with default values, without body
 FAIL=Check response clone use structureClone for teed ReadableStreams (ArrayBufferchunk)
 FAIL=Check response clone use structureClone for teed ReadableStreams (BigInt64Arraychunk)
@@ -1978,20 +1598,65 @@ FAIL=Check response clone use structureClone for teed ReadableStreams (Uint8Arra
 FAIL=Check response clone use structureClone for teed ReadableStreams (Uint8ClampedArraychunk)
 FAIL=Cloned responses should provide the same data
 [fetch/api/response/response-consume-empty.any.html]
+FAIL=Consume empty ArrayBuffer response body as text
+FAIL=Consume empty FormData response body as text
 FAIL=Consume empty URLSearchParams response body as text
 FAIL=Consume empty blob response body as arrayBuffer
 FAIL=Consume empty blob response body as text
 FAIL=Consume response's body as arrayBuffer
 FAIL=Consume response's body as blob
-FAIL=Consume response's body as formData with correct multipart type (error case)
 FAIL=Consume response's body as formData with correct urlencoded type
-FAIL=Consume response's body as formData without correct type (error case)
 FAIL=Consume response's body as json (error case)
 FAIL=Consume response's body as text
 [fetch/api/response/response-consume-stream.any.html]
+FAIL=Getting a redirect Response stream
+FAIL=Getting an error Response stream
+FAIL=Read URLSearchParams response's body as readableStream with mode=byob
+FAIL=Read URLSearchParams response's body as readableStream with mode=undefined
+FAIL=Read array buffer response's body as readableStream with mode=byob
+FAIL=Read array buffer response's body as readableStream with mode=undefined
+FAIL=Read blob response's body as readableStream with mode=byob
+FAIL=Read blob response's body as readableStream with mode=undefined
 FAIL=Read empty blob response's body as readableStream
+FAIL=Read form data response's body as readableStream with mode=byob
+FAIL=Read form data response's body as readableStream with mode=undefined
+FAIL=Reading with offset from Response stream
 [fetch/api/response/response-consume.html]
-harness=TIMEOUT
+FAIL=Consume response's body: from FormData to arrayBuffer
+FAIL=Consume response's body: from FormData to blob
+FAIL=Consume response's body: from FormData to formData
+FAIL=Consume response's body: from FormData to text
+FAIL=Consume response's body: from FormData without correct type to formData (error case)
+FAIL=Consume response's body: from URLSearchParams to arrayBuffer
+FAIL=Consume response's body: from URLSearchParams to blob
+FAIL=Consume response's body: from URLSearchParams to formData
+FAIL=Consume response's body: from URLSearchParams to text
+FAIL=Consume response's body: from URLSearchParams without correct type to formData (error case)
+FAIL=Consume response's body: from blob to arrayBuffer
+FAIL=Consume response's body: from blob to blob
+FAIL=Consume response's body: from blob to json
+FAIL=Consume response's body: from blob to text
+FAIL=Consume response's body: from blob with correct multipart type to formData
+FAIL=Consume response's body: from blob with correct urlencoded type to formData
+FAIL=Consume response's body: from blob without correct multipart type to formData (error case)
+FAIL=Consume response's body: from blob without correct urlencoded type to formData (error case)
+FAIL=Consume response's body: from fetch to blob
+FAIL=Consume response's body: from fetch without correct type to formData (error case)
+FAIL=Consume response's body: from multipart form data blob to formData
+FAIL=Consume response's body: from stream to arrayBuffer
+FAIL=Consume response's body: from stream to blob
+FAIL=Consume response's body: from stream to json
+FAIL=Consume response's body: from stream to text
+FAIL=Consume response's body: from stream with correct multipart type to formData
+FAIL=Consume response's body: from stream with correct urlencoded type to formData
+FAIL=Consume response's body: from stream without correct multipart type to formData (error case)
+FAIL=Consume response's body: from stream without correct urlencoded type to formData (error case)
+FAIL=Consume response's body: from text to blob
+FAIL=Consume response's body: from text with correct multipart type to formData
+FAIL=Consume response's body: from text with correct multipart type to formData with BOM
+FAIL=Consume response's body: from text with correct urlencoded type to formData
+FAIL=Consume response's body: from text without correct multipart type to formData (error case)
+FAIL=Consume response's body: from text without correct urlencoded type to formData (error case)
 [fetch/api/response/response-error-from-stream.any.html]
 FAIL=ReadableStreamDefaultReader Promise receives ReadableStream pull() Error
 FAIL=ReadableStreamDefaultReader Promise receives ReadableStream start() Error
@@ -2004,17 +1669,10 @@ FAIL=Throws RangeError when responseInit's status is 600
 FAIL=Throws TypeError when building a response with body and a body status of 204
 FAIL=Throws TypeError when building a response with body and a body status of 205
 FAIL=Throws TypeError when building a response with body and a body status of 304
-FAIL=Throws TypeError when responseInit's statusText is
+FAIL:esc=Throws TypeError when responseInit's statusText is \n
 FAIL=Throws TypeError when responseInit's statusText is U+100
 [fetch/api/response/response-form-data.html]
 FAIL=Empty form data
-FAIL=Validate buggy form data - boundary
-FAIL=Validate buggy form data - cr1
-FAIL=Validate buggy form data - cr2
-FAIL=Validate buggy form data - cr3
-FAIL=Validate buggy form data - cr_
-FAIL=Validate buggy form data - dashes
-FAIL=Validate buggy form data - empty
 FAIL=Validate form data - onePartWithEpilogue
 FAIL=Validate form data - onePartWithTransportPadding
 FAIL=Validate form data - onePartWithoutEpilogue
@@ -2032,17 +1690,14 @@ FAIL=Check default value for body attribute
 FAIL=Check default value for statusText attribute
 FAIL=Check default value for type attribute
 [fetch/api/response/response-init-002.any.html]
-FAIL=Initialize Response with headers values
+FAIL=Initialize Response's body with application/octet-binary
+FAIL=Initialize Response's body with application/x-www-form-urlencoded;charset=UTF-8
+FAIL=Initialize Response's body with multipart/form-data
+FAIL=Initialize Response's body with text/plain;charset=UTF-8
+FAIL=Testing empty Response Content-Type header
+FAIL=Testing null Response body
 [fetch/api/response/response-init-contenttype.any.html]
-FAIL=Can override Content-Type for Response with Blob body (empty type)
-FAIL=Can override Content-Type for Response with Blob body (no type set)
-FAIL=Can override Content-Type for Response with Blob body (set type)
-FAIL=Can override Content-Type for Response with FormData body
 FAIL=Can override Content-Type for Response with ReadableStream body
-FAIL=Can override Content-Type for Response with URLSearchParams body
-FAIL=Can override Content-Type for Response with buffer source body
-FAIL=Can override Content-Type for Response with empty body
-FAIL=Can override Content-Type for Response with string body
 FAIL=Default Content-Type for Response with Blob body (set type)
 FAIL=Default Content-Type for Response with FormData body
 FAIL=Default Content-Type for Response with ReadableStream body
@@ -2065,18 +1720,12 @@ FAIL=Check response returned by static json() with input U+dead
 FAIL=Check response returned by static json() with input U+df06U+d834
 FAIL=Check static json() encodes JSON objects correctly
 FAIL=Check static json() propagates JSON serializer errors
-FAIL=Check static json() throws when data is circular
-FAIL=Check static json() throws when data is not encodable
-FAIL=Throws TypeError when calling static json() with a status of 204
-FAIL=Throws TypeError when calling static json() with a status of 205
-FAIL=Throws TypeError when calling static json() with a status of 304
 [fetch/api/response/response-static-redirect.any.html]
 FAIL=Check default redirect response
 FAIL=Check error returned when giving invalid status to redirect(), status = 200
 FAIL=Check error returned when giving invalid status to redirect(), status = 309
 FAIL=Check error returned when giving invalid status to redirect(), status = 400
 FAIL=Check error returned when giving invalid status to redirect(), status = 500
-FAIL=Check error returned when giving invalid url to redirect()
 FAIL=Check response returned by static method redirect(), status = 301
 FAIL=Check response returned by static method redirect(), status = 302
 FAIL=Check response returned by static method redirect(), status = 303
@@ -2136,18 +1785,12 @@ FAIL=Getting text after cancelling the Response body (body source: fetch)
 FAIL=Getting text after cancelling the Response body (body source: stream)
 FAIL=Getting text after cancelling the Response body (body source: string)
 [fetch/api/response/response-stream-disturbed-5.any.html]
-FAIL=Getting a body reader after consuming as arrayBuffer (body source: fetch)
 FAIL=Getting a body reader after consuming as arrayBuffer (body source: stream)
-FAIL=Getting a body reader after consuming as arrayBuffer (body source: string)
 FAIL=Getting a body reader after consuming as blob (body source: fetch)
 FAIL=Getting a body reader after consuming as blob (body source: stream)
 FAIL=Getting a body reader after consuming as blob (body source: string)
-FAIL=Getting a body reader after consuming as json (body source: fetch)
 FAIL=Getting a body reader after consuming as json (body source: stream)
-FAIL=Getting a body reader after consuming as json (body source: string)
-FAIL=Getting a body reader after consuming as text (body source: fetch)
 FAIL=Getting a body reader after consuming as text (body source: stream)
-FAIL=Getting a body reader after consuming as text (body source: string)
 [fetch/api/response/response-stream-disturbed-6.any.html]
 FAIL=A closed stream on which read() has been called
 FAIL=A non-closed stream on which cancel() has been called
@@ -2200,10 +1843,7 @@ FAIL=Decompression using Brotli-encoded dictionary works as expected
 FAIL=Decompression using Zstandard-encoded dictionary works as expected
 FAIL=Decompression using gzip-encoded dictionary works as expected
 [fetch/compression-dictionary/dictionary-decompression.tentative.https.h2.html]
-FAIL=Decompression using Brotli with the dictionary works as expected (HTTP/2)
-FAIL=Decompression using Brotli with the dictionary works as expected (HTTP/2, chunked compressed data)
-FAIL=Decompression using Zstandard with the dictionary works as expected (HTTP/2)
-FAIL=Decompression using Zstandard with the dictionary works as expected (HTTP/2, chunked compressed data)
+harness=ERROR
 [fetch/compression-dictionary/dictionary-decompression.tentative.https.html]
 FAIL=Decompression of a cross origin resource works as expected
 FAIL=Decompression using Brotli fails when dictionary hash mismatches
@@ -2235,8 +1875,6 @@ harness=TIMEOUT
 [fetch/compression-dictionary/dictionary-fetch-with-link-element-in-body.tentative.https.html]
 FAIL=<link rel="compression-dictionary"> is allowed in a paragraph.
 FAIL=A <link rel="compression-dictionary"> in body is loaded.
-[fetch/compression-dictionary/dictionary-fetch-with-link-element-invalid-url.tentative.https.html]
-harness=TIMEOUT
 [fetch/compression-dictionary/dictionary-fetch-with-link-element.tentative.https.html]
 FAIL=Browser supports link element with compression-dictionary rel.
 FAIL=Fetch cross origin dictionary using link element
@@ -2244,7 +1882,7 @@ FAIL=Fetch same origin dictionary using link element
 [fetch/compression-dictionary/dictionary-fetch-with-link-header-in-subresources.tentative.https.html]
 harness=TIMEOUT
 [fetch/compression-dictionary/dictionary-fetch-with-link-header.tentative.https.html]
-harness=TIMEOUT
+FAIL=Fetch same origin dictionary using link header
 [fetch/compression-dictionary/dictionary-fetch-with-link-integrity.tentative.https.html]
 FAIL=HTMLLinkElement rel=compression-dictionary, integrity attribute is ignored.
 FAIL=Initialize global state
@@ -2384,39 +2022,148 @@ FAIL=Input: "Content-Length: aaaah\r\nContent-Length: nah". Expected: network er
 FAIL=Input: "Content-Length:30\r\nContent-Length:,\r\nContent-Length:30". Expected: network error.
 [fetch/content-length/too-long.window.html]
 FAIL=Content-Length header value of network response exceeds response body
-[fetch/content-type/multipart-malformed.any.html]
-FAIL=Invalid form data should not crash the browser
 [fetch/content-type/multipart-malformed.any.worker.html]
 harness=TIMEOUT
 [fetch/content-type/multipart.window.html]
 harness=TIMEOUT
 [fetch/content-type/response.window.html]
-harness=TIMEOUT
+FAIL=<iframe>: combined response Content-Type:  text/plain
+FAIL=<iframe>: combined response Content-Type: */* text/html
+FAIL=<iframe>: combined response Content-Type: text/html */*
+FAIL=<iframe>: combined response Content-Type: text/html */*;charset=gbk
+FAIL=<iframe>: combined response Content-Type: text/html text/plain
+FAIL=<iframe>: combined response Content-Type: text/html;" " text/plain
+FAIL=<iframe>: combined response Content-Type: text/html;" \" text/plain
+FAIL=<iframe>: combined response Content-Type: text/html;" \" text/plain ";charset=GBK
+FAIL=<iframe>: combined response Content-Type: text/html;" text/plain
+FAIL=<iframe>: combined response Content-Type: text/html;charset=gbk text/html;x=",text/plain
+FAIL=<iframe>: combined response Content-Type: text/html;charset=gbk text/plain text/html
+FAIL=<iframe>: combined response Content-Type: text/html;x=" text/plain
+FAIL:esc=<iframe>: combined response Content-Type: text/plain 
+FAIL=<iframe>: combined response Content-Type: text/plain */*
+FAIL=<iframe>: combined response Content-Type: text/plain */*;charset=gbk
+FAIL=<iframe>: combined response Content-Type: text/plain;charset=gbk text/html
+FAIL=<iframe>: combined response Content-Type: text/plain;charset=gbk text/html;charset=windows-1254
+FAIL=<iframe>: combined response Content-Type: text/plain;charset=gbk text/plain
+FAIL=<iframe>: combined response Content-Type: text/plain;charset=gbk text/plain;charset=windows-1252
+FAIL=<iframe>: combined response Content-Type: text/plain;charset=gbk;x=foo text/plain
+FAIL=<iframe>: separate response Content-Type:  text/plain
+FAIL=<iframe>: separate response Content-Type: */* text/html
+FAIL=<iframe>: separate response Content-Type: text/html */*
+FAIL=<iframe>: separate response Content-Type: text/html */*;charset=gbk
+FAIL=<iframe>: separate response Content-Type: text/html text/plain
+FAIL=<iframe>: separate response Content-Type: text/html;" " text/plain
+FAIL=<iframe>: separate response Content-Type: text/html;" \" text/plain
+FAIL=<iframe>: separate response Content-Type: text/html;" \" text/plain ";charset=GBK
+FAIL=<iframe>: separate response Content-Type: text/html;" text/plain
+FAIL=<iframe>: separate response Content-Type: text/html;charset=gbk text/html;x=",text/plain
+FAIL=<iframe>: separate response Content-Type: text/html;charset=gbk text/plain text/html
+FAIL=<iframe>: separate response Content-Type: text/html;x=" text/plain
+FAIL:esc=<iframe>: separate response Content-Type: text/plain 
+FAIL=<iframe>: separate response Content-Type: text/plain */*
+FAIL=<iframe>: separate response Content-Type: text/plain */*;charset=gbk
+FAIL=<iframe>: separate response Content-Type: text/plain;charset=gbk text/html
+FAIL=<iframe>: separate response Content-Type: text/plain;charset=gbk text/html;charset=windows-1254
+FAIL=<iframe>: separate response Content-Type: text/plain;charset=gbk text/plain
+FAIL=<iframe>: separate response Content-Type: text/plain;charset=gbk text/plain;charset=windows-1252
+FAIL=<iframe>: separate response Content-Type: text/plain;charset=gbk;x=foo text/plain
+FAIL=Request: combined response Content-Type:  text/plain
+FAIL=Request: combined response Content-Type: */* text/html
+FAIL=Request: combined response Content-Type: text/html */*
+FAIL=Request: combined response Content-Type: text/html */*;charset=gbk
+FAIL=Request: combined response Content-Type: text/html text/plain
+FAIL=Request: combined response Content-Type: text/html;" " text/plain
+FAIL=Request: combined response Content-Type: text/html;" \" text/plain
+FAIL=Request: combined response Content-Type: text/html;" \" text/plain ";charset=GBK
+FAIL=Request: combined response Content-Type: text/html;" text/plain
+FAIL=Request: combined response Content-Type: text/html;charset=gbk text/html;x=",text/plain
+FAIL=Request: combined response Content-Type: text/html;charset=gbk text/plain text/html
+FAIL=Request: combined response Content-Type: text/html;x=" text/plain
+FAIL:esc=Request: combined response Content-Type: text/plain 
+FAIL=Request: combined response Content-Type: text/plain */*
+FAIL=Request: combined response Content-Type: text/plain */*;charset=gbk
+FAIL=Request: combined response Content-Type: text/plain;charset=gbk text/html
+FAIL=Request: combined response Content-Type: text/plain;charset=gbk text/html;charset=windows-1254
+FAIL=Request: combined response Content-Type: text/plain;charset=gbk text/plain
+FAIL=Request: combined response Content-Type: text/plain;charset=gbk text/plain;charset=windows-1252
+FAIL=Request: combined response Content-Type: text/plain;charset=gbk;x=foo text/plain
+FAIL=Response: combined response Content-Type:  text/plain
+FAIL=Response: combined response Content-Type: */* text/html
+FAIL=Response: combined response Content-Type: text/html */*
+FAIL=Response: combined response Content-Type: text/html */*;charset=gbk
+FAIL=Response: combined response Content-Type: text/html text/plain
+FAIL=Response: combined response Content-Type: text/html;" " text/plain
+FAIL=Response: combined response Content-Type: text/html;" \" text/plain
+FAIL=Response: combined response Content-Type: text/html;" \" text/plain ";charset=GBK
+FAIL=Response: combined response Content-Type: text/html;" text/plain
+FAIL=Response: combined response Content-Type: text/html;charset=gbk text/html;x=",text/plain
+FAIL=Response: combined response Content-Type: text/html;charset=gbk text/plain text/html
+FAIL=Response: combined response Content-Type: text/html;x=" text/plain
+FAIL:esc=Response: combined response Content-Type: text/plain 
+FAIL=Response: combined response Content-Type: text/plain */*
+FAIL=Response: combined response Content-Type: text/plain */*;charset=gbk
+FAIL=Response: combined response Content-Type: text/plain;charset=gbk text/html
+FAIL=Response: combined response Content-Type: text/plain;charset=gbk text/html;charset=windows-1254
+FAIL=Response: combined response Content-Type: text/plain;charset=gbk text/plain
+FAIL=Response: combined response Content-Type: text/plain;charset=gbk text/plain;charset=windows-1252
+FAIL=Response: combined response Content-Type: text/plain;charset=gbk;x=foo text/plain
+FAIL=fetch(): combined response Content-Type:  text/plain
+FAIL=fetch(): combined response Content-Type: */* text/html
+FAIL=fetch(): combined response Content-Type: text/html */*
+FAIL=fetch(): combined response Content-Type: text/html */*;charset=gbk
+FAIL=fetch(): combined response Content-Type: text/html text/plain
+FAIL=fetch(): combined response Content-Type: text/html;" " text/plain
+FAIL=fetch(): combined response Content-Type: text/html;" \" text/plain
+FAIL=fetch(): combined response Content-Type: text/html;" \" text/plain ";charset=GBK
+FAIL=fetch(): combined response Content-Type: text/html;" text/plain
+FAIL=fetch(): combined response Content-Type: text/html;charset=gbk text/html;x=",text/plain
+FAIL=fetch(): combined response Content-Type: text/html;charset=gbk text/plain text/html
+FAIL=fetch(): combined response Content-Type: text/html;x=" text/plain
+FAIL:esc=fetch(): combined response Content-Type: text/plain 
+FAIL=fetch(): combined response Content-Type: text/plain */*
+FAIL=fetch(): combined response Content-Type: text/plain */*;charset=gbk
+FAIL=fetch(): combined response Content-Type: text/plain;charset=gbk text/html
+FAIL=fetch(): combined response Content-Type: text/plain;charset=gbk text/html;charset=windows-1254
+FAIL=fetch(): combined response Content-Type: text/plain;charset=gbk text/plain
+FAIL=fetch(): combined response Content-Type: text/plain;charset=gbk text/plain;charset=windows-1252
+FAIL=fetch(): combined response Content-Type: text/plain;charset=gbk;x=foo text/plain
+FAIL=fetch(): separate response Content-Type:  text/plain
+FAIL=fetch(): separate response Content-Type: */* text/html
+FAIL=fetch(): separate response Content-Type: text/html */*
+FAIL=fetch(): separate response Content-Type: text/html */*;charset=gbk
+FAIL=fetch(): separate response Content-Type: text/html text/plain
+FAIL=fetch(): separate response Content-Type: text/html;" " text/plain
+FAIL=fetch(): separate response Content-Type: text/html;" \" text/plain
+FAIL=fetch(): separate response Content-Type: text/html;" \" text/plain ";charset=GBK
+FAIL=fetch(): separate response Content-Type: text/html;" text/plain
+FAIL=fetch(): separate response Content-Type: text/html;charset=gbk text/html;x=",text/plain
+FAIL=fetch(): separate response Content-Type: text/html;charset=gbk text/plain text/html
+FAIL=fetch(): separate response Content-Type: text/html;x=" text/plain
+FAIL:esc=fetch(): separate response Content-Type: text/plain 
+FAIL=fetch(): separate response Content-Type: text/plain */*
+FAIL=fetch(): separate response Content-Type: text/plain */*;charset=gbk
+FAIL=fetch(): separate response Content-Type: text/plain;charset=gbk text/html
+FAIL=fetch(): separate response Content-Type: text/plain;charset=gbk text/html;charset=windows-1254
+FAIL=fetch(): separate response Content-Type: text/plain;charset=gbk text/plain
+FAIL=fetch(): separate response Content-Type: text/plain;charset=gbk text/plain;charset=windows-1252
+FAIL=fetch(): separate response Content-Type: text/plain;charset=gbk;x=foo text/plain
 [fetch/content-type/script.window.html]
-FAIL=combined text/javascript
-FAIL=combined text/javascript error
+FAIL=combined text/javascript x/x
 FAIL=combined text/javascript; charset=windows-1252 text/javascript
-FAIL=combined text/javascript;" x/x
 FAIL=combined text/javascript;charset=windows-1252  text/javascript
 FAIL=combined text/javascript;charset=windows-1252 error text/javascript
-FAIL=combined text/javascript;charset=windows-1252 x/x text/javascript
 FAIL=combined text/javascript;charset=windows-1252;" \" x/x
-FAIL=combined x/x text/javascript
-FAIL=combined x/x;" x/y;\" text/javascript;charset=windows-1252;" text/javascript
-FAIL=combined x/x;charset=windows-1252 text/javascript
-FAIL=separate text/javascript
-FAIL=separate text/javascript error
+FAIL=separate "text/javascript"
+FAIL=separate text /javascript
+FAIL=separate text/ javascript
+FAIL=separate text/javascript
+FAIL=separate text/javascript x/x
 FAIL=separate text/javascript; charset=windows-1252 text/javascript
-FAIL=separate text/javascript;" x/x
 FAIL=separate text/javascript;";charset=windows-1252
 FAIL=separate text/javascript;charset=windows-1252
 FAIL=separate text/javascript;charset=windows-1252  text/javascript
 FAIL=separate text/javascript;charset=windows-1252 error text/javascript
-FAIL=separate text/javascript;charset=windows-1252 x/x text/javascript
 FAIL=separate text/javascript;charset=windows-1252;" \" x/x
-FAIL=separate x/x text/javascript
-FAIL=separate x/x;" x/y;\" text/javascript;charset=windows-1252;" text/javascript
-FAIL=separate x/x;charset=windows-1252 text/javascript
 [fetch/corb/img-mime-types-coverage.tentative.sub.html]
 harness=TIMEOUT
 [fetch/corb/preload-image-png-mislabeled-as-html-nosniff.tentative.sub.html]
@@ -2434,9 +2181,20 @@ FAIL=CSS is not applied (because of nosniff + non-text/css headers)
 [fetch/corb/style-css-mislabeled-as-html.sub.html]
 FAIL=CSS is not applied (because of strict content-type enforcement for cross-origin stylesheets)
 [fetch/cross-origin-resource-policy/fetch-in-iframe.html]
-harness=TIMEOUT
+FAIL=Cross-origin fetch in a cross origin iframe load fails if the server blocks cross-origin loads with a 'Cross-Origin-Resource-Policy: same-origin' response header.
+FAIL=Cross-origin fetch in a cross origin iframe load fails if the server blocks cross-origin loads with a 'Cross-Origin-Resource-Policy: same-site' response header.
+FAIL=Cross-origin fetch in a data: iframe load fails if the server blocks cross-origin loads with a 'Cross-Origin-Resource-Policy: same-origin' response header.
+FAIL=Cross-origin fetch in a data: iframe load fails if the server blocks cross-origin loads with a 'Cross-Origin-Resource-Policy: same-site' response header.
+FAIL=Same-origin fetch in a cross origin iframe load succeeds if the server blocks cross-origin loads with a 'Cross-Origin-Resource-Policy: same-origin' response header.
 [fetch/cross-origin-resource-policy/fetch.any.html]
-harness=TIMEOUT
+FAIL=Cross-origin cors fetch with a 'Cross-Origin-Resource-Policy: same-origin' response header.
+FAIL=Cross-origin cors fetch with a 'Cross-Origin-Resource-Policy: same-site' response header.
+FAIL=Cross-origin no-cors fetch with a 'Cross-Origin-Resource-Policy: same-origin' response header after a cross-origin redirection.
+FAIL=Cross-origin no-cors fetch with a 'Cross-Origin-Resource-Policy: same-origin' response header.
+FAIL=Cross-origin no-cors fetch with a 'Cross-Origin-Resource-Policy: same-site' response header.
+FAIL=Same-origin fetch with a 'Cross-Origin-Resource-Policy: same-origin' response header.
+FAIL=Same-origin fetch with a 'Cross-Origin-Resource-Policy: same-site' response header.
+FAIL=Valid cross-origin no-cors fetch with a 'Cross-Origin-Resource-Policy: same-site' response header.
 [fetch/cross-origin-resource-policy/fetch.any.worker.html]
 harness=TIMEOUT
 [fetch/cross-origin-resource-policy/fetch.https.any.html]
@@ -2444,108 +2202,44 @@ FAIL=Cross-origin cors fetch with a 'Cross-Origin-Resource-Policy: same-origin' 
 FAIL=Cross-origin cors fetch with a 'Cross-Origin-Resource-Policy: same-site' response header.
 FAIL=Cross-origin no-cors fetch with a 'Cross-Origin-Resource-Policy: same-origin' redirect response header.
 FAIL=Cross-origin no-cors fetch with a 'Cross-Origin-Resource-Policy: same-origin' response header after a cross-origin redirection.
-FAIL=Cross-origin no-cors fetch with a 'Cross-Origin-Resource-Policy: same-origin' response header after a redirection.
-FAIL=Cross-origin no-cors fetch with a 'Cross-Origin-Resource-Policy: same-origin' response header.
-FAIL=Cross-origin no-cors fetch with a 'Cross-Origin-Resource-Policy: same-site' response header.
 FAIL=Same-origin fetch with a 'Cross-Origin-Resource-Policy: same-origin' response header.
 FAIL=Same-origin fetch with a 'Cross-Origin-Resource-Policy: same-site' response header.
 [fetch/cross-origin-resource-policy/iframe-loads.html]
 FAIL=Load an iframe that has Cross-Origin-Resource-Policy header
 [fetch/cross-origin-resource-policy/image-loads.html]
 harness=TIMEOUT
-[fetch/cross-origin-resource-policy/scheme-restriction.any.html]
-FAIL=Cross-Origin-Resource-Policy: same-site blocks retrieving HTTPS from HTTP
 [fetch/cross-origin-resource-policy/scheme-restriction.any.worker.html]
 harness=TIMEOUT
 [fetch/cross-origin-resource-policy/scheme-restriction.https.window.html]
 harness=TIMEOUT
 [fetch/cross-origin-resource-policy/script-loads.html]
-FAIL=Cross-origin cors script load with a 'Cross-Origin-Resource-Policy: same-origin' response header.
-FAIL=Cross-origin cors script load with a 'Cross-Origin-Resource-Policy: same-site' response header.
-FAIL=Same-origin script load with a 'Cross-Origin-Resource-Policy: same-origin' response header.
-FAIL=Same-origin script load with a 'Cross-Origin-Resource-Policy: same-site' response header.
+harness=TIMEOUT
 [fetch/cross-origin-resource-policy/syntax.any.worker.html]
 harness=TIMEOUT
 [fetch/data-urls/base64.any.html]
 FAIL=data: URL base64 handling: " \t\n\f\r ab\t\n\f\r cd\t\n\f\r "
 FAIL=data: URL base64 handling: " abcd"
-FAIL=data: URL base64 handling: " abcd==="
-FAIL=data: URL base64 handling: "--"
-FAIL=data: URL base64 handling: ".."
-FAIL=data: URL base64 handling: "/"
-FAIL=data: URL base64 handling: "////A"
 FAIL=data: URL base64 handling: "///A"
 FAIL=data: URL base64 handling: "//A"
 FAIL=data: URL base64 handling: "/A"
-FAIL=data: URL base64 handling: "="
-FAIL=data: URL base64 handling: "=="
-FAIL=data: URL base64 handling: "==="
-FAIL=data: URL base64 handling: "===="
-FAIL=data: URL base64 handling: "====="
-FAIL=data: URL base64 handling: "=a"
-FAIL=data: URL base64 handling: "=a="
-FAIL=data: URL base64 handling: "A"
 FAIL=data: URL base64 handling: "A/"
 FAIL=data: URL base64 handling: "AA/"
 FAIL=data: URL base64 handling: "AAA/"
-FAIL=data: URL base64 handling: "AAAA/"
-FAIL=data: URL base64 handling: "U+d800U+dc00"
 FAIL=data: URL base64 handling: "YQ"
 FAIL=data: URL base64 handling: "YR"
-FAIL=data: URL base64 handling: "\uffffnonsense"
-FAIL=data: URL base64 handling: "__"
-FAIL=data: URL base64 handling: "a"
-FAIL=data: URL base64 handling: "a="
-FAIL=data: URL base64 handling: "a=="
-FAIL=data: URL base64 handling: "a==="
-FAIL=data: URL base64 handling: "a===="
-FAIL=data: URL base64 handling: "a====="
-FAIL=data: URL base64 handling: "a=b"
-FAIL=data: URL base64 handling: "a=b="
 FAIL=data: URL base64 handling: "ab cd"
 FAIL=data: URL base64 handling: "ab"
-FAIL=data: URL base64 handling: "ab="
 FAIL=data: URL base64 handling: "ab=="
-FAIL=data: URL base64 handling: "ab==="
-FAIL=data: URL base64 handling: "ab===="
-FAIL=data: URL base64 handling: "ab====="
-FAIL=data: URL base64 handling: "ab=c"
-FAIL=data: URL base64 handling: "ab=c="
-FAIL=data: URL base64 handling: "abU+3000cd"
-FAIL=data: URL base64 handling: "abU+3001cd"
-FAIL=data: URL base64 handling: "abU+a0cd"
 FAIL=data: URL base64 handling: "ab\fcd"
 FAIL=data: URL base64 handling: "ab\ncd"
 FAIL=data: URL base64 handling: "ab\rcd"
 FAIL=data: URL base64 handling: "ab\t\n\f\r =\t\n\f\r =\t\n\f\r "
 FAIL=data: URL base64 handling: "ab\t\n\f\r cd"
 FAIL=data: URL base64 handling: "ab\tcd"
-FAIL=data: URL base64 handling: "ab\vcd"
 FAIL=data: URL base64 handling: "abc"
 FAIL=data: URL base64 handling: "abc="
-FAIL=data: URL base64 handling: "abc=="
-FAIL=data: URL base64 handling: "abc==="
-FAIL=data: URL base64 handling: "abc===="
-FAIL=data: URL base64 handling: "abc====="
-FAIL=data: URL base64 handling: "abc=d"
-FAIL=data: URL base64 handling: "abc=d="
 FAIL=data: URL base64 handling: "abcd "
-FAIL=data: URL base64 handling: "abcd ==="
 FAIL=data: URL base64 handling: "abcd"
-FAIL=data: URL base64 handling: "abcd="
-FAIL=data: URL base64 handling: "abcd=="
-FAIL=data: URL base64 handling: "abcd=== "
-FAIL=data: URL base64 handling: "abcd==="
-FAIL=data: URL base64 handling: "abcd===="
-FAIL=data: URL base64 handling: "abcd====="
-FAIL=data: URL base64 handling: "abcd\uffffnonsense"
-FAIL=data: URL base64 handling: "abcde"
-FAIL=data: URL base64 handling: "abcde="
-FAIL=data: URL base64 handling: "abcde=="
-FAIL=data: URL base64 handling: "abcde==="
-FAIL=data: URL base64 handling: "abcde===="
-FAIL=data: URL base64 handling: "abcde====="
-FAIL=data: URL base64 handling: "~~"
 [fetch/data-urls/navigate.window.html]
 FAIL=ASCII whitespace in the input is removed
 FAIL=Nothing fancy
@@ -2557,7 +2251,6 @@ FAIL=base64url is not supported
 [fetch/data-urls/processing.any.html]
 FAIL="data:  ;charset=x   ;  base64,WA"
 FAIL="data: ,%FF"
-FAIL="data:"
 FAIL="data:%00,%FF"
 FAIL="data:%1F,%FF"
 FAIL="data:%20,%FF"
@@ -2602,9 +2295,7 @@ FAIL="data:application/xml,X X"
 FAIL="data:image/gif,%C2%B1"
 FAIL="data:image/png,X X"
 FAIL="data:text / html,X"
-FAIL="data:text/html    ;charset=x   "
 FAIL="data:text/html  ,X"
-FAIL="data:text/html"
 FAIL="data:text/javascript,X X"
 FAIL="data:text/plain ,X"
 FAIL="data:text/plain%0C,X"
@@ -2658,14 +2349,14 @@ harness=TIMEOUT
 [fetch/fetch-later/headers/header-referrer-no-referrer-when-downgrade.https.html]
 FAIL=Test referer header https://localhost:1
 [fetch/fetch-later/headers/header-referrer-no-referrer.https.html]
-FAIL=Test referer header
+FAIL:esc=Test referer header 
 [fetch/fetch-later/headers/header-referrer-origin-when-cross-origin.https.html]
 FAIL=Test referer header https://127.0.0.1:1
 FAIL=Test referer header https://localhost:1
 [fetch/fetch-later/headers/header-referrer-origin.https.html]
 FAIL=Test referer header https://127.0.0.1:1
 [fetch/fetch-later/headers/header-referrer-same-origin.https.html]
-FAIL=Test referer header
+FAIL:esc=Test referer header 
 FAIL=Test referer header https://127.0.0.1:1
 [fetch/fetch-later/headers/header-referrer-strict-origin-when-cross-origin.https.html]
 FAIL=Test referer header https://127.0.0.1:1
@@ -2674,20 +2365,9 @@ FAIL=Test referer header https://localhost:1
 [fetch/fetch-later/headers/header-referrer-unsafe-url.https.html]
 FAIL=Test referer header https://localhost:1
 [fetch/fetch-later/iframe.https.window.html]
-harness=TIMEOUT
+FAIL=A blank iframe can trigger fetchLater.
 [fetch/fetch-later/new-window.https.window.html]
-FAIL=A blank window[target=''][features=''] can trigger fetchLater.
-FAIL=A blank window[target=''][features='popup'] can trigger fetchLater.
-FAIL=A blank window[target='_blank'][features=''] can trigger fetchLater.
-FAIL=A blank window[target='_blank'][features='popup'] can trigger fetchLater.
-FAIL=A cross-origin window[target=''][features=''] can trigger fetchLater.
-FAIL=A cross-origin window[target=''][features='popup'] can trigger fetchLater.
-FAIL=A cross-origin window[target='_blank'][features=''] can trigger fetchLater.
-FAIL=A cross-origin window[target='_blank'][features='popup'] can trigger fetchLater.
-FAIL=A same-origin window[target=''][features=''] can trigger fetchLater.
-FAIL=A same-origin window[target=''][features='popup'] can trigger fetchLater.
-FAIL=A same-origin window[target='_blank'][features=''] can trigger fetchLater.
-FAIL=A same-origin window[target='_blank'][features='popup'] can trigger fetchLater.
+harness=TIMEOUT
 [fetch/fetch-later/permissions-policy/deferred-fetch-allowed-by-permissions-policy-attribute-redirect.https.window.html]
 FAIL=Permissions policy allow="deferred-fetch" allows fetchLater() from a redirected same-origin iframe.
 FAIL=Permissions policy allow="deferred-fetch" disallows fetchLater() from a redirected cross-origin iframe.
@@ -2770,17 +2450,13 @@ FAIL=fetchLater() does send on page entering BFCache even if BackgroundSync is o
 FAIL=fetchLater() with activateAfter=0 sends on page entering BFCache if BackgroundSync is on.
 FAIL=fetchLater() with activateAfter=1m does send on page entering BFCache even if BackgroundSync is on.
 [fetch/fetch-later/send-on-deactivate.https.window.html]
-FAIL=Call fetchLater() when BFCached with activateAfter=0 sends immediately.
-FAIL=fetchLater() does not send aborted request on navigating away a page w/o BFCache.
-FAIL=fetchLater() sends on navigating away a page w/o BFCache.
-FAIL=fetchLater() sends on page entering BFCache if BackgroundSync is off.
-FAIL=fetchLater() with activateAfter=1m sends on page entering BFCache if BackgroundSync is off.
+harness=TIMEOUT
 [fetch/fetch-later/send-on-discard/not-send-after-abort.https.window.html]
-harness=TIMEOUT
+FAIL=A discarded document does not send an already aborted fetchLater request.
 [fetch/fetch-later/send-on-discard/send-multiple-with-activate-after.https.window.html]
-harness=TIMEOUT
+FAIL=A discarded document sends all its fetchLater requests, no matter how much their activateAfter timeout remain.
 [fetch/fetch-later/send-on-discard/send-multiple.https.window.html]
-harness=TIMEOUT
+FAIL=A discarded document sends all its fetchLater requests.
 [fetch/h1-parsing/h1-parsing.tentative.html]
 FAIL=COLON at <after-colon> should result in Network Error (fetch)
 FAIL=COLON at <after-colon> should result in Network Error frame
@@ -2975,24 +2651,30 @@ FAIL=SP at <in-name> should result in Network Error frame
 FAIL=SP at <leading> should result in Network Error (fetch)
 FAIL=SP at <leading> should result in Network Error frame
 [fetch/h1-parsing/lone-cr.window.html]
-harness=TIMEOUT
+FAIL:esc=Parsing response with a lone CR before message-body (HTTP/1.1 200 OK\nHeader: Value\n\nBODY)
+FAIL:esc=Parsing response with a lone CR before message-body (HTTP/1.1 200 OK\nHeader: Value\n\nBody)
+FAIL:esc=Parsing response with a lone CR before message-body (HTTP/1.1 200 OK\nHeader: Value\n)
+FAIL:esc=Parsing response with a lone CR before message-body (HTTP/1.1 200 OK\nHeader: Value\nBODY)
+FAIL:esc=Parsing response with a lone CR before message-body (HTTP/1.1 200 OK\nHeader: ValueHeader2: Value2\n\nBODY)
+FAIL:esc=Parsing response with a lone CR before message-body (HTTP/1.1 200OK\n\nBODY)
+FAIL:esc=Parsing response with a lone CR before message-body (HTTP/1.1200 OK\n\nBODY)
 [fetch/h1-parsing/resources-with-0x00-in-header.window.html]
 harness=TIMEOUT
 [fetch/h1-parsing/status-code.window.html]
 FAIL=HTTP/1.1  (network error)
 FAIL=HTTP/1.1 -200 TEST (network error)
-FAIL=HTTP/1.1 0 OK
+FAIL:esc=HTTP/1.1 0 OK 
 FAIL=HTTP/1.1 0200 BOO (network error)
-FAIL=HTTP/1.1 077 77
-FAIL=HTTP/1.1 099 HELLO
+FAIL:esc=HTTP/1.1 077 77 
+FAIL:esc=HTTP/1.1 099 HELLO 
 FAIL=HTTP/1.1 0xA (network error)
-FAIL=HTTP/1.1 1 OK
+FAIL:esc=HTTP/1.1 1 OK 
 FAIL=HTTP/1.1 1000 BOO (network error)
 FAIL=HTTP/1.1 131072 HI (network error)
-FAIL=HTTP/1.1 200
+FAIL:esc=HTTP/1.1 200 
 FAIL=HTTP/1.1 65736 NOT 200 OR SOME SUCH (network error)
-FAIL=HTTP/1.1 99 NOT OK
-FAIL=HTTP/1.1 999 DOES IT MATTER
+FAIL:esc=HTTP/1.1 99 NOT OK 
+FAIL:esc=HTTP/1.1 999 DOES IT MATTER 
 FAIL=HTTP/1.1 BLAH (network error)
 FAIL=HTTP/1.1 C8 (network error)
 [fetch/http-cache/304-update.any.html]
@@ -3154,20 +2836,11 @@ FAIL=HTTP cache uses three-way Vary response when both request and the original 
 [fetch/images/canvas-remote-read-remote-image-redirect.html]
 harness=TIMEOUT
 [fetch/local-network-access/dedicated-worker.tentative.https.html]
-FAIL=LNA Dedicated Worker Public to Loopback Fetch with permission
-FAIL=LNA Dedicated Worker Public to Loopback Fetch without permission
-FAIL=LNA Dedicated Worker Public to Loopback WebSocket with permission
-FAIL=LNA Dedicated Worker Public to Loopback WebSocket without permission
-FAIL=LNA Dedicated Worker Public to Loopback WebTransport with permission
-FAIL=LNA Dedicated Worker Public to Loopback WebTransport without permission
+harness=TIMEOUT
 [fetch/local-network-access/fetch.tentative.https.html]
-FAIL=LNA Public to local http mixed content bypass
-FAIL=LNA Public to local with permission
-FAIL=LNA Public to local with permission denied
-FAIL=LNA Public to public http mixed content bypass failure
+harness=TIMEOUT
 [fetch/local-network-access/iframe-opener.tentative.https.html]
-FAIL=LNA Public to loopback navigate iframe from opener with permission
-FAIL=LNA Public to loopback navigate iframe from opener without permission
+harness=TIMEOUT
 [fetch/local-network-access/iframe.tentative.https.window.html?include=from-local]
 harness=ERROR
 [fetch/local-network-access/iframe.tentative.https.window.html?include=from-loopback]
@@ -3187,32 +2860,13 @@ harness=ERROR
 [fetch/local-network-access/navigate.tentative.window.html?include=from-public]
 harness=ERROR
 [fetch/local-network-access/service-worker.tentative.https.html]
-FAIL=LNA Service Worker Public navigate to Loopback in iframe with permission
-FAIL=LNA Service Worker Public navigate to Loopback in iframe without permission
-FAIL=LNA Service Worker Public navigate to Loopback main frame without permission
-FAIL=LNA Service Worker Public to Loopback Fetch with permission
-FAIL=LNA Service Worker Public to Loopback Fetch without permission
-FAIL=LNA Service Worker Public to Loopback WebSocket with permission
-FAIL=LNA Service Worker Public to Loopback WebSocket without permission
-FAIL=LNA Service Worker Public to Loopback WebTransport with permission
-FAIL=LNA Service Worker Public to Loopback WebTransport without permission
+harness=TIMEOUT
 [fetch/local-network-access/shared-worker.tentative.https.html]
-FAIL=LNA Shared Worker Public to Loopback Fetch with permission
-FAIL=LNA Shared Worker Public to Loopback Fetch without permission
-FAIL=LNA Shared Worker Public to Loopback WebSocket with permission
-FAIL=LNA Shared Worker Public to Loopback WebSocket without permission
-FAIL=LNA Shared Worker Public to Loopback WebTransport with permission
-FAIL=LNA Shared Worker Public to Loopback WebTransport without permission
+harness=TIMEOUT
 [fetch/local-network-access/websocket.tentative.https.html]
-FAIL=LNA Public to loopback websocket with permission
-FAIL=LNA Public to loopback websocket without permission
-FAIL=LNA local to loopback websocket with permission
-FAIL=LNA local to loopback websocket without permission
+harness=TIMEOUT
 [fetch/local-network-access/webtransport.tentative.https.html]
-FAIL=LNA Public to loopback webtransport with permission
-FAIL=LNA Public to loopback webtransport without permission
-FAIL=LNA local to loopback webtransport with permission
-FAIL=LNA local to loopback webtransport without permission
+harness=TIMEOUT
 [fetch/metadata/audio-worklet.https.html]
 FAIL=The fetch metadata for audio worklet
 [fetch/metadata/embed.https.sub.tentative.html]
@@ -3389,9 +3043,45 @@ harness=TIMEOUT
 [fetch/metadata/generated/element-frame.sub.html]
 harness=TIMEOUT
 [fetch/metadata/generated/element-iframe.https.sub.html]
-harness=TIMEOUT
+FAIL=sec-fetch-dest
+FAIL=sec-fetch-mode
+FAIL=sec-fetch-site - Cross-Site -> Cross-Site
+FAIL=sec-fetch-site - Cross-Site -> Same Origin
+FAIL=sec-fetch-site - Cross-Site -> Same-Site
+FAIL=sec-fetch-site - Cross-site
+FAIL=sec-fetch-site - Same origin
+FAIL=sec-fetch-site - Same site
+FAIL=sec-fetch-site - Same-Origin -> Cross-Site
+FAIL=sec-fetch-site - Same-Origin -> Cross-Site -> Same-Origin redirect
+FAIL=sec-fetch-site - Same-Origin -> Same Origin
+FAIL=sec-fetch-site - Same-Origin -> Same-Site
+FAIL=sec-fetch-site - Same-Origin -> Same-Site -> Same-Origin redirect
+FAIL=sec-fetch-site - Same-Site -> Cross-Site
+FAIL=sec-fetch-site - Same-Site -> Same Origin
+FAIL=sec-fetch-site - Same-Site -> Same-Site
+FAIL=sec-fetch-storage-access - Cross-site
+FAIL=sec-fetch-storage-access - Same site
+FAIL=sec-fetch-user
+FAIL=sec-fetch-user with user activation
 [fetch/metadata/generated/element-iframe.sub.html]
-harness=TIMEOUT
+FAIL=sec-fetch-dest - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-dest - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-dest - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-mode - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-mode - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-mode - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-site - HTTPS downgrade (header not sent)
+FAIL=sec-fetch-site - HTTPS downgrade-upgrade
+FAIL=sec-fetch-site - HTTPS upgrade
+FAIL=sec-fetch-site - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-site - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-site - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-storage-access - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-user - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-user - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-user - Not sent to non-trustworthy same-site destination
 [fetch/metadata/generated/element-img-environment-change.https.sub.html]
 FAIL=sec-fetch-dest - no attributes
 FAIL=sec-fetch-mode - attributes: crossorigin
@@ -3489,45 +3179,9 @@ harness=ERROR
 [fetch/metadata/generated/element-link-prefetch.optional.sub.html]
 harness=ERROR
 [fetch/metadata/generated/element-meta-refresh.https.optional.sub.html]
-FAIL=sec-fetch-dest
-FAIL=sec-fetch-mode
-FAIL=sec-fetch-site - Cross-Site -> Cross-Site
-FAIL=sec-fetch-site - Cross-Site -> Same Origin
-FAIL=sec-fetch-site - Cross-Site -> Same-Site
-FAIL=sec-fetch-site - Cross-site
-FAIL=sec-fetch-site - HTTPS downgrade-upgrade
-FAIL=sec-fetch-site - Same origin
-FAIL=sec-fetch-site - Same site
-FAIL=sec-fetch-site - Same-Origin -> Cross-Site
-FAIL=sec-fetch-site - Same-Origin -> Cross-Site -> Same-Origin redirect
-FAIL=sec-fetch-site - Same-Origin -> Same Origin
-FAIL=sec-fetch-site - Same-Origin -> Same-Site
-FAIL=sec-fetch-site - Same-Origin -> Same-Site -> Same-Origin redirect
-FAIL=sec-fetch-site - Same-Site -> Cross-Site
-FAIL=sec-fetch-site - Same-Site -> Same Origin
-FAIL=sec-fetch-site - Same-Site -> Same-Site
-FAIL=sec-fetch-storage-access - Cross-site
-FAIL=sec-fetch-storage-access - Same site
-FAIL=sec-fetch-user
+harness=ERROR
 [fetch/metadata/generated/element-meta-refresh.optional.sub.html]
-FAIL=sec-fetch-dest - Not sent to non-trustworthy cross-site destination
-FAIL=sec-fetch-dest - Not sent to non-trustworthy same-origin destination
-FAIL=sec-fetch-dest - Not sent to non-trustworthy same-site destination
-FAIL=sec-fetch-mode - Not sent to non-trustworthy cross-site destination
-FAIL=sec-fetch-mode - Not sent to non-trustworthy same-origin destination
-FAIL=sec-fetch-mode - Not sent to non-trustworthy same-site destination
-FAIL=sec-fetch-site - HTTPS downgrade (header not sent)
-FAIL=sec-fetch-site - HTTPS downgrade-upgrade
-FAIL=sec-fetch-site - HTTPS upgrade
-FAIL=sec-fetch-site - Not sent to non-trustworthy cross-site destination
-FAIL=sec-fetch-site - Not sent to non-trustworthy same-origin destination
-FAIL=sec-fetch-site - Not sent to non-trustworthy same-site destination
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy cross-site destination
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-origin destination
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-site destination
-FAIL=sec-fetch-user - Not sent to non-trustworthy cross-site destination
-FAIL=sec-fetch-user - Not sent to non-trustworthy same-origin destination
-FAIL=sec-fetch-user - Not sent to non-trustworthy same-site destination
+harness=ERROR
 [fetch/metadata/generated/element-picture.https.sub.html]
 harness=TIMEOUT
 [fetch/metadata/generated/element-picture.sub.html]
@@ -3632,99 +3286,97 @@ FAIL=sec-fetch-user - Not sent to non-trustworthy cross-site destination, no ini
 FAIL=sec-fetch-user - Not sent to non-trustworthy same-origin destination, no init
 FAIL=sec-fetch-user - Not sent to non-trustworthy same-site destination, no init
 [fetch/metadata/generated/form-submission.https.sub.html]
-FAIL=sec-fetch-dest - GET
-FAIL=sec-fetch-dest - POST
-FAIL=sec-fetch-mode - GET
-FAIL=sec-fetch-mode - POST
-FAIL=sec-fetch-site - Cross-Site -> Cross-Site - GET
-FAIL=sec-fetch-site - Cross-Site -> Cross-Site - POST
-FAIL=sec-fetch-site - Cross-Site -> Same Origin - GET
-FAIL=sec-fetch-site - Cross-Site -> Same Origin - POST
-FAIL=sec-fetch-site - Cross-Site -> Same-Site - GET
-FAIL=sec-fetch-site - Cross-Site -> Same-Site - POST
-FAIL=sec-fetch-site - Cross-site - GET
-FAIL=sec-fetch-site - Cross-site - POST
-FAIL=sec-fetch-site - HTTPS downgrade-upgrade - GET
-FAIL=sec-fetch-site - HTTPS downgrade-upgrade - POST
-FAIL=sec-fetch-site - Same origin - GET
-FAIL=sec-fetch-site - Same origin - POST
-FAIL=sec-fetch-site - Same site - GET
-FAIL=sec-fetch-site - Same site - POST
-FAIL=sec-fetch-site - Same-Origin -> Cross-Site - GET
-FAIL=sec-fetch-site - Same-Origin -> Cross-Site - POST
-FAIL=sec-fetch-site - Same-Origin -> Cross-Site -> Same-Origin redirect - GET
-FAIL=sec-fetch-site - Same-Origin -> Cross-Site -> Same-Origin redirect - POST
-FAIL=sec-fetch-site - Same-Origin -> Same Origin - GET
-FAIL=sec-fetch-site - Same-Origin -> Same Origin - POST
-FAIL=sec-fetch-site - Same-Origin -> Same-Site - GET
-FAIL=sec-fetch-site - Same-Origin -> Same-Site - POST
-FAIL=sec-fetch-site - Same-Origin -> Same-Site -> Same-Origin redirect - GET
-FAIL=sec-fetch-site - Same-Origin -> Same-Site -> Same-Origin redirect - POST
-FAIL=sec-fetch-site - Same-Site -> Cross-Site - GET
-FAIL=sec-fetch-site - Same-Site -> Cross-Site - POST
-FAIL=sec-fetch-site - Same-Site -> Same Origin - GET
-FAIL=sec-fetch-site - Same-Site -> Same Origin - POST
-FAIL=sec-fetch-site - Same-Site -> Same-Site - GET
-FAIL=sec-fetch-site - Same-Site -> Same-Site - POST
-FAIL=sec-fetch-storage-access - Cross-site - GET
-FAIL=sec-fetch-storage-access - Cross-site - POST
-FAIL=sec-fetch-storage-access - Same site - GET
-FAIL=sec-fetch-storage-access - Same site - POST
-FAIL=sec-fetch-user - GET
-FAIL=sec-fetch-user - GET with user activation
-FAIL=sec-fetch-user - POST
-FAIL=sec-fetch-user - POST with user activation
+harness=TIMEOUT
 [fetch/metadata/generated/form-submission.sub.html]
-FAIL=sec-fetch-dest - Not sent to non-trustworthy cross-site destination - GET
-FAIL=sec-fetch-dest - Not sent to non-trustworthy cross-site destination - POST
-FAIL=sec-fetch-dest - Not sent to non-trustworthy same-origin destination - GET
-FAIL=sec-fetch-dest - Not sent to non-trustworthy same-origin destination - POST
-FAIL=sec-fetch-dest - Not sent to non-trustworthy same-site destination - GET
-FAIL=sec-fetch-dest - Not sent to non-trustworthy same-site destination - POST
-FAIL=sec-fetch-mode - Not sent to non-trustworthy cross-site destination - GET
-FAIL=sec-fetch-mode - Not sent to non-trustworthy cross-site destination - POST
-FAIL=sec-fetch-mode - Not sent to non-trustworthy same-origin destination - GET
-FAIL=sec-fetch-mode - Not sent to non-trustworthy same-origin destination - POST
-FAIL=sec-fetch-mode - Not sent to non-trustworthy same-site destination - GET
-FAIL=sec-fetch-mode - Not sent to non-trustworthy same-site destination - POST
-FAIL=sec-fetch-site - HTTPS downgrade (header not sent) - GET
-FAIL=sec-fetch-site - HTTPS downgrade (header not sent) - POST
-FAIL=sec-fetch-site - HTTPS downgrade-upgrade - GET
-FAIL=sec-fetch-site - HTTPS downgrade-upgrade - POST
-FAIL=sec-fetch-site - HTTPS upgrade - GET
-FAIL=sec-fetch-site - HTTPS upgrade - POST
-FAIL=sec-fetch-site - Not sent to non-trustworthy cross-site destination - GET
-FAIL=sec-fetch-site - Not sent to non-trustworthy cross-site destination - POST
-FAIL=sec-fetch-site - Not sent to non-trustworthy same-origin destination - GET
-FAIL=sec-fetch-site - Not sent to non-trustworthy same-origin destination - POST
-FAIL=sec-fetch-site - Not sent to non-trustworthy same-site destination - GET
-FAIL=sec-fetch-site - Not sent to non-trustworthy same-site destination - POST
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy cross-site destination - GET
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy cross-site destination - POST
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-origin destination - GET
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-origin destination - POST
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-site destination - GET
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-site destination - POST
-FAIL=sec-fetch-user - Not sent to non-trustworthy cross-site destination - GET
-FAIL=sec-fetch-user - Not sent to non-trustworthy cross-site destination - POST
-FAIL=sec-fetch-user - Not sent to non-trustworthy same-origin destination - GET
-FAIL=sec-fetch-user - Not sent to non-trustworthy same-origin destination - POST
-FAIL=sec-fetch-user - Not sent to non-trustworthy same-site destination - GET
-FAIL=sec-fetch-user - Not sent to non-trustworthy same-site destination - POST
+harness=TIMEOUT
 [fetch/metadata/generated/header-link.https.sub.html]
-harness=TIMEOUT
+FAIL=sec-fetch-dest rel=icon
+FAIL=sec-fetch-mode rel=icon
+FAIL=sec-fetch-mode rel=stylesheet
+FAIL=sec-fetch-site rel=icon - Cross-Site -> Cross-Site
+FAIL=sec-fetch-site rel=icon - Cross-Site -> Same Origin
+FAIL=sec-fetch-site rel=icon - Cross-Site -> Same-Site
+FAIL=sec-fetch-site rel=icon - Cross-site
+FAIL=sec-fetch-site rel=icon - Same origin
+FAIL=sec-fetch-site rel=icon - Same site
+FAIL=sec-fetch-site rel=icon - Same-Origin -> Cross-Site
+FAIL=sec-fetch-site rel=icon - Same-Origin -> Cross-Site -> Same-Origin redirect
+FAIL=sec-fetch-site rel=icon - Same-Origin -> Same Origin
+FAIL=sec-fetch-site rel=icon - Same-Origin -> Same-Site
+FAIL=sec-fetch-site rel=icon - Same-Origin -> Same-Site -> Same-Origin redirect
+FAIL=sec-fetch-site rel=icon - Same-Site -> Cross-Site
+FAIL=sec-fetch-site rel=icon - Same-Site -> Same Origin
+FAIL=sec-fetch-site rel=icon - Same-Site -> Same-Site
+FAIL=sec-fetch-site rel=stylesheet - Cross-Site -> Cross-Site
+FAIL=sec-fetch-site rel=stylesheet - Cross-Site -> Same Origin
+FAIL=sec-fetch-site rel=stylesheet - Cross-Site -> Same-Site
+FAIL=sec-fetch-site rel=stylesheet - Cross-site
+FAIL=sec-fetch-site rel=stylesheet - Same origin
+FAIL=sec-fetch-site rel=stylesheet - Same site
+FAIL=sec-fetch-site rel=stylesheet - Same-Origin -> Cross-Site
+FAIL=sec-fetch-site rel=stylesheet - Same-Origin -> Cross-Site -> Same-Origin redirect
+FAIL=sec-fetch-site rel=stylesheet - Same-Origin -> Same Origin
+FAIL=sec-fetch-site rel=stylesheet - Same-Origin -> Same-Site
+FAIL=sec-fetch-site rel=stylesheet - Same-Origin -> Same-Site -> Same-Origin redirect
+FAIL=sec-fetch-site rel=stylesheet - Same-Site -> Cross-Site
+FAIL=sec-fetch-site rel=stylesheet - Same-Site -> Same Origin
+FAIL=sec-fetch-site rel=stylesheet - Same-Site -> Same-Site
+FAIL=sec-fetch-storage-access rel=icon - Cross-site
+FAIL=sec-fetch-storage-access rel=icon - Same site
+FAIL=sec-fetch-storage-access rel=stylesheet - Cross-site
+FAIL=sec-fetch-storage-access rel=stylesheet - Same site
+FAIL=sec-fetch-user rel=icon
+FAIL=sec-fetch-user rel=stylesheet
 [fetch/metadata/generated/header-link.https.sub.tentative.html]
-harness=TIMEOUT
+FAIL=sec-fetch-dest rel=stylesheet
 [fetch/metadata/generated/header-link.sub.html]
-harness=TIMEOUT
+FAIL=sec-fetch-dest rel=icon - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-dest rel=icon - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-dest rel=icon - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-dest rel=stylesheet - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-dest rel=stylesheet - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-dest rel=stylesheet - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-mode rel=icon - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-mode rel=icon - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-mode rel=icon - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-mode rel=stylesheet - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-mode rel=stylesheet - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-mode rel=stylesheet - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-site rel=icon - HTTPS downgrade (header not sent)
+FAIL=sec-fetch-site rel=icon - HTTPS downgrade-upgrade
+FAIL=sec-fetch-site rel=icon - HTTPS upgrade
+FAIL=sec-fetch-site rel=icon - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-site rel=icon - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-site rel=icon - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-site rel=stylesheet - HTTPS downgrade (header not sent)
+FAIL=sec-fetch-site rel=stylesheet - HTTPS downgrade-upgrade
+FAIL=sec-fetch-site rel=stylesheet - HTTPS upgrade
+FAIL=sec-fetch-site rel=stylesheet - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-site rel=stylesheet - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-site rel=stylesheet - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-storage-access rel=icon - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-storage-access rel=icon - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-storage-access rel=icon - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-storage-access rel=stylesheet - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-storage-access rel=stylesheet - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-storage-access rel=stylesheet - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-user rel=icon - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-user rel=icon - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-user rel=icon - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-user rel=stylesheet - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-user rel=stylesheet - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-user rel=stylesheet - Not sent to non-trustworthy same-site destination
 [fetch/metadata/generated/header-refresh.https.optional.sub.html]
+harness=ERROR
+[fetch/metadata/generated/header-refresh.optional.sub.html]
+harness=ERROR
+[fetch/metadata/generated/script-json-module-import-static.https.sub.html]
 FAIL=sec-fetch-dest
 FAIL=sec-fetch-mode
 FAIL=sec-fetch-site - Cross-Site -> Cross-Site
 FAIL=sec-fetch-site - Cross-Site -> Same Origin
 FAIL=sec-fetch-site - Cross-Site -> Same-Site
 FAIL=sec-fetch-site - Cross-site
-FAIL=sec-fetch-site - HTTPS downgrade-upgrade
 FAIL=sec-fetch-site - Same origin
 FAIL=sec-fetch-site - Same site
 FAIL=sec-fetch-site - Same-Origin -> Cross-Site
@@ -3735,30 +3387,7 @@ FAIL=sec-fetch-site - Same-Origin -> Same-Site -> Same-Origin redirect
 FAIL=sec-fetch-site - Same-Site -> Cross-Site
 FAIL=sec-fetch-site - Same-Site -> Same Origin
 FAIL=sec-fetch-site - Same-Site -> Same-Site
-FAIL=sec-fetch-storage-access - Cross-site
-FAIL=sec-fetch-storage-access - Same site
 FAIL=sec-fetch-user
-[fetch/metadata/generated/header-refresh.optional.sub.html]
-FAIL=sec-fetch-dest - Not sent to non-trustworthy cross-site destination
-FAIL=sec-fetch-dest - Not sent to non-trustworthy same-origin destination
-FAIL=sec-fetch-dest - Not sent to non-trustworthy same-site destination
-FAIL=sec-fetch-mode - Not sent to non-trustworthy cross-site destination
-FAIL=sec-fetch-mode - Not sent to non-trustworthy same-origin destination
-FAIL=sec-fetch-mode - Not sent to non-trustworthy same-site destination
-FAIL=sec-fetch-site - HTTPS downgrade (header not sent)
-FAIL=sec-fetch-site - HTTPS downgrade-upgrade
-FAIL=sec-fetch-site - HTTPS upgrade
-FAIL=sec-fetch-site - Not sent to non-trustworthy cross-site destination
-FAIL=sec-fetch-site - Not sent to non-trustworthy same-origin destination
-FAIL=sec-fetch-site - Not sent to non-trustworthy same-site destination
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy cross-site destination
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-origin destination
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-site destination
-FAIL=sec-fetch-user - Not sent to non-trustworthy cross-site destination
-FAIL=sec-fetch-user - Not sent to non-trustworthy same-origin destination
-FAIL=sec-fetch-user - Not sent to non-trustworthy same-site destination
-[fetch/metadata/generated/script-json-module-import-static.https.sub.html]
-harness=TIMEOUT
 [fetch/metadata/generated/script-json-module-import-static.sub.html]
 FAIL=sec-fetch-dest - Not sent to non-trustworthy cross-site destination
 FAIL=sec-fetch-dest - Not sent to non-trustworthy same-origin destination
@@ -3909,53 +3538,9 @@ harness=TIMEOUT
 [fetch/metadata/generated/svg-image.sub.html]
 harness=TIMEOUT
 [fetch/metadata/generated/window-history.https.sub.html]
-FAIL=sec-fetch-dest - history.back
-FAIL=sec-fetch-dest - history.forward
-FAIL=sec-fetch-mode - history.back
-FAIL=sec-fetch-mode - history.forward
-FAIL=sec-fetch-site - Cross-site - history.back
-FAIL=sec-fetch-site - Cross-site - history.forward
-FAIL=sec-fetch-site - Same origin - history.back
-FAIL=sec-fetch-site - Same origin - history.forward
-FAIL=sec-fetch-site - Same site - history.back
-FAIL=sec-fetch-site - Same site - history.forward
-FAIL=sec-fetch-storage-access - Cross-site - history.back
-FAIL=sec-fetch-storage-access - Cross-site - history.forward
-FAIL=sec-fetch-storage-access - Same site - history.back
-FAIL=sec-fetch-storage-access - Same site - history.forward
-FAIL=sec-fetch-user - history.back
-FAIL=sec-fetch-user - history.forward
+harness=TIMEOUT
 [fetch/metadata/generated/window-history.sub.html]
-FAIL=sec-fetch-dest - Not sent to non-trustworthy cross-site destination - history.back
-FAIL=sec-fetch-dest - Not sent to non-trustworthy cross-site destination - history.forward
-FAIL=sec-fetch-dest - Not sent to non-trustworthy same-origin destination - history.back
-FAIL=sec-fetch-dest - Not sent to non-trustworthy same-origin destination - history.forward
-FAIL=sec-fetch-dest - Not sent to non-trustworthy same-site destination - history.back
-FAIL=sec-fetch-dest - Not sent to non-trustworthy same-site destination - history.forward
-FAIL=sec-fetch-mode - Not sent to non-trustworthy cross-site destination - history.back
-FAIL=sec-fetch-mode - Not sent to non-trustworthy cross-site destination - history.forward
-FAIL=sec-fetch-mode - Not sent to non-trustworthy same-origin destination - history.back
-FAIL=sec-fetch-mode - Not sent to non-trustworthy same-origin destination - history.forward
-FAIL=sec-fetch-mode - Not sent to non-trustworthy same-site destination - history.back
-FAIL=sec-fetch-mode - Not sent to non-trustworthy same-site destination - history.forward
-FAIL=sec-fetch-site - Not sent to non-trustworthy cross-site destination - history.back
-FAIL=sec-fetch-site - Not sent to non-trustworthy cross-site destination - history.forward
-FAIL=sec-fetch-site - Not sent to non-trustworthy same-origin destination - history.back
-FAIL=sec-fetch-site - Not sent to non-trustworthy same-origin destination - history.forward
-FAIL=sec-fetch-site - Not sent to non-trustworthy same-site destination - history.back
-FAIL=sec-fetch-site - Not sent to non-trustworthy same-site destination - history.forward
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy cross-site destination - history.back
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy cross-site destination - history.forward
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-origin destination - history.back
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-origin destination - history.forward
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-site destination - history.back
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-site destination - history.forward
-FAIL=sec-fetch-user - Not sent to non-trustworthy cross-site destination - history.back
-FAIL=sec-fetch-user - Not sent to non-trustworthy cross-site destination - history.forward
-FAIL=sec-fetch-user - Not sent to non-trustworthy same-origin destination - history.back
-FAIL=sec-fetch-user - Not sent to non-trustworthy same-origin destination - history.forward
-FAIL=sec-fetch-user - Not sent to non-trustworthy same-site destination - history.back
-FAIL=sec-fetch-user - Not sent to non-trustworthy same-site destination - history.forward
+harness=TIMEOUT
 [fetch/metadata/generated/window-location.https.sub.html]
 FAIL=sec-fetch-dest - location
 FAIL=sec-fetch-dest - location.assign
@@ -4147,7 +3732,7 @@ harness=TIMEOUT
 [fetch/metadata/style.https.sub.html]
 harness=TIMEOUT
 [fetch/metadata/text.https.html]
-harness=TIMEOUT
+FAIL=The fetch metadata for text module
 [fetch/metadata/track.https.sub.html]
 harness=TIMEOUT
 [fetch/metadata/trailing-dot.https.sub.any.html]
@@ -4157,15 +3742,7 @@ FAIL=Fetching a resource from the same site, but spelled with a trailing dot.
 [fetch/metadata/unload.https.sub.html]
 FAIL=Fetch from an unload handler
 [fetch/metadata/window-open.https.sub.html]
-FAIL=Cross-site window, forced
-FAIL=Cross-site window, forced, reloaded
-FAIL=Cross-site window, user-activated
-FAIL=Same-origin window, forced
-FAIL=Same-origin window, forced, reloaded
-FAIL=Same-origin window, user-activated
-FAIL=Same-site window, forced
-FAIL=Same-site window, forced, reloaded
-FAIL=Same-site window, user-activated
+harness=TIMEOUT
 [fetch/metadata/worker.https.sub.html]
 harness=TIMEOUT
 [fetch/nosniff/image.html]
@@ -4184,7 +3761,10 @@ FAIL=X-Content-Type-Options%3A%20nosniff%0B
 FAIL=X-Content-Type-Options%3A%20nosniff%0B%2Cnosniff
 FAIL=X-Content-Type-Options%3A%20nosniff%0C
 [fetch/nosniff/script.html]
-harness=TIMEOUT
+FAIL=URL query: text/ecmascript
+FAIL=URL query: text/ecmascript;blah
+FAIL=URL query: text/javascript
+FAIL=URL query: text/javascript1.0
 [fetch/nosniff/stylesheet.html]
 harness=TIMEOUT
 [fetch/nosniff/worker.html]
@@ -4257,16 +3837,15 @@ FAIL=data: URL and Range header with multiple ranges
 [fetch/range/data.any.worker.html]
 harness=TIMEOUT
 [fetch/range/general.any.html]
-FAIL=Cross Origin Fetch with non safe range header
 FAIL=Cross Origin Fetch with safe range header
 FAIL=Fetch with range header will be sent with Accept-Encoding: identity
 FAIL=Privileged header not allowed for guard type: request-no-cors
-FAIL=Range header setting allowed for guard type: response
 [fetch/range/general.window.html]
-FAIL=Fetch with range header will be sent with Accept-Encoding: identity
-FAIL=Script executed from partial response
-[fetch/range/non-matching-range-response.html]
 harness=TIMEOUT
+[fetch/range/non-matching-range-response.html]
+FAIL=Range requests ignored (200 status) should succeed
+FAIL=Range requests with no rewrites should succeed
+FAIL=Range response out of range of request should succeed
 [fetch/range/sw-416.https.window.html]
 FAIL=416 response not allowed following no-cors ranged request
 [fetch/range/sw-intercept-range.https.window.html]
@@ -4282,126 +3861,7 @@ FAIL=Ranged response not allowed following no-cors ranged request
 [fetch/redirect-navigate/302-found-post.html]
 harness=TIMEOUT
 [fetch/redirect-navigate/preserve-fragment.html]
-FAIL=[HTTP - CrossOrigin] Destination URL fragment takes precedence in multiple 301 redirects
-FAIL=[HTTP - CrossOrigin] Destination URL fragment takes precedence in multiple 302 redirects
-FAIL=[HTTP - CrossOrigin] Destination URL fragment takes precedence in multiple 303 redirects
-FAIL=[HTTP - CrossOrigin] Destination URL fragment takes precedence in multiple 307 redirects
-FAIL=[HTTP - CrossOrigin] Destination URL fragment takes precedence in multiple 308 redirects
-FAIL=[HTTP - CrossOrigin] Final redirect fragment takes precedence over intermediate in multiple 301 redirects
-FAIL=[HTTP - CrossOrigin] Final redirect fragment takes precedence over intermediate in multiple 302 redirects
-FAIL=[HTTP - CrossOrigin] Final redirect fragment takes precedence over intermediate in multiple 303 redirects
-FAIL=[HTTP - CrossOrigin] Final redirect fragment takes precedence over intermediate in multiple 307 redirects
-FAIL=[HTTP - CrossOrigin] Final redirect fragment takes precedence over intermediate in multiple 308 redirects
-FAIL=[HTTP - CrossOrigin] Preserve fragment in 301 redirect
-FAIL=[HTTP - CrossOrigin] Preserve fragment in 302 redirect
-FAIL=[HTTP - CrossOrigin] Preserve fragment in 303 redirect
-FAIL=[HTTP - CrossOrigin] Preserve fragment in 307 redirect
-FAIL=[HTTP - CrossOrigin] Preserve fragment in 308 redirect
-FAIL=[HTTP - CrossOrigin] Preserve fragment in multiple 301 redirects
-FAIL=[HTTP - CrossOrigin] Preserve fragment in multiple 302 redirects
-FAIL=[HTTP - CrossOrigin] Preserve fragment in multiple 303 redirects
-FAIL=[HTTP - CrossOrigin] Preserve fragment in multiple 307 redirects
-FAIL=[HTTP - CrossOrigin] Preserve fragment in multiple 308 redirects
-FAIL=[HTTP - CrossOrigin] Preserve intermediate fragment in multiple 301 redirects
-FAIL=[HTTP - CrossOrigin] Preserve intermediate fragment in multiple 302 redirects
-FAIL=[HTTP - CrossOrigin] Preserve intermediate fragment in multiple 303 redirects
-FAIL=[HTTP - CrossOrigin] Preserve intermediate fragment in multiple 307 redirects
-FAIL=[HTTP - CrossOrigin] Preserve intermediate fragment in multiple 308 redirects
-FAIL=[HTTP - CrossOrigin] Redirect URL fragment takes precedence in 301 redirect
-FAIL=[HTTP - CrossOrigin] Redirect URL fragment takes precedence in 302 redirect
-FAIL=[HTTP - CrossOrigin] Redirect URL fragment takes precedence in 303 redirect
-FAIL=[HTTP - CrossOrigin] Redirect URL fragment takes precedence in 307 redirect
-FAIL=[HTTP - CrossOrigin] Redirect URL fragment takes precedence in 308 redirect
-FAIL=[HTTP - SameOrigin] Destination URL fragment takes precedence in multiple 301 redirects
-FAIL=[HTTP - SameOrigin] Destination URL fragment takes precedence in multiple 302 redirects
-FAIL=[HTTP - SameOrigin] Destination URL fragment takes precedence in multiple 303 redirects
-FAIL=[HTTP - SameOrigin] Destination URL fragment takes precedence in multiple 307 redirects
-FAIL=[HTTP - SameOrigin] Destination URL fragment takes precedence in multiple 308 redirects
-FAIL=[HTTP - SameOrigin] Final redirect fragment takes precedence over intermediate in multiple 301 redirects
-FAIL=[HTTP - SameOrigin] Final redirect fragment takes precedence over intermediate in multiple 302 redirects
-FAIL=[HTTP - SameOrigin] Final redirect fragment takes precedence over intermediate in multiple 303 redirects
-FAIL=[HTTP - SameOrigin] Final redirect fragment takes precedence over intermediate in multiple 307 redirects
-FAIL=[HTTP - SameOrigin] Final redirect fragment takes precedence over intermediate in multiple 308 redirects
-FAIL=[HTTP - SameOrigin] Preserve fragment in 301 redirect
-FAIL=[HTTP - SameOrigin] Preserve fragment in 302 redirect
-FAIL=[HTTP - SameOrigin] Preserve fragment in 303 redirect
-FAIL=[HTTP - SameOrigin] Preserve fragment in 307 redirect
-FAIL=[HTTP - SameOrigin] Preserve fragment in 308 redirect
-FAIL=[HTTP - SameOrigin] Preserve fragment in multiple 301 redirects
-FAIL=[HTTP - SameOrigin] Preserve fragment in multiple 302 redirects
-FAIL=[HTTP - SameOrigin] Preserve fragment in multiple 303 redirects
-FAIL=[HTTP - SameOrigin] Preserve fragment in multiple 307 redirects
-FAIL=[HTTP - SameOrigin] Preserve fragment in multiple 308 redirects
-FAIL=[HTTP - SameOrigin] Preserve intermediate fragment in multiple 301 redirects
-FAIL=[HTTP - SameOrigin] Preserve intermediate fragment in multiple 302 redirects
-FAIL=[HTTP - SameOrigin] Preserve intermediate fragment in multiple 303 redirects
-FAIL=[HTTP - SameOrigin] Preserve intermediate fragment in multiple 307 redirects
-FAIL=[HTTP - SameOrigin] Preserve intermediate fragment in multiple 308 redirects
-FAIL=[HTTP - SameOrigin] Redirect URL fragment takes precedence in 301 redirect
-FAIL=[HTTP - SameOrigin] Redirect URL fragment takes precedence in 302 redirect
-FAIL=[HTTP - SameOrigin] Redirect URL fragment takes precedence in 303 redirect
-FAIL=[HTTP - SameOrigin] Redirect URL fragment takes precedence in 307 redirect
-FAIL=[HTTP - SameOrigin] Redirect URL fragment takes precedence in 308 redirect
-FAIL=[HTTPS - CrossOrigin] Destination URL fragment takes precedence in multiple 301 redirects
-FAIL=[HTTPS - CrossOrigin] Destination URL fragment takes precedence in multiple 302 redirects
-FAIL=[HTTPS - CrossOrigin] Destination URL fragment takes precedence in multiple 303 redirects
-FAIL=[HTTPS - CrossOrigin] Destination URL fragment takes precedence in multiple 307 redirects
-FAIL=[HTTPS - CrossOrigin] Destination URL fragment takes precedence in multiple 308 redirects
-FAIL=[HTTPS - CrossOrigin] Final redirect fragment takes precedence over intermediate in multiple 301 redirects
-FAIL=[HTTPS - CrossOrigin] Final redirect fragment takes precedence over intermediate in multiple 302 redirects
-FAIL=[HTTPS - CrossOrigin] Final redirect fragment takes precedence over intermediate in multiple 303 redirects
-FAIL=[HTTPS - CrossOrigin] Final redirect fragment takes precedence over intermediate in multiple 307 redirects
-FAIL=[HTTPS - CrossOrigin] Final redirect fragment takes precedence over intermediate in multiple 308 redirects
-FAIL=[HTTPS - CrossOrigin] Preserve fragment in 301 redirect
-FAIL=[HTTPS - CrossOrigin] Preserve fragment in 302 redirect
-FAIL=[HTTPS - CrossOrigin] Preserve fragment in 303 redirect
-FAIL=[HTTPS - CrossOrigin] Preserve fragment in 307 redirect
-FAIL=[HTTPS - CrossOrigin] Preserve fragment in 308 redirect
-FAIL=[HTTPS - CrossOrigin] Preserve fragment in multiple 301 redirects
-FAIL=[HTTPS - CrossOrigin] Preserve fragment in multiple 302 redirects
-FAIL=[HTTPS - CrossOrigin] Preserve fragment in multiple 303 redirects
-FAIL=[HTTPS - CrossOrigin] Preserve fragment in multiple 307 redirects
-FAIL=[HTTPS - CrossOrigin] Preserve fragment in multiple 308 redirects
-FAIL=[HTTPS - CrossOrigin] Preserve intermediate fragment in multiple 301 redirects
-FAIL=[HTTPS - CrossOrigin] Preserve intermediate fragment in multiple 302 redirects
-FAIL=[HTTPS - CrossOrigin] Preserve intermediate fragment in multiple 303 redirects
-FAIL=[HTTPS - CrossOrigin] Preserve intermediate fragment in multiple 307 redirects
-FAIL=[HTTPS - CrossOrigin] Preserve intermediate fragment in multiple 308 redirects
-FAIL=[HTTPS - CrossOrigin] Redirect URL fragment takes precedence in 301 redirect
-FAIL=[HTTPS - CrossOrigin] Redirect URL fragment takes precedence in 302 redirect
-FAIL=[HTTPS - CrossOrigin] Redirect URL fragment takes precedence in 303 redirect
-FAIL=[HTTPS - CrossOrigin] Redirect URL fragment takes precedence in 307 redirect
-FAIL=[HTTPS - CrossOrigin] Redirect URL fragment takes precedence in 308 redirect
-FAIL=[HTTPS - SameOrigin] Destination URL fragment takes precedence in multiple 301 redirects
-FAIL=[HTTPS - SameOrigin] Destination URL fragment takes precedence in multiple 302 redirects
-FAIL=[HTTPS - SameOrigin] Destination URL fragment takes precedence in multiple 303 redirects
-FAIL=[HTTPS - SameOrigin] Destination URL fragment takes precedence in multiple 307 redirects
-FAIL=[HTTPS - SameOrigin] Destination URL fragment takes precedence in multiple 308 redirects
-FAIL=[HTTPS - SameOrigin] Final redirect fragment takes precedence over intermediate in multiple 301 redirects
-FAIL=[HTTPS - SameOrigin] Final redirect fragment takes precedence over intermediate in multiple 302 redirects
-FAIL=[HTTPS - SameOrigin] Final redirect fragment takes precedence over intermediate in multiple 303 redirects
-FAIL=[HTTPS - SameOrigin] Final redirect fragment takes precedence over intermediate in multiple 307 redirects
-FAIL=[HTTPS - SameOrigin] Final redirect fragment takes precedence over intermediate in multiple 308 redirects
-FAIL=[HTTPS - SameOrigin] Preserve fragment in 301 redirect
-FAIL=[HTTPS - SameOrigin] Preserve fragment in 302 redirect
-FAIL=[HTTPS - SameOrigin] Preserve fragment in 303 redirect
-FAIL=[HTTPS - SameOrigin] Preserve fragment in 307 redirect
-FAIL=[HTTPS - SameOrigin] Preserve fragment in 308 redirect
-FAIL=[HTTPS - SameOrigin] Preserve fragment in multiple 301 redirects
-FAIL=[HTTPS - SameOrigin] Preserve fragment in multiple 302 redirects
-FAIL=[HTTPS - SameOrigin] Preserve fragment in multiple 303 redirects
-FAIL=[HTTPS - SameOrigin] Preserve fragment in multiple 307 redirects
-FAIL=[HTTPS - SameOrigin] Preserve fragment in multiple 308 redirects
-FAIL=[HTTPS - SameOrigin] Preserve intermediate fragment in multiple 301 redirects
-FAIL=[HTTPS - SameOrigin] Preserve intermediate fragment in multiple 302 redirects
-FAIL=[HTTPS - SameOrigin] Preserve intermediate fragment in multiple 303 redirects
-FAIL=[HTTPS - SameOrigin] Preserve intermediate fragment in multiple 307 redirects
-FAIL=[HTTPS - SameOrigin] Preserve intermediate fragment in multiple 308 redirects
-FAIL=[HTTPS - SameOrigin] Redirect URL fragment takes precedence in 301 redirect
-FAIL=[HTTPS - SameOrigin] Redirect URL fragment takes precedence in 302 redirect
-FAIL=[HTTPS - SameOrigin] Redirect URL fragment takes precedence in 303 redirect
-FAIL=[HTTPS - SameOrigin] Redirect URL fragment takes precedence in 307 redirect
-FAIL=[HTTPS - SameOrigin] Redirect URL fragment takes precedence in 308 redirect
+harness=TIMEOUT
 [fetch/redirects/data.window.html]
 harness=TIMEOUT
 [fetch/redirects/subresource-fragments.html]
@@ -4417,19 +3877,60 @@ FAIL=Status(199) should be ignored.
 [fetch/security/1xx-response.any.worker.html]
 harness=TIMEOUT
 [fetch/security/dangling-markup/dangling-markup-mitigation-allowed-apis.https.html]
-harness=TIMEOUT
+FAIL=Clean up iframe
+FAIL=Does not block EventSource
+FAIL=Does not block Worker
+FAIL=Does not block fetch
+FAIL=Does not block importScripts
+FAIL:esc=Does not block location.replace(`resources/empty.html?\n<`)
+FAIL:esc=Does not block window.open(`resources/empty.html?\n<`,'_self')
+FAIL=Does not block xhr
+FAIL=Setup controlled frame
 [fetch/security/dangling-markup/dangling-markup-mitigation-data-url.tentative.sub.html]
-harness=TIMEOUT
+FAIL=<iframe id="dangling"\n        src="     data:text/html,\n            <img\n              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'\n              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'\n              src='http://localhost:40817/images/gr&#10;een-256x256.png?&lt;'>\n        ">\n     </iframe>
+FAIL=<iframe id="dangling"\n        src="&#10;data:text/html,\n            <img\n              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'\n              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'\n              src='http://localhost:40817/images/gr&#10;een-256x256.png?&lt;'>\n        ">\n     </iframe>
+FAIL=<iframe id="dangling"\n        src="\ndata:text/html,\n            <img\n              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'\n              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'\n              src='http://localhost:40817/images/gr&#10;een-256x256.png?&lt;'>\n        ">\n     </iframe>
+FAIL=<iframe id="dangling"\n        src="\rdata:text/html,\n            <img\n              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'\n              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'\n              src='http://localhost:40817/images/gr&#10;een-256x256.png?&lt;'>\n        ">\n     </iframe>
+FAIL=<iframe id="dangling"\n        src="\tdata:text/html,\n            <img\n              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'\n              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'\n              src='http://localhost:40817/images/gr&#10;een-256x256.png?&lt;'>\n        ">\n     </iframe>
+FAIL=<iframe id="dangling"\n        src="data:text/html,\n            <img\n              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'\n              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'\n              src='http://localhost:40817/images/gr&#10;een-256x256.png'>\n        ">\n     </iframe>
+FAIL=<iframe id="dangling"\n        src="data:text/html,\n            <img\n              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'\n              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'\n              src='http://localhost:40817/images/gr&#10;een-256x256.png?&amp;amp;lt;'>\n        ">\n     </iframe>
+FAIL=<iframe id="dangling"\n        src="data:text/html,\n            <img\n              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'\n              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'\n              src='http://localhost:40817/images/gr&#10;een-256x256.png?&lt;'>\n        ">\n     </iframe>
+FAIL=<iframe id="dangling"\n        src="data:text/html,\n            <img\n              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'\n              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'\n              src='http://localhost:40817/images/green-256x256.png?&amp;amp;%2310;&lt;'>\n        ">\n     </iframe>
+FAIL=<iframe id="dangling"\n        src="data:text/html,\n            <img\n              onload='window.parent.postMessage(&quot;loaded&quot;, &quot;*&quot;);'\n              onerror='window.parent.postMessage(&quot;error&quot;, &quot;*&quot;);'\n              src='http://localhost:40817/images/green-256x256.png?&lt;'>\n        ">\n     </iframe>
+FAIL=<img id="dangling" src="data:image/png;base64,&#10;iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
+FAIL=<img id="dangling" src="data:image/png;base64,i&#10;VBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
+FAIL=<img id="dangling" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
+FAIL=<img id="dangling" src="data:image/svg+xml;utf8,\n      <svg width='1' height='1' xmlns='http://www.w3.org/2000/svg'>\n        <rect width='100%' height='100%' fill='rebeccapurple'/>\n        <rect x='10%' y='10%' width='80%' height='80%' fill='lightgreen'/>\n      </svg>">
 [fetch/security/dangling-markup/dangling-markup-mitigation.tentative.html]
-harness=TIMEOUT
+FAIL=<img id="dangling" src="/images/green-1x1.png?img=&#10;b">
+FAIL=<img id="dangling" src="/images/green-1x1.png?img=&amp;#10;b">
+FAIL=<img id="dangling" src="/images/green-1x1.png?img=&amp;#10;b&amp;lt;c">
+FAIL=<img id="dangling" src="/images/green-1x1.png?img=&amp;lt;b">
+FAIL=<img id="dangling" src="/images/green-1x1.png?img=&lt;b">
+FAIL=Fetch: /images/gre\nen-1x1.png?img=<
+FAIL=Fetch: /images/gre\ren-1x1.png?img=<
+FAIL=Fetch: /images/gre\ten-1x1.png?img=<
+FAIL=Fetch: /images/green-1x1.png?<\n=block
+FAIL=Fetch: /images/green-1x1.png?<\r=block
+FAIL=Fetch: /images/green-1x1.png?<\t=block
+FAIL:esc=\\n      <img id="dangling" src="\\n        /images/green-1x1.png?img=&amp;#10;\\n      ">\\n    
+FAIL:esc=\\n      <img id="dangling" src="\\n        /images/green-1x1.png?img=&amp;lt;\\n      ">\\n    
+FAIL:esc=\\n      <img id="dangling" src="\\n        /images/green-1x1.png?img=\\n      ">\\n    
 [fetch/security/dangling-markup/dangling-markup-mitigation.tentative.https.html]
 FAIL=Only blocks dangling markup requests
 [fetch/security/dangling-markup/media.html]
 harness=TIMEOUT
 [fetch/security/dangling-markup/option.html]
-harness=TIMEOUT
+FAIL:esc=      <div>        <form action="/resource-timing/resources/document-navigated.html" method="post">          <input type="submit">          <select name="dangling"><option label="yay">    
+FAIL:esc=      <div>        <form action="/resource-timing/resources/document-navigated.html" method="post">          <input type="submit">          <select name="dangling"><option>    
+FAIL:esc=      <form action="/resource-timing/resources/document-navigated.html" method="post" id="form">        <input type="submit">      </form>      <select name="dangling" form="form"><option label="yay">    
+FAIL:esc=      <form action="/resource-timing/resources/document-navigated.html" method="post" id="form">        <input type="submit">      </form>      <select name="dangling" form="form"><option>    
+FAIL:esc=      <form action="/resource-timing/resources/document-navigated.html" method="post">        <input type="submit">        <select name="dangling"><option label="yay">    
+FAIL:esc=      <form action="/resource-timing/resources/document-navigated.html" method="post">        <input type="submit">        <select name="dangling"><option>    
 [fetch/security/dangling-markup/textarea.html]
-harness=TIMEOUT
+FAIL:esc=      <div>        <form action="/resource-timing/resources/document-navigated.html" method="post">          <input type="submit">          <textarea name="dangling">    
+FAIL:esc=      <form action="/resource-timing/resources/document-navigated.html" method="post" id="form">        <input type="submit">      </form>      <textarea name="dangling" form="form">    
+FAIL:esc=      <form action="/resource-timing/resources/document-navigated.html" method="post">        <input type="submit">        <textarea name="dangling">    
 [fetch/security/embedded-credentials.tentative.sub.html]
 harness=TIMEOUT
 [fetch/security/redirect-to-url-with-credentials.https.html]

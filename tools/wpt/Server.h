@@ -1,5 +1,7 @@
 #pragma once
 
+#include "wpt/Handlers.h"
+
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -107,9 +109,15 @@ class Server {
   // Returns false when the connection should be closed.
   bool ReadFrom(Connection& connection);
   bool WriteTo(Connection& connection);
-  void Respond(Connection& connection, std::string_view request);
+  // `head` is the request line and headers, without the blank line; `body` is the entity, framed
+  // by Content-Length. Two arguments rather than one buffer because the head is text this parses
+  // and the body is bytes it only ever hands on.
+  void Respond(Connection& connection, std::string_view head, std::string_view body);
 
   ServerOptions options_;
+  // What `stash.py` and its relatives remember, for the life of one server. See wpt/Handlers.h --
+  // a member rather than a global so that two servers in one process cannot see each other's.
+  Stash stash_;
   std::vector<int> listeners_;
   std::vector<std::uint16_t> listener_ports_;
   std::vector<std::uint16_t> bound_ports_;

@@ -14,6 +14,9 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
+#include <cstdlib>
+#include <utility>
+#include <vector>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -21,6 +24,42 @@
 
 namespace microbrowser::wpt {
 namespace {
+
+// Every header in a request head, in arrival order and with names exactly as sent. Ordered and
+// unfolded because `inspect-headers.py` reports the name the client wrote, so a case-folded map
+// would answer a different question from the one the test asks.
+std::vector<std::pair<std::string, std::string>> ParseHeaders(std::string_view head) {
+  std::vector<std::pair<std::string, std::string>> headers;
+  std::size_t position = head.find("\r\n");
+  while (position != std::string_view::npos) {
+    position += 2;
+    const std::size_t end = head.find("\r\n", position);
+    const std::string_view line = head.substr(
+        position, end == std::string_view::npos ? std::string_view::npos : end - position);
+    const std::size_t colon = line.find(':');
+    if (colon != std::string_view::npos) {
+      std::string_view value = line.substr(colon + 1);
+      while (!value.empty() && (value.front() == ' ' || value.front() == '\t')) {
+        value.remove_prefix(1);
+      }
+      headers.emplace_back(std::string(line.substr(0, colon)), std::string(value));
+    }
+    position = end;
+  }
+  return headers;
+}
+
+std::size_t ContentLengthOf(std::string_view head) {
+  for (const auto& header : ParseHeaders(head)) {
+    if (header.first.size() == 14 && strncasecmp(header.first.c_str(), "Content-Length", 14) == 0) {
+      char* end = nullptr;
+      const unsigned long long value = std::strtoull(header.second.c_str(), &end, 10);
+      return static_cast<std::size_t>(value);
+    }
+  }
+  return 0;
+}
+
 
 // A request line plus headers larger than this is not a browser, it is an
 // attempt on the server. Everything this serves is loopback, but a test tool
@@ -592,9 +631,21 @@ bool Server::ReadFrom(Connection& connection) {
     if (end == std::string::npos) {
       break;
     }
-    const std::string request = connection.input.substr(0, end);
-    connection.input.erase(0, end + 4);
-    Respond(connection, request);
+    const std::string head = connection.input.substr(0, end);
+    // **The entity, framed by Content-Length, and this is what made POST impossible.** Without it
+    // a request body sat in the buffer and the next pass read it as a request line -- so the
+    // server could not have answered a POST even if it had wanted to, and it answered 501 instead.
+    // Every `xhr/` and `fetch/` test that sends one is behind this.
+    const std::size_t length = ContentLengthOf(head);
+    if (length > kMaxRequestBytes) {
+      return false;  // not a browser
+    }
+    if (connection.input.size() < end + 4 + length) {
+      break;  // the body is still arriving; answer on a later pass
+    }
+    const std::string body = connection.input.substr(end + 4, length);
+    connection.input.erase(0, end + 4 + length);
+    Respond(connection, head, body);
     if (connection.closing) {
       break;
     }
@@ -620,9 +671,9 @@ bool Server::WriteTo(Connection& connection) {
   return !connection.closing;
 }
 
-void Server::Respond(Connection& connection, std::string_view request) {
-  const std::size_t line_end = request.find("\r\n");
-  const std::string_view request_line = request.substr(0, line_end);
+void Server::Respond(Connection& connection, std::string_view head, std::string_view body_in) {
+  const std::size_t line_end = head.find("\r\n");
+  const std::string_view request_line = head.substr(0, line_end);
   std::size_t first_space = request_line.find(' ');
   std::size_t second_space = first_space == std::string_view::npos
                                  ? std::string_view::npos
@@ -654,14 +705,46 @@ void Server::Respond(Connection& connection, std::string_view request) {
     content_type = "text/plain; charset=utf-8";
   };
 
-  if (method != "GET" && method != "HEAD") {
-    // POST is only ever aimed at a `.py` handler here, and those are refused
-    // below anyway. Answering 501 rather than 404 keeps the two apart in a log.
-    fail(501, "Not Implemented");
-  } else if (relative.empty() || decoded.find('\0') != std::string::npos) {
+  const bool is_handler =
+      relative.size() > 3 && relative.compare(relative.size() - 3, 3, ".py") == 0;
+  if (relative.empty() || decoded.find('\0') != std::string::npos) {
     fail(404, "Not Found");
-  } else if (relative.size() > 4 && relative.compare(relative.size() - 3, 3, ".py") == 0) {
-    fail(501, "Python handlers are not implemented");
+  } else if (is_handler) {
+    // A native handler, or an honest 501. See wpt/Handlers.h: an unknown handler must *not* be
+    // answered with an empty 200, because the ranked-cause table in docs/wpt-baseline.md is how
+    // the next one gets chosen, and a silent success removes it from that table.
+    const std::vector<std::pair<std::string, std::string>> headers = ParseHeaders(head);
+    const std::string origin = Origin(0);
+    HandlerRequest handler_request;
+    handler_request.method = method;
+    handler_request.path = relative;
+    handler_request.query = query;
+    handler_request.headers = &headers;
+    handler_request.body = body_in;
+    handler_request.origin = origin;
+    HandlerResponse answer;
+    if (InvokeHandler(handler_request, stash_, &answer)) {
+      status = answer.status;
+      status_text = std::move(answer.status_text);
+      body = std::move(answer.body);
+      if (answer.send_content_type) {
+        content_type = std::move(answer.content_type);
+        // An empty Content-Type is a *state*, not an absence: `status.py` with no `type` sends one
+        // and a test asserts on it. The writer below skips an empty string, so the header is put
+        // through the general list to survive.
+        if (content_type.empty()) {
+          extra_headers.emplace_back("Content-Type: ");
+        }
+      }
+      for (std::string& header : answer.headers) {
+        extra_headers.push_back(std::move(header));
+      }
+    } else {
+      fail(501, "Python handlers are not implemented");
+    }
+  } else if (method != "GET" && method != "HEAD") {
+    // A method aimed at a static file. Nothing here can act on one.
+    fail(501, "Not Implemented");
   } else {
     bool found = false;
 
