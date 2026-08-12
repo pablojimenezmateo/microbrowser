@@ -452,6 +452,16 @@ class Object {
     kind_ = Kind::Native;
     native_ = std::move(native);
   }
+  // Marks an already-allocated object as an error, which is what `ToString` looks at to print
+  // "TypeError: message" rather than "[object Object]". A construct call allocates the receiver
+  // *before* the constructor runs, so a native error constructor -- `DOMException`, and any that
+  // follows it -- has no other way to say what it just built. It only ever tightens: a plain object
+  // becomes an error, and nothing here turns an error back.
+  void MakeError() {
+    if (kind_ == Kind::Plain) {
+      kind_ = Kind::Error;
+    }
+  }
   // What `super.x` resolves against: the object the method was *defined* on,
   // not the one it was called through. Using the receiver instead makes a
   // three-level hierarchy recurse into itself.

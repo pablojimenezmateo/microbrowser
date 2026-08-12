@@ -108,6 +108,39 @@ inline bool CoerceToUsvString(js::NativeCall& call, const js::Value& value, std:
   return true;
 }
 
+// Reads a property the way script reads one: an accessor **runs**, and a throw out of it reaches
+// the caller. False when it threw, in which case the caller returns `call.ThrownValue()`.
+//
+// `js::Object::Get` returns the property *slot*, which for an accessor is the wrong answer twice
+// over -- it skips the call and it cannot report a throw. That is fine for the internal slots this
+// module reads by name and wrong for anything a page can put an accessor on, which is every object
+// Web IDL converts to a `record`.
+inline bool ReadProperty(js::NativeCall& call, const js::Value& base, const std::string& key,
+                         js::Value& out) {
+  out = js::Value::Undefined();
+  if (!base.IsObject()) {
+    return true;
+  }
+  const js::Object::Property* property = base.object->GetProperty(js::PropertyKey(key));
+  if (property == nullptr) {
+    return true;
+  }
+  if (property->getter == nullptr) {
+    out = property->setter != nullptr ? js::Value::Undefined() : property->value;
+    return true;
+  }
+  // `this` is the object the property was read *from*, not the one that owns it, which is what a
+  // brand check on a prototype accessor is looking at.
+  const js::Result answered = call.interpreter.CallFunction(js::Value::Obj(property->getter), base,
+                                                            {});
+  if (answered.IsAbrupt()) {
+    (void)call.ThrowValue(answered.value);
+    return false;
+  }
+  out = answered.value;
+  return true;
+}
+
 // Walks a value with the iterator protocol into `out`. False when something threw, in which case
 // the caller returns `call.ThrownValue()`.
 //

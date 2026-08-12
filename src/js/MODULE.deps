@@ -250,7 +250,11 @@ budget: MatchOp             header_lines=60 public_methods=0  members=0
 # does the copying and `src/bindings` is the one that knows an object is a handle onto something
 # outside this heap. A structured clone of a `URL` would otherwise be a plain object carrying its
 # href with none of its behaviour -- which a page keeps until something calls a method on it.
-budget: Object      header_lines=326 public_methods=62 members=20
+# +7 lines and +1 method for `MakeError`: a construct call allocates the receiver *before* the
+# constructor runs, so a native error constructor has no other way to say what it built. Without it
+# `new DOMException(...)` from script printed as "[object Object]" everywhere -- `String(e)`, every
+# console line, every uncaught-script report -- while one built in C++ printed properly.
+budget: Object      header_lines=334 public_methods=63 members=20
 # Grew by one kind (`HTMLAllCollection`) and `IsHTMLDDA()` for `document.all`:
 # polymer resin's `Z !== document.all` must see a real exotic, or undefined
 # sinks become `"zClosurez"` and boolean IDL like `hidden` sticks on.

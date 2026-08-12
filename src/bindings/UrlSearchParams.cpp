@@ -417,9 +417,16 @@ void DomBindings::InstallUrlSearchParams() {
           // later value wins and the earlier position is kept. `{"\uD835x": "1", "xx": "2",
           // "\uD83Dx": "3"}` is two parameters, not three, and the first is `\uFFFDx=3`.
           for (const std::string& key : init.object->EnumerableKeys()) {
-            const Value* value = init.object->Get(key);
+            // Through the interpreter, so an accessor *runs* and a throw out of it reaches the
+            // caller. Reading the property slot directly skips every getter, which is wrong for
+            // any object with accessors on it -- `DOMException.prototype` is only the case that
+            // made it visible.
+            Value value;
+            if (!ReadProperty(call, init, key, value)) {
+              return call.ThrownValue();
+            }
             const std::string name = util::ScrubLoneSurrogates(key);
-            const std::string text = value == nullptr ? std::string() : UsvOf(call, *value);
+            const std::string text = UsvOf(call, value);
             const auto found = std::find_if(pairs.begin(), pairs.end(), [&](const Value& pair) {
               return PairPart(pair, 0) == name;
             });

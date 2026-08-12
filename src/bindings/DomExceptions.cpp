@@ -227,13 +227,32 @@ void InstallDomException(js::Interpreter& interpreter) {
     }
   }
 
-  // The defaults an exception built by something other than this file would
-  // read: `DOMException.prototype.name` is "Error" and its code is 0, which is
-  // what the specification says an unnamed one is. Every instance shadows all
-  // three with its own.
-  prototype.object->SetHidden("name", Value::String(std::string("Error")));
-  prototype.object->SetHidden("message", Value::String(std::string()));
-  prototype.object->SetHidden("code", Value::Number(0.0));
+  // `name`, `message` and `code` on the prototype, as the *brand-checked accessors* Web IDL says
+  // they are — and reachable only when the receiver is not a DOMException, because every instance
+  // shadows all three with own data properties (see FillException, which explains why the data
+  // properties have to be there: the two things that print an exception are pure functions with no
+  // interpreter to call a getter with, and a DOMException whose values lived only in accessors
+  // logged as "[object Object]").
+  //
+  // So both halves hold at once: an instance reads its own value with no call at all, and
+  // `DOMException.prototype.name` throws a TypeError the way it does in every other engine. They
+  // are **enumerable**, which is what Web IDL says an attribute on a prototype is, and is what
+  // makes anything converting this object to a record run the check rather than skip it.
+  for (const char* attribute : {"name", "message", "code"}) {
+    const std::string key(attribute);
+    const Value getter = interpreter.NewNativeValue(attribute, [key](NativeCall& call) -> Value {
+      const Value* own = call.self.IsObject() ? call.self.object->GetOwn(key) : nullptr;
+      if (own == nullptr) {
+        return call.Throw("TypeError",
+                          "DOMException.prototype." + key + " called on something that is not a "
+                                                            "DOMException");
+      }
+      return *own;
+    });
+    if (getter.IsObject()) {
+      prototype.object->DefineAccessor(key, getter.object, nullptr);
+    }
+  }
 
   const Value constructor =
       interpreter.NewNativeValue("DOMException", [](NativeCall& call) -> Value {
@@ -255,6 +274,11 @@ void InstallDomException(js::Interpreter& interpreter) {
         // prototype. Filling that one in rather than allocating a second is
         // what makes the subclass work at all.
         if (call.interpreter.IsConstructCall(call.self) && call.self.IsObject()) {
+          // The receiver was allocated before this ran, as a *plain* object -- so `String(e)` and
+          // every uncaught-error line printed "[object Object]" for an exception a page built with
+          // `new DOMException(...)`, while one this file built in C++ printed properly. Marking it
+          // is the whole fix, and it has to happen here because the allocation is not ours.
+          call.self.object->MakeError();
           FillException(call.interpreter, call.self, name, std::move(message));
           return call.self;
         }
