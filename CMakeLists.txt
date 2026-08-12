@@ -281,6 +281,7 @@ microbrowser_module(html
     src/html/FormControl.cpp
     src/html/Encoding.cpp
     src/html/MultiByteEncodings.cpp
+    src/html/UrlEncoding.cpp
     src/html/Tokenizer.cpp
     src/html/TreeBuilder.cpp
     src/html/TreeBuilderTable.cpp

@@ -86,6 +86,29 @@ bytes. That is a real change to `src/html`'s entry point: today it takes `string
    of Western content.
 3. **UTF-16LE/BE**, which the BOM rule makes reachable.
 4. **Shift_JIS, EUC-JP, GB18030, Big5, EUC-KR**, which are multi-byte tables from the same generator.
+5. **ISO-2022-JP and GBK** (2026-08-12), and both are here for a reason the four above are not.
+   ISO-2022-JP is *stateful* — an escape sequence decides whether the byte `3C` is a `<` — so it is
+   the one encoding where a sanitiser that scanned the bytes scanned the wrong thing, which makes it
+   the sharpest case of the security argument two paragraphs down rather than an afterthought to it.
+   GBK shares GB18030's decoder and has its own *encoder*, which is the next point.
+
+**And the encoders, which are not the decoders read backwards** (2026-08-12). A decoder always has
+an answer — U+FFFD — and an encoder can fail, so the two are different algorithms with different
+tables, and the failure is reported rather than substituted: a URL query spells it `%26%23…%3B`, a
+form body spells it `&#…;`, and the caller decides which. Every one of the standard's
+`index pointer for code point` operations carries its own exclusion and its own tie-break, because
+each index maps two pointers to one code point somewhere — Shift_JIS drops a range of pointers
+*before* taking the first match, Big5 drops the Hong Kong supplement and takes the **last** match
+for six code points, GB18030 carries a side table of eighteen. Inverting a decode table without
+those rules produces bytes that decode back to the right character and are still not the bytes any
+other browser sends, which is a wrong answer no round-trip test can see.
+
+This is the only place a document's `<meta charset>` changes bytes that go *out*: a link on a
+Shift_JIS page carries Shift_JIS bytes in its query and a form on one submits them, because the
+server on the other end reads them back that way. `url::QueryEncoder` is the seam — declared in
+`src/url`, implemented in `src/html`, joined in `src/engine` — because `src/url` may see only
+`util`, and a dependency on the encoding tables would put a character-set question underneath every
+origin check.
 
 **Encoding correctness is a security property, not only a rendering one**, and this is the reason it
 is worth doing carefully rather than approximately. A decoder that emits a `<` where the specification

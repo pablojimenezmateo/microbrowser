@@ -5,6 +5,7 @@
 #include <string_view>
 
 #include "csp/ContentSecurityPolicy.h"
+#include "html/Encoding.h"
 #include "url/Origin.h"
 #include "url/Url.h"
 
@@ -66,6 +67,24 @@ class DocumentPolicy {
   // address itself does not parse, which is a `data:` or `about:` document.
   const std::optional<url::Url>& Base() const { return base_; }
 
+  // And the *other* input to resolving a URL in this document: the encoding its
+  // bytes were decoded from.
+  //
+  // Here rather than on `Page` because HTML's "encoding-parse a URL" takes both
+  // of these and nothing else, and holding them apart is how they end up
+  // disagreeing -- a `<base href>` that moved without the encoding following it
+  // would resolve a link against one document and encode its query for another.
+  // ADR 0025 §2: a link on a Shift_JIS page carries Shift_JIS bytes in its
+  // query, which is the only place a `<meta charset>` changes what leaves the
+  // browser.
+  //
+  // Set once, where the bytes became text. Windows-1252 until then, which is
+  // the specification's fallback rather than a placeholder: a document with no
+  // declaration is decoded that way, so a URL resolved before one arrives is
+  // resolved the same way the document would have been.
+  void SetEncoding(html::Encoding encoding) { encoding_ = encoding; }
+  html::Encoding Encoding() const { return encoding_; }
+
   bool Governs(csp::Directive directive) const { return policies_.Governs(directive); }
 
   // Whether the policy permits `written_url` -- a URL exactly as the document
@@ -97,6 +116,7 @@ class DocumentPolicy {
   csp::PolicyList policies_;
   url::Origin self_;
   std::optional<url::Url> base_;
+  html::Encoding encoding_ = html::Encoding::Windows1252;
   // Whether `base_` came from a `<base href>` rather than from the address. An
   // element outranks the address, so a same-document navigation must not move it.
   bool base_from_element_ = false;

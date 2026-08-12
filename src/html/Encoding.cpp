@@ -99,6 +99,48 @@ const std::array<std::uint32_t, 96>* SingleByteTable(Encoding encoding) {
   }
 }
 
+// The single-byte encoders, which are the tables above searched backwards.
+//
+// A linear scan over 96 entries rather than a generated reverse table, and that is a measurement
+// rather than laziness: a single-byte encoding is only ever asked to encode a *URL query* or a form
+// field, both of which are tens of characters, and 96 comparisons of a `uint32_t` is under the cost
+// of the branch that would pick a table. The multi-byte encoders are the ones with 24,000 entries
+// and they are binary searches over generated tables for exactly that reason.
+bool EncodeSingleByte(std::uint32_t code_point, Encoding encoding, std::string& out) {
+  if (code_point <= 0x7F) {
+    out.push_back(static_cast<char>(code_point));
+    return true;
+  }
+  if (const std::array<std::uint32_t, 96>* table = SingleByteTable(encoding)) {
+    // 0x80-0x9F is the C1 control range, identical in every ISO-8859 part, and the table starts at
+    // 0xA0. A code point in that range encodes to itself; anything else has to be in the table.
+    if (code_point >= 0x80 && code_point <= 0x9F) {
+      out.push_back(static_cast<char>(code_point));
+      return true;
+    }
+    for (std::size_t i = 0; i < table->size(); ++i) {
+      if ((*table)[i] == code_point && code_point != 0xFFFD) {
+        out.push_back(static_cast<char>(0xA0u + i));
+        return true;
+      }
+    }
+    return false;
+  }
+  // windows-1252, and ISO-8859-1 with it -- the specification maps the second label to the first
+  // decoder, and an encoder that disagreed would be the same confusion in the other direction.
+  for (std::size_t i = 0; i < kWindows1252Upper.size(); ++i) {
+    if (kWindows1252Upper[i] == code_point && code_point != 0xFFFD) {
+      out.push_back(static_cast<char>(0x80u + i));
+      return true;
+    }
+  }
+  if (code_point >= 0xA0 && code_point <= 0xFF) {
+    out.push_back(static_cast<char>(code_point));
+    return true;
+  }
+  return false;
+}
+
 // `charset=` out of a `Content-Type`, honouring quotes. `text/html; charset="utf-8"` is in the wild
 // and a parser that kept the quote would look up a label that does not exist -- and fall through to
 // windows-1252 on a page that said UTF-8, which is the confusion in miniature.
@@ -393,32 +435,83 @@ std::optional<Encoding> EncodingFromLabel(std::string_view label) {
   // a hyphen, `sjis`, `ms_kanji` and `csshiftjis` are all in real documents, and a page whose label is
   // unrecognised falls through to windows-1252 -- which for Japanese is mojibake rather than text.
   if (lowered == "shift_jis" || lowered == "shift-jis" || lowered == "sjis" ||
-      lowered == "ms_kanji" || lowered == "csshiftjis" || lowered == "windows-31j" ||
-      lowered == "x-sjis") {
+      lowered == "ms_kanji" || lowered == "ms932" || lowered == "csshiftjis" ||
+      lowered == "windows-31j" || lowered == "x-sjis") {
     return Encoding::ShiftJis;
   }
   if (lowered == "euc-jp" || lowered == "eucjp" || lowered == "x-euc-jp" ||
       lowered == "cseucpkdfmtjapanese") {
     return Encoding::EucJp;
   }
+  if (lowered == "iso-2022-jp" || lowered == "csiso2022jp") {
+    return Encoding::Iso2022Jp;
+  }
   if (lowered == "euc-kr" || lowered == "euckr" || lowered == "windows-949" ||
-      lowered == "ks_c_5601-1987" || lowered == "korean" || lowered == "cseuckr") {
+      lowered == "ks_c_5601-1987" || lowered == "ks_c_5601-1989" || lowered == "ksc5601" ||
+      lowered == "ksc_5601" || lowered == "iso-ir-149" || lowered == "csksc56011987" ||
+      lowered == "korean" || lowered == "cseuckr") {
     return Encoding::EucKr;
   }
   if (lowered == "big5" || lowered == "big5-hkscs" || lowered == "cn-big5" ||
       lowered == "csbig5" || lowered == "x-x-big5") {
     return Encoding::Big5;
   }
-  if (lowered == "gb18030" || lowered == "gbk" || lowered == "gb2312" || lowered == "chinese" ||
-      lowered == "csgb2312" || lowered == "x-gbk") {
-    // GBK and GB2312 are decoded as GB18030, which is what the standard says: GB18030 is a superset
-    // and decoding a GBK document with it produces the same characters.
+  if (lowered == "gb18030") {
     return Encoding::Gb18030;
   }
+  if (lowered == "gbk" || lowered == "gb2312" || lowered == "gb_2312" ||
+      lowered == "gb_2312-80" || lowered == "chinese" || lowered == "csgb2312" ||
+      lowered == "csiso58gb231280" || lowered == "iso-ir-58" || lowered == "x-gbk") {
+    // **GBK is not GB18030 and these labels are not that one.** They share a decoder -- GB18030 is a
+    // superset, so decoding a GBK document with it produces the same characters -- and they do not
+    // share an encoder: GBK refuses everything the two-byte form cannot reach, where GB18030 emits
+    // four bytes. A page labelled `gbk` whose form sent four-byte sequences would be sending bytes
+    // its own server has no decoder for.
+    return Encoding::Gbk;
+  }
   // Everything else is *nothing*, so the caller falls through to the next step of the algorithm rather
-  // than to UTF-8. What is left in that category is small now -- ISO-2022-JP, the EBCDIC labels, and
-  // the `replacement` encoding the standard defines for labels that are dangerous to honour.
+  // than to UTF-8. What is left in that category is small now -- the EBCDIC labels, and the
+  // `replacement` encoding the standard defines for labels that are dangerous to honour.
   return std::nullopt;
+}
+
+std::string_view EncodingName(Encoding encoding) {
+  switch (encoding) {
+    case Encoding::Utf8:
+      return "UTF-8";
+    case Encoding::Windows1252:
+    case Encoding::Latin1:
+      return "windows-1252";
+    case Encoding::Iso8859_2:
+      return "ISO-8859-2";
+    case Encoding::Iso8859_5:
+      return "ISO-8859-5";
+    case Encoding::Iso8859_7:
+      return "ISO-8859-7";
+    case Encoding::Iso8859_9:
+      return "windows-1254";
+    case Encoding::Iso8859_15:
+      return "ISO-8859-15";
+    case Encoding::Utf16Le:
+      return "UTF-16LE";
+    case Encoding::Utf16Be:
+      return "UTF-16BE";
+    case Encoding::ShiftJis:
+      return "Shift_JIS";
+    case Encoding::EucJp:
+      return "EUC-JP";
+    case Encoding::EucKr:
+      return "EUC-KR";
+    case Encoding::Big5:
+      return "Big5";
+    case Encoding::Gb18030:
+      return "gb18030";
+    case Encoding::Gbk:
+      return "GBK";
+    case Encoding::Iso2022Jp:
+      return "ISO-2022-JP";
+  }
+  return "UTF-8";
 }
 
 std::size_t BomLength(std::string_view bytes) {
@@ -488,10 +581,90 @@ std::string DecodeToUtf8(std::string_view bytes, Encoding encoding) {
     case Encoding::EucKr:
     case Encoding::Big5:
     case Encoding::Gb18030:
+    case Encoding::Gbk:
+    case Encoding::Iso2022Jp:
       return DecodeMultiByte(body, encoding);
     default:
       return DecodeSingleByte(body, encoding);
   }
+}
+
+bool Encoder::Encode(std::uint32_t code_point, std::string& out) {
+  // A surrogate is not a scalar value. It arrives here because a page's string is UTF-16 code units
+  // and may hold a lone one, and it is a failure rather than an assertion for that reason -- the
+  // caller writes it as `&#55296;`, which is what every browser sends.
+  if (code_point > 0x10FFFF || (code_point >= 0xD800 && code_point <= 0xDFFF)) {
+    return false;
+  }
+  switch (encoding_) {
+    case Encoding::Utf8:
+      // The one encoding that cannot fail: every scalar value has a UTF-8 form.
+      util::AppendUtf8(out, code_point);
+      return true;
+    case Encoding::Utf16Le:
+    case Encoding::Utf16Be:
+      // **Deliberately not implemented, and not "not supported".** The Encoding Standard has no
+      // UTF-16 encoder at all: every place a document's encoding is used to *produce* bytes -- a
+      // form body, a URL query -- replaces UTF-16 with UTF-8 first, because a UTF-16 form body would
+      // contain NUL bytes that nothing downstream survives. Reaching here means a caller skipped
+      // that replacement, so failing is the honest answer.
+      return false;
+    case Encoding::ShiftJis:
+    case Encoding::EucJp:
+    case Encoding::EucKr:
+    case Encoding::Big5:
+    case Encoding::Gb18030:
+    case Encoding::Gbk:
+    case Encoding::Iso2022Jp:
+      return EncodeMultiByte(code_point, encoding_, state_, out);
+    default:
+      return EncodeSingleByte(code_point, encoding_, out);
+  }
+}
+
+void Encoder::Finish(std::string& out) { FinishMultiByte(encoding_, state_, out); }
+
+std::uint32_t NextScalarValue(std::string_view input, std::size_t& at) {
+  std::uint32_t code_point = 0;
+  if (!util::DecodeUtf8(input, at, code_point)) {
+    // Ill-formed bytes are U+FFFD and cost exactly one byte -- never passed through, because a raw
+    // byte reaching an encoder's output is the shortcut this whole file exists to refuse.
+    ++at;
+    return 0xFFFD;
+  }
+  if (code_point < 0xD800 || code_point > 0xDFFF) {
+    return code_point;
+  }
+  if (code_point <= 0xDBFF) {
+    std::size_t after = at;
+    std::uint32_t low = 0;
+    if (util::DecodeUtf8(input, after, low) && low >= 0xDC00 && low <= 0xDFFF) {
+      at = after;
+      return 0x10000u + ((code_point - 0xD800u) << 10) + (low - 0xDC00u);
+    }
+  }
+  // A surrogate with no partner is not a character. U+FFFD is what the IDL conversion to a scalar
+  // value string produces, and it matters that it is *not* the surrogate: an encoder handed one
+  // would report it unencodable and the caller would write `&#55357;` into a URL, which is a
+  // character reference for something that cannot exist.
+  return 0xFFFD;
+}
+
+std::string EncodeWithNumericEscapes(std::string_view input, Encoding encoding) {
+  Encoder encoder(encoding);
+  std::string out;
+  out.reserve(input.size());
+  std::size_t at = 0;
+  while (at < input.size()) {
+    const std::uint32_t code_point = NextScalarValue(input, at);
+    if (!encoder.Encode(code_point, out)) {
+      out += "&#";
+      out += std::to_string(code_point);
+      out += ';';
+    }
+  }
+  encoder.Finish(out);
+  return out;
 }
 
 }  // namespace microbrowser::html

@@ -309,16 +309,35 @@ void DomBindings::InstallHyperlinkElementUtils() {
     return;
   }
 
-  const auto href_string = [](dom::Element* element) -> std::string {
+  // The attribute as written, and the URL it means. They are different strings and the difference is
+  // the whole of HTMLHyperlinkElementUtils: `href` and every part below it answer about the *parsed*
+  // URL -- resolved against the document's base and with its query encoded in the document's
+  // character set (ADR 0025 §2) -- so `<a href="?q=日本">` on a Shift_JIS page reports
+  // `%93%FA%96%7B`, which is what a click on it would send.
+  //
+  // A URL that does not parse falls back to the attribute, which is the specification's answer and
+  // not a shortcut: `href` on such an element is defined to be the attribute's value, and reporting
+  // the empty string instead would make `a.href` unusable as the "what did the author write" it is
+  // also used for.
+  const auto href_attribute = [](dom::Element* element) -> std::string {
     if (element == nullptr) {
       return {};
     }
     const std::string* value = element->GetAttribute("href");
     return value == nullptr ? std::string() : *value;
   };
+  const auto href_string = [href_attribute](DomBindings* owner,
+                                            dom::Element* element) -> std::string {
+    const std::string written = href_attribute(element);
+    if (owner == nullptr || owner->network_ == nullptr || written.empty()) {
+      return written;
+    }
+    std::string resolved = owner->network_->ResolveDocumentUrl(written);
+    return resolved.empty() ? written : resolved;
+  };
 
   const Value href_get = interpreter_->NewNativeValue("href", [href_string](NativeCall& call) {
-    return Value::String(href_string(ElementOf(call.self)));
+    return Value::String(href_string(OwnerOf(call), ElementOf(call.self)));
   });
   const Value href_set = interpreter_->NewNativeValue("href", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
@@ -341,7 +360,7 @@ void DomBindings::InstallHyperlinkElementUtils() {
 
   const auto install_part = [this, prototype, href_string](const char* name, auto pick) {
     const Value get = interpreter_->NewNativeValue(name, [href_string, pick](NativeCall& call) {
-      const HrefParts parts = SplitHref(href_string(ElementOf(call.self)));
+      const HrefParts parts = SplitHref(href_string(OwnerOf(call), ElementOf(call.self)));
       return Value::String(pick(parts));
     });
     if (get.IsObject()) {

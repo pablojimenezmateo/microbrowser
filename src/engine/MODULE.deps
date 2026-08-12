@@ -296,7 +296,14 @@ budget: PendingLoad header_lines=115 public_methods=8 members=20
 # +1 member: pointer_down_target_ (UI Events click retarget; youtube Accept).
 # +1 public method: ResolveClickActivation.
 # +1 public method: RecollectDocumentImages (IO-assigned img.src).
-budget: Page   header_lines=990 public_methods=188 members=25
+# +1 member and +1 method: the encoding this document's bytes were decoded from.
+# It is state rather than a question because the sniff happens once, where the
+# bytes became text, and a second sniff of the same bytes later could disagree
+# with the tree that was already built from the first. Everything that *writes*
+# bytes out reads it -- a link's query and a form's body are both in the
+# document's character set (ADR 0025 §2), which is the only place a
+# `<meta charset>` changes what leaves the browser.
+budget: Page   header_lines=990 public_methods=189 members=26
 budget: LayoutState header_lines=40 public_methods=0 members=8
 # ADR 0031's decoder child and the surface registry it feeds. Two members: the playback coordinator and
 # the last composited generation per surface id, which is how a playing video damages the screen when
@@ -390,7 +397,11 @@ budget: PageScript header_lines=500 public_methods=69 members=32
 # The two methods are UpdateDocumentUrl and IsSameOrigin, and the second is the
 # one origin comparison `pushState` makes: it is here rather than in
 # `src/bindings` because that module may not see `url`.
-budget: DocumentPolicy header_lines=120 public_methods=18 members=5
+# +1 member for the document's encoding, which is the other half of
+# "encoding-parse a URL" and belongs beside the base for that reason -- holding
+# the two apart is how a `<base href>` and a `<meta charset>` end up describing
+# different documents. See the note on the member itself.
+budget: DocumentPolicy header_lines=135 public_methods=20 members=6
 # Back and forward, for one tab, where the documents are. Three members: the
 # entries, the cursor, and the generation counter `history.state`'s memo is keyed
 # on. ADR 0026 §1 moved it out of `src/ui` because a `pushState` entry is a URL

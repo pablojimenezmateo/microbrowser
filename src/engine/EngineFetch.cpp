@@ -20,6 +20,7 @@
 
 #include "engine/Clock.h"
 #include "engine/Engine.h"
+#include "html/UrlEncoding.h"
 #include "url/Origin.h"
 #include "url/Url.h"
 #include "util/LoadTimeline.h"
@@ -149,6 +150,25 @@ std::uint64_t Engine::StartFetch(const bindings::ScriptRequest& request) {
       request.url, *base, privacy::ResourceType::Xhr, NowSeconds(), options);
   script_fetches_.insert(id);
   return id;
+}
+
+std::string Engine::ResolveDocumentUrl(std::string_view relative) const {
+  // HTML's "encoding-parse a URL". Two things make it different from the call below and both are
+  // the document's: the base is `<base href>` when the document has one the policy allowed, and the
+  // query is encoded in the document's character set rather than in UTF-8.
+  //
+  // The encoder is a local rather than a member because it is three bytes of state and because a
+  // cached one would have to be invalidated when a `<meta charset>` in the prescan disagrees with
+  // the header -- a stale encoder is a link that sends the wrong bytes, which is the failure this
+  // whole path exists to avoid.
+  const html::DocumentQueryEncoder encoder(page_.Policy().Encoding());
+  const std::optional<url::Url>& base = page_.Policy().Base();
+  if (!base.has_value()) {
+    const std::optional<url::Url> absolute = url::Url::Parse(relative, &encoder);
+    return absolute.has_value() ? absolute->Serialize() : std::string();
+  }
+  const std::optional<url::Url> resolved = url::Url::Parse(relative, *base, &encoder);
+  return resolved.has_value() ? resolved->Serialize() : std::string();
 }
 
 std::string Engine::ResolveUrl(std::string_view relative, std::string_view base) const {

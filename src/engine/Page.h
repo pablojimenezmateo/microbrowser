@@ -31,6 +31,7 @@
 #include "engine/PageVideo.h"
 #include "css/MediaQuery.h"
 #include "css/StyleResolver.h"
+#include "html/Encoding.h"
 #include "gfx/Surface.h"
 #include "gfx/TextRenderer.h"
 #include "layout/FontTextMeasurer.h"
@@ -703,6 +704,12 @@ class Page : private layout::ImageProvider,
   // "what is this document's base" is how a `<base>` ends up applying to the
   // stylesheets and not to the images.
   const std::optional<url::Url>& BaseUrl() const { return policy_.Base(); }
+  // The encoding this document's bytes were decoded from -- the answer to
+  // `document.characterSet`, and the encoding every URL written *in* this
+  // document has its query encoded in (ADR 0025 §2). Kept because sniffing
+  // happens once, at the parse, and a second sniff of the same bytes later
+  // could disagree with the tree that was already built from the first.
+  html::Encoding Encoding() const { return policy_.Encoding(); }
   // The document's <title>, or the URL when it has none -- which is what a tab
   // strip shows and is never empty.
   const std::string& Title() const { return title_; }

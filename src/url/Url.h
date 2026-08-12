@@ -10,6 +10,40 @@
 
 namespace microbrowser::url {
 
+// The query is the one part of a URL that is not UTF-8.
+//
+// A document in Shift_JIS puts Shift_JIS bytes in the query of every link on
+// it, because that is what the server on the other end expects to read back;
+// the URL Standard calls this "percent-encode after encoding" and it is the
+// only place in URL parsing where a *document's* encoding is an input. Getting
+// it wrong is not cosmetic — a search box on a Japanese page sends bytes the
+// server decodes as different words.
+//
+// This module may see only `util`, which is what keeps the bottom of the web
+// stack at the bottom: every same-origin check, cookie scope and partition key
+// is computed here, and a dependency on the encoding tables would put a
+// character-set question underneath all of them. So the encoder is handed in.
+// `src/html` implements it (it owns the indexes) and `src/engine` — the one
+// module that sees both — is where the two are joined.
+//
+// Nothing is a bare "encode this string": the standard's error escape must be
+// appended already percent-encoded whatever the percent-encode set says (`&`
+// and `;` are not in it, and `&#1234;` written literally would look like two
+// more query parameters to whatever reads it). So the encoding and the
+// percent-encoding happen in one call, and cannot be composed in the wrong
+// order by a caller.
+class QueryEncoder {
+ public:
+  virtual ~QueryEncoder() = default;
+
+  // Appends the encoded, percent-encoded form of `input` — a UTF-8 string — to
+  // `out`. `needs_escape` is this module's percent-encode set, applied to each
+  // byte the encoding produced; a code point the encoding cannot represent
+  // appends `%26%23<n>%3B` and is not passed through it.
+  virtual void EncodeQuery(std::string_view input, bool (*needs_escape)(unsigned char),
+                           std::string& out) const = 0;
+};
+
 // A parsed URL, per the WHATWG URL Standard.
 //
 // Spec-literal, and the repo's rule about spec-literal parsers applies: the
@@ -34,6 +68,20 @@ class Url {
 
   // Relative parse against a base. This is what a link on a page goes through.
   static std::optional<Url> Parse(std::string_view input, const Url& base);
+
+  // The same two, with a document's encoding for the query. `encoder` may be
+  // null, which is UTF-8 and is what every caller that is not a document wants
+  // — `new URL(…)` is defined to be UTF-8 whatever page it was called from,
+  // and so is every URL this browser builds for itself.
+  //
+  // The encoder is ignored for a URL that is not special and for `ws`/`wss`,
+  // which the standard forces back to UTF-8: those schemes have no legacy of
+  // servers reading a document's charset out of a query, and honouring one
+  // would let a document's `<meta charset>` change the bytes of a WebSocket
+  // handshake.
+  static std::optional<Url> Parse(std::string_view input, const QueryEncoder* encoder);
+  static std::optional<Url> Parse(std::string_view input, const Url& base,
+                                  const QueryEncoder* encoder);
 
   bool IsValid() const { return !scheme_.empty(); }
 

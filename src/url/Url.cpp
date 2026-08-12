@@ -154,7 +154,8 @@ std::string Url::Serialize(bool exclude_fragment) const {
 // output without threading either through twenty functions.
 class UrlParser {
  public:
-  UrlParser(std::string_view input, const Url* base) : base_(base) {
+  UrlParser(std::string_view input, const Url* base, const QueryEncoder* query_encoder = nullptr)
+      : base_(base), query_encoder_(query_encoder) {
     // Leading and trailing C0 controls and spaces are stripped, and tabs and
     // newlines are removed from anywhere. Both are in the standard because both
     // appear in real HTML, and a parser that kept them would disagree with
@@ -217,10 +218,54 @@ class UrlParser {
     url_.path_.pop_back();
   }
 
+  // The standard's "percent-encode after encoding", run over the whole query at
+  // once rather than byte by byte as it arrives.
+  //
+  // It has to be the whole query: an encoding is a function of a *string*, not
+  // of a byte -- ISO-2022-JP writes an escape sequence when it changes
+  // character set, so the bytes for a character depend on the ones before it,
+  // and a per-byte loop would write one escape per character and none of the
+  // closing ones.
+  void FlushQuery() {
+    if (!url_.query_.has_value()) {
+      return;
+    }
+    const bool special = SchemeIsSpecial(url_.scheme_);
+    const util::PercentEncodeSet set =
+        special ? util::PercentEncodeSet::SpecialQuery : util::PercentEncodeSet::Query;
+    // The standard forces UTF-8 back for a non-special scheme and for
+    // ws/wss -- see the comment on Url::Parse. `ftp:` and `file:` are special
+    // and do take the document's encoding, which looks odd and is what the
+    // standard says.
+    const bool honour_encoding =
+        query_encoder_ != nullptr && special && url_.scheme_ != "ws" && url_.scheme_ != "wss";
+    if (!honour_encoding) {
+      util::PercentEncodeInto(query_buffer_, set, *url_.query_);
+    } else if (set == util::PercentEncodeSet::SpecialQuery) {
+      query_encoder_->EncodeQuery(
+          query_buffer_,
+          [](unsigned char byte) {
+            return util::ShouldPercentEncode(byte, util::PercentEncodeSet::SpecialQuery);
+          },
+          *url_.query_);
+    } else {
+      query_encoder_->EncodeQuery(
+          query_buffer_,
+          [](unsigned char byte) {
+            return util::ShouldPercentEncode(byte, util::PercentEncodeSet::Query);
+          },
+          *url_.query_);
+    }
+    query_buffer_.clear();
+  }
+
   std::string input_;
   const Url* base_;
+  const QueryEncoder* query_encoder_ = nullptr;
   Url url_;
   std::string buffer_;
+  // The query as the document wrote it, before an encoding is applied to it.
+  std::string query_buffer_;
   bool at_sign_seen_ = false;
   bool inside_brackets_ = false;
   bool password_token_seen_ = false;
@@ -627,13 +672,13 @@ std::optional<Url> UrlParser::Run() {
 
       case State::Query:
         if (c == '#') {
+          FlushQuery();
           url_.fragment_ = std::string();
           state = State::Fragment;
         } else if (c >= 0) {
-          const std::string_view piece(&input_[pointer], 1);
-          util::PercentEncodeInto(piece, SchemeIsSpecial(url_.scheme_) ? util::PercentEncodeSet::SpecialQuery
-                                                                 : util::PercentEncodeSet::Query,
-                            *url_.query_);
+          query_buffer_.push_back(input_[pointer]);
+        } else {
+          FlushQuery();
         }
         break;
 
@@ -656,9 +701,15 @@ std::optional<Url> UrlParser::Run() {
   return url_;
 }
 
-std::optional<Url> Url::Parse(std::string_view input) {
+std::optional<Url> Url::Parse(std::string_view input) { return Parse(input, nullptr); }
+
+std::optional<Url> Url::Parse(std::string_view input, const Url& base) {
+  return Parse(input, base, nullptr);
+}
+
+std::optional<Url> Url::Parse(std::string_view input, const QueryEncoder* encoder) {
   AddPerformanceCounter(PerfCounterId::UrlParses);
-  UrlParser parser(input, nullptr);
+  UrlParser parser(input, nullptr, encoder);
   auto result = parser.Run();
   if (!result.has_value()) {
     AddPerformanceCounter(PerfCounterId::UrlParseFailures);
@@ -666,9 +717,10 @@ std::optional<Url> Url::Parse(std::string_view input) {
   return result;
 }
 
-std::optional<Url> Url::Parse(std::string_view input, const Url& base) {
+std::optional<Url> Url::Parse(std::string_view input, const Url& base,
+                              const QueryEncoder* encoder) {
   AddPerformanceCounter(PerfCounterId::UrlParses);
-  UrlParser parser(input, &base);
+  UrlParser parser(input, &base, encoder);
   auto result = parser.Run();
   if (!result.has_value()) {
     AddPerformanceCounter(PerfCounterId::UrlParseFailures);

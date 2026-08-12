@@ -1619,6 +1619,9 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
       out.append(relative);
       return out;
     }
+    std::string ResolveDocumentUrl(std::string_view relative) const override {
+      return ResolveUrl(relative, "https://example.com");
+    }
     std::string RegisterBlobUrl(std::string body, std::string) override {
       registered = std::move(body);
       return "blob:null/42";

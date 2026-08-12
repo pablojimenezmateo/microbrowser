@@ -15,8 +15,11 @@
 // ended it is not consumed -- the same rule Encoding.cpp's UTF-8 decoder follows and for the same
 // reason: swallowing it hides the character a sanitiser was looking for.
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -124,10 +127,10 @@ std::string DecodeShiftJis(std::string_view bytes) {
   return out;
 }
 
-// EUC-JP. 0x8E introduces halfwidth katakana, 0x8F introduces JIS X 0212 -- which this browser does
-// not have an index for, so those three-byte sequences are U+FFFD. That is a stated gap rather than a
-// silent one: JIS0212 is a supplementary kanji set, rare on the web, and guessing a character from
-// the wrong index would be worse than a replacement.
+// EUC-JP. 0x8E introduces halfwidth katakana and 0x8F introduces JIS X 0212, the supplementary kanji
+// set -- a second index, and the only one of the six that is *decode only*: no encoder in the
+// standard produces a 0x8F sequence, so a document containing one was written by something older
+// than the web.
 std::string DecodeEucJp(std::string_view bytes) {
   std::string out;
   std::size_t at = 0;
@@ -150,18 +153,31 @@ std::string DecodeEucJp(std::string_view bytes) {
       continue;
     }
     if (byte == 0x8F) {
-      // JIS X 0212, which needs an index this browser does not carry -- so the answer is U+FFFD, and
-      // **the shape is checked before three bytes are consumed.** That is not tidiness: consuming
-      // blindly would let `8F 3C` delete a `<`, and a decoder that deletes a `<` hides the character
-      // a sanitiser was looking for. When the trail bytes are not trail bytes, one byte is consumed
-      // and everything after it is decoded as text, which is what the standard's pushback does.
+      // JIS X 0212. **The shape is checked before three bytes are consumed**, and that is not
+      // tidiness: consuming blindly would let `8F 3C` delete a `<`, and a decoder that deletes a `<`
+      // hides the character a sanitiser was looking for. When the trail bytes are not trail bytes,
+      // one byte is consumed and everything after it is decoded as text, which is what the
+      // standard's pushback does.
       const bool shaped = at + 2 < bytes.size() &&
                           static_cast<std::uint8_t>(bytes[at + 1]) >= 0xA1 &&
                           static_cast<std::uint8_t>(bytes[at + 1]) <= 0xFE &&
                           static_cast<std::uint8_t>(bytes[at + 2]) >= 0xA1 &&
                           static_cast<std::uint8_t>(bytes[at + 2]) <= 0xFE;
-      AppendReplacement(out);
-      at += shaped ? std::size_t{3} : std::size_t{1};
+      if (!shaped) {
+        AppendReplacement(out);
+        ++at;
+        continue;
+      }
+      const std::size_t pointer =
+          (static_cast<std::size_t>(static_cast<std::uint8_t>(bytes[at + 1])) - 0xA1u) * 94u +
+          (static_cast<std::size_t>(static_cast<std::uint8_t>(bytes[at + 2])) - 0xA1u);
+      std::uint32_t code = 0;
+      if (IndexLookup(kJis0212, std::size(kJis0212), pointer, kHole, code)) {
+        util::AppendUtf8(out, code);
+      } else {
+        AppendReplacement(out);
+      }
+      at += 3;
       continue;
     }
     if (byte < 0xA1 || byte > 0xFE || at + 1 >= bytes.size()) {
@@ -291,14 +307,33 @@ std::string DecodeBig5(std::string_view bytes) {
   return out;
 }
 
-// GB18030, two-byte form. 0x80 alone is the euro sign -- a single-byte exception no other encoding
-// here has -- and the two-byte form covers the BMP.
-//
-// **The four-byte form is refused**, and that is a stated gap: it encodes the code points the
-// two-byte form cannot reach, which for a web page means rare ideographs and everything above the
-// BMP. Implementing it needs the standard's `index-gb18030-ranges` table and an offset search; a
-// four-byte sequence therefore produces one U+FFFD rather than a plausible wrong character, which is
-// the same trade EUC-JP's JIS0212 makes.
+// The standard's "index gb18030 ranges code point": the four-byte form's pointer turned back into a
+// character. 207 ranges cover a million code points, so the table is a list of starts and the answer
+// is a start plus a distance -- which is also why the two guard clauses are not optional. The gap
+// between 39419 and 189000 is the hole between the BMP and the astral planes, and a pointer landing
+// in it must be an error rather than a start-plus-distance that walks off the end of a range.
+std::optional<std::uint32_t> Gb18030RangesCodePoint(std::size_t pointer) {
+  if ((pointer > 39419 && pointer < 189000) || pointer > 1237575) {
+    return std::nullopt;
+  }
+  if (pointer == 7457) {
+    return 0xE7C7;  // the GB18030-2005 revision's one inline exception
+  }
+  const auto* begin = std::begin(kGb18030RangePointers);
+  const auto* end = begin + std::size(kGb18030RangePointers);
+  const auto* above = std::upper_bound(begin, end, static_cast<std::uint32_t>(pointer));
+  if (above == begin) {
+    return std::nullopt;
+  }
+  const std::size_t at = static_cast<std::size_t>(above - begin) - 1;
+  return static_cast<std::uint32_t>(kGb18030RangeCodePoints[at] +
+                                    (pointer - kGb18030RangePointers[at]));
+}
+
+// GB18030. 0x80 alone is the euro sign -- a single-byte exception no other encoding here has -- the
+// two-byte form covers the BMP, and the four-byte form covers everything else, including every code
+// point above it. The four-byte form is what makes this the only legacy encoding that can say
+// anything Unicode can.
 std::string DecodeGb18030(std::string_view bytes) {
   std::string out;
   std::size_t at = 0;
@@ -321,18 +356,32 @@ std::string DecodeGb18030(std::string_view bytes) {
     }
     const std::uint8_t second = static_cast<std::uint8_t>(bytes[at + 1]);
     if (second >= 0x30 && second <= 0x39) {
-      // A four-byte sequence, which this decoder refuses -- see the note above. **Its whole shape is
-      // checked before four bytes are consumed**, for the reason EUC-JP's 0x8F path states: the third
-      // and fourth bytes of a *malformed* four-byte sequence are ordinary text, and `81 30 3C 3C`
-      // consumed blindly deletes a `<`. Only a sequence whose four bytes are all in range is taken as
-      // one unit; anything else costs one byte, and the rest is decoded.
+      // A four-byte sequence. **Its whole shape is checked before four bytes are consumed**, for the
+      // reason EUC-JP's 0x8F path states: the third and fourth bytes of a *malformed* four-byte
+      // sequence are ordinary text, and `81 30 3C 3C` consumed blindly deletes a `<`. Only a
+      // sequence whose four bytes are all in range is taken as one unit; anything else costs one
+      // byte, and the rest is decoded.
       const bool shaped = at + 3 < bytes.size() &&
                           static_cast<std::uint8_t>(bytes[at + 2]) >= 0x81 &&
                           static_cast<std::uint8_t>(bytes[at + 2]) <= 0xFE &&
                           static_cast<std::uint8_t>(bytes[at + 3]) >= 0x30 &&
                           static_cast<std::uint8_t>(bytes[at + 3]) <= 0x39;
-      AppendReplacement(out);
-      at += shaped ? std::size_t{4} : std::size_t{1};
+      if (!shaped) {
+        AppendReplacement(out);
+        ++at;
+        continue;
+      }
+      const std::size_t pointer =
+          (static_cast<std::size_t>(byte) - 0x81u) * (10u * 126u * 10u) +
+          (static_cast<std::size_t>(second) - 0x30u) * (10u * 126u) +
+          (static_cast<std::size_t>(static_cast<std::uint8_t>(bytes[at + 2])) - 0x81u) * 10u +
+          (static_cast<std::size_t>(static_cast<std::uint8_t>(bytes[at + 3])) - 0x30u);
+      if (const std::optional<std::uint32_t> code = Gb18030RangesCodePoint(pointer)) {
+        util::AppendUtf8(out, *code);
+      } else {
+        AppendReplacement(out);
+      }
+      at += 4;
       continue;
     }
     if (second == 0x7F || second < 0x40 || second > 0xFE) {
@@ -355,6 +404,502 @@ std::string DecodeGb18030(std::string_view bytes) {
   return out;
 }
 
+// ISO-2022-JP, and the only member of the family where a byte's meaning depends on bytes some
+// distance behind it. `41` is `A` after `ESC ( B` and half of a kanji after `ESC $ B`.
+//
+// **That is a security property before it is a rendering one.** A stateful encoding is one where a
+// sanitiser that scanned for `<` in the bytes has scanned the wrong thing, because the escape that
+// decides whether `3C` *is* a `<` may be anywhere earlier in the document. It is decoded here
+// exactly as the standard writes it, pushback and all, so that this browser and the server that
+// filtered the document agree about which bytes are markup.
+//
+// The two states that are not character sets -- escape start and escape -- are why this needs a
+// pushback queue rather than an index: a partial escape sequence is *restored* to the input and
+// decoded as text, so `ESC (` followed by `X` produces the replacement character and then `(` and
+// `X`, and nothing is swallowed.
+std::string DecodeIso2022Jp(std::string_view bytes) {
+  enum class State { Ascii, Roman, Katakana, LeadByte, TrailingByte, EscapeStart, Escape };
+  std::string out;
+  State state = State::Ascii;
+  // Where an unrecognised escape sequence falls back to, which is not the same as `state`: the
+  // escape states are transient and have no character set of their own.
+  State output_state = State::Ascii;
+  std::uint8_t lead = 0;
+  // The standard's "ISO-2022-JP output" flag. It exists so that an escape to the state the decoder
+  // is *already* in is an error rather than a no-op -- `ESC ( B ESC ( B` is a document trying to
+  // hide something in what looks like a redundant escape.
+  bool output = false;
+
+  std::size_t at = 0;
+  std::uint8_t pushback[2] = {0, 0};
+  int pushed = 0;
+  const auto read = [&]() -> int {
+    if (pushed > 0) {
+      const std::uint8_t byte = pushback[0];
+      pushback[0] = pushback[1];
+      --pushed;
+      return byte;
+    }
+    return at < bytes.size() ? static_cast<int>(static_cast<std::uint8_t>(bytes[at++])) : -1;
+  };
+  const auto restore = [&](std::uint8_t first) {
+    pushback[1] = pushback[0];
+    pushback[0] = first;
+    ++pushed;
+  };
+
+  for (;;) {
+    const int byte = read();
+    switch (state) {
+      case State::Ascii:
+        if (byte == 0x1B) {
+          state = State::EscapeStart;
+        } else if (byte >= 0x00 && byte <= 0x7F && byte != 0x0E && byte != 0x0F) {
+          output = false;
+          out.push_back(static_cast<char>(byte));
+        } else if (byte < 0) {
+          return out;
+        } else {
+          output = false;
+          AppendReplacement(out);
+        }
+        break;
+
+      case State::Roman:
+        if (byte == 0x1B) {
+          state = State::EscapeStart;
+        } else if (byte == 0x5C) {
+          output = false;
+          util::AppendUtf8(out, 0x00A5);
+        } else if (byte == 0x7E) {
+          output = false;
+          util::AppendUtf8(out, 0x203E);
+        } else if (byte >= 0x00 && byte <= 0x7F && byte != 0x0E && byte != 0x0F) {
+          output = false;
+          out.push_back(static_cast<char>(byte));
+        } else if (byte < 0) {
+          return out;
+        } else {
+          output = false;
+          AppendReplacement(out);
+        }
+        break;
+
+      case State::Katakana:
+        if (byte == 0x1B) {
+          state = State::EscapeStart;
+        } else if (byte >= 0x21 && byte <= 0x5F) {
+          output = false;
+          util::AppendUtf8(out, 0xFF61u - 0x21u + static_cast<std::uint32_t>(byte));
+        } else if (byte < 0) {
+          return out;
+        } else {
+          output = false;
+          AppendReplacement(out);
+        }
+        break;
+
+      case State::LeadByte:
+        if (byte == 0x1B) {
+          state = State::EscapeStart;
+        } else if (byte >= 0x21 && byte <= 0x7E) {
+          output = false;
+          lead = static_cast<std::uint8_t>(byte);
+          state = State::TrailingByte;
+        } else if (byte < 0) {
+          return out;
+        } else {
+          output = false;
+          AppendReplacement(out);
+        }
+        break;
+
+      case State::TrailingByte:
+        if (byte == 0x1B) {
+          state = State::EscapeStart;
+          AppendReplacement(out);
+        } else if (byte >= 0x21 && byte <= 0x7E) {
+          state = State::LeadByte;
+          const std::size_t pointer = (static_cast<std::size_t>(lead) - 0x21u) * 94u +
+                                      static_cast<std::size_t>(byte) - 0x21u;
+          std::uint32_t code = 0;
+          if (IndexLookup(kJis0208, std::size(kJis0208), pointer, kHole, code)) {
+            util::AppendUtf8(out, code);
+          } else {
+            AppendReplacement(out);
+          }
+        } else if (byte < 0) {
+          state = State::LeadByte;
+          AppendReplacement(out);
+        } else {
+          state = State::LeadByte;
+          AppendReplacement(out);
+        }
+        break;
+
+      case State::EscapeStart:
+        if (byte == 0x24 || byte == 0x28) {
+          lead = static_cast<std::uint8_t>(byte);
+          state = State::Escape;
+        } else {
+          if (byte >= 0) {
+            restore(static_cast<std::uint8_t>(byte));
+          }
+          output = false;
+          state = output_state;
+          AppendReplacement(out);
+        }
+        break;
+
+      case State::Escape: {
+        const std::uint8_t leading = lead;
+        lead = 0;
+        std::optional<State> next;
+        if (leading == 0x28 && byte == 0x42) {
+          next = State::Ascii;
+        } else if (leading == 0x28 && byte == 0x4A) {
+          next = State::Roman;
+        } else if (leading == 0x28 && byte == 0x49) {
+          next = State::Katakana;
+        } else if (leading == 0x24 && (byte == 0x40 || byte == 0x42)) {
+          next = State::LeadByte;
+        }
+        if (next.has_value()) {
+          state = *next;
+          output_state = *next;
+          const bool had_output = output;
+          output = true;
+          if (had_output) {
+            AppendReplacement(out);
+          }
+          break;
+        }
+        // Not an escape sequence at all: both bytes go back and are decoded as whatever the
+        // character set in force says they are.
+        if (byte < 0) {
+          restore(leading);
+        } else {
+          pushback[0] = leading;
+          pushback[1] = static_cast<std::uint8_t>(byte);
+          pushed = 2;
+        }
+        output = false;
+        state = output_state;
+        AppendReplacement(out);
+        break;
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The encoders.
+//
+// **These are not the decode tables read backwards, and that is the whole of the difficulty.** Each
+// index maps two pointers to one code point in places, and the standard picks between them with a
+// rule per encoding -- Shift_JIS drops a range of pointers before taking the first match, Big5 drops
+// the Hong Kong supplement and takes the *last* match for six characters. Inverting a decode table
+// without those rules produces bytes that decode back to the right character and are still not the
+// bytes any other browser sends, which is a wrong answer that no round-trip test can see. The rules
+// live in tools/unicode/generate_encodings.py, where the tables are built.
+//
+// The lookup is a binary search over a sorted array of code points with the pointer at the same
+// subscript. The *pointer* is what is stored rather than the bytes, because every encoder divides it
+// differently -- 94, 157, 188, 190 -- and storing bytes would mean five tables where the standard
+// has one index.
+
+// The standard's "index pointer for code point", already specialised per encoding by the generator.
+// Nullopt is what the standard calls null and is the encoder's error case.
+template <typename Codes, typename Pointers>
+std::optional<std::size_t> IndexPointer(const Codes& codes, const Pointers& pointers,
+                                        std::size_t count, std::uint32_t code_point) {
+  const auto* begin = std::begin(codes);
+  const auto* end = begin + count;
+  const auto* found = std::lower_bound(begin, end, code_point);
+  if (found == end || static_cast<std::uint32_t>(*found) != code_point) {
+    return std::nullopt;
+  }
+  return static_cast<std::size_t>(pointers[found - begin]);
+}
+
+// Takes a `size_t` because every caller is the result of the standard's pointer arithmetic, which is
+// done in the widest type available for the reason every parser in this repository does: a division
+// and a remainder over a value derived from input is where an overflow would be, and narrowing at
+// the one point the byte is written is where it is checked.
+void PushByte(std::string& out, std::size_t byte) {
+  out.push_back(static_cast<char>(static_cast<std::uint8_t>(byte & 0xFFu)));
+}
+
+bool IsAscii(std::uint32_t code_point) { return code_point <= 0x7F; }
+
+bool EncodeShiftJis(std::uint32_t code_point, std::string& out) {
+  if (IsAscii(code_point) || code_point == 0x80) {
+    PushByte(out, code_point);
+    return true;
+  }
+  // The yen sign and the overline are 0x5C and 0x7E, which are also `\` and `~`. That is the
+  // standard, and it is the asymmetry that makes Shift_JIS round-tripping impossible: those two
+  // bytes decode as backslash and tilde, so encoding then decoding U+00A5 gives U+005C.
+  if (code_point == 0x00A5) {
+    PushByte(out, 0x5C);
+    return true;
+  }
+  if (code_point == 0x203E) {
+    PushByte(out, 0x7E);
+    return true;
+  }
+  if (code_point >= 0xFF61 && code_point <= 0xFF9F) {
+    PushByte(out, code_point - 0xFF61 + 0xA1);
+    return true;
+  }
+  if (code_point == 0x2212) {
+    code_point = 0xFF0D;  // minus sign to fullwidth hyphen-minus, which is the only one it has
+  }
+  const std::optional<std::size_t> pointer = IndexPointer(
+      kShiftJisEncodeCodes, kShiftJisEncodePointers, std::size(kShiftJisEncodeCodes), code_point);
+  if (!pointer.has_value()) {
+    return false;
+  }
+  const std::size_t lead = *pointer / 188;
+  const std::size_t trail = *pointer % 188;
+  PushByte(out, lead + (lead < 0x1F ? 0x81u : 0xC1u));
+  PushByte(out, trail + (trail < 0x3F ? 0x40u : 0x41u));
+  return true;
+}
+
+bool EncodeEucJp(std::uint32_t code_point, std::string& out) {
+  if (IsAscii(code_point)) {
+    PushByte(out, code_point);
+    return true;
+  }
+  if (code_point == 0x00A5) {
+    PushByte(out, 0x5C);
+    return true;
+  }
+  if (code_point == 0x203E) {
+    PushByte(out, 0x7E);
+    return true;
+  }
+  if (code_point >= 0xFF61 && code_point <= 0xFF9F) {
+    PushByte(out, 0x8E);
+    PushByte(out, code_point - 0xFF61 + 0xA1);
+    return true;
+  }
+  if (code_point == 0x2212) {
+    code_point = 0xFF0D;
+  }
+  // jis0208 only. **JIS X 0212 is decoded and never encoded**, which is the standard's rule rather
+  // than a gap here: the 0x8F sequences exist in old documents and no browser produces new ones.
+  const std::optional<std::size_t> pointer = IndexPointer(
+      kJis0208EncodeCodes, kJis0208EncodePointers, std::size(kJis0208EncodeCodes), code_point);
+  if (!pointer.has_value()) {
+    return false;
+  }
+  PushByte(out, *pointer / 94 + 0xA1);
+  PushByte(out, *pointer % 94 + 0xA1);
+  return true;
+}
+
+bool EncodeEucKr(std::uint32_t code_point, std::string& out) {
+  if (IsAscii(code_point)) {
+    PushByte(out, code_point);
+    return true;
+  }
+  const std::optional<std::size_t> pointer = IndexPointer(
+      kEucKrEncodeCodes, kEucKrEncodePointers, std::size(kEucKrEncodeCodes), code_point);
+  if (!pointer.has_value()) {
+    return false;
+  }
+  PushByte(out, *pointer / 190 + 0x81);
+  PushByte(out, *pointer % 190 + 0x41);
+  return true;
+}
+
+bool EncodeBig5(std::uint32_t code_point, std::string& out) {
+  if (IsAscii(code_point)) {
+    PushByte(out, code_point);
+    return true;
+  }
+  const std::optional<std::size_t> pointer = IndexPointer(
+      kBig5EncodeCodes, kBig5EncodePointers, std::size(kBig5EncodeCodes), code_point);
+  if (!pointer.has_value()) {
+    return false;
+  }
+  const std::size_t trail = *pointer % 157;
+  PushByte(out, *pointer / 157 + 0x81);
+  PushByte(out, trail + (trail < 0x3F ? 0x40u : 0x62u));
+  return true;
+}
+
+// GB18030's eighteen private-use code points that do not encode where the index says.
+//
+// They are the GB18030-2022 revision's compatibility hole: the revision moved those characters to
+// real code points, and the bytes that used to mean them are still in deployed documents. Encoding
+// them through the index would produce four-byte sequences no GBK server understands, so the
+// standard carries this side table instead -- and it is *encoder only*, so it does not round-trip.
+struct Gb18030EncoderException {
+  std::uint32_t code_point;
+  std::uint8_t lead;
+  std::uint8_t trail;
+};
+constexpr Gb18030EncoderException kGb18030EncoderExceptions[] = {
+    {0xE78D, 0xA6, 0xD9}, {0xE78E, 0xA6, 0xDA}, {0xE78F, 0xA6, 0xDB}, {0xE790, 0xA6, 0xDC},
+    {0xE791, 0xA6, 0xDD}, {0xE792, 0xA6, 0xDE}, {0xE793, 0xA6, 0xDF}, {0xE794, 0xA6, 0xEC},
+    {0xE795, 0xA6, 0xED}, {0xE796, 0xA6, 0xF3}, {0xE81E, 0xFE, 0x59}, {0xE826, 0xFE, 0x61},
+    {0xE82B, 0xFE, 0x66}, {0xE82C, 0xFE, 0x67}, {0xE832, 0xFE, 0x6D}, {0xE843, 0xFE, 0x7E},
+    {0xE854, 0xFE, 0x90}, {0xE864, 0xFE, 0xA0},
+};
+
+// The standard's "index gb18030 ranges pointer": the last range whose code point is at or below
+// this one, plus the distance. A linear scan would be 207 comparisons per character; the table is
+// ascending in both columns, so it is a binary search over one of them.
+std::optional<std::size_t> Gb18030RangesPointer(std::uint32_t code_point) {
+  if (code_point == 0xE7C7) {
+    return 7457;  // the standard's one exception, from the GB18030-2005 revision
+  }
+  const auto* begin = std::begin(kGb18030RangeCodePoints);
+  const auto* end = begin + std::size(kGb18030RangeCodePoints);
+  const auto* above = std::upper_bound(begin, end, code_point);
+  if (above == begin) {
+    return std::nullopt;
+  }
+  const std::size_t at = static_cast<std::size_t>(above - begin) - 1;
+  return kGb18030RangePointers[at] + (code_point - kGb18030RangeCodePoints[at]);
+}
+
+bool EncodeGb18030(std::uint32_t code_point, std::string& out, bool is_gbk) {
+  if (IsAscii(code_point)) {
+    PushByte(out, code_point);
+    return true;
+  }
+  // The one code point GB18030 cannot encode at all: the index maps 0xA3 0xA0 to U+3000 for
+  // compatibility with deployed content, so U+E5E5 has no bytes left and the index does not
+  // round-trip. The standard says this explicitly, which is why it is an error rather than an
+  // oversight.
+  if (code_point == 0xE5E5) {
+    return false;
+  }
+  if (is_gbk && code_point == 0x20AC) {
+    PushByte(out, 0x80);
+    return true;
+  }
+  for (const Gb18030EncoderException& exception : kGb18030EncoderExceptions) {
+    if (exception.code_point == code_point) {
+      PushByte(out, exception.lead);
+      PushByte(out, exception.trail);
+      return true;
+    }
+  }
+  if (const std::optional<std::size_t> pointer = IndexPointer(
+          kGb18030EncodeCodes, kGb18030EncodePointers, std::size(kGb18030EncodeCodes), code_point)) {
+    const std::size_t trail = *pointer % 190;
+    PushByte(out, *pointer / 190 + 0x81);
+    PushByte(out, trail + (trail < 0x3F ? 0x40u : 0x41u));
+    return true;
+  }
+  // **GBK stops here and GB18030 does not**, which is the only difference between the two encoders
+  // and the reason they are two encodings rather than one with two labels.
+  if (is_gbk) {
+    return false;
+  }
+  const std::optional<std::size_t> pointer = Gb18030RangesPointer(code_point);
+  if (!pointer.has_value()) {
+    return false;
+  }
+  std::size_t rest = *pointer;
+  const std::size_t byte1 = rest / (10 * 126 * 10);
+  rest %= (10 * 126 * 10);
+  const std::size_t byte2 = rest / (10 * 126);
+  rest %= (10 * 126);
+  const std::size_t byte3 = rest / 10;
+  const std::size_t byte4 = rest % 10;
+  PushByte(out, byte1 + 0x81);
+  PushByte(out, byte2 + 0x30);
+  PushByte(out, byte3 + 0x81);
+  PushByte(out, byte4 + 0x30);
+  return true;
+}
+
+// ISO-2022-JP, the stateful one. The state is which character set the bytes are currently being read
+// as, and an escape sequence changes it: `ESC ( B` for ASCII, `ESC ( J` for Roman, `ESC $ B` for
+// jis0208. The standard's encoder is written as a loop that *pushes the code point back* and emits
+// an escape whenever the state has to change, which is exactly what the two `continue`s below do.
+//
+// U+000E, U+000F and U+001B return U+FFFD rather than themselves, and the standard says why in one
+// word: attacks. Those three are shift-out, shift-in and escape -- a document that could put a raw
+// 0x1B into an ISO-2022-JP stream could change what every byte after it decodes as, which turns
+// text a filter approved into markup.
+enum class Iso2022JpState : int { Ascii = 0, Roman = 1, Jis0208 = 2 };
+
+bool EncodeIso2022Jp(std::uint32_t code_point, int& raw_state, std::string& out) {
+  auto state = static_cast<Iso2022JpState>(raw_state);
+  const auto set_state = [&](Iso2022JpState next) {
+    state = next;
+    raw_state = static_cast<int>(next);
+  };
+  for (;;) {
+    if ((state == Iso2022JpState::Ascii || state == Iso2022JpState::Roman) &&
+        (code_point == 0x000E || code_point == 0x000F || code_point == 0x001B)) {
+      return false;
+    }
+    if (state == Iso2022JpState::Ascii && IsAscii(code_point)) {
+      PushByte(out, code_point);
+      return true;
+    }
+    if (state == Iso2022JpState::Roman &&
+        ((IsAscii(code_point) && code_point != 0x5C && code_point != 0x7E) ||
+         code_point == 0x00A5 || code_point == 0x203E)) {
+      if (IsAscii(code_point)) {
+        PushByte(out, code_point);
+      } else if (code_point == 0x00A5) {
+        PushByte(out, 0x5C);
+      } else {
+        PushByte(out, 0x7E);
+      }
+      return true;
+    }
+    if (IsAscii(code_point) && state != Iso2022JpState::Ascii) {
+      out += "\x1B(B";
+      set_state(Iso2022JpState::Ascii);
+      continue;
+    }
+    if ((code_point == 0x00A5 || code_point == 0x203E) && state != Iso2022JpState::Roman) {
+      out += "\x1B(J";
+      set_state(Iso2022JpState::Roman);
+      continue;
+    }
+    if (code_point == 0x2212) {
+      code_point = 0xFF0D;
+    }
+    if (code_point >= 0xFF61 && code_point <= 0xFF9F) {
+      // Halfwidth katakana have no jis0208 pointer, so the standard folds them to their fullwidth
+      // forms first. This is the one encoder that changes the character rather than failing, and
+      // the index exists because the fold is *not* Unicode's NFKC for two of them.
+      code_point = kIso2022JpKatakana[code_point - 0xFF61];
+    }
+    const std::optional<std::size_t> pointer = IndexPointer(
+        kJis0208EncodeCodes, kJis0208EncodePointers, std::size(kJis0208EncodeCodes), code_point);
+    if (!pointer.has_value()) {
+      if (state == Iso2022JpState::Jis0208) {
+        // **The state is reset before the failure is reported**, and it must be: the caller writes
+        // the unencodable character as ASCII (`&#1234;`), and ASCII inside a jis0208 run would be
+        // read back as kanji.
+        out += "\x1B(B";
+        set_state(Iso2022JpState::Ascii);
+      }
+      return false;
+    }
+    if (state != Iso2022JpState::Jis0208) {
+      out += "\x1B$B";
+      set_state(Iso2022JpState::Jis0208);
+      continue;
+    }
+    PushByte(out, *pointer / 94 + 0x21);
+    PushByte(out, *pointer % 94 + 0x21);
+    return true;
+  }
+}
+
 }  // namespace
 
 std::string DecodeMultiByte(std::string_view bytes, Encoding encoding) {
@@ -368,10 +913,44 @@ std::string DecodeMultiByte(std::string_view bytes, Encoding encoding) {
     case Encoding::Big5:
       return DecodeBig5(bytes);
     case Encoding::Gb18030:
+    case Encoding::Gbk:
       return DecodeGb18030(bytes);
+    case Encoding::Iso2022Jp:
+      return DecodeIso2022Jp(bytes);
     default:
       return std::string();
   }
+}
+
+bool EncodeMultiByte(std::uint32_t code_point, Encoding encoding, int& state, std::string& out) {
+  switch (encoding) {
+    case Encoding::ShiftJis:
+      return EncodeShiftJis(code_point, out);
+    case Encoding::EucJp:
+      return EncodeEucJp(code_point, out);
+    case Encoding::EucKr:
+      return EncodeEucKr(code_point, out);
+    case Encoding::Big5:
+      return EncodeBig5(code_point, out);
+    case Encoding::Gb18030:
+      return EncodeGb18030(code_point, out, false);
+    case Encoding::Gbk:
+      return EncodeGb18030(code_point, out, true);
+    case Encoding::Iso2022Jp:
+      return EncodeIso2022Jp(code_point, state, out);
+    default:
+      return false;
+  }
+}
+
+void FinishMultiByte(Encoding encoding, int& state, std::string& out) {
+  // Only ISO-2022-JP has anything to say at the end of a stream, and what it says is load-bearing:
+  // a stream that ends in the jis0208 state decodes wrong when anything is concatenated after it.
+  if (encoding != Encoding::Iso2022Jp || state == static_cast<int>(Iso2022JpState::Ascii)) {
+    return;
+  }
+  out += "\x1B(B";
+  state = static_cast<int>(Iso2022JpState::Ascii);
 }
 
 }  // namespace microbrowser::html

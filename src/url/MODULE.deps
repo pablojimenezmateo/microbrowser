@@ -14,7 +14,17 @@ extern:
 max_tu_lines: 800
 
 budget: Host         header_lines=45 public_methods=14 members=3
-budget: Url          header_lines=70 public_methods=30 members=11
+# Raised by ten lines and two methods for the encoding-aware parse. The two are
+# the same two overloads with a `QueryEncoder*` on the end, and the reason they
+# are overloads rather than a defaulted argument is that a default would let a
+# caller get the document's encoding by accident -- `new URL(...)` is UTF-8
+# whatever page called it, and every URL this browser builds for itself is too.
+# `QueryEncoder` is an interface this module *declares* and `src/html`
+# implements: the allow: line above is what keeps the bottom of the web stack at
+# the bottom, and a dependency on the encoding tables would put a character-set
+# question underneath every origin check.
+budget: Url          header_lines=85 public_methods=32 members=11
+budget: QueryEncoder header_lines=15 public_methods=3  members=0
 budget: Origin       header_lines=45 public_methods=14 members=5
 budget: Site         header_lines=35 public_methods=12 members=4
 budget: ContainerId  header_lines=30 public_methods=10 members=2

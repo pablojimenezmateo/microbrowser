@@ -214,6 +214,10 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
   // Decoded into a local that outlives the parse: `ParseDocument` takes a view, and a temporary here
   // would be a dangling one.
   const html::Encoding encoding = html::SniffEncoding(html, content_type);
+  // Remembered beside the base URL, because "encoding-parse a URL" takes both
+  // and nothing else -- see DocumentPolicy.h. Every link on this document and
+  // every form it submits has its query encoded with it.
+  policy_.SetEncoding(encoding);
   const std::string decoded = html::DecodeToUtf8(html, encoding);
   {
     util::LoadTimeline::Mark("document.parse.start");
@@ -392,7 +396,7 @@ std::optional<FormSubmission> Page::SubmitForm(const dom::Element& form,
   if (script_.DispatchSubmit(const_cast<dom::Element&>(form))) {
     return std::nullopt;
   }
-  return BuildFormSubmission(form, submitter, *document_, url_);
+  return BuildFormSubmission(form, submitter, *document_, url_, policy_.Encoding());
 }
 
 std::optional<FormSubmission> Page::TakeScriptFormSubmission() {
@@ -403,7 +407,8 @@ std::optional<FormSubmission> Page::TakeScriptFormSubmission() {
   // No `submit` event here: `requestSubmit()` already fired one on its way
   // through and `submit()` fires none by definition. Firing one now would run
   // a page's handler twice for one submission.
-  return BuildFormSubmission(*pending->form, pending->submitter, *document_, url_);
+  return BuildFormSubmission(*pending->form, pending->submitter, *document_, url_,
+                             policy_.Encoding());
 }
 
 std::optional<FormSubmission> Page::FormSubmissionRequestAt(gfx::FloatPoint document_point) {
