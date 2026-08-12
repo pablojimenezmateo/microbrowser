@@ -49,6 +49,7 @@ void RegisterJsLexerTests(std::vector<TestCase>& tests);
 void RegisterJsRegExpTests(std::vector<TestCase>& tests);
 void RegisterJsParserTests(std::vector<TestCase>& tests);
 void RegisterJsRealmTests(std::vector<TestCase>& tests);
+void RegisterWptHandlerTests(std::vector<TestCase>& tests);
 void RegisterJsVmTests(std::vector<TestCase>& tests);
 void RegisterFontCatalogTests(std::vector<TestCase>& tests);
 void RegisterFontTests(std::vector<TestCase>& tests);
@@ -227,6 +228,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterJsRegExpTests(tests);
   microbrowser::tests::RegisterJsParserTests(tests);
   microbrowser::tests::RegisterJsRealmTests(tests);
+  microbrowser::tests::RegisterWptHandlerTests(tests);
   microbrowser::tests::RegisterJsVmTests(tests);
   microbrowser::tests::RegisterFontCatalogTests(tests);
   microbrowser::tests::RegisterFontTests(tests);

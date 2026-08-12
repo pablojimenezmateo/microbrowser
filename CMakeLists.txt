@@ -751,6 +751,11 @@ add_executable(microbrowser_tests
   tests/JsRegExpTests.cpp
   tests/JsParserTests.cpp
   tests/JsRealmTests.cpp
+  tests/WptHandlerTests.cpp
+  # The handler table itself, compiled into the test binary. It names nothing but its own header, so
+  # this costs no dependency -- and until it was here the only way to exercise a transcription was to
+  # run the whole suite, which is the better part of a day.
+  tools/wpt/Handlers.cpp
   tests/JsVmTests.cpp
   tests/DomBindingsTests.cpp
   tests/FlexLayoutTests.cpp
