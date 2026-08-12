@@ -274,13 +274,15 @@ void DomBindings::InstallCssOm() {
         cp = (lead & 0x1F) << 6 | (static_cast<unsigned char>(input[i + 1]) & 0x3F);
         width = 2;
       } else if ((lead & 0xF0) == 0xE0 && i + 2 < input.size()) {
-        cp = (lead & 0x0F) << 12 | (static_cast<unsigned char>(input[i + 1]) & 0x3F) << 6 |
-             (static_cast<unsigned char>(input[i + 2]) & 0x3F);
+        cp = static_cast<std::uint32_t>(lead & 0x0F) << 12 |
+             static_cast<std::uint32_t>(static_cast<unsigned char>(input[i + 1]) & 0x3F) << 6 |
+             static_cast<std::uint32_t>(static_cast<unsigned char>(input[i + 2]) & 0x3F);
         width = 3;
       } else if ((lead & 0xF8) == 0xF0 && i + 3 < input.size()) {
-        cp = (lead & 0x07) << 18 | (static_cast<unsigned char>(input[i + 1]) & 0x3F) << 12 |
-             (static_cast<unsigned char>(input[i + 2]) & 0x3F) << 6 |
-             (static_cast<unsigned char>(input[i + 3]) & 0x3F);
+        cp = static_cast<std::uint32_t>(lead & 0x07) << 18 |
+             static_cast<std::uint32_t>(static_cast<unsigned char>(input[i + 1]) & 0x3F) << 12 |
+             static_cast<std::uint32_t>(static_cast<unsigned char>(input[i + 2]) & 0x3F) << 6 |
+             static_cast<std::uint32_t>(static_cast<unsigned char>(input[i + 3]) & 0x3F);
         width = 4;
       } else {
         char buf[8];
