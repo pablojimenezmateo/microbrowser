@@ -156,8 +156,13 @@ records every `.py` handler that was actually *requested* and is not implemented
 ranking — how many files name a handler — puts `gentest.py` first at 3,766 files, `generate.py` at
 2,085 and `build-compute-kind-widget-fallback-props.py` at 802, and **none of those three is ever
 fetched**: they are the generator scripts that produced the tests, named in a comment in every file
-they generated. A reference is not a request. The real head is `stale-script.py` (806),
-`http-cache.py` (140), `cache.py` (103), `clear-site-data.py` (91), `header-link.py` (74).
+they generated. A reference is not a request.
+
+**And a request is not a value, which cost one wrong choice already.** The report ranks *demand*: a
+handler a test polls inflates its own count. `stale-script.py` headed that table at 806 requests and
+belongs to `fetch/stale-while-revalidate/`, which is **six tests**; `record-headers.py` at 442 was
+the whole of `fetch/metadata/`, which is 87. Check `--list <dir> | wc -l` before writing one — the
+report now says so in its own footer.
 
 Two things to know before adding one. **A handler name is not unique** — `image.py` is four
 different handlers and `redirect.py` is eight — so ten of the original twenty-one are dispatched
@@ -169,6 +174,14 @@ milliseconds rather than in a suite run; add a test with each handler.
 unimplemented handler requests 2,877 → 1,609 and harness-level failures 267 → 260, while subtests
 went 162 newly passing against 159 newly failing — because a handler that answers lets a test run
 *further*, so subtests that never executed now execute and some fail.
+
+**`fetch/metadata/`'s 87 tests are no longer a handler problem, and this is the worked example of
+the above.** `record-headers.py` landed and the directory went 3.8% → 4.0%. What blocks it is three
+features: `window.open()` returns null so every generated `element-*.sub.html` dies at
+`win.document` (task **J6**, wanting ADR 0042 §5 underneath); `helper.sub.js` builds its origins from
+`{{ports[https][0]}}` and this server binds HTTP only (task **H9**); and `Sec-Fetch-*` request
+headers, which this browser never sends — `grep -rn Sec-Fetch src/` is empty. The third is what the
+tests assert on and is therefore *last*, not first: it gains nothing until the other two land.
 
 **A2's first 21 handlers landed 2026-08-12, with POST**, and the arithmetic is the argument for
 the rest: xhr 135 → 120 harness failures, cors 7 → 8, fetch 204 → 192, and **672 recorded subtest

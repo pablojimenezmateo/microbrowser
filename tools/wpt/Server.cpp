@@ -1029,6 +1029,18 @@ void Server::ReportUnknownHandlers() const {
     std::fprintf(stderr, "[wpt handlers] %6u  %.*s\n", count, static_cast<int>(name.size()),
                  name.data());
   }
+  // **The count ranks demand, not value, and the difference has already cost a wrong choice.**
+  // A handler a test *polls* is asked for hundreds of times by a handful of tests:
+  // `stale-script.py` was the top of this table at 806 requests and belongs to
+  // `fetch/stale-while-revalidate/`, which is **six tests**. Meanwhile `record-headers.py` at 442
+  // was the whole of `fetch/metadata/`, which is 87. Requests per test differs by two orders of
+  // magnitude between those two, in the direction that makes the ranking lie.
+  //
+  // Said here rather than in a document because this is where the decision gets made.
+  std::fprintf(stderr,
+               "[wpt handlers] ranked by requests, which is demand and not value: a handler a test\n"
+               "[wpt handlers] polls inflates its own count. Check `--list <dir> | wc -l` for how\n"
+               "[wpt handlers] many tests are actually behind one before writing it.\n");
 }
 
 }  // namespace microbrowser::wpt
