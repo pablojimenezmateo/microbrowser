@@ -207,12 +207,28 @@ NodePtr ParserImpl::ParsePrimary() {
       }
       return Make(NodeKind::ImportMeta);
     }
-    // `import(spec)`. A call rather than a declaration: it resolves at run
-    // time and answers a promise, which is what makes a lazily loaded chunk
-    // possible.
+    // `import(spec)` and `import(spec, options)`. A call rather than a
+    // declaration: it resolves at run time and answers a promise, which is what
+    // makes a lazily loaded chunk possible.
+    //
+    // The second argument is the import-attributes bag -- `import(u, {with:
+    // {type: "css"}})`. It is **parsed and then dropped**, which is a deliberate
+    // half: the host resolver behind ImportCall has nowhere to put an attribute
+    // yet, and a CSS module is a whole feature rather than an argument. Parsing
+    // it matters anyway, because a SyntaxError here is not local -- it kills the
+    // *entire script*, so one unparsed argument in one helper took every
+    // function defined beside it with it. That is how
+    // shadow-dom/declarative/tentative/…/support/helpers.js stopped
+    // `createStylesheetHost` from existing at all.
+    //
+    // A trailing comma is legal in both arities.
     NodePtr node = Make(NodeKind::ImportCall);
     Expect("(", "after 'import'");
     node->children.push_back(ParseAssignment());
+    if (Eat(",") && !At(")")) {
+      node->children.push_back(ParseAssignment());
+      Eat(",");
+    }
     Expect(")", "to close a dynamic import");
     return node;
   }

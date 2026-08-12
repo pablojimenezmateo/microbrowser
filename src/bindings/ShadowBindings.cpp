@@ -22,6 +22,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/ShadowDom.h"
 #include "dom/FlatTree.h"
 #include "util/PerformanceCounters.h"
 
@@ -61,25 +62,57 @@ void DomBindings::InstallShadowDom(const js::Value& element_interface) {
       return call.Throw("TypeError", "attachShadow called on something that is not an element");
     }
     auto& element = static_cast<dom::Element&>(*node);
-    if (element.ShadowRoot() != nullptr) {
-      // A second `attachShadow` is an error rather than a replacement: the page
-      // holds references into the first tree, and swapping it silently would
-      // strand them.
-      Value error = call.interpreter.MakeError(
-          "Error", "attachShadow: this element already has a shadow root");
-      if (error.IsObject()) {
-        error.object->Set("name", Value::String("NotSupportedError"));
-      }
-      return call.ThrowValue(error);
-    }
-    bool open = true;
+    dom::ShadowFlags flags = dom::ShadowFlags::None;
     const Value options = Argument(call.arguments, 0);
     if (options.IsObject()) {
-      if (const Value* mode = options.object->Get("mode")) {
-        open = js::ToString(*mode) != "closed";
+      // `mode` is required and its only two values are "open" and "closed".
+      // Anything else is a TypeError from the IDL enumeration before any of this
+      // runs, which is why an unrecognised mode must not quietly mean "open".
+      const Value* mode = options.object->Get("mode");
+      const std::string mode_text = mode == nullptr ? std::string() : js::ToString(*mode);
+      if (mode_text != "open" && mode_text != "closed") {
+        return call.Throw("TypeError",
+                          "attachShadow: mode must be either \"open\" or \"closed\"");
       }
+      if (mode_text == "open") {
+        flags |= dom::ShadowFlags::Open;
+      }
+      const auto boolean_option = [&options](const char* name) {
+        const Value* value = options.object->Get(name);
+        return value != nullptr && js::ToBoolean(*value);
+      };
+      if (boolean_option("delegatesFocus")) {
+        flags |= dom::ShadowFlags::DelegatesFocus;
+      }
+      if (boolean_option("clonable")) {
+        flags |= dom::ShadowFlags::Clonable;
+      }
+      if (boolean_option("serializable")) {
+        flags |= dom::ShadowFlags::Serializable;
+      }
+      if (const Value* slots = options.object->Get("slotAssignment");
+          slots != nullptr && js::ToString(*slots) == "manual") {
+        flags |= dom::ShadowFlags::ManualSlotAssignment;
+      }
+    } else {
+      return call.Throw("TypeError", "attachShadow: an init dictionary with a mode is required");
     }
-    dom::DocumentFragment* root = element.AttachShadow(open);
+
+    const dom::ShadowAttachResult attached = element.AttachShadow(flags);
+    if (attached.status == dom::ShadowAttachStatus::Refused) {
+      // Two different refusals with one name, which is what the DOM specifies:
+      // an element that cannot host a shadow root, and a host that already has
+      // one this call does not match.
+      return ThrowDom(call, "NotSupportedError",
+                      "attachShadow: this element cannot have a shadow root attached");
+    }
+    if (attached.status == dom::ShadowAttachStatus::Reused) {
+      // The declarative case. The DOM says to empty the root, and this is the
+      // layer that can: `dom` may not free a node script might hold a wrapper
+      // for, so `Element::AttachShadow` deliberately left the children behind.
+      ClearChildren(*attached.root, true);
+    }
+    dom::DocumentFragment* root = attached.root;
     if (root == nullptr) {
       return Value::Undefined();
     }
@@ -243,6 +276,229 @@ bool DomBindings::DeliverSlotChanges() {
     interpreter_->DrainMicrotasks();
   }
   return fired;
+}
+
+// `attachInternals()`, and **only the part of ElementInternals that exists**.
+//
+// The one thing behind it here is `shadowRoot`, which answers with the host's
+// root whether it is open or closed -- that is the whole point of the DOM's
+// "available to element internals" flag, and it is how a custom element reaches
+// the closed root the parser attached on its behalf from
+// `<template shadowrootmode=closed>`.
+//
+// Everything else an ElementInternals has -- `setFormValue`, `setValidity`,
+// `form`, `willValidate`, the ARIA reflections -- is **absent rather than
+// stubbed**, which is ADR 0012's rule and the same call `response.body` got.
+// There is no form-association machinery under this, and a `setFormValue` that
+// accepted a value and dropped it would send a page down the native path into a
+// wall; a missing name sends it somewhere that works. `'setFormValue' in
+// internals` is the check, and here it is honestly false.
+void InstallElementInternals(DomBindings& owner_bindings, js::Interpreter& interpreter,
+                             const js::Value& html_element_interface) {
+  if (!html_element_interface.IsObject()) {
+    return;
+  }
+  // Where an element's internals live once made. On the *wrapper* rather than in
+  // a table, because "has attachInternals been called on this element" is
+  // per-element state and the wrapper is this module's only per-element place.
+  constexpr const char* kInternalsSlot = "#elementInternals";
+
+  const Value attach = interpreter.NewNativeValue("attachInternals", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* node = NodeOf(call.self);
+    if (owner == nullptr || node == nullptr || !node->IsElement()) {
+      return call.Throw("TypeError", "attachInternals called on something that is not an element");
+    }
+    if (!call.self.IsObject()) {
+      return Value::Undefined();
+    }
+    if (const Value* existing = call.self.object->GetOwn(kInternalsSlot)) {
+      // Twice on the same element is the specification's NotSupportedError, and
+      // it is worth throwing: two ElementInternals for one element would be two
+      // objects a page believes are the same one.
+      (void)existing;
+      return ThrowDom(call, "NotSupportedError",
+                      "attachInternals: internals have already been attached to this element");
+    }
+    // `behaviors` is validated even though nothing here implements one, and that
+    // is not busywork: the entries must be platform behavior objects
+    // (`HTMLSubmitButtonBehavior` and friends), this browser defines none, so
+    // *every* non-empty array is a TypeError and saying so is the correct
+    // answer rather than a placeholder. Without it a page hands over a behavior,
+    // gets no error, and finds out it did nothing at submit time.
+    const Value options = Argument(call.arguments, 0);
+    if (options.IsObject()) {
+      if (const Value* behaviors = options.object->Get("behaviors");
+          behaviors != nullptr && behaviors->IsObject() &&
+          behaviors->object->ElementCount() != 0) {
+        return call.Throw("TypeError",
+                          "attachInternals: no element behaviors are implemented, so every "
+                          "entry in `behaviors` is invalid");
+      }
+    }
+    const Value internals = call.interpreter.NewObjectValue();
+    if (!internals.IsObject()) {
+      return Value::Undefined();
+    }
+    const Value host = call.self;
+    const Value shadow_root =
+        call.interpreter.NewNativeValue("shadowRoot", [host](NativeCall& inner) {
+          DomBindings* bindings = OwnerOf(inner);
+          dom::Node* element = NodeOf(host);
+          if (bindings == nullptr || element == nullptr || !element->IsElement()) {
+            return Value::Null();
+          }
+          // No open/closed test, unlike `element.shadowRoot`: internals are the
+          // element's own view of itself, and a closed root is exactly what a
+          // page reaches for through here.
+          dom::DocumentFragment* root = static_cast<dom::Element&>(*element).ShadowRoot();
+          return root == nullptr ? Value::Null() : bindings->WrapperFor(root);
+        });
+    if (shadow_root.IsObject()) {
+      shadow_root.object->Set(kOwnerSlot, PointerValue(owner));
+      internals.object->DefineAccessor("shadowRoot", shadow_root.object, nullptr);
+    }
+    call.self.object->SetHidden(kInternalsSlot, internals);
+    return internals;
+  });
+  if (attach.IsObject()) {
+    attach.object->Set(kOwnerSlot, PointerValue(&owner_bindings));
+    html_element_interface.object->Set("attachInternals", attach);
+  }
+}
+
+void InstallTemplateShadowReflection(DomBindings& owner_bindings, js::Interpreter& interpreter,
+                                    const js::Value& template_interface) {
+  if (!template_interface.IsObject()) {
+    return;
+  }
+  const auto define = [&owner_bindings, &interpreter, &template_interface](const char* name, js::NativeFunction get,
+                                                  js::NativeFunction set) {
+    const Value getter = interpreter.NewNativeValue(name, std::move(get));
+    const Value setter = interpreter.NewNativeValue(name, std::move(set));
+    if (getter.IsObject() && setter.IsObject()) {
+      getter.object->Set(kOwnerSlot, PointerValue(&owner_bindings));
+      setter.object->Set(kOwnerSlot, PointerValue(&owner_bindings));
+      template_interface.object->DefineAccessor(name, getter.object, setter.object);
+    }
+  };
+
+  // `shadowRootMode` reflects an enumerated attribute with no invalid-value
+  // default, so anything that is not "open" or "closed" -- including a missing
+  // attribute -- reads back as the empty string. The *setter* stores what it was
+  // given verbatim: `t.shadowRootMode = 'blah'` leaves `shadowrootmode="blah"`
+  // in the markup and reads back "", which is what reflection means and what the
+  // suite checks in both directions.
+  define(
+      "shadowRootMode",
+      [](NativeCall& call) {
+        dom::Node* self = NodeOf(call.self);
+        if (self == nullptr || !self->IsElement()) {
+          return Value::String("");
+        }
+        const std::string* value =
+            static_cast<dom::Element&>(*self).GetAttribute("shadowrootmode");
+        if (value == nullptr) {
+          return Value::String("");
+        }
+        const std::string folded = util::AsciiLowerCase(*value);
+        return Value::String(folded == "open" || folded == "closed" ? folded : std::string());
+      },
+      [](NativeCall& call) {
+        dom::Node* self = NodeOf(call.self);
+        if (self != nullptr && self->IsElement()) {
+          static_cast<dom::Element&>(*self).SetAttribute("shadowrootmode",
+                                                         js::ToString(Argument(call.arguments, 0)));
+        }
+        return Value::Undefined();
+      });
+
+  // `shadowRootSlotAssignment` is enumerated like `shadowRootMode`, but with an
+  // invalid-value *default* rather than an empty one: anything that is not
+  // "manual" -- including a missing attribute, an empty string and a misspelling
+  // -- is "named". The setter stores what it was given, same as mode's.
+  define(
+      "shadowRootSlotAssignment",
+      [](NativeCall& call) {
+        dom::Node* self = NodeOf(call.self);
+        if (self == nullptr || !self->IsElement()) {
+          return Value::String("named");
+        }
+        const std::string* value =
+            static_cast<dom::Element&>(*self).GetAttribute("shadowrootslotassignment");
+        const bool manual = value != nullptr && util::AsciiLowerCase(*value) == "manual";
+        return Value::String(manual ? "manual" : "named");
+      },
+      [](NativeCall& call) {
+        dom::Node* self = NodeOf(call.self);
+        if (self != nullptr && self->IsElement()) {
+          static_cast<dom::Element&>(*self).SetAttribute("shadowrootslotassignment",
+                                                         js::ToString(Argument(call.arguments, 0)));
+        }
+        return Value::Undefined();
+      });
+
+  // `shadowRootAdoptedStyleSheets` is a plain DOMString reflection -- no
+  // enumeration, no whitespace normalisation, no splitting. The empty string
+  // when the attribute is absent, and verbatim otherwise, which is what makes
+  // `"  foo   bar  "` come back with its spaces.
+  define(
+      "shadowRootAdoptedStyleSheets",
+      [](NativeCall& call) {
+        dom::Node* self = NodeOf(call.self);
+        if (self == nullptr || !self->IsElement()) {
+          return Value::String("");
+        }
+        const std::string* value =
+            static_cast<dom::Element&>(*self).GetAttribute("shadowrootadoptedstylesheets");
+        // Absent reads as "" and must not create the attribute on the way past:
+        // a getter with a side effect on the tree is a getter a page can use to
+        // change the document by reading it.
+        return Value::String(value == nullptr ? std::string() : *value);
+      },
+      [](NativeCall& call) {
+        dom::Node* self = NodeOf(call.self);
+        if (self != nullptr && self->IsElement()) {
+          static_cast<dom::Element&>(*self).SetAttribute("shadowrootadoptedstylesheets",
+                                                         js::ToString(Argument(call.arguments, 0)));
+        }
+        return Value::Undefined();
+      });
+
+  // The three boolean reflections. Present means true whatever the value, which
+  // is why `shadowrootclonable="foobar"` is still clonable; assigning false
+  // removes the attribute rather than setting it to "false".
+  static constexpr struct {
+    const char* property;
+    const char* attribute;
+  } kBooleans[] = {
+      {"shadowRootDelegatesFocus", "shadowrootdelegatesfocus"},
+      {"shadowRootClonable", "shadowrootclonable"},
+      {"shadowRootSerializable", "shadowrootserializable"},
+  };
+  for (const auto& entry : kBooleans) {
+    const char* attribute = entry.attribute;
+    define(
+        entry.property,
+        [attribute](NativeCall& call) {
+          dom::Node* self = NodeOf(call.self);
+          return Value::Bool(self != nullptr && self->IsElement() &&
+                             static_cast<dom::Element&>(*self).HasAttribute(attribute));
+        },
+        [attribute](NativeCall& call) {
+          dom::Node* self = NodeOf(call.self);
+          if (self == nullptr || !self->IsElement()) {
+            return Value::Undefined();
+          }
+          auto& element = static_cast<dom::Element&>(*self);
+          if (js::ToBoolean(Argument(call.arguments, 0))) {
+            element.SetAttribute(attribute, "");
+          } else {
+            element.RemoveAttribute(attribute);
+          }
+          return Value::Undefined();
+        });
+  }
 }
 
 }  // namespace microbrowser::bindings

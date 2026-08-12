@@ -541,6 +541,28 @@ void RegisterJsParserTests(std::vector<TestCase>& tests) {
       export_value = { fib, Counter, list: [1, 2, ...[3, 4]], re: /^a+b$/gi };
     )");
   });
+
+  AddTest(tests, "JsParser/DynamicImportTakesAnOptionsBag", [] {
+    // `import(spec, options)` -- the import-attributes form. The options are
+    // parsed and dropped: there is nowhere to put an import attribute yet, and
+    // a CSS module is a feature rather than an argument.
+    //
+    // **The reason this is a parse test and not a run test** is that a
+    // SyntaxError here is not local. It aborts the whole script, so one
+    // unparsed argument in one helper file takes every function defined beside
+    // it -- which is exactly how
+    // shadow-dom/declarative/tentative/…/support/helpers.js stopped defining
+    // `createStylesheetHost` and failed a row of tests on a missing name rather
+    // than on anything to do with imports.
+    ExpectClean("import('./m.js')");
+    ExpectClean("import('./m.js', { with: { type: 'css' } })");
+    ExpectClean("import(url, opts)");
+    // A trailing comma is legal at both arities.
+    ExpectClean("import('./m.js',)");
+    ExpectClean("import('./m.js', {},)");
+    // And the specifier is still required.
+    ExpectError("import()");
+  });
 }
 
 }  // namespace microbrowser::tests

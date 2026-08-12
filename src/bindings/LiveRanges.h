@@ -298,4 +298,71 @@ inline dom::Node* SplitTextNode(js::Interpreter& interpreter, dom::Text& node,
   return tail_raw;
 }
 
+// ---------------------------------------------------------------------------
+// Live NodeIterators.
+//
+// A NodeIterator tracks the tree the same way a Range does, and for the same
+// reason: it holds a *reference node*, and a page is allowed to remove that
+// node while iterating. `removeWhitespaceNodes(el)` -- iterate, remove what you
+// find -- is the idiom, and it is what shadow-dom/declarative/gethtml-ordering
+// does.
+//
+// Without the DOM's "NodeIterator pre-removing steps" the reference node ends
+// up detached, the next `nextNode()` sees a node that is no longer under the
+// root, and the walk stops early. It does not *crash* -- the walk refuses to
+// resume from a detached node, which was the right call -- it silently returns
+// a prefix, so the loop that was removing every whitespace node removes some of
+// them and the page looks like it has whitespace the serializer invented.
+//
+// Registry, bound and lifetime rules are the live-range ones above, and for the
+// identical reason: a strong list is the only kind this module can hold.
+inline constexpr const char* kLiveIteratorListSlot = "#liveNodeIterators";
+inline constexpr const char* kLiveIteratorCursorSlot = "#liveNodeIteratorCursor";
+inline constexpr std::size_t kMaxLiveIterators = 512;
+
+inline js::Value LiveIteratorList(js::Interpreter& interpreter, bool create) {
+  js::Object* global = interpreter.Global();
+  if (global == nullptr) {
+    return js::Value::Undefined();
+  }
+  if (const js::Value* existing = global->GetOwn(kLiveIteratorListSlot)) {
+    if (existing->IsObject()) {
+      return *existing;
+    }
+  }
+  if (!create) {
+    return js::Value::Undefined();
+  }
+  const js::Value list = interpreter.NewArrayValue({});
+  if (list.IsObject()) {
+    global->Set(kLiveIteratorListSlot, list);
+  }
+  return list;
+}
+
+inline void RegisterLiveNodeIterator(js::Interpreter& interpreter, const js::Value& iterator) {
+  const js::Value list = LiveIteratorList(interpreter, true);
+  if (!list.IsObject() || !iterator.IsObject()) {
+    return;
+  }
+  if (list.object->ElementCount() < kMaxLiveIterators) {
+    list.object->PushElement(iterator);
+    return;
+  }
+  const js::Value* cursor = list.object->GetOwn(kLiveIteratorCursorSlot);
+  const std::size_t at =
+      cursor != nullptr && cursor->IsNumber() ? static_cast<std::size_t>(cursor->number) : 0;
+  list.object->SetElement(at % kMaxLiveIterators, iterator);
+  list.object->Set(kLiveIteratorCursorSlot,
+                   js::Value::Number(static_cast<double>((at + 1) % kMaxLiveIterators)));
+}
+
+// The DOM's "NodeIterator pre-removing steps", run *before* the removal while
+// `node` still knows where it lives -- exactly like RangesWillRemove.
+//
+// Defined in TreeWalkers.cpp rather than here because it needs that file's
+// notion of tree order and its slot names, and duplicating either would be the
+// second answer this header exists to prevent.
+void NodeIteratorsWillRemove(js::Interpreter& interpreter, const dom::Node& node);
+
 }  // namespace microbrowser::bindings

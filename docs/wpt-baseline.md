@@ -16,6 +16,22 @@ standard's own vectors are 891/891, 278/278 setters, 87/87 toascii and 2,670/2,6
 so the remaining gap is ADR 0027 (nested browsing contexts) and ADR 0022 §2 (a worker global that
 can run testharness), which is the same conclusion `dom/` reached from the other direction.
 
+**One row re-measured, 2026-08-12 (declarative shadow DOM).** `shadow-dom/declarative` is
+**1.4% -> 99.2%** (7,731 of 7,791), merged in by hand from a `--summary-state` run of that area
+alone. The 60 that remain are three separate projects and none is shadow DOM: six subtests want a
+script to run *during* the parse (ADR 0030), two want iframes (ADR 0027), and 34 are
+`tentative/shadowrootadoptedstylesheets`, which resolves stylesheet specifiers through an **import
+map** and so wants the module loader first. The other six of that suite pass: the attribute is
+reflected, kept verbatim and round-tripped by `getHTML`, because reflection and serialization are
+complete in themselves and an *unresolvable* specifier is specified to be skipped silently -- which
+is every specifier until there is an import map to resolve one against. The head of the declarative section in
+`tests/wpt/expectations/shadow-dom.txt` says the same where it will be tripped over.
+
+Two other rows moved and are **not** updated here, because both directions of the move are
+recorded in their expectation files rather than in a rate: `custom-elements` lost 19 failures, and
+`shadow-dom/reference-target` gained 45 — the latter are corrected *false passes*, tests that only
+agreed with the expected answer while `setHTMLUnsafe` did not exist. See the session log.
+
 **Partly re-measured again, 2026-08-11 (C4, both halves).** The 26 rows for `dom/`,
 `custom-elements/`, `shadow-dom/` and `domparsing/` are from that run, merged in by hand for
 the reason the next paragraph gives. **Read the counts before the percentages.** The runner's
@@ -266,7 +282,7 @@ it is a page that never reported, which almost always means something threw befo
 | `selection/shadow-dom` | 12 | 8 | 0 | 4 | 0 | 51 | 1 | 2.0 |
 | `selection/textcontrols` | 7 | 3 | 0 | 4 | 0 | 3 | 0 | 0.0 |
 | `shadow-dom` | 66 | 58 | 0 | 8 | 0 | 739 | 84 | 11.4 |
-| `shadow-dom/declarative` | 56 | 40 | 4 | 12 | 0 | 7785 | 112 | 1.4 |
+| `shadow-dom/declarative` | 56 | 45 | 0 | 11 | 0 | 7791 | 7731 | 99.2 |
 | `shadow-dom/focus` | 37 | 31 | 1 | 5 | 0 | 78 | 5 | 6.4 |
 | `shadow-dom/focus-navigation` | 45 | 45 | 0 | 0 | 0 | 89 | 2 | 2.2 |
 | `shadow-dom/leaktests` | 4 | 3 | 0 | 1 | 0 | 16 | 7 | 43.8 |

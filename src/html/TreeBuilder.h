@@ -73,10 +73,12 @@ class TreeBuilder {
   //
   // `quirks` is the destination document's mode, carried in because it changes
   // whether a `<table>` closes an open `<p>`.
-  TreeBuilder(std::string_view input, std::string_view context_tag_name, bool quirks)
+  TreeBuilder(std::string_view input, std::string_view context_tag_name, bool quirks,
+              bool allow_declarative_shadow_roots = false)
       : tokenizer_(input),
         context_tag_name_(context_tag_name.empty() ? "body" : context_tag_name),
-        quirks_(quirks) {}
+        quirks_(quirks),
+        allow_declarative_shadow_roots_(allow_declarative_shadow_roots) {}
 
   std::unique_ptr<dom::Document> Build();
   // The parsed nodes, in a fragment with no parent. Never null: HTML has no
@@ -114,6 +116,26 @@ class TreeBuilder {
   // when it handled the token.
   bool ProcessTemplateToken(const Token& token);
   bool HasOpenTemplate() const;
+
+  // HTML §13.2.6.4.4, the declarative-shadow-root half of the `<template>` start
+  // tag. True when the token became a shadow root and must not become an
+  // element; false when it is an ordinary template, which is every case the
+  // attach was refused -- an element that cannot host one, a host that already
+  // has one, a mode that is neither "open" nor "closed", or the fragment root
+  // itself. **Refusal leaves an ordinary `<template>` in the tree rather than
+  // throwing**, because the input is markup and a parser has no one to throw to.
+  bool ProcessDeclarativeShadowRoot(const Token& token);
+  // Moves what parsed into a declarative template's contents into the shadow
+  // root it stands for, and forgets the template. The move is deferred to the
+  // pop rather than done as each node arrives because the shadow root is owned
+  // by its host while the template's contents are owned by the template, and one
+  // insertion point that switched owners mid-parse is the harder thing to get
+  // right. Nothing can tell the difference: this parser runs no script until the
+  // document is parsed, so nothing observes the root in between.
+  void FlushDeclarativeShadow(const dom::Element* templ);
+  // Every one still pending, for the parses that never see `</template>` -- a
+  // truncated document, error recovery that popped the stack, EOF inside one.
+  void FlushDeclarativeShadows();
 
   dom::Element& InsertElement(const Token& token);
   void InsertText(std::string_view text);
@@ -169,6 +191,17 @@ class TreeBuilder {
   // caller. Attacker-chosen markup with an attacker-chosen context is exactly
   // the input that finds the end tag which unbalances the stack.
   std::size_t stack_floor_ = 0;
+  // A `<template shadowrootmode>` the parser turned into a shadow root, and the
+  // root it stands for. The template element is *owned here* and never enters
+  // the document: the spec says to add it to the stack of open elements only, so
+  // it has no parent to own it and the tree's "a parent owns its children" rule
+  // has nowhere to put it. It stays alive until the flush because everything
+  // parsed inside it lands in its contents first.
+  struct DeclarativeShadow {
+    std::unique_ptr<dom::Element> templ;
+    dom::DocumentFragment* root = nullptr;
+  };
+  std::vector<DeclarativeShadow> declarative_shadows_;
   bool frameset_ok_ = true;
   // Set while running the "anything else" clauses of the table modes, which
   // insert *before* the table rather than into it.
@@ -176,6 +209,13 @@ class TreeBuilder {
   // The destination document's mode, for a fragment. A whole document decides
   // this from its own doctype instead.
   bool quirks_ = false;
+  // Whether `<template shadowrootmode>` builds a shadow root at all. Off by
+  // default, and that direction is the security property: `innerHTML`,
+  // `insertAdjacentHTML`, `DOMParser` and `createContextualFragment` all parse
+  // markup a page may have taken from somewhere else, and a shadow root that
+  // appeared in one of them would be a tree the page's own sanitizer never saw.
+  // Document parsing and the explicitly-named `setHTMLUnsafe` opt in.
+  bool allow_declarative_shadow_roots_ = false;
 };
 
 // Convenience: parse a document in one call.
@@ -186,8 +226,12 @@ std::unique_ptr<dom::Document> ParseDocument(std::string_view input);
 // is not optional. This is the entry point `innerHTML`, `insertAdjacentHTML`
 // and `<template>` reach, which makes it the most hostile input path in the
 // browser: bytes chosen by a page, parsed with a context chosen by a page.
+// `allow_declarative_shadow_roots` is the HTML spec's own opt-in and defaults to
+// off: only `setHTMLUnsafe` -- which says so in its name -- turns it on. See the
+// member of the same name for why the default is the security-relevant half.
 std::unique_ptr<dom::DocumentFragment> ParseFragment(std::string_view input,
                                                      std::string_view context_tag_name,
-                                                     bool quirks = false);
+                                                     bool quirks = false,
+                                                     bool allow_declarative_shadow_roots = false);
 
 }  // namespace microbrowser::html

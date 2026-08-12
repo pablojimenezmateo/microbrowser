@@ -94,6 +94,23 @@ extern:
 # there is nothing to cut without cutting the class. The URL surface is a candidate for that cut --
 # `UrlObject.cpp` and `UrlSearchParams.cpp` are already two files that share no state with the rest
 # of this class and reach it only through `SetElementAttribute` and `url_`.
+#
+# Declarative shadow DOM landed in parallel with that and **acted on the note rather than
+# repeating it**. The feature wanted four new declarations; two of them are gone from the class
+# entirely. `InstallTemplateShadowReflection` and `InstallElementInternals` touch nothing private
+# -- only the interpreter, the interface object they install onto, and the owner pointer -- so they
+# are free functions in the new private header ShadowDom.h, the same standing LiveRanges.h and
+# Geometry.h already have. That is the split this note has been asking for, started at the only
+# place it can start: a *member* cannot leave a class's header, so the members that were never
+# members go first.
+#
+# The four lines that remain are `SyncNamedAccess` (public because the engine calls it, once per
+# script), its `named_access_version_` gate, and the sentence saying `InsertParsedHtml`'s last
+# argument is `setHTMLUnsafe`'s shadow-root opt-in and no one else's -- a security property, and
+# the one comment here that was not worth deleting to save a line.
+#
+# The two raises met in a merge and did not need a seventh: the URL branch asked for 990 on its
+# own and the shadow-DOM branch for 974, and the union of both is 988 lines. 990 still holds.
 max_tu_lines: 990
 
 # A wrapper is a JavaScript object holding a raw `dom::Node*`, which is only
@@ -276,7 +293,12 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # `IdbIndexKeyPath` reads, none of which may live as free functions because each
 # calls another private member (InterfaceNamed, MaybeCompleteIdbTransaction) that
 # a free function gets no access to just because its only caller has some.
-budget: DomBindings header_lines=930 public_methods=46 members=26
+# +1 public method and +1 member for HTML §7.3.3's named access on the Window
+# object: `SyncNamedAccess` and the mutation version it is gated on. The method
+# is public because the *engine* calls it -- once per script, at the only moment
+# a bare global can next be read -- and the member is what makes that call one
+# integer compare on a page whose tree has not moved.
+budget: DomBindings header_lines=935 public_methods=47 members=27
 # ADR 0038's `indexedDB` seam: a database/store/key/version question this module
 # declares and `src/engine` answers, the same inversion StorageSource uses. Four
 # extra "methods" over what reads as the API (16) are the deleted copy ops and

@@ -28,6 +28,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/LiveRanges.h"
 
 namespace microbrowser::bindings {
 
@@ -210,6 +211,69 @@ void SetCurrent(const Value& self, dom::Node* node) {
 
 }  // namespace
 
+void NodeIteratorsWillRemove(js::Interpreter& interpreter, const dom::Node& node) {
+  const Value list = LiveIteratorList(interpreter, false);
+  if (!list.IsObject() || list.object->ElementCount() == 0) {
+    // A page with no NodeIterator pays one comparison per removal, which is the
+    // rule the live-range hooks and StyleInvalidation both follow.
+    return;
+  }
+  const std::size_t count = list.object->ElementCount();
+  for (std::size_t i = 0; i < count; ++i) {
+    const Value iterator = list.object->GetElement(i);
+    if (!iterator.IsObject()) {
+      continue;
+    }
+    dom::Node* root = PointerSlot(iterator, kRootSlot);
+    dom::Node* reference = PointerSlot(iterator, kCurrentSlot);
+    if (root == nullptr || reference == nullptr || &node == root) {
+      continue;
+    }
+    // Step 1: only an iterator whose reference is inside the departing subtree
+    // moves. Everything else is unaffected, including one pointing at a sibling.
+    bool inside = false;
+    for (const dom::Node* walk = reference; walk != nullptr; walk = walk->Parent()) {
+      if (walk == &node) {
+        inside = true;
+        break;
+      }
+    }
+    if (!inside) {
+      continue;
+    }
+    bool before = true;
+    if (const Value* slot = iterator.object->GetOwn(kBeforeSlot)) {
+      before = js::ToBoolean(*slot);
+    }
+    // Step 2: pointing *before* the reference, the cursor slides forward onto
+    // the first node that survives -- the sequence continues where the removed
+    // subtree used to be, which is what makes remove-as-you-iterate work.
+    if (before) {
+      bool descend = false;
+      dom::Node* next = FollowingNode(const_cast<dom::Node*>(&node), root, descend);
+      if (next != nullptr) {
+        SetCurrent(iterator, next);
+        continue;
+      }
+      // Nothing follows: fall through to step 3 with the pointer flipped, so
+      // the cursor lands *after* the last surviving node rather than before a
+      // node that is gone.
+      iterator.object->SetHidden(kBeforeSlot, Value::Bool(false));
+    }
+    // Step 3: otherwise it slides backward, to the deepest last descendant of
+    // the previous sibling, or to the parent when there is none.
+    dom::Node* previous = Sibling(const_cast<dom::Node*>(&node), -1);
+    if (previous == nullptr) {
+      SetCurrent(iterator, node.Parent());
+      continue;
+    }
+    for (int steps = 0; previous->LastChild() != nullptr && steps < kMaxSteps; ++steps) {
+      previous = previous->LastChild();
+    }
+    SetCurrent(iterator, previous);
+  }
+}
+
 void DomBindings::InstallTreeWalkers(const js::Value& document) {
   // --- NodeFilter -----------------------------------------------------------
   // Constants and nothing else, which is what the interface is: the three
@@ -270,6 +334,12 @@ void DomBindings::InstallTreeWalkers(const js::Value& document) {
     cursor.object->SetHidden(kShowSlot, Value::Number(mask));
     cursor.object->SetHidden(kFilterSlot, Argument(call.arguments, 2));
     cursor.object->SetHidden(kBeforeSlot, Value::Bool(true));
+    if (iterator) {
+      // Only an iterator is registered. A TreeWalker has no reference node to
+      // keep valid -- `currentNode` is whatever the page last set, and the DOM
+      // gives it no pre-removing steps at all.
+      RegisterLiveNodeIterator(call.interpreter, cursor);
+    }
     cursor.object->Set("root", owner->WrapperFor(root));
     cursor.object->Set("whatToShow", Value::Number(mask));
     cursor.object->Set("filter", Argument(call.arguments, 2));

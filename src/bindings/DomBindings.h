@@ -311,6 +311,7 @@ class DomBindings {
     }
   }
   void SetTrustedScriptFlush(std::function<void()> hook) { trusted_script_flush_ = std::move(hook); }
+  void SyncNamedAccess();
   void SetScriptStrictDynamic(bool enabled) { csp_script_strict_dynamic_ = enabled; }
   void MarkCspTrustedScript(const dom::Element& element) { csp_trusted_scripts_.insert(&element); }
   bool IsCspTrustedScript(const dom::Element& element) const {
@@ -883,9 +884,11 @@ class DomBindings {
   // Parses `markup` with `context_tag_name` as the fragment parsing
   // algorithm's context element and inserts what it produced into `parent`
   // before `reference`. The one place a page's string becomes tree, so that
-  // "was the parser given the right context" is a question with one answer.
+  // "was the parser given the right context" is a question with one answer. The
+  // last argument is `setHTMLUnsafe`'s shadow-root opt-in and no one else's.
   void InsertParsedHtml(std::string_view context_tag_name, dom::Node& parent,
-                        dom::Node* reference, const std::string& markup);
+                        dom::Node* reference, const std::string& markup,
+                        bool allow_declarative_shadow_roots = false);
   // The same, with the context taken from `parent` -- an element's tag name, or
   // `body` when the parent is a document or a fragment and has none.
   void InsertAdjacentParsedHtml(dom::Node& parent, dom::Node* reference,
@@ -929,6 +932,7 @@ class DomBindings {
 
   js::Interpreter* interpreter_;
   dom::Document* document_;
+  std::uint64_t named_access_version_ = 0;
   std::string url_;
   // The cache from node to wrapper, as a JavaScript object rather than a C++
   // table: a table of `Object*` would have to be a GC root, and the

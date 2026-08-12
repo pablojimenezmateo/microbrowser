@@ -5017,3 +5017,112 @@ rather than through the wrapper when another worktree is active.
 preset carries `-Werror`. Four `-Wsign-conversion` errors in two copies of the same UTF-8 decoder.
 Fixed in its own commit. Under it: 2097/2097 and zero runtime errors, which is the first time the
 undefined-behaviour checker has said anything about this tree in a while.
+## 2026-08-12 — declarative shadow DOM, and three false passes it exposed
+
+**Status:** done
+**Check:** `microbrowser_wpt --testharness-only --long-timeout 180000 shadow-dom/declarative/`
+prints `7791 subtests, 7731 passed (99.2%) … 0 unexpected results`, from **114 passed (1.5%)**
+at the start. `microbrowser_tests` is 2097/2097 including `ArchitectureInvariants`.
+`shadow-dom.txt` lost 8,568 lines net.
+
+**Landed.** The whole of `<template shadowrootmode>`, in the four places it lives:
+
+- `dom` — `ShadowFlags` (open / delegatesFocus / clonable / serializable / declarative /
+  manual-slot-assignment / template-content) as one mask on the *root*, and
+  `Element::AttachShadow` rewritten as the DOM's "attach a shadow root" with the safelist, the
+  mode check and the declarative reuse. `Element` **lost** a member doing it (`shadow_open_`
+  moved into the mask) and `DocumentFragment` gained none, because `template_content_` folded in.
+- `html` — the §13.2.6.4.4 steps, behind an opt-in that defaults to **off**. Document parsing and
+  `setHTMLUnsafe` turn it on; `innerHTML`, `insertAdjacentHTML`, `DOMParser` and
+  `createContextualFragment` do not, which is the security-relevant half and is what
+  declarative-shadow-dom-opt-in.html spends 60 subtests checking.
+- `bindings` — `setHTMLUnsafe`, `getHTML({serializableShadowRoots, shadowRoots})`, the four
+  `shadowRoot*` reflections on HTMLTemplateElement, `delegatesFocus`/`clonable`/`serializable`/
+  `slotAssignment` on ShadowRoot, `attachShadow`'s full init dictionary, and clonable-root cloning.
+- `dom` again — one serializer instead of six. `SerializeNode` is a switch and the six virtual
+  `Serialize()` overrides call it with default options, so the shadow-aware serializer and the
+  plain one cannot disagree.
+
+**Found — the one bug worth the whole session.** `getHTML` was serializing an element's children
+and **not the element's own shadow root**. That is 2,176 of gethtml.html's 6,908 subtests, and the
+symptom named the wrong thing: every failure had `serializable=true` in its title, which reads as
+"the serializable flag is broken". It is not. `serializable=true` is simply the only branch of that
+test that calls `getHTML()` *on the host itself* rather than on its wrapper. HTML's "serialize an
+HTML fragment" emits the root of the subtree you asked about, and a child walk never does.
+`dom::SerializeFragment` is that step, and it is why `innerHTML` and `getHTML` are now different
+functions rather than one with a flag.
+
+**Found — three sets of passing tests that were passing for no reason.** All three were exposed by
+this work rather than broken by it, and all three are recorded as failures now:
+
+- **45** in `shadow-dom/reference-target/tentative/property-reflection*.html`. They build hosts with
+  `setHTMLUnsafe` + `shadowrootreferencetarget`. With no `setHTMLUnsafe` and no declarative shadow
+  DOM, no root was ever attached and a chunk of the reflection matrix agreed with the expected
+  answer by coincidence. They now reach their actual subject, which is unimplemented.
+- **2** in `dom/ranges/Range-in-shadow-after-the-shadow-removed.html`, and this one is a **harness**
+  bug: **TD-0052**, the runner does not expand `<meta name="variant">` for a plain `.html` test.
+  The file declares `?mode=open` and `?mode=closed`, runs bare, reads `null` out of an empty query
+  and calls `attachShadow({mode: null})` — which a correct engine throws on. It passed until now
+  only because `attachShadow` treated everything that was not `"closed"` as `"open"`. **A variant
+  test run bare does not fail loudly; it silently measures one arbitrary configuration**, and how
+  many other areas that has quietly mis-measured is unknown.
+- **6** in `custom-elements/element-internals-behaviors.tentative.html`, which asserted that
+  `attachInternals({behaviors: [x]})` throws TypeError and got one because `attachInternals` did
+  not exist. Now it exists and validates `behaviors` — no behavior type is implemented, so every
+  entry is invalid and TypeError is the *correct* answer, not a placeholder.
+
+**Found — the run that measures this is not the run to trust.** The first sweep of
+`dom/ shadow-dom/ custom-elements/ domparsing/` took 564 s; the `--update-expectations` sweep of the
+same tests took 1,004 s on a loaded machine and produced **31 extra shadow-dom "failures" and a
+dozen dom ones that were pure timing flakes** — whole tests flipping `FAIL`→`harness=TIMEOUT`,
+scroll/wheel/testdriver files mostly. Committing that would have baked load into the expectations.
+Each suspect block was re-run on its own against the *old* expectations to see whether it was really
+a regression; 31 of 78 shadow-dom additions and all but two of the dom ones were not. **Re-run a
+suspicious block alone before you write it down** — `--update-expectations` believes whatever the
+machine was doing at the time.
+
+**Left.** 60 declarative subtests, in three groups, none of them declarative shadow DOM: six need a
+script to run *during* the parse (ADR 0030 — each puts an inline `<script>` inside the template so a
+MutationObserver fires mid-parse), two need iframes (ADR 0027), and 34 are
+`tentative/shadowrootadoptedstylesheets`, which is HTML PR 12339 — import maps resolving CSS module
+scripts — and wants the module loader first.
+
+**Eight of that tentative suite were reachable anyway, and the last two came from somewhere else.**
+`shadowrootadoptedstylesheets` splits cleanly into three halves and only one of them needs a module
+loader: the DOMString reflection is ordinary, keeping the authored value verbatim so `getHTML`
+round-trips it is ordinary, and *resolving* a specifier is the part that cannot be done. Doing the
+first two is not the stub ADR 0012 forbids, because an **unresolvable specifier is specified to be
+skipped silently** — so `adoptedStyleSheets` staying empty is the correct answer rather than an
+approximation of one, and it stays correct on the day the resolver lands. The obligation that
+creates is written at the accessor in `Node.h`.
+
+The last two needed two unrelated absences that only this suite had reached. Its `support/helpers.js`
+uses `import(url, {with: {type: "css"}})` — **dynamic import's second argument**, which the parser
+rejected — and a `SyntaxError` is not local: it killed the whole file, so `createStylesheetHost` did
+not exist and every test that called it failed on a name. The options bag is parsed and dropped
+(there is nowhere to put an import attribute yet), which is enough. Behind that was
+`shadowRoot.getElementById` — the DOM's NonElementParentNode mixin, which Document and
+DocumentFragment have and Element does not. A component looking inside its own root by id has
+nowhere else to go, because the root is not in the document by design. The comment block at the head of the declarative
+section in `shadow-dom.txt` says the same thing where the next agent will trip over it.
+
+**Found — ASan is red, and not because of this.** `run-checks.sh asan` fails four of
+twenty-five shards. Every *direct* leak in the entire run has one allocation site:
+`ConstructableStylesheets.cpp:148`, where `new CSSStyleSheet()` does `storage.release()`
+into a hidden slot that nothing ever deletes. It reproduces on a single untouched test
+(93 bytes, 3 allocations, every run) and a page drives the count — `for(;;) new CSSStyleSheet()`
+leaks forever. That is **TD-0053**. What it cost *this* session is the thing worth noting: ASan
+being expected-red is why the real use-after-free below took a deliberate re-read to find rather
+than being obvious the first time the suite went red.
+
+ASan did earn its keep once: the first draft of the `</template>` handler flushed the declarative
+shadow — which destroys the parser-owned template, since `declarative_shadows_` is its only owner —
+*before* `PopUntil` read `TagName()` off the open-element stack. A use-after-free reachable from
+`<div><template shadowrootmode=open></template></div>`, i.e. from the feature's happy path, found by
+one of the eight new unit tests. Capture the pointer, pop, then flush.
+
+Also left: **TD-0052**, and the `DomBindings` split it forced a first step of. The class has been
+"the missing module" for five cap raises; this session moved the two installers that were never
+really members (`InstallTemplateShadowReflection`, `InstallElementInternals`) out to a private
+`ShadowDom.h`, the standing `LiveRanges.h` already has. A *member* cannot leave a class's header, so
+that is where the split has to start.
