@@ -145,8 +145,8 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
     if (const Value* style_sheet_proto = self->interfaces_.object->GetOwn("StyleSheet")) {
       sheet.object->SetPrototype(style_sheet_proto->object);
     }
-    auto storage = std::make_unique<SheetStorage>(std::make_shared<std::string>());
-    const auto* heap = storage.release();
+    // Owned by the binding layer, not released into the void. See DomBindings::sheet_texts_.
+    SheetStorage* heap = &self->sheet_texts_.emplace_back(std::make_shared<std::string>());
     sheet.object->SetHidden(kCSSStyleSheetMarkerSlot, Value::Bool(true));
     sheet.object->SetHidden(kCSSSheetStorageSlot, PointerValue(heap));
     if (call.arguments.size() >= 1 && !Argument(call.arguments, 0).IsUndefined()) {
@@ -183,10 +183,9 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
         if (const Value* style_sheet_proto = interfaces_.object->GetOwn("StyleSheet")) {
           sheet.object->SetPrototype(style_sheet_proto->object);
         }
-        auto storage = std::make_unique<SheetStorage>(text);
+        SheetStorage* storage = &sheet_texts_.emplace_back(text);
         sheet.object->SetHidden(kCSSStyleSheetMarkerSlot, Value::Bool(true));
-        sheet.object->SetHidden(kCSSSheetStorageSlot,
-                                PointerValue(storage.release()));
+        sheet.object->SetHidden(kCSSSheetStorageSlot, PointerValue(storage));
         out.push_back(sheet);
       }
       return call.interpreter.NewArrayValue(std::move(out));

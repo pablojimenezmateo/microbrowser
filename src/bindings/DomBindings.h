@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -923,6 +924,16 @@ class DomBindings {
   // the wrapper cache is one: a C++ table of `Object*` would have to be a GC
   // root and there is no API to add one. Hung off the global, which already is.
   js::Value interfaces_;
+  // The text behind every `CSSStyleSheet` this document has constructed, and its *owner*.
+  //
+  // Script reaches a sheet's text through a raw pointer on the JS object
+  // (`kCSSSheetStorageSlot`), and that pointer used to come from `unique_ptr::release()` with
+  // nothing to free it -- so `new CSSStyleSheet()` leaked, unboundedly, from three lines of script.
+  // LeakSanitizer found it; nothing else would have.
+  //
+  // A `deque` because the pointer must stay valid across a later insertion, which a vector's
+  // references do not. Bounds the growth to the document rather than removing it -- TD-0062.
+  std::deque<std::shared_ptr<std::string>> sheet_texts_;
   // Nodes made by `createElement` and not yet appended. Emptied into the tree
   // as each is adopted; whatever is left is freed with this object, which is
   // why a wrapper for one of them must not outlive the bindings.

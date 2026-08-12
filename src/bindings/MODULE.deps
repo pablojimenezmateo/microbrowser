@@ -337,7 +337,11 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # arrived while `InstallReflections` and `InstallHyperlinkElementUtils` left -- the second of those
 # to `Reflector`, which is the split the note above the cap keeps asking for, taken one method at
 # a time. Three features landed and the class got *smaller*.
-budget: DomBindings header_lines=930 public_methods=47 members=29
+# +1 member and +19 lines for `sheet_texts_`. A constructed `CSSStyleSheet`'s text is reached from
+# script through a raw pointer on the JS object, and that pointer used to come from
+# `unique_ptr::release()` with nothing to free it -- so `new CSSStyleSheet()` leaked, unboundedly, from
+# three lines of script. LeakSanitizer found it; nothing else would have. The member is the owner.
+budget: DomBindings header_lines=942 public_methods=47 members=30
 # ADR 0038's `indexedDB` seam: a database/store/key/version question this module
 # declares and `src/engine` answers, the same inversion StorageSource uses. Four
 # extra "methods" over what reads as the API (16) are the deleted copy ops and

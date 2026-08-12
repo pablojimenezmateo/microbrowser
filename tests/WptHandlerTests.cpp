@@ -308,8 +308,8 @@ void RegisterWptHandlerTests(std::vector<TestCase>& tests) {
   AddTest(tests, "WptHandlers/DispatcherQueuesAreIndependentAndReflectTheOrigin", [] {
     Stash stash;
     const char* path = "common/dispatcher/dispatcher.py";
-    (void)Invoke(Post(path, "uuid=a", "for-a"), stash,
-                 new HandlerResponse);
+    HandlerResponse seeded;
+    (void)Invoke(Post(path, "uuid=a", "for-a"), stash, &seeded);
     HandlerResponse other;
     Expect(Invoke(Get(path, "uuid=b"), stash, &other), "a read on another uuid answers");
     ExpectEqString(other.body, "not ready", "and does not see the first uuid's message");

@@ -2782,3 +2782,37 @@ wrong without it, and they are the worked example for the rest:
   status plus `Timing-Allow-Origin`. Two handlers, one name, one directory match each.
 - `corsenabled.py`, three files: `xhr/resources/`'s echoes the request; the two under `auth*/`
   delegate to `authentication.py` and are HTTP-auth handlers.
+
+## TD-0062 — Host state hung off a JS object has no owner, so the collector cannot free it
+
+`new CSSStyleSheet()` allocated a `std::shared_ptr<std::string>` on the C++ heap, released it out of
+its `unique_ptr`, and stored the raw pointer on the JS object as `kCSSSheetStorageSlot` — because a
+JS object cannot hold a C++ member. **Nothing ever freed it.** A page could grow that without bound:
+
+    for (let i = 0; i < 1e6; i++) new CSSStyleSheet();
+
+**Measured** by LeakSanitizer on the test suite, 2026-08-12: 368 bytes in 12 allocations, all from
+`ConstructableStylesheets.cpp:148`, from the handful of sheets the tests construct. Nothing else
+would have found it — the leak is sixteen bytes plus a string per sheet, and no test asserts on
+memory. It is in this file rather than merely fixed because the fix is partial.
+
+**Fixed to the extent it can be locally**: `DomBindings::sheet_texts_` owns them now, a `std::deque`
+so the pointer on the JS object survives a later insertion, and everything is freed when the document
+goes. LeakSanitizer is clean.
+
+**What remains is the shape rather than the leak.** The lifetime is now the *document's*, not the
+object's, so a page that constructs a million sheets holds a million strings until it navigates.
+There is no way for the collector to tell the binding layer that a sheet died, which is the actual
+missing concept.
+
+**The end state is a host-data side table in `js::Heap`, freed in the sweep.** That is not a new
+mechanism: `Heap::generators_` and `Heap::weak_tables_` are both
+`unordered_map<const Object*, ...>` dropped when the cell that keys them is swept, for exactly this
+reason — object-keyed state that must not outlive its object. A third, generic one
+(`host_data_`, holding a type-erased owner) would let `src/bindings` attach owned C++ state to a
+wrapper and have it die with the wrapper, and would retire this entry and the pattern behind it.
+
+Two sites exist today, both in `ConstructableStylesheets.cpp`, so this is contained rather than
+systemic — `grep -rn "\.release()" src/bindings/` is the check, and it should stay at zero once the
+side table exists. The reason to write it down anyway is that the next binding to need per-object host
+state will reach for `release()` again, because there is currently nothing better to reach for.
