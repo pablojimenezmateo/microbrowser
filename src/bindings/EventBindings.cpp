@@ -28,50 +28,10 @@ namespace {
 using js::NativeCall;
 using js::Value;
 
-// Where a listener with flags keeps the function it wraps. A listener is
-// stored as the function itself unless it needs a flag, which keeps the common
-// case one object rather than two -- and the common case is most of the 930
-// registrations ADR 0017 counted.
-constexpr const char* kListenerFunctionSlot = "#fn";
-constexpr const char* kListenerCaptureSlot = "#capture";
-constexpr const char* kListenerPassiveSlot = "#passive";
-constexpr const char* kListenerOnceSlot = "#once";
 // Set on the *event* while a passive listener runs. `preventDefault` reads it
 // and does nothing, which is the whole point of the flag: a page promises not
 // to cancel so the browser can start scrolling before the handler returns.
 constexpr const char* kEventInPassiveSlot = "#inPassive";
-
-Value ListenerFunction(const Value& entry) {
-  if (!entry.IsObject()) {
-    return Value::Undefined();
-  }
-  if (entry.object->IsCallable()) {
-    return entry;
-  }
-  const Value* wrapped = entry.object->GetOwn(kListenerFunctionSlot);
-  return wrapped == nullptr ? Value::Undefined() : *wrapped;
-}
-
-// A flag on a listener entry. A bare function has none of them, which is why
-// the fast path never allocates.
-bool ListenerFlag(const Value& entry, const char* slot) {
-  if (!entry.IsObject() || entry.object->IsCallable()) {
-    return false;
-  }
-  const Value* found = entry.object->GetOwn(slot);
-  return found != nullptr && js::ToBoolean(*found);
-}
-
-// Whether an options argument asked for something. `addEventListener(t, f,
-// true)` is the capture boolean rather than an options object, and reading a
-// property off a boolean must not be an error.
-bool Option(const Value& options, const char* name) {
-  if (!options.IsObject()) {
-    return false;
-  }
-  const Value* found = options.object->Get(name);
-  return found != nullptr && js::ToBoolean(*found);
-}
 
 // "Set the canceled flag", which is `preventDefault`'s whole rule, in one
 // place. `returnValue = false` is the same act by another name, and a second
@@ -122,84 +82,6 @@ class DispatchFlag {
  private:
   Value event_;
 };
-
-// Whether a dictionary member was *given*, as against given as false. WebIDL
-// treats an `undefined` member as absent, and `passive` is the one option here
-// where the difference is observable: omitted means "let the browser decide"
-// and `false` means "I will cancel this, do not start scrolling without me".
-bool OptionGiven(const Value& options, const char* name) {
-  if (!options.IsObject()) {
-    return false;
-  }
-  const Value* found = options.object->Get(name);
-  return found != nullptr && !found->IsUndefined();
-}
-
-// `addEventListener(type, fn, true)` and `addEventListener(type, fn, {capture:
-// true})` mean the same thing, and the third argument is a boolean far more
-// often than it is an object.
-bool CaptureOption(const Value& options) {
-  if (options.IsObject()) {
-    return Option(options, "capture");
-  }
-  return js::ToBoolean(options);
-}
-
-// The body element of `document`: the first `body` or `frameset` child of the
-// document element. HTML's own definition, and the reason it is not "the first
-// body anywhere" is that a `<body>` nested in a template or a foreign element
-// is not the document's body.
-const dom::Element* BodyElementOf(const dom::Document& document) {
-  const dom::Element* root = document.DocumentElement();
-  if (root == nullptr) {
-    return nullptr;
-  }
-  for (const std::unique_ptr<dom::Node>& child : root->Children()) {
-    if (!child->IsElement()) {
-      continue;
-    }
-    const auto& element = static_cast<const dom::Element&>(*child);
-    if (element.Namespace().IsHtml() &&
-        (element.LocalName() == "body" || element.LocalName() == "frameset")) {
-      return &element;
-    }
-  }
-  return nullptr;
-}
-
-// DOM §2.7, "default passive value": what `passive` means when a page did not
-// say. For the four scroll-blocking event types, on the four targets a page
-// registers a global scroll handler on, it is **true**.
-//
-// This is not a nicety and it is not an optimisation this browser has yet
-// earned. It is observable: a listener that is passive by default has its
-// `preventDefault()` ignored, so `event.defaultPrevented` stays false and
-// `dispatchEvent` answers true. Thirty-one subtests in passive-by-default.html
-// assert exactly that, and a page that relies on the platform *not* letting it
-// cancel a wheel event on `window` behaves differently here without it.
-//
-// The rule is per (type, target) rather than per listener, which is why it
-// lives here rather than in the dispatch loop: by the time the event runs, the
-// listener has to already know what it promised.
-bool DefaultPassiveValue(std::string_view type, const Value& target, const js::Object* global) {
-  if (type != "touchstart" && type != "touchmove" && type != "wheel" &&
-      type != "mousewheel") {
-    return false;
-  }
-  if (target.IsObject() && target.object == global) {
-    return true;  // the Window
-  }
-  const dom::Node* node = NodeOf(target);
-  if (node == nullptr) {
-    return false;
-  }
-  const dom::Document* document = node->NodeDocument();
-  if (document == nullptr) {
-    return false;
-  }
-  return node == document || node == document->DocumentElement() ||
-         node == BodyElementOf(*document);
-}
 
 
 // The name an event interface's prototype carries, so a constructed event can
@@ -295,57 +177,10 @@ void DomBindings::InstallEventMethods(const js::Value& wrapper) {
       wrapper.object->Set(name, native);
     }
   };
-  // Listeners live on the wrapper, keyed by type, so they are collected with
-  // it and cannot outlive the node they were registered on.
-  method("addEventListener", [](NativeCall& call) {
-    // A bare `addEventListener('load', f)` is a call with no receiver, and in
-    // a browser that registers on the window because sloppy-mode `this` is the
-    // global object. Here it arrives as undefined, so the window is named
-    // explicitly -- otherwise half the pages that listen for `load` listen on
-    // nothing and are never told.
-    const Value target =
-        call.self.IsObject() ? call.self : Value::Obj(call.interpreter.Global());
-    if (!target.IsObject()) {
-      return call.Throw("TypeError", "addEventListener called on a non-node");
-    }
-    const Value handler = Argument(call.arguments, 1);
-    if (!handler.IsObject() || !handler.object->IsCallable()) {
-      // A non-callable listener is ignored rather than refused, which is what
-      // the specification says and what stops a page's optional callback from
-      // being fatal.
-      return Value::Undefined();
-    }
-    const std::string type = js::ToString(Argument(call.arguments, 0));
-    const std::string slot = "#on:" + type;
-    // The flags are a wrapper around the function rather than fields beside it,
-    // so the list stays one array and removal stays identity on the function.
-    // A listener with no flags -- which is most of them -- is stored as itself.
-    const Value options = Argument(call.arguments, 2);
-    const bool capture = CaptureOption(options);
-    // Omitted is not the same as false here -- see DefaultPassiveValue.
-    const bool passive = OptionGiven(options, "passive")
-                             ? Option(options, "passive")
-                             : DefaultPassiveValue(type, target, call.interpreter.Global());
-    const bool once = Option(options, "once");
-    Value entry = handler;
-    if (capture || passive || once) {
-      const Value flagged = call.interpreter.NewObjectValue();
-      if (flagged.IsObject()) {
-        flagged.object->Set(kListenerFunctionSlot, handler);
-        if (capture) flagged.object->Set(kListenerCaptureSlot, Value::Bool(true));
-        if (passive) flagged.object->Set(kListenerPassiveSlot, Value::Bool(true));
-        if (once) flagged.object->Set(kListenerOnceSlot, Value::Bool(true));
-        entry = flagged;
-      }
-    }
-    const Value* existing = target.object->GetOwn(slot);
-    if (existing != nullptr && existing->IsObject()) {
-      existing->object->PushElement(entry);
-      return Value::Undefined();
-    }
-    target.object->Set(slot, call.interpreter.NewArrayValue({entry}));
-    return Value::Undefined();
-  });
+  // Registering and unregistering, in EventListeners.cpp. They are free
+  // functions there because nothing in either asks a question about the
+  // document -- which is also why `new EventTarget()` needs no special case.
+  InstallListenerRegistration(*interpreter_, wrapper, this);
   // A page dispatching its own event. Untrusted by construction: the event
   // still runs every listener, and nothing in the engine acts on it -- a
   // synthetic click does not follow a link.
@@ -374,13 +209,20 @@ void DomBindings::InstallEventMethods(const js::Value& wrapper) {
     }
     const DispatchFlag in_flight(event);
     if (self == nullptr) {
-      // A target that is not a node -- `window`. There is no tree to walk, so
-      // the event reaches its listeners and stops.
+      // A target that is not a node -- `window`, an `AbortSignal`, an
+      // `XMLHttpRequest`, or an `EventTarget` a page constructed. There is no
+      // tree to walk, so the event reaches its listeners and stops -- and its
+      // propagation path is that one target, which is what `composedPath()`
+      // has to answer with from inside a listener and not afterwards.
       const Value* type = event.object->GetOwn("type");
       event.object->Set("target", call.self);
+      owner->InstallComposedPath(event, {call.self});
       owner->RunListenersOn(call.self, event,
                             "#on:" + (type == nullptr ? std::string() : js::ToString(*type)),
                             EventPhase::AtTarget);
+      event.object->Set("currentTarget", Value::Null());
+      event.object->Set("eventPhase", Value::Number(static_cast<double>(EventPhase::None)));
+      owner->InstallComposedPath(event, {});
       const Value* prevented_here = event.object->GetOwn("defaultPrevented");
       return Value::Bool(prevented_here == nullptr || !js::ToBoolean(*prevented_here));
     }
@@ -388,39 +230,6 @@ void DomBindings::InstallEventMethods(const js::Value& wrapper) {
     // True when nothing called preventDefault, which is the inverse of what
     // dispatch reports and is what the specification returns.
     return Value::Bool(!prevented);
-  });
-  method("removeEventListener", [](NativeCall& call) {
-    const Value target =
-        call.self.IsObject() ? call.self : Value::Obj(call.interpreter.Global());
-    if (!target.IsObject()) {
-      return Value::Undefined();
-    }
-    const Value handler = Argument(call.arguments, 1);
-    const bool capture = CaptureOption(Argument(call.arguments, 2));
-    const std::string slot = "#on:" + js::ToString(Argument(call.arguments, 0));
-    const Value* listeners = target.object->GetOwn(slot);
-    if (listeners == nullptr || !listeners->IsObject()) {
-      return Value::Undefined();
-    }
-    std::vector<Value> kept;
-    for (std::size_t i = 0; i < listeners->object->ElementCount(); ++i) {
-      const Value each = listeners->object->GetElement(i);
-      // Identity, so removing works only with the same function object that
-      // was added -- which is why an inline arrow cannot be removed, and is
-      // the behaviour every browser has. Through the wrapper for a flagged
-      // listener, so one can be removed before it fires.
-      //
-      // The capture flag is part of the identity, not a detail: a page that
-      // registers the same function for both phases and removes one of them
-      // means the one it named. Removing both would silence a handler that is
-      // still registered.
-      if (!js::StrictEquals(ListenerFunction(each), handler) ||
-          ListenerFlag(each, kListenerCaptureSlot) != capture) {
-        kept.push_back(each);
-      }
-    }
-    listeners->object->SetElements(std::move(kept), {});
-    return Value::Undefined();
   });
 
 }
@@ -521,6 +330,34 @@ js::Value DomBindings::EventPrototype(const char* name, const char* parent) {
     flag("preventDefault", "defaultPrevented", true, false);
     flag("stopPropagation", "#stopPropagation", false, false);
     flag("stopImmediatePropagation", "#stopPropagation", false, true);
+
+    // `composedPath()`, on the prototype rather than on the event, because an
+    // event that was never dispatched still has it and still has to answer
+    // with the empty array. It used to be installed on the instance by the
+    // dispatcher, which meant a page that called it before dispatch -- or on
+    // an event dispatched at anything but a node -- got "not a function".
+    //
+    // The path itself is a slot the dispatcher writes and clears, because it
+    // is built before any handler runs (a handler that reparents the target
+    // must not change it) and is gone the moment dispatch ends.
+    const Value composed_path =
+        interpreter_->NewNativeValue("composedPath", [](NativeCall& call) {
+          const Value* stored =
+              call.self.IsObject() ? call.self.object->GetOwn("#path") : nullptr;
+          if (stored == nullptr || !stored->IsObject()) {
+            return call.interpreter.NewArrayValue({});
+          }
+          // A fresh array each call, because the path is the event's and a
+          // page that mutated the answer would be mutating the next reader's.
+          std::vector<Value> answer;
+          for (std::size_t i = 0; i < stored->object->ElementCount(); ++i) {
+            answer.push_back(stored->object->GetElement(i));
+          }
+          return call.interpreter.NewArrayValue(std::move(answer));
+        });
+    if (composed_path.IsObject()) {
+      prototype.object->Set("composedPath", composed_path);
+    }
 
     // `returnValue` and `cancelBubble`: the two IE-era aliases the DOM kept,
     // and it kept them as *accessors* with one-way setters. Both were plain
@@ -862,6 +699,11 @@ const char* DomBindings::LegacyEventInterface(std::string_view name) {
       {"mouseevent", "MouseEvent"},
       {"mouseevents", "MouseEvent"},
       {"keyboardevent", "KeyboardEvent"},
+      // The interface has existed since CompositionEvent was added to the
+      // hierarchy; its absence here was the table and the hierarchy
+      // disagreeing, which is the one thing this rule cannot afford -- a name
+      // this browser *has* an interface for, refused.
+      {"compositionevent", "CompositionEvent"},
       {"focusevent", "FocusEvent"},
       {"dragevent", "DragEvent"},
       {"messageevent", "MessageEvent"},

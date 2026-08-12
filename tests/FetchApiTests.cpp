@@ -298,13 +298,40 @@ void RegisterFetchApiTests(std::vector<TestCase>& tests) {
         // Constructing one is a TypeError, as it is in a browser -- the only way
         // to get a signal is off a controller.
         "try { new AbortSignal() } catch (e) { console.log(e.name) }"
-        // And the prototype is a real, writable object, because what a page does
-        // with it is fill in the statics this browser deliberately does not
-        // define: `abort`, `timeout`, `any`, `throwIfAborted`.
+        // And the prototype is a real, writable object -- a page that patches
+        // it is patching the one every signal inherits from.
         "AbortSignal.prototype.throwIfAborted = function () { return 'mine' };"
         "console.log(c.signal.throwIfAborted());"
         "console.log(typeof AbortSignal.timeout);");
-    ExpectEqString(session.Console(), "true|function|TypeError|mine|undefined",
+    ExpectEqString(session.Console(), "true|function|TypeError|mine|function",
+                   "Errors: " + session.Errors());
+  });
+
+  AddTest(tests, "Fetch/AbortSignalStatics", [] {
+    // `abort`, `any` and `throwIfAborted`, which were absent for as long as
+    // there was no honest answer for them. There is one now, and the shape
+    // that matters is the *composition*: a signal made from a signal made from
+    // a controller's is linked to the controller's, so one abort marks the
+    // whole family before any of their handlers run.
+    Session session;
+    session.Run(
+        "const aborted = AbortSignal.abort('why');"
+        "console.log(aborted.aborted, aborted.reason);"
+        "try { aborted.throwIfAborted() } catch (e) { console.log('threw ' + e) }"
+        "const c = new AbortController();"
+        "const one = AbortSignal.any([c.signal]);"
+        "const two = AbortSignal.any([one]);"
+        "let order = '';"
+        "c.signal.addEventListener('abort', () => { order += 'c' + one.aborted + two.aborted });"
+        "one.addEventListener('abort', () => { order += '1' });"
+        "two.addEventListener('abort', () => { order += '2' });"
+        "c.abort('stop');"
+        "console.log(order, two.reason);"
+        // An empty list is a signal nothing can abort, which is what makes
+        // `any([])` a usable identity rather than an error.
+        "console.log(AbortSignal.any([]).aborted);");
+    ExpectEqString(session.Console(),
+                   "true why|threw why|ctruetrue12 stop|false",
                    "Errors: " + session.Errors());
   });
 

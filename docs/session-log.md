@@ -5339,3 +5339,192 @@ written the wrong number down rather than merely reported it.
 **Checked:** `ctest` 2,099 tests 0 failed. ASan 2,099 tests, no memory errors. `html/dom/`
 re-verified at `--jobs 4`: 57,759 of 60,138, **0 subtests going PASS → FAIL**, and the four
 unexpected results are three `render-blocking/` flakes and `idlharness`.
+
+## 2026-08-12 — `dom/`, one tractable block at a time, and what the remaining gap actually is
+
+**Status:** five commits in a worktree, every one verified with **0 unexpected results** before it
+was recorded. Per-area, measured in isolation on a quiet machine:
+
+| area / file | before | after |
+|---|---|---|
+| `dom/abort` | 10 of 37 | **35 of 37** |
+| `dom/traversal` | 1572 of 1608 | **1584 of 1608** |
+| `dom/events` | 312 of 677 | **342 of 677** |
+| `dom/ranges/StaticRange-constructor.html` | 0 of 17 | **16 of 17** |
+| `dom/nodes/moveBefore/Node-moveBefore.html` | 2 of 32 | **29 of 32** |
+| `dom/nodes/Node-properties.html` | 37 failures | **0** |
+| `dom/nodes/Node-textContent.html` | 30 failures | **10** |
+| `dom/traversal/NodeIterator-removal.html` | 21 failures | **2** |
+
+### The three bugs that were not the feature they were filed under
+
+**A listener removed mid-dispatch still ran.** The dispatch loop walks a *copy* of the listener
+list, which is right — the set that runs is the set that existed when the event reached the node —
+and it is only half the rule. The DOM also gives each listener a "removed" flag, and one taken off
+the list does not run even though the copy still holds it. Without it, `controller.abort()` from
+inside a handler still called every later listener the same controller was meant to cancel, so
+`AddEventListenerOptions-signal.any.html` failed in a way that looked like the signal option was
+missing rather than like dispatch was.
+
+**A duplicate listener was added twice.** The DOM's identity for one is (type, callback, capture)
+and re-registering is a no-op. Here it took as many `removeEventListener` calls as registrations —
+which on a real page reads as a handler firing twice, and is a leak a re-rendering component drives
+by itself.
+
+**`acceptNode` was read with `Object::Get`, which answers nullptr for an accessor.** A filter
+written as `{ get acceptNode() { … } }` therefore read as *no filter at all* and the walk accepted
+everything. That is the shape worth remembering: the wrong read did not fail, it succeeded with a
+different answer. Fixing it needed the accessor-aware read *with* the abrupt completion, which is
+now `Interpreter::GetPropertyOrThrow` — the three-argument `GetProperty` is private on purpose,
+because inside an evaluation propagating is not optional, and this is the door for callers outside
+one.
+
+### `composedPath()` was installed by the dispatcher, so it existed only sometimes
+
+It was put on the *event object* by the node dispatch path. So it was "not a function" before
+dispatch, on `window`, on an `AbortSignal`, and on any `EventTarget` a page constructed — and it
+kept answering after dispatch was over, when the specification says the path is empty. It is on
+`Event.prototype` now, over a slot dispatch sets and clears, which is also what makes
+`currentTarget` null once dispatch ends.
+
+### `AbortSignal.any` flattens, and the flattening is observable
+
+The three statics were absent for the right reason — the note said each needs a decision (a timer,
+a composed signal) that ADR 0012 says not to fake. Both decisions are made now. The timer is
+`TimerQueue::QueueDelayedTask`, a deadline the *browser* chose: deliberately not a call to the
+page's `setTimeout`, which a page may replace and whose ids a page can guess.
+
+The composition is the part that is easy to get wrong. `any` does not chain — a signal composed
+from a composed signal links to the **original sources**, and a source marks every dependent
+aborted *before* any of their handlers run. Chaining instead fires them depth-first, which is a
+different order for the same tree, and `abort-signal-any.any.html` asserts the order explicitly
+(`"01234"`).
+
+### `moveBefore.length` is 2, and that is load-bearing
+
+WPT's shared pre-insertion helper branches on it: `parent[method].length > 1` decides whether to
+pass the reference at all, because passing null blindly would move nodes before the validation it
+is testing. With a length of 0 all nine of those cases took the one-argument path and reported a
+TypeError where the test wanted a HierarchyRequestError — nine failures that say nothing about
+`moveBefore` and everything about a property nobody thinks of as behaviour.
+
+The other trap in that method is its tree check. The specification says **the same shadow-including
+root**, not "both connected", and the difference runs both ways: two disconnected nodes under one
+detached root move fine, and a connected node and a disconnected one never share a root. Being in
+the document is a consequence of the rule rather than the rule.
+
+### What is left, and why the goal was "all of `dom/`"
+
+The session was asked for every `dom/` subtest passing. It is not reachable from here, and the
+reasons are worth having in one place because three of the four are decisions rather than gaps:
+
+- **~570 subtests need `<iframe>`** — `Document-createElementNS.html` alone is 389 of them, all in
+  its "XML document" and "XHTML document" variants. ADR 0027 is accepted and unimplemented; the
+  previous session priced the same wall at ~4,700 subtests across `dom/ranges`. This is the single
+  largest item in `dom/` and it is a browsing-context tree, not a DOM fix.
+- **251 subtests are `Observable`**, a tentative proposal no engine ships, now refused in one block
+  naming ADR 0012.
+- **126 are attributes on a *processing instruction*** — WICG/declarative-partial-updates, which
+  the test file's own `link rel=help` points at. The DOM gives a ProcessingInstruction no
+  `getAttribute` at all. Also refused, with the reason written down.
+- **~130 are `OpaqueRange`**, tentative, refused before this session.
+
+So roughly 1,080 of the remaining failures are one unbuilt feature and three deliberate refusals.
+What is left after them is real work and it is mostly two things: **`Attr` as a `Node`** (~86
+subtests across `Document-createAttribute`, `attributes.html` and `Range-attribute-nodes`), which
+the code comment in ElementQueries.cpp already describes as a design rather than an addition; and
+**event handler content attributes** — `div.setAttribute("onclick", …)` compiles nothing here, which
+is 47 subtests in `Body-FrameSet-Event-Handlers.html`, the tail of `remove-unscopable.html`, and
+part of the 121 in `Event-dispatch-single-activation-behavior.html`.
+
+### The measurement is the least trustworthy thing in this session, and it is the machine
+
+Three separate full-`dom/` runs disagreed with each other by **15,000 subtests** — 43,207 then
+27,494 then 40,399 — with no code change between two of them. Every difference was a handful of
+large tests crossing their timeout: `Range-comparePoint.html` alone is 5,580 subtests and takes
+between 19 and 59 seconds *on the same binary*, depending on what else is on the machine. Under
+`load average: 54` on twelve cores, with other agents running their own WPT sweeps, a `TIMEOUT` is
+a fact about the room.
+
+**So the per-area numbers above were each taken in isolation, and the full-area sweep was
+abandoned rather than recorded.** A run whose expectations would have written `harness=TIMEOUT`
+against `Range-comparePoint.html` is a run that files a machine's bad afternoon as a browser
+regression, and the next session pays for it. `--timeout-multiplier` is the mitigation;
+`docs/wpt-baseline.md` is **not** regenerated here for the same reason, and because `--summary`
+rewrites it from a `--summary-state` file that lives in `/tmp` and described one area (task B6
+already names this).
+
+### The next block is `on*` content attributes, and it was measured rather than started
+
+`<div onclick="…">` compiles nothing here, and neither does
+`setAttribute("onclick", …)`. `RunListenersOn` reads the wrapper's `on<type>`
+**property**, so `el.onclick = fn` has always worked and markup never has. That is
+worth ~200 subtests and the implementation shape is settled — HTML calls an unset one an
+*internal raw uncompiled handler*, so it compiles **lazily** at the point that read already
+happens, with no parser hook and nothing to pay for an element that has no such attribute.
+
+It was not started because it has a security half that a session in a hurry would miss.
+**An inline event handler is exactly what CSP `'unsafe-inline'` governs**, and `src/bindings`
+cannot see `src/csp` — that `allow:` line is a security boundary (ADR 0008), and
+`DocumentPolicy::AllowsInline` lives in `src/engine`. So the gate has to be a flag the engine
+sets on this layer, the same inversion `GeometrySource` and `NetworkSource` use. The good news
+is that it is *one boolean per document*: nonces and hashes do not apply to handlers, only
+`'unsafe-inline'` does (`script-src-attr` falling back to `script-src`). Landing the compilation
+without that flag would open a script-execution path CSP cannot see, and the browser would still
+pass more tests — which is the shape of the mistake worth naming. It is task **C11** now, in
+`docs/wpt-plan.md` and the ledger.
+
+### C11 landed after all, and the gate is the interesting half
+
+`<div onclick="…">` compiles now, lazily, at the point `RunListenersOn` already
+asks for the `on<type>` property and finds nothing — HTML's *internal raw
+uncompiled handler*, so there is no parser hook and an element without the
+attribute pays a lookup it was already paying. `remove-unscopable.html` went
+0 → 6 of 6 with it, which is the whole test finally reaching the behaviour it
+was written for.
+
+**The CSP question turned out to be its own function rather than a call to the
+existing one, and the difference is a real case.** `Policy::AllowsInline`
+implements the rule that a nonce or a hash *cancels* `'unsafe-inline'` — which
+is the whole mechanism by which a modern policy stays safe on a browser that
+understands nonces and usable on one that does not. That rule is about
+`<script>` **elements**, which can carry a nonce. An attribute cannot: it has
+nowhere to put one and CSP never hashes it. So a policy of
+`script-src 'unsafe-inline' 'nonce-abc'` must still permit a handler while
+refusing an un-nonced inline `<script>`, and calling the general form would
+have refused both. `AllowsInlineHandler` says what it means, and the unit test
+asserts exactly that divergence.
+
+The answer crosses into `src/bindings` as a **flag**, because that module may
+not see `src/csp` — its `allow:` line is a security boundary (ADR 0008). It
+defaults to *deny*: a path from markup to running code that is on until
+somebody remembers to turn it off is the wrong default for the one gate between
+the two.
+
+**And the compile needed a bound, which is the part that would have been easy
+to miss.** `Interpreter::Run` calls `BeginHostTurn`, which resets the step
+budget, and retains the parsed program for the life of the page — both correct
+for a `<script>`, of which a document has a handful. A handler compiled from a
+*dispatch* is neither: `for(;;){ el.setAttribute('onclick', i++); el.dispatchEvent(e) }`
+would compile a new text every iteration, refresh the budget the loop is being
+metered against, and add an AST. That is a hang a page can drive — the exact
+thing `RunCompiled`'s own comment says it fixed once already for microtasks. It
+is capped at 10,000 compiles per document, refused rather than truncated past
+it, and the cache is still written so a page past the bound pays one lookup per
+dispatch.
+
+505 tests across `dom/events/` and `dom/nodes/` re-run afterwards: **two
+improvements and no regressions.** The two `harness: expected OK, got TIMEOUT`
+in that run both finish in 0.7 seconds when run alone — the sweep took 29
+minutes under `load average` in the forties, which is the same measurement
+caveat as everywhere else in this entry.
+
+What is still missing from C11 is the *IDL* half: HTML makes `el.onclick` and
+the content attribute one slot, so reading `el.onclick` on an element that has
+only the markup should compile it and hand it back. Here it still answers
+undefined — the attribute is reachable only from dispatch. That is the half
+that wants the reflected-attribute table, which is task C10.
+
+**Merge note (2026-08-12):** C10 landed in the same merge as this entry, so the reflected-attribute
+table now exists and the IDL half of C11 is unblocked -- nobody has written it, and `el.onclick`
+still answers undefined on an element that carries only the markup.

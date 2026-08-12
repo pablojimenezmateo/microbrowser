@@ -107,6 +107,14 @@ class Policy {
   // common policy costs no digest at all.
   bool AllowsInline(Directive directive, std::string_view nonce, std::string_view body) const;
 
+  // Whether an event handler *content attribute* -- `<div onclick="…">` -- may
+  // be compiled. Its own question rather than `AllowsInline` with two empty
+  // strings, because a handler is the one inline script that **only**
+  // `'unsafe-inline'` can permit: an attribute carries no nonce, and CSP does
+  // not hash one. Asking the general form would compare the digest of the
+  // empty string against every hash-source, which is a match nobody intended.
+  bool AllowsInlineHandler() const;
+
   // Whether this policy says anything about `directive`, following the
   // `default-src` fallback. False means everything is allowed, which is what an
   // absent directive means and is not what an empty one means.
@@ -156,6 +164,7 @@ class PolicyList {
   bool AllowsUrl(Directive directive, const url::Url& target, const url::Origin& self,
                  std::string_view nonce = std::string_view()) const;
   bool AllowsInline(Directive directive, std::string_view nonce, std::string_view body) const;
+  bool AllowsInlineHandler() const;
   // Whether any policy governs `directive`. The engine asks this first, so a
   // document with no policy pays a bool test rather than a URL parse.
   bool Governs(Directive directive) const;

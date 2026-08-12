@@ -102,8 +102,15 @@ bool PageScript::CollectInserted(dom::Document& document, const DocumentPolicy& 
   bool added = false;
   script_strict_dynamic_ = policy.ScriptStrictDynamic();
   eval_forbidden_ = !policy.AllowsEval();
+  // Whether an `on*` content attribute may be compiled. Answered here, where
+  // the policy is, and carried to the binding layer as a flag -- that layer
+  // may not see `src/csp` (ADR 0008), and this is the one CSP question it has
+  // to know the answer to. Re-asked on every collection, because a `<meta>`
+  // policy can arrive after the first element did.
+  inline_handlers_allowed_ = policy.AllowsInlineHandler();
   if (bindings_ != nullptr) {
     bindings_->SetScriptStrictDynamic(script_strict_dynamic_);
+    bindings_->SetInlineHandlersAllowed(inline_handlers_allowed_);
   }
   if (interpreter_ != nullptr) {
     interpreter_->SetEvalForbidden(this, [](void* context) {
@@ -263,6 +270,7 @@ void PageScript::EnsureInterpreter(dom::Document& document, const std::string& u
                                                      workers_, indexed_db_, animations_);
   bindings_->Install();
   bindings_->SetScriptStrictDynamic(script_strict_dynamic_);
+  bindings_->SetInlineHandlersAllowed(inline_handlers_allowed_);
   if (trusted_insertion_flush_) {
     bindings_->SetTrustedScriptFlush(trusted_insertion_flush_);
   }
@@ -520,6 +528,11 @@ bool PageScript::DispatchInput(dom::Element& target) {
 
 std::optional<bindings::PendingSubmit> PageScript::TakePendingSubmit() {
   return bindings_ == nullptr ? std::nullopt : bindings_->TakePendingSubmit();
+}
+
+std::vector<dom::Element*> PageScript::TakePendingActivations() {
+  return bindings_ == nullptr ? std::vector<dom::Element*>{}
+                              : bindings_->TakePendingActivations();
 }
 
 bool PageScript::NotifyLoad() {

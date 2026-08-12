@@ -125,6 +125,38 @@ void RegisterCspTests(std::vector<TestCase>& tests) {
            "and the downgrade is not allowed");
   });
 
+  AddTest(tests, "Csp/OnlyUnsafeInlineCompilesAnEventHandlerAttribute", [] {
+    // An `on*` content attribute is the one inline script that only
+    // `'unsafe-inline'` can permit: it carries no nonce and CSP never hashes
+    // it. So this is its own question rather than `AllowsInline` with two
+    // empty strings, and the two differ in the case that matters.
+    Expect(Policies("").AllowsInlineHandler(),
+           "no policy at all: a handler runs, as it does on any page");
+    Expect(Policies("img-src 'none'").AllowsInlineHandler(),
+           "a policy that says nothing about script says nothing about handlers");
+    Expect(!Policies("script-src 'self'").AllowsInlineHandler(),
+           "a script-src without 'unsafe-inline' refuses one");
+    Expect(!Policies("default-src 'self'").AllowsInlineHandler(),
+           "and default-src is the fallback, as it is everywhere else");
+    Expect(Policies("script-src 'unsafe-inline'").AllowsInlineHandler(),
+           "'unsafe-inline' is what permits it");
+    // **The one case the general form gets wrong.** A nonce cancels
+    // `'unsafe-inline'` for a `<script>` element -- that is how a modern
+    // policy stays safe on a browser that understands nonces while staying
+    // usable on one that does not. An attribute has nowhere to put a nonce, so
+    // the cancellation cannot apply to it, and every engine agrees.
+    const std::string_view both = "script-src 'unsafe-inline' 'nonce-abc'";
+    Expect(Policies(both).AllowsInlineHandler(),
+           "a nonce beside 'unsafe-inline' still permits a handler");
+    Expect(!Policies(both).AllowsInline(Directive::Script, "", "alert(1)"),
+           "while the same policy refuses an inline <script> without the nonce");
+    // Every policy in force has to allow, like every other question here.
+    PolicyList two;
+    two.AddFromHeader("script-src 'unsafe-inline'");
+    two.AddFromHeader("script-src 'self'");
+    Expect(!two.AllowsInlineHandler(), "two policies, and both must allow");
+  });
+
   AddTest(tests, "Csp/ANonceAllowsInlineAndExternalAndNothingElse", [] {
     const std::string_view header = "script-src 'nonce-abc123'";
     Expect(Policies(header).AllowsInline(Directive::Script, "abc123", "alert(1)"),

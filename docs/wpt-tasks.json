@@ -126,8 +126,16 @@
     {
       "id": "C7", "milestone": "M-C", "title": "abort and observable triage", "area": "dom/abort/",
       "scope": "Implement or refuse with an ADR line.",
-      "check": "Every test in dom/abort/ and dom/observable/ is either passing or has an expectation naming an ADR.",
-      "depends": ["C1"], "target": "", "status": "not_started", "agent": null, "adr": "0012", "notes": ""
+      "check": "Every test in dom/abort/ and dom/observable/ is either passing or has an expectation naming an ADR. Run 2026-08-12: dom/abort 10 of 37 subtests -> 35 of 37. The two left are iframe-driven (ADR 0027) and the four .any.worker.html variants are ADR 0022; both now carry a comment. dom/observable is refused in one block naming ADR 0012 -- a tentative proposal no engine ships.",
+      "depends": ["C1"], "target": "", "status": "done", "agent": null, "adr": "0012",
+      "notes": "AbortSignal.any follows DOM 3.3 including the flattening: a signal composed from a composed signal links to the original sources, so abort events fire source-first then in creation order however deep the composition goes. Chaining instead fires them depth-first, which is a different order for the same tree. AbortSignal.timeout needed TimerQueue::QueueDelayedTask -- a deadline the browser owns, deliberately not the page's setTimeout."
+    },
+    {
+      "id": "C11", "milestone": "M-C", "title": "event handler content attributes", "area": "dom/events/",
+      "scope": "`<div onclick=\"...\">` and setAttribute(\"onclick\", ...) compile a handler. Lazily, at the point RunListenersOn already asks for the `on<type>` property and finds nothing -- HTML's internal raw uncompiled handler. Cache against the attribute's source text so a change recompiles and removeAttribute clears it.",
+      "check": "dom/nodes/remove-unscopable.html reaches 6 of 6. Run 2026-08-12: 0 -> 6 of 6, and 505 tests across dom/events/ and dom/nodes/ re-run with two improvements and no regressions. Not complete: the IDL half (el.onclick reading back the compiled attribute) is C10's reflected-attribute table.",
+      "depends": ["C6"], "target": "200 subtests", "status": "done", "agent": null, "adr": "0020",
+      "notes": "Compiles lazily where RunListenersOn already asks for the on<type> property -- HTML's internal raw uncompiled handler -- so there is no parser hook. Two things a next session must not undo. (1) csp::Policy::AllowsInlineHandler is its own function, not AllowsInline with two empty strings: the nonce-cancels-unsafe-inline rule is about <script> ELEMENTS, which can carry a nonce, and an attribute cannot -- so `script-src 'unsafe-inline' 'nonce-abc'` permits a handler while refusing an un-nonced inline script. (2) The compile is CAPPED at 10,000 per document, because Interpreter::Run calls BeginHostTurn (resetting the step budget) and retains the AST: a loop that rewrites the attribute and dispatches would refresh the budget metering it, which is a hang a page can drive. The gate crosses into src/bindings as a flag and defaults to deny. An inline event handler is what CSP 'unsafe-inline' governs, and src/bindings cannot see src/csp -- its allow: line is a security boundary (ADR 0008) and DocumentPolicy::AllowsInline lives in src/engine. So the gate is a flag the engine sets on the binding layer, the same inversion GeometrySource and NetworkSource use, and it is one boolean per document: nonces and hashes do not apply to handlers, only 'unsafe-inline' does (script-src-attr falling back to script-src). Landing the compilation without that flag opens a script-execution path CSP does not see."
     },
     {
       "id": "C8", "milestone": "M-C", "title": "shadow DOM and custom elements", "area": "shadow-dom/",

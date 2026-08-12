@@ -55,6 +55,11 @@ struct ClickActivation {
   bool reset_form = false;
   bool toggled_checkable = false;
   bool toggled_media = false;
+  // A `<summary>` opened or closed the `<details>` it belongs to. Its own field
+  // rather than a second meaning for `toggled_checkable`, because a caller that
+  // repaints on either still has to be able to read which one happened -- and
+  // because a `toggle` event is owed for this one and for neither of the others.
+  bool toggled_details = false;
 };
 
 // Form-control hit test shared by Page's click default actions. Lives in

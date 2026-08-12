@@ -434,7 +434,14 @@ budget: WellKnown   header_lines=145 public_methods=2  members=20
 # And by NestedHostBudget / ElementUpgradeBudget (lines): MSE and CE upgrades
 # under live frames need a shared nested hang-guard refresh (TD-0018 / TD-0020).
 # Member count unchanged (renamed media_* → nested_host_*); methods unchanged.
-budget: Interpreter header_lines=1335 public_methods=70 members=29
+# +1 method for GetPropertyOrThrow: the accessor-aware read *with* the throw.
+# A host that reads a property off an object a page handed it -- a NodeFilter's
+# `acceptNode`, a dictionary member -- must see a getter that throws rather
+# than swallow it into `undefined`, and the three-argument GetProperty is
+# private on purpose (inside an evaluation, propagating is not optional). This
+# is the door for callers outside one; it costs a method rather than making
+# that one public.
+budget: Interpreter header_lines=1335 public_methods=71 members=29
 # One module, as the engine sees it: what it is called, its tree, its own
 # top-level scope, what it publishes, what it asked for, and how far it has
 # got. Six fields and a status, and every one of them is something the

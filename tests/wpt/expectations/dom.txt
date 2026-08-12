@@ -1,42 +1,17 @@
-[dom/abort/AbortSignal.any.html]
-FAIL=signal returned by AbortSignal.abort() should not fire abort event
-FAIL=the AbortSignal.abort() static returns an already aborted signal
+# ADR 0022: this browser runs nothing in a background thread, so every
+# `.any.worker.html` variant of a `.any.js` file is a page that never reports.
+# The `.window` and bare variants of these same files pass; the worker ones are
+# the same assertions in a global that does not exist here. Deliberate.
 [dom/abort/AbortSignal.any.worker.html]
 harness=TIMEOUT
-[dom/abort/abort-signal-any.any.html]
-FAIL=Abort events for AbortSignal.any() signals fire in the right order (using AbortController)
-FAIL=AbortSignal.any() can be passed the same signal more than once (using AbortController)
-FAIL=AbortSignal.any() follows a single signal (using AbortController)
-FAIL=AbortSignal.any() follows multiple signals (using AbortController)
-FAIL=AbortSignal.any() returns an aborted signal if passed an aborted signal (using AbortController)
-FAIL=AbortSignal.any() signals are composable (using AbortController)
-FAIL=AbortSignal.any() uses the first instance of a duplicate signal (using AbortController)
-FAIL=AbortSignal.any() works with an empty array of signals
-FAIL=AbortSignal.any() works with intermediate signals (using AbortController)
-FAIL=AbortSignal.any() works with signals returned by AbortSignal.timeout() (using AbortController)
-FAIL=Dependent signals for AbortSignal.any() are aborted correctly for reentrant aborts (using AbortController)
-FAIL=Dependent signals for AbortSignal.any() are marked aborted before abort events fire (using AbortController)
-FAIL=Dependent signals for AbortSignal.any() should use the same DOMException instance from the already aborted source signal (using AbortController)
-FAIL=Dependent signals for AbortSignal.any() should use the same DOMException instance from the source signal being aborted later (using AbortController)
 [dom/abort/abort-signal-any.any.worker.html]
 harness=TIMEOUT
 [dom/abort/abort-signal-timeout.html]
 FAIL=Signal returned by AbortSignal.timeout() is not aborted after frame detach
-[dom/abort/event.any.html]
-FAIL=AbortSignal.reason returns the same DOMException
-FAIL=static aborting signal should have right properties
-FAIL=static aborting signal with reason should set signal.reason
-FAIL=throwIfAborted() should not throw if signal not aborted
-FAIL=throwIfAborted() should throw abort.reason if signal aborted
-FAIL=throwIfAborted() should throw primitive abort.reason if signal aborted
 [dom/abort/event.any.worker.html]
 harness=TIMEOUT
 [dom/abort/reason-constructor.html]
 FAIL=AbortSignal.reason.constructor should be from iframe
-[dom/abort/timeout.any.html]
-FAIL=AbortSignal timeouts fire in order
-FAIL=AbortSignal.timeout() returns a non-aborted signal
-FAIL=Signal returned by AbortSignal.timeout() times out
 [dom/abort/timeout.any.worker.html]
 harness=TIMEOUT
 [dom/attributes-are-nodes.html]
@@ -100,84 +75,16 @@ FAIL=Object.getOwnPropertyNames on DOMStringMap, data attribute trailing hyphen
 FAIL=Object.getOwnPropertyNames on NamedNodeMap
 FAIL=Object.getOwnPropertyNames on NamedNodeMap after attribute removal
 FAIL=Object.getOwnPropertyNames on NamedNodeMap of input
-[dom/events/AddEventListenerOptions-once.any.html]
-FAIL=Multiple once listeners should be invoked even if the stopImmediatePropagation is set
-FAIL=Once listener should be added / removed like normal listeners
-FAIL=Once listener should be invoked only once
-FAIL=Once listener should be invoked only once even if the event is nested
 [dom/events/AddEventListenerOptions-once.any.worker.html]
 harness=TIMEOUT
 [dom/events/AddEventListenerOptions-passive.any.html]
-FAIL=Equivalence of option values
 FAIL=Supports passive option on addEventListener only
-FAIL=passive behavior of one listener should be unaffected by the presence of other listeners
-FAIL=preventDefault should be ignored if-and-only-if the passive option is true
-FAIL=returnValue should be ignored if-and-only-if the passive option is true
 [dom/events/AddEventListenerOptions-passive.any.worker.html]
 harness=TIMEOUT
 [dom/events/AddEventListenerOptions-signal.any.html]
-FAIL=Aborting from a listener does not call future listeners
-FAIL=Aborting from a nested listener should remove it
-FAIL=Adding then aborting a listener in another listener does not call it
-FAIL=Passing an AbortSignal to addEventListener does not prevent removeEventListener
 FAIL=Passing an AbortSignal to addEventListener options should allow removing a listener
-FAIL=Passing an AbortSignal to addEventListener works with the capture flag
-FAIL=Passing an AbortSignal to addEventListener works with the once flag
-FAIL=Passing an AbortSignal to multiple listeners
-FAIL=Passing null as the signal should throw
-FAIL=Passing null as the signal should throw (listener is also null)
-FAIL=Removing a once listener works with a passed signal
 [dom/events/AddEventListenerOptions-signal.any.worker.html]
 harness=TIMEOUT
-[dom/events/Body-FrameSet-Event-Handlers.html]
-FAIL=Enumerate HTMLBodyElement.onblur
-FAIL=Enumerate HTMLBodyElement.onerror
-FAIL=Enumerate HTMLBodyElement.onfocus
-FAIL=Enumerate HTMLBodyElement.onload
-FAIL=Enumerate HTMLBodyElement.onresize
-FAIL=Enumerate HTMLBodyElement.onscroll
-FAIL=Enumerate HTMLFrameSetElement.onblur
-FAIL=Enumerate HTMLFrameSetElement.onerror
-FAIL=Enumerate HTMLFrameSetElement.onfocus
-FAIL=Enumerate HTMLFrameSetElement.onload
-FAIL=Enumerate HTMLFrameSetElement.onresize
-FAIL=Enumerate HTMLFrameSetElement.onscroll
-FAIL=Forward HTMLBodyElement.onblur to Window
-FAIL=Forward HTMLBodyElement.onerror to Window
-FAIL=Forward HTMLBodyElement.onfocus to Window
-FAIL=Forward HTMLBodyElement.onload to Window
-FAIL=Forward HTMLBodyElement.onresize to Window
-FAIL=Forward HTMLBodyElement.onscroll to Window
-FAIL=Forward HTMLFrameSetElement.onblur to Window
-FAIL=Forward HTMLFrameSetElement.onerror to Window
-FAIL=Forward HTMLFrameSetElement.onfocus to Window
-FAIL=Forward HTMLFrameSetElement.onload to Window
-FAIL=Forward HTMLFrameSetElement.onresize to Window
-FAIL=Forward HTMLFrameSetElement.onscroll to Window
-FAIL=Reflect HTMLBodyElement.onblur
-FAIL=Reflect HTMLBodyElement.onerror
-FAIL=Reflect HTMLBodyElement.onfocus
-FAIL=Reflect HTMLBodyElement.onload
-FAIL=Reflect HTMLBodyElement.onresize
-FAIL=Reflect HTMLBodyElement.onscroll
-FAIL=Reflect HTMLFrameSetElement.onblur
-FAIL=Reflect HTMLFrameSetElement.onerror
-FAIL=Reflect HTMLFrameSetElement.onfocus
-FAIL=Reflect HTMLFrameSetElement.onload
-FAIL=Reflect HTMLFrameSetElement.onresize
-FAIL=Reflect HTMLFrameSetElement.onscroll
-FAIL=Set HTMLBodyElement.onblur
-FAIL=Set HTMLBodyElement.onerror
-FAIL=Set HTMLBodyElement.onfocus
-FAIL=Set HTMLBodyElement.onload
-FAIL=Set HTMLBodyElement.onresize
-FAIL=Set HTMLBodyElement.onscroll
-FAIL=Set HTMLFrameSetElement.onblur
-FAIL=Set HTMLFrameSetElement.onerror
-FAIL=Set HTMLFrameSetElement.onfocus
-FAIL=Set HTMLFrameSetElement.onload
-FAIL=Set HTMLFrameSetElement.onresize
-FAIL=Set HTMLFrameSetElement.onscroll
 [dom/events/CustomEvent.html]
 FAIL=First parameter to initCustomEvent should be mandatory.
 FAIL=initCustomEvent's default parameter values.
@@ -250,17 +157,6 @@ FAIL=When clicking child <AREA></AREA> of parent <INPUT type=checkbox></INPUT>, 
 FAIL=When clicking child <AREA></AREA> of parent <INPUT type=radio></INPUT>, only child should be activated.
 FAIL=When clicking child <AREA></AREA> of parent <LABEL><BUTTON type=button></BUTTON></LABEL>, only child should be activated.
 FAIL=When clicking child <AREA></AREA> of parent <LABEL><INPUT type=checkbox></INPUT><SPAN></SPAN></LABEL>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <A></A>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <AREA></AREA>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <FORM><BUTTON type=reset></BUTTON></FORM>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <FORM><BUTTON type=submit></BUTTON></FORM>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <FORM><INPUT type=image></INPUT></FORM>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <FORM><INPUT type=reset></INPUT></FORM>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <FORM><INPUT type=submit></INPUT></FORM>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <INPUT type=checkbox></INPUT>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <INPUT type=radio></INPUT>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <LABEL><BUTTON type=button></BUTTON></LABEL>, only child should be activated.
-FAIL=When clicking child <DETAILS><SUMMARY></SUMMARY></DETAILS> of parent <LABEL><INPUT type=checkbox></INPUT><SPAN></SPAN></LABEL>, only child should be activated.
 FAIL=When clicking child <FORM><BUTTON type=reset></BUTTON></FORM> of parent <A></A>, only child should be activated.
 FAIL=When clicking child <FORM><BUTTON type=reset></BUTTON></FORM> of parent <AREA></AREA>, only child should be activated.
 FAIL=When clicking child <FORM><BUTTON type=reset></BUTTON></FORM> of parent <DETAILS><SUMMARY></SUMMARY></DETAILS>, only child should be activated.
@@ -272,17 +168,8 @@ FAIL=When clicking child <FORM><BUTTON type=reset></BUTTON></FORM> of parent <IN
 FAIL=When clicking child <FORM><BUTTON type=reset></BUTTON></FORM> of parent <INPUT type=radio></INPUT>, only child should be activated.
 FAIL=When clicking child <FORM><BUTTON type=reset></BUTTON></FORM> of parent <LABEL><BUTTON type=button></BUTTON></LABEL>, only child should be activated.
 FAIL=When clicking child <FORM><BUTTON type=reset></BUTTON></FORM> of parent <LABEL><INPUT type=checkbox></INPUT><SPAN></SPAN></LABEL>, only child should be activated.
-FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <A></A>, only child should be activated.
-FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <AREA></AREA>, only child should be activated.
-FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <DETAILS><SUMMARY></SUMMARY></DETAILS>, only child should be activated.
-FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <FORM><BUTTON type=reset></BUTTON></FORM>, only child should be activated.
 FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <FORM><INPUT type=image></INPUT></FORM>, only child should be activated.
-FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <FORM><INPUT type=reset></INPUT></FORM>, only child should be activated.
 FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <FORM><INPUT type=submit></INPUT></FORM>, only child should be activated.
-FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <INPUT type=checkbox></INPUT>, only child should be activated.
-FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <INPUT type=radio></INPUT>, only child should be activated.
-FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <LABEL><BUTTON type=button></BUTTON></LABEL>, only child should be activated.
-FAIL=When clicking child <FORM><BUTTON type=submit></BUTTON></FORM> of parent <LABEL><INPUT type=checkbox></INPUT><SPAN></SPAN></LABEL>, only child should be activated.
 FAIL=When clicking child <FORM><INPUT type=image></INPUT></FORM> of parent <A></A>, only child should be activated.
 FAIL=When clicking child <FORM><INPUT type=image></INPUT></FORM> of parent <AREA></AREA>, only child should be activated.
 FAIL=When clicking child <FORM><INPUT type=image></INPUT></FORM> of parent <DETAILS><SUMMARY></SUMMARY></DETAILS>, only child should be activated.
@@ -305,17 +192,8 @@ FAIL=When clicking child <FORM><INPUT type=reset></INPUT></FORM> of parent <INPU
 FAIL=When clicking child <FORM><INPUT type=reset></INPUT></FORM> of parent <INPUT type=radio></INPUT>, only child should be activated.
 FAIL=When clicking child <FORM><INPUT type=reset></INPUT></FORM> of parent <LABEL><BUTTON type=button></BUTTON></LABEL>, only child should be activated.
 FAIL=When clicking child <FORM><INPUT type=reset></INPUT></FORM> of parent <LABEL><INPUT type=checkbox></INPUT><SPAN></SPAN></LABEL>, only child should be activated.
-FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <A></A>, only child should be activated.
-FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <AREA></AREA>, only child should be activated.
-FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <DETAILS><SUMMARY></SUMMARY></DETAILS>, only child should be activated.
-FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <FORM><BUTTON type=reset></BUTTON></FORM>, only child should be activated.
 FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <FORM><BUTTON type=submit></BUTTON></FORM>, only child should be activated.
 FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <FORM><INPUT type=image></INPUT></FORM>, only child should be activated.
-FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <FORM><INPUT type=reset></INPUT></FORM>, only child should be activated.
-FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <INPUT type=checkbox></INPUT>, only child should be activated.
-FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <INPUT type=radio></INPUT>, only child should be activated.
-FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <LABEL><BUTTON type=button></BUTTON></LABEL>, only child should be activated.
-FAIL=When clicking child <FORM><INPUT type=submit></INPUT></FORM> of parent <LABEL><INPUT type=checkbox></INPUT><SPAN></SPAN></LABEL>, only child should be activated.
 FAIL=When clicking child <INPUT type=checkbox></INPUT> of parent <A></A>, only child should be activated.
 FAIL=When clicking child <INPUT type=checkbox></INPUT> of parent <AREA></AREA>, only child should be activated.
 FAIL=When clicking child <INPUT type=checkbox></INPUT> of parent <DETAILS><SUMMARY></SUMMARY></DETAILS>, only child should be activated.
@@ -414,23 +292,14 @@ harness=TIMEOUT
 FAIL=Supports capture option
 [dom/events/EventTarget-add-listener-platform-object.html]
 harness=TIMEOUT
-[dom/events/EventTarget-add-remove-listener.any.html]
-FAIL=Removing an event listener without explicit capture arg should succeed
 [dom/events/EventTarget-add-remove-listener.any.worker.html]
 harness=TIMEOUT
-[dom/events/EventTarget-addEventListener.any.html]
-FAIL=Adding a null event listener should succeed
 [dom/events/EventTarget-addEventListener.any.worker.html]
 harness=TIMEOUT
-[dom/events/EventTarget-constructible.any.html]
-FAIL=A constructed EventTarget can be used as expected
-FAIL=A constructed EventTarget implements dispatch correctly
-FAIL=EventTarget can be subclassed
 [dom/events/EventTarget-constructible.any.worker.html]
 harness=TIMEOUT
 [dom/events/EventTarget-dispatchEvent.html]
 FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (BeforeUnloadEvent).
-FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (CompositionEvent).
 FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (DeviceMotionEvent).
 FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (DeviceOrientationEvent).
 FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (StorageEvent).
@@ -473,88 +342,86 @@ FAIL=offsetX is correctly adjusted
 [dom/events/no-focus-events-at-clicking-editable-content-in-link.html]
 FAIL=Click editable element in link
 FAIL=Click editable link
-[dom/events/non-cancelable-when-passive/generic-events-stay-cancelable.html]
-FAIL=A generic event with only passive listeners remains cancelable
 [dom/events/non-cancelable-when-passive/non-passive-mousewheel-event-listener-on-body.html]
-harness=TIMEOUT
+FAIL=non-passive mousewheel event listener on body
 [dom/events/non-cancelable-when-passive/non-passive-mousewheel-event-listener-on-div.html]
-harness=TIMEOUT
+FAIL=non-passive mousewheel event listener on div
 [dom/events/non-cancelable-when-passive/non-passive-mousewheel-event-listener-on-document.html]
-harness=TIMEOUT
+FAIL=non-passive mousewheel event listener on document
 [dom/events/non-cancelable-when-passive/non-passive-mousewheel-event-listener-on-root.html]
-harness=TIMEOUT
+FAIL=non-passive mousewheel event listener on root
 [dom/events/non-cancelable-when-passive/non-passive-mousewheel-event-listener-on-window.html]
-harness=TIMEOUT
+FAIL=non-passive mousewheel event listener on window
 [dom/events/non-cancelable-when-passive/non-passive-touchmove-event-listener-on-body.html]
-harness=TIMEOUT
+FAIL=non-passive touchmove event listener on body
 [dom/events/non-cancelable-when-passive/non-passive-touchmove-event-listener-on-div.html]
-harness=TIMEOUT
+FAIL=non-passive touchmove event listener on div
 [dom/events/non-cancelable-when-passive/non-passive-touchmove-event-listener-on-document.html]
-harness=TIMEOUT
+FAIL=non-passive touchmove event listener on document
 [dom/events/non-cancelable-when-passive/non-passive-touchmove-event-listener-on-root.html]
-harness=TIMEOUT
+FAIL=non-passive touchmove event listener on root
 [dom/events/non-cancelable-when-passive/non-passive-touchmove-event-listener-on-window.html]
-harness=TIMEOUT
+FAIL=non-passive-touchmove-event-listener-on-window
 [dom/events/non-cancelable-when-passive/non-passive-touchstart-event-listener-on-body.html]
-harness=TIMEOUT
+FAIL=non-passive touchstart event listener on body
 [dom/events/non-cancelable-when-passive/non-passive-touchstart-event-listener-on-div.html]
-harness=TIMEOUT
+FAIL=non-passive touchstart event listener on div
 [dom/events/non-cancelable-when-passive/non-passive-touchstart-event-listener-on-document.html]
-harness=TIMEOUT
+FAIL=non-passive touchstart event listener on document
 [dom/events/non-cancelable-when-passive/non-passive-touchstart-event-listener-on-root.html]
-harness=TIMEOUT
+FAIL=non-passive touchstart event listener on root
 [dom/events/non-cancelable-when-passive/non-passive-touchstart-event-listener-on-window.html]
-harness=TIMEOUT
+FAIL=non-passive touchstart event listener on window
 [dom/events/non-cancelable-when-passive/non-passive-wheel-event-listener-on-body.html]
-harness=TIMEOUT
+FAIL=non-passive wheel event listener on body
 [dom/events/non-cancelable-when-passive/non-passive-wheel-event-listener-on-div.html]
-harness=TIMEOUT
+FAIL=non-passive wheel event listener on div
 [dom/events/non-cancelable-when-passive/non-passive-wheel-event-listener-on-document.html]
-harness=TIMEOUT
+FAIL=non-passive wheel event listener on document
 [dom/events/non-cancelable-when-passive/non-passive-wheel-event-listener-on-root.html]
-harness=TIMEOUT
+FAIL=non-passive wheel event listener on root
 [dom/events/non-cancelable-when-passive/non-passive-wheel-event-listener-on-window.html]
-harness=TIMEOUT
+FAIL=non-passive wheel event listener on window
 [dom/events/non-cancelable-when-passive/passive-mousewheel-event-listener-on-body.html]
-harness=TIMEOUT
+FAIL=passive mousewheel event listener on body
 [dom/events/non-cancelable-when-passive/passive-mousewheel-event-listener-on-div.html]
-harness=TIMEOUT
+FAIL=passive mousewheel event listener on div
 [dom/events/non-cancelable-when-passive/passive-mousewheel-event-listener-on-document.html]
-harness=TIMEOUT
+FAIL=passive mousewheel event listener on document
 [dom/events/non-cancelable-when-passive/passive-mousewheel-event-listener-on-root.html]
-harness=TIMEOUT
+FAIL=passive mousewheel event listener on root
 [dom/events/non-cancelable-when-passive/passive-mousewheel-event-listener-on-window.html]
-harness=TIMEOUT
+FAIL=passive mousewheel event listener on window
 [dom/events/non-cancelable-when-passive/passive-touchmove-event-listener-on-body.html]
-harness=TIMEOUT
+FAIL=passive touchmove event listener on body
 [dom/events/non-cancelable-when-passive/passive-touchmove-event-listener-on-div.html]
-harness=TIMEOUT
+FAIL=passive touchmove event listener on div
 [dom/events/non-cancelable-when-passive/passive-touchmove-event-listener-on-document.html]
-harness=TIMEOUT
+FAIL=passive touchmove event listener on document
 [dom/events/non-cancelable-when-passive/passive-touchmove-event-listener-on-root.html]
-harness=TIMEOUT
+FAIL=passive touchmove event listener on root
 [dom/events/non-cancelable-when-passive/passive-touchmove-event-listener-on-window.html]
-harness=TIMEOUT
+FAIL=passive touchmove event listener on window
 [dom/events/non-cancelable-when-passive/passive-touchstart-event-listener-on-body.html]
-harness=TIMEOUT
+FAIL=passive touchstart event listener on body
 [dom/events/non-cancelable-when-passive/passive-touchstart-event-listener-on-div.html]
-harness=TIMEOUT
+FAIL=passive touchstart event listener on div
 [dom/events/non-cancelable-when-passive/passive-touchstart-event-listener-on-document.html]
-harness=TIMEOUT
+FAIL=passive touchstart event listener on document
 [dom/events/non-cancelable-when-passive/passive-touchstart-event-listener-on-root.html]
-harness=TIMEOUT
+FAIL=passive touchstart event listener on root
 [dom/events/non-cancelable-when-passive/passive-touchstart-event-listener-on-window.html]
-harness=TIMEOUT
+FAIL=passive touchstart event listener on window
 [dom/events/non-cancelable-when-passive/passive-wheel-event-listener-on-body.html]
-harness=TIMEOUT
+FAIL=passive wheel event listener on body
 [dom/events/non-cancelable-when-passive/passive-wheel-event-listener-on-div.html]
-harness=TIMEOUT
+FAIL=passive wheel event listener on div
 [dom/events/non-cancelable-when-passive/passive-wheel-event-listener-on-document.html]
-harness=TIMEOUT
+FAIL=passive wheel event listener on document
 [dom/events/non-cancelable-when-passive/passive-wheel-event-listener-on-root.html]
-harness=TIMEOUT
+FAIL=passive wheel event listener on root
 [dom/events/non-cancelable-when-passive/passive-wheel-event-listener-on-window.html]
-harness=TIMEOUT
+FAIL=passive wheel event listener on window
 [dom/events/non-cancelable-when-passive/synthetic-events-cancelable.html]
 FAIL=Synthetic mousewheel event with interface Event is not cancelable
 FAIL=Synthetic mousewheel event with interface WheelEvent is not cancelable
@@ -579,9 +446,6 @@ FAIL=Reset targets before activation behavior
 FAIL=Reset targets on early return
 FAIL=Retarget a shadow-tree relatedTarget
 FAIL=Retarget a shadow-tree relatedTarget, part 2
-[dom/events/remove-all-listeners.html]
-FAIL=Nested usage of once listeners should work.
-FAIL=Removing all listeners and then adding a new one should work.
 [dom/events/scrolling/iframe-chains.html]
 FAIL=Wheel scroll in iframe chains to containing element.
 [dom/events/scrolling/input-text-scroll-event-when-using-arrow-keys.html]
@@ -666,8 +530,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [dom/events/webkit-transition-end-event.html]
 harness=TIMEOUT
-[dom/events/window-composed-path.html]
-FAIL=window target has an empty path after dispatch
 [dom/events/window-event-restored-after-throwing-onerror.html]
 FAIL=window.event is restored after a throwing window.onerror handler
 [dom/historical.html]
@@ -746,7 +608,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [dom/nodes/Document-constructor.html]
 FAIL=new Document(): URL parsing
-FAIL=new Document(): metadata
 [dom/nodes/Document-contentType/contentType/contenttype_bmp.html]
 harness=TIMEOUT
 [dom/nodes/Document-contentType/contentType/contenttype_css.html]
@@ -775,43 +636,6 @@ harness=TIMEOUT
 FAIL=document.implementation.createDocument: document.contentType === 'application/xhtml+xml'
 [dom/nodes/Document-contentType/contentType/xhr_responseType_document.html]
 FAIL=XHR - retrieve HTML document: document.contentType === 'application/xml'
-[dom/nodes/Document-createAttribute.html]
-FAIL=HTML document.createAttribute("") should throw
-FAIL=HTML document.createAttribute("'")
-FAIL=HTML document.createAttribute("0")
-FAIL=HTML document.createAttribute("0:a")
-FAIL=HTML document.createAttribute(":")
-FAIL=HTML document.createAttribute(":a")
-FAIL=HTML document.createAttribute("TITLE")
-FAIL=HTML document.createAttribute("X")
-FAIL=HTML document.createAttribute("\"")
-FAIL=HTML document.createAttribute("\\")
-FAIL=HTML document.createAttribute("a:0")
-FAIL=HTML document.createAttribute("invalid^Name")
-FAIL=HTML document.createAttribute("title")
-FAIL=HTML document.createAttribute("x")
-FAIL=HTML document.createAttribute("x:y:x")
-FAIL=HTML document.createAttribute("~")
-FAIL=HTML document.createAttribute(null)
-FAIL=HTML document.createAttribute(undefined)
-FAIL=XML document.createAttribute("") should throw
-FAIL=XML document.createAttribute("'")
-FAIL=XML document.createAttribute("0")
-FAIL=XML document.createAttribute("0:a")
-FAIL=XML document.createAttribute(":")
-FAIL=XML document.createAttribute(":a")
-FAIL=XML document.createAttribute("TITLE")
-FAIL=XML document.createAttribute("X")
-FAIL=XML document.createAttribute("\"")
-FAIL=XML document.createAttribute("\\")
-FAIL=XML document.createAttribute("a:0")
-FAIL=XML document.createAttribute("invalid^Name")
-FAIL=XML document.createAttribute("title")
-FAIL=XML document.createAttribute("x")
-FAIL=XML document.createAttribute("x:y:x")
-FAIL=XML document.createAttribute("~")
-FAIL=XML document.createAttribute(null)
-FAIL=XML document.createAttribute(undefined)
 [dom/nodes/Document-createCDATASection-xhtml.xhtml]
 FAIL=Creating a CDATA section containing the string "]]>" must throw
 FAIL=createCDATASection("-b")
@@ -820,13 +644,6 @@ FAIL=createCDATASection("a -- b")
 FAIL=createCDATASection("a-")
 FAIL=createCDATASection(null)
 FAIL=createCDATASection(undefined)
-[dom/nodes/Document-createComment.html]
-FAIL=createComment("-b")
-FAIL=createComment("\v")
-FAIL=createComment("a -- b")
-FAIL=createComment("a-")
-FAIL=createComment(null)
-FAIL=createComment(undefined)
 [dom/nodes/Document-createElement-namespace.html]
 harness=TIMEOUT
 [dom/nodes/Document-createElement.html]
@@ -930,11 +747,7 @@ FAIL=createElement(undefined) in XHTML document
 FAIL=createElement(undefined) in XML document
 [dom/nodes/Document-createElementNS.html]
 FAIL=Lower-case HTML element with a prefix
-FAIL=Lower-case non-HTML element with a prefix
-FAIL=Lower-case non-HTML element without a prefix
 FAIL=Upper-case HTML element without a prefix
-FAIL=Upper-case non-HTML element with a prefix
-FAIL=Upper-case non-HTML element without a prefix
 FAIL=createElementNS test in HTML document: "http://example.com/","0:a",null
 FAIL=createElementNS test in XHTML document: "","","INVALID_CHARACTER_ERR"
 FAIL=createElementNS test in XHTML document: "",":foo","INVALID_CHARACTER_ERR"
@@ -1326,14 +1139,16 @@ FAIL=createElementNS test in XML document: undefined,"xmlns","NAMESPACE_ERR"
 FAIL=createElementNS test in XML document: undefined,"xmlns:foo","NAMESPACE_ERR"
 FAIL=createElementNS test in XML document: undefined,null,null
 FAIL=createElementNS test in XML document: undefined,undefined,null
-FAIL=empty string namespace
-FAIL=null namespace
-FAIL=undefined namespace
+# ADR 0012, and the table's own rule (EventBindings.cpp `LegacyEventInterface`):
+# a legacy name is in the table only when this browser has the interface behind
+# it. `DeviceMotionEvent` and `DeviceOrientationEvent` are refused twice over --
+# there is no sensor and ADR 0029 says a table entry would be a fingerprinting
+# surface. `BeforeUnloadEvent`, `TextEvent` and `StorageEvent` name events this
+# browser never fires, and a name that answers is what sends a page down the
+# native path. Deliberate; do not "fix" by adding the aliases.
 [dom/nodes/Document-createEvent.https.html]
 FAIL=BEFOREUNLOADEVENT should be an alias for BeforeUnloadEvent.
 FAIL=BeforeUnloadEvent should be an alias for BeforeUnloadEvent.
-FAIL=COMPOSITIONEVENT should be an alias for CompositionEvent.
-FAIL=CompositionEvent should be an alias for CompositionEvent.
 FAIL=DEVICEMOTIONEVENT should be an alias for DeviceMotionEvent.
 FAIL=DEVICEORIENTATIONEVENT should be an alias for DeviceOrientationEvent.
 FAIL=DeviceMotionEvent should be an alias for DeviceMotionEvent.
@@ -1345,11 +1160,8 @@ PRECONDITION_FAILED=TOUCHEVENT should be an alias for TouchEvent.
 FAIL=TextEvent should be an alias for TextEvent.
 PRECONDITION_FAILED=TouchEvent should be an alias for TouchEvent.
 FAIL=beforeunloadevent should be an alias for BeforeUnloadEvent.
-FAIL=compositionevent should be an alias for CompositionEvent.
 FAIL=createEvent('BEFOREUNLOADEVENT') should be initialized correctly.
 FAIL=createEvent('BeforeUnloadEvent') should be initialized correctly.
-FAIL=createEvent('COMPOSITIONEVENT') should be initialized correctly.
-FAIL=createEvent('CompositionEvent') should be initialized correctly.
 FAIL=createEvent('DEVICEMOTIONEVENT') should be initialized correctly.
 FAIL=createEvent('DEVICEORIENTATIONEVENT') should be initialized correctly.
 FAIL=createEvent('DeviceMotionEvent') should be initialized correctly.
@@ -1361,7 +1173,6 @@ PRECONDITION_FAILED=createEvent('TOUCHEVENT') should be initialized correctly.
 FAIL=createEvent('TextEvent') should be initialized correctly.
 PRECONDITION_FAILED=createEvent('TouchEvent') should be initialized correctly.
 FAIL=createEvent('beforeunloadevent') should be initialized correctly.
-FAIL=createEvent('compositionevent') should be initialized correctly.
 FAIL=createEvent('devicemotionevent') should be initialized correctly.
 FAIL=createEvent('deviceorientationevent') should be initialized correctly.
 FAIL=createEvent('storageevent') should be initialized correctly.
@@ -1380,9 +1191,6 @@ FAIL=Should throw an INVALID_CHARACTER_ERR for target "U+d7A" and data "x".
 FAIL=Should throw an INVALID_CHARACTER_ERR for target "AU+d7" and data "x".
 FAIL=Should throw an INVALID_CHARACTER_ERR for target "U+b7A" and data "x".
 FAIL=Should throw an INVALID_CHARACTER_ERR for target "U+d7A" and data "x".
-[dom/nodes/Document-createTreeWalker.html]
-FAIL=Optional arguments to createTreeWalker should be optional (1 passed).
-FAIL=Optional arguments to createTreeWalker should be optional (2 passed).
 [dom/nodes/Document-getElementById.html]
 FAIL=Calling document.getElementById with an empty string argument.
 FAIL=changing attribute's value via `Attr` gotten from `Element.attribute`.
@@ -1581,52 +1389,11 @@ FAIL=ProcessingInstruction.nodeValue
 FAIL=Text.nodeValue
 [dom/nodes/Node-normalize.html]
 FAIL=Non-text nodes with empty textContent values.
-[dom/nodes/Node-parentElement.html]
-FAIL=When the parent is a document, parentElement should be null (comment)
-FAIL=When the parent is a document, parentElement should be null (doctype)
-FAIL=parentElement should return null for children of DocumentFragments (text)
-FAIL=parentElement should work correctly in disconnected subtrees (text)
-FAIL=parentElement should work correctly with DocumentFragments (text)
 [dom/nodes/Node-parentNode.html]
 harness=TIMEOUT
 [dom/nodes/Node-properties.html]
-FAIL=comment.parentElement
-FAIL=comment.textContent
-FAIL=detachedComment.parentElement
-FAIL=detachedComment.textContent
-FAIL=detachedForeignComment.parentElement
-FAIL=detachedForeignComment.textContent
-FAIL=detachedForeignTextNode.parentElement
-FAIL=detachedForeignTextNode.wholeText
-FAIL=detachedProcessingInstruction.parentElement
-FAIL=detachedProcessingInstruction.textContent
-FAIL=detachedTextNode.parentElement
-FAIL=detachedTextNode.wholeText
-FAIL=detachedXmlComment.parentElement
-FAIL=detachedXmlComment.textContent
-FAIL=detachedXmlTextNode.parentElement
-FAIL=detachedXmlTextNode.wholeText
-FAIL=doctype.parentElement
-FAIL=doctype.textContent
-FAIL=document.textContent
-FAIL=foreignComment.parentElement
-FAIL=foreignComment.textContent
 FAIL=foreignDoc.URL
 FAIL=foreignDoc.documentURI
-FAIL=foreignDoc.textContent
-FAIL=foreignDoctype.parentElement
-FAIL=foreignDoctype.textContent
-FAIL=foreignTextNode.parentElement
-FAIL=foreignTextNode.wholeText
-FAIL=processingInstruction.parentElement
-FAIL=processingInstruction.textContent
-FAIL=xmlComment.parentElement
-FAIL=xmlComment.textContent
-FAIL=xmlDoc.textContent
-FAIL=xmlDoctype.parentElement
-FAIL=xmlDoctype.textContent
-FAIL=xmlTextNode.parentElement
-FAIL=xmlTextNode.wholeText
 [dom/nodes/Node-removeChild.html]
 FAIL=Calling removeChild on a comment from a frame document with no children should throw NOT_FOUND_ERR.
 FAIL=Calling removeChild on a element from a frame document with no children should throw NOT_FOUND_ERR.
@@ -1654,20 +1421,9 @@ FAIL=Element with empty text node as child set to null
 FAIL=Element with empty text node as child set to undefined
 FAIL=Element without children set to null
 FAIL=Element without children set to undefined
-FAIL=For DocumentType created by parser, setting textContent should do nothing
-FAIL=For DocumentType created by parser, textContent should be null
-FAIL=For DocumentType created by script, setting textContent should do nothing
-FAIL=For DocumentType created by script, textContent should be null
 FAIL=For Documents created by createDocument, setting textContent should do nothing
-FAIL=For Documents created by createDocument, textContent should be null
 FAIL=For Documents created by createHTMLDocument, setting textContent should do nothing
-FAIL=For Documents created by createHTMLDocument, textContent should be null
 FAIL=For Documents created by parser, setting textContent should do nothing
-FAIL=For Documents created by parser, textContent should be null
-FAIL=For a Comment with data, textContent should be that data
-FAIL=For a Comment, textContent should set the data
-FAIL=For a ProcessingInstruction with data, textContent should be that data
-FAIL=For a ProcessingInstruction, textContent should set the data
 [dom/nodes/NodeList-Iterable.html]
 FAIL=live NodeLists are for-of iterable and update appropriately
 [dom/nodes/NodeList-live-mutations.window.html]
@@ -1711,15 +1467,9 @@ FAIL=<?xml?> is not a ProcessingInstruction
 FAIL=ProcessingInstruction literals
 [dom/nodes/Text-constructor.html]
 harness=TIMEOUT
-[dom/nodes/Text-wholeText.html]
-FAIL=wholeText returns text of all Text nodes logically adjacent to the node, in document order.
 [dom/nodes/adoption.window.html]
-FAIL=adoptNode() and DocumentFragment
 FAIL=adoptNode() and DocumentFragment with host
-FAIL=adoptNode() and ShadowRoot
-FAIL=appendChild() and DocumentFragment
 FAIL=appendChild() and DocumentFragment with host
-FAIL=appendChild() and ShadowRoot
 [dom/nodes/append-on-Document.html]
 FAIL=Document.append() with only one element as an argument, on a Document having no child.
 FAIL=Document.append() with only one element as an argument, on a Document having one child.
@@ -1859,38 +1609,9 @@ FAIL=Removing steps (replaceChildren): script does not run synchronously during 
 [dom/nodes/insertion-removing-steps/insertion-removing-steps-script.window.html]
 FAIL=Script execution happens after all batched DOM insertions complete through post-connection steps
 [dom/nodes/moveBefore/Node-moveBefore.html]
-FAIL=If node is a DocumentFragment with an element and parent is a document with another element, then throw a HierarchyRequestError DOMException.
-FAIL=If node is a DocumentFragment with multiple elements and parent is a document, then throw a HierarchyRequestError DOMException.
-FAIL=If node is a Text node and parent is a document, then throw a HierarchyRequestError DOMException.
-FAIL=If node is a doctype and parent is a document with an element, then throw a HierarchyRequestError DOMException.
-FAIL=If node is a doctype and parent is a document with another doctype, then throw a HierarchyRequestError DOMException.
-FAIL=If node is a doctype and parent is not a document, then throw a HierarchyRequestError DOMException.
-FAIL=If node is a host-including inclusive ancestor of parent, then throw a HierarchyRequestError DOMException.
-FAIL=If node is an Element and parent is a document with another element, then throw a HierarchyRequestError DOMException.
-FAIL=If node is not a DocumentFragment, DocumentType, Element, Text, ProcessingInstruction, or Comment node, then throw a HierarchyRequestError DOMException.
-FAIL=Invalid node hierarchy with null old parent does not crash
-FAIL=Move disconnected iframe does not crash
-FAIL=Moving a node before itself should not move the node
-FAIL=Moving a node from a disconnected container to a disconnected new parent in the same tree succeeds
-FAIL=Moving a node from a disconnected container to a disconnected new parent in the same tree succeeds,also across shadow-roots
-FAIL=Moving a node from a disconnected container to a disconnected new parent without a shared ancestor throws a HIERARCHY_REQUEST_ERR
-FAIL=Moving a node from connected->disconnected throws a HIERARCHY_REQUEST_ERR
-FAIL=Moving a node from disconnected->connected throws a HIERARCHY_REQUEST_ERR
-FAIL=No custom element callbacks are run during disconnected moveBefore()
-FAIL=moveBefore on a paragraph's Text node child
-FAIL=moveBefore with an Element or CharacterData succeeds
-FAIL=moveBefore with reference child whose parent is NOT the destination parent (context node) throws a NotFoundError.
 FAIL=moveBefore() CharacterData into a Document
 FAIL=moveBefore() into a Document throws a HierarchyRequestError
-FAIL=moveBefore() method does not exist on non-ParentNode Nodes
 FAIL=moveBefore() on a cross-document target node throws a HierarchyRequestError
-FAIL=moveBefore() on disconnected parent throws a HierarchyRequestError
-FAIL=moveBefore() returns undefined
-FAIL=moveBefore() with a non-{Element, CharacterData} throws a HierarchyRequestError
-FAIL=moveBefore() with disconnected target node throws a HierarchyRequestError
-FAIL=moveBefore() with node being an inclusive ancestor of parent throws a HierarchyRequestError
-[dom/nodes/moveBefore/child-style-preserve.html]
-FAIL=child-style-preserve
 [dom/nodes/moveBefore/continue-css-animation-left.html]
 harness=TIMEOUT
 [dom/nodes/moveBefore/continue-css-animation-transform.html]
@@ -1912,7 +1633,7 @@ harness=TIMEOUT
 [dom/nodes/moveBefore/css-transition-to-disconnected-document.html]
 harness=TIMEOUT
 [dom/nodes/moveBefore/css-transition-trigger.html]
-FAIL=Node.moveBefore should trigger CSS transition state (left) if needed
+harness=TIMEOUT
 [dom/nodes/moveBefore/custom-element-move-reactions.html]
 FAIL=Reactions to atomic move are called in order of element, not in order of operation
 FAIL=When connectedCallback is not defined, no crash
@@ -1928,7 +1649,6 @@ FAIL=Neither 'blur' nor 'focusout' is fired on a focused <input type=date> child
 [dom/nodes/moveBefore/fire-focusin-focusout.html]
 FAIL=Don't fire focusin and then correct when moving to a tree that is made inert using style
 FAIL=Don't fire focusin and then correct when moving to an inert subtree
-FAIL=Don't fire focusin/out when moving to the same parent
 FAIL=Don't fire focusin/out when reparenting an element that has focus within
 FAIL=Don't fire focusin/out when reparenting focused element directly
 [dom/nodes/moveBefore/focus-preserve.html]
@@ -1949,14 +1669,14 @@ FAIL=Element loses hover when moved to different position
 FAIL=Hover works immediately after moved
 [dom/nodes/moveBefore/iframe-document-preserve.window.html]
 harness=TIMEOUT
-[dom/nodes/moveBefore/listed-form-element-reset.html]
-FAIL=Listed form element form owner is reset when a new form is moved closer before the listed element
 [dom/nodes/moveBefore/live-range-updates.html]
 FAIL=moveBefore still causes range endContainer to snap up to parent, when endContainer ancestor is moved
 FAIL=moveBefore still causes range startContainer to snap up to parent, when startContainer ancestor is moved
 FAIL=moveBefore still results in range startContainer snapping up to parent when startContainer is moved
 [dom/nodes/moveBefore/modal-dialog.html]
 FAIL=when reparenting a modal dialog, the dialog should stay modal
+[dom/nodes/moveBefore/moveBefore-as-flex-item.html]
+harness=FAIL
 [dom/nodes/moveBefore/moveBefore-dir.html]
 FAIL=moveBefore() correctly updates the computed dir for moved nodes
 [dom/nodes/moveBefore/moveBefore-from-light-to-shadow.html]
@@ -1964,7 +1684,6 @@ FAIL=moveBefore-from-light-to-shadow
 [dom/nodes/moveBefore/moveBefore-id-map.html]
 FAIL=moveBefore() correctly updates id map when moving between shadow roots
 FAIL=moveBefore() correctly updates id map when moving into shadow root
-FAIL=moveBefore() correctly updates id map when swapping elements with duplicate ids
 FAIL=moveBefore() correctly updates window map when moving id-mapped element into shadow root
 [dom/nodes/moveBefore/moveBefore-lang.html]
 FAIL=moveBefore() correctly updates the computed lang for moved nodes
@@ -1972,8 +1691,6 @@ FAIL=moveBefore() correctly updates the computed lang for moved nodes
 FAIL=moveBefore() correctly updates name map ordering in document
 FAIL=moveBefore() correctly updates name map when moving into shadow root
 FAIL=moveBefore() correctly updates window map
-[dom/nodes/moveBefore/moveBefore-nodeiterator.html]
-FAIL=moveBefore() runs NodeIterator pre-remove steps
 [dom/nodes/moveBefore/moveBefore-option-recalc-style.html]
 FAIL=moveBefore() of an option element between two selects
 [dom/nodes/moveBefore/moveBefore-selector-matching.html]
@@ -1986,7 +1703,6 @@ FAIL=moveBefore() is allowed in ShadowRoots (i.e., connected DocumentFragments)
 FAIL=moveBefore() between different size containers invalidates target
 [dom/nodes/moveBefore/mutation-observer.html]
 FAIL=[Connected move] MutationObserver removal + insertion is tracked by moveBefore()
-FAIL=[Disconnected move] MutationObserver removal + insertion is tracked by moveBefore()
 [dom/nodes/moveBefore/nonce.html]
 FAIL=Element nonce content attribute is not cleared after move
 [dom/nodes/moveBefore/object-crash-regression.html]
@@ -2001,9 +1717,6 @@ FAIL=A moved script should keep its render-blocking state
 harness=TIMEOUT
 [dom/nodes/moveBefore/role-updates-after-move.html]
 FAIL=header elements role should become sectionheader when moved into a section
-[dom/nodes/moveBefore/script-move-before.html]
-FAIL=Synchronous script execution in HTMLScriptElement during moveBefore should be blocked
-FAIL=Synchronous script execution in SVGScriptElement during moveBefore should be blocked
 [dom/nodes/moveBefore/select-option-optgroup.html]
 FAIL=Moving options between select elements.
 FAIL=Option selectedness is updated on option and optgroup DOM moves
@@ -2019,13 +1732,10 @@ FAIL=Moving a slot runs the assign slottables algorithm
 FAIL=Moving a slottable into and out out of a custom element fires 'slotchange' event
 FAIL=Moving default content into a slot fires 'slotchange' event
 FAIL=Moving default content out of a slot fires 'slotchange' event
-[dom/nodes/moveBefore/style-applies.html]
-FAIL=Moving a style inside the document should not affect whether it's applied
 [dom/nodes/moveBefore/throws-exception.html]
 FAIL=moveBefore() on a cross-document target node
 [dom/nodes/name-validation.html]
 FAIL=Valid and invalid characters in createElementNS and createDocument.
-FAIL=Valid and invalid characters in setAttribute, toggleAttribute, and createAttribute.
 FAIL=Valid and invalid characters in setAttributeNS and createAttributeNS.
 [dom/nodes/node-creation-realm.html]
 FAIL=DOMImplementation.createDocument() creates the document in the target realm
@@ -2067,6 +1777,12 @@ FAIL=Document.prepend() with only one element as an argument, on a Document havi
 FAIL=Document.prepend() with text as an argument, on a Document having no child.
 FAIL=Document.prepend() with two elements as the argument, on a Document having no child.
 FAIL=Document.prepend() without any argument, on a Document having no child.
+# Attributes on a *processing instruction* are WICG/declarative-partial-updates,
+# not the DOM: the file's own `link rel=help` points at the proposal. No engine
+# ships it and the DOM gives a ProcessingInstruction no `getAttribute` at all.
+# ADR 0012's rule, the same one OpaqueRange gets: an API a page could feature-
+# detect is worse present-and-approximate than absent. 126 subtests, and they
+# are the largest single block of "failures" in dom/nodes that is not a bug.
 [dom/nodes/processing-instruction-attributes.html]
 FAIL=Distinct attribute name (source: html-dom): ABC and abc
 FAIL=Distinct attribute name (source: html-dom): abC and abc
@@ -2206,13 +1922,14 @@ FAIL=Mixed HTML/SVG/MathML tree with various mixed-case attributes
 FAIL=Check that removing a node and then adopting its parent into a different window/document doesn't crash.
 [dom/nodes/remove-next-sibling-during-replace-with.html]
 FAIL=remove-next-sibling-during-replace-with
-[dom/nodes/remove-unscopable.html]
-FAIL=after() should be unscopable
-FAIL=append() should be unscopable
-FAIL=before() should be unscopable
-FAIL=prepend() should be unscopable
-FAIL=remove() should be unscopable
-FAIL=replaceWith() should be unscopable
+# **`Observable` is refused, and every failure under dom/observable/ below is
+# that one decision.** ADR 0012: WPT keeps it under `tentative/` because it is
+# a proposal -- not standardised, and no engine ships it. `EventTarget.when()`
+# and the whole operator set are exactly the shape that ADR warns about: a page
+# that feature-detects `Observable` and finds a partial one has no fallback
+# path left, where a page that finds nothing loads a library that works.
+# Implementing it is a change to ADR 0012, which is a separate commit and a
+# separate argument. 251 subtests, and they are not bugs.
 [dom/observable/tentative/crashtests/observable-gc.any.html]
 FAIL=every(): does not crash on observable being GCed
 FAIL=find(): does not crash on observable being GCed
@@ -2635,23 +2352,7 @@ harness=TIMEOUT
 [dom/ranges/Range-surroundContents.html]
 harness=TIMEOUT
 [dom/ranges/StaticRange-constructor.html]
-FAIL=Construct collapsed static range
-FAIL=Construct inverted static range
-FAIL=Construct static range with CDATASection container
-FAIL=Construct static range with Comment container
-FAIL=Construct static range with Document container
-FAIL=Construct static range with DocumentFragment container
-FAIL=Construct static range with Element container
-FAIL=Construct static range with Element startContainer and Text endContainer
-FAIL=Construct static range with ProcessingInstruction container
-FAIL=Construct static range with Text container
-FAIL=Construct static range with Text startContainer and Element endContainer
-FAIL=Construct static range with endpoints in disconnected documents
-FAIL=Construct static range with endpoints in disconnected trees
-FAIL=Construct static range with offset greater than length
-FAIL=Construct static range with standalone Node container
 FAIL=Throw on DocumentType or Attr container
-FAIL=Throw on missing or invalid arguments
 # `OpaqueRange` is a *tentative* specification -- not standardised, no other
 # engine ships it, and WPT keeps it under tentative/ for exactly that reason.
 # Recorded rather than implemented; ADR 0012 forbids guessing at an API a page
@@ -2936,24 +2637,11 @@ FAIL=Event order: OpaqueRange updates between beforeinput and input (textarea).
 [dom/ranges/tentative/OpaqueRange-validation.html]
 FAIL=createValueRange handles all range types correctly: forward, backwards, and out-of-bounds.
 FAIL=createValueRange throws IndexSizeError for out-of-bounds offsets.
-[dom/traversal/NodeFilter-constants.html]
-FAIL=Constants for whatToShow on NodeFilter interface object.
 [dom/traversal/NodeIterator-removal-during-filtering.html]
 FAIL=Removing an ancestor of the in-flight position during filtering, pointer before it, with no following node within root
 FAIL=Removing the accepted node during its own filtering retargets the reference and returns the filtered node
-[dom/traversal/NodeIterator-removal.html]
-FAIL=Test removing node detachedPara1
-FAIL=Test removing node detachedPara2
-FAIL=Test removing node foreignPara1
-FAIL=Test removing node paras[0]
-FAIL=Test removing node paras[1]
-FAIL=Test removing node testDiv
-FAIL=Test removing node xmlElement
 [dom/traversal/NodeIterator.html]
 FAIL=Recursive filters need to throw
-FAIL=createNodeIterator() parameter defaults
-FAIL=createNodeIterator() with null as arguments
-FAIL=createNodeIterator() with undefined as arguments
 [dom/traversal/TreeWalker-acceptNode-filter-cross-realm-null-browsing-context.html]
 harness=TIMEOUT
 [dom/traversal/TreeWalker-acceptNode-filter-cross-realm.html]
@@ -2962,18 +2650,8 @@ FAIL=NodeFilter is cross-realm non-callable revoked Proxy
 FAIL=NodeFilter is cross-realm plain object with non-callable 'acceptNode' property
 FAIL=NodeFilter is cross-realm plain object with revoked Proxy as 'acceptNode' property
 FAIL=NodeFilter is cross-realm plain object without 'acceptNode' property
-[dom/traversal/TreeWalker-acceptNode-filter.html]
-FAIL=Testing with object lacking acceptNode property
-FAIL=Testing with object with non-function acceptNode property
-FAIL=performs `Get` on every traverse
-FAIL=rethrows errors when getting `acceptNode`
-[dom/traversal/TreeWalker-basic.html]
-FAIL=Construct a TreeWalker by document.createTreeWalker(root).
-FAIL=Construct a TreeWalker by document.createTreeWalker(root, null, null).
-FAIL=Construct a TreeWalker by document.createTreeWalker(root, undefined, undefined).
 [dom/traversal/TreeWalker-currentNode.html]
 FAIL=Test how we handle the case when the traversed to node is within the root, but the currentElement is not.
-FAIL=Test that setting currentNode to non-Node values throws.
 FAIL=Test that we handle setting the currentNode to arbitrary nodes not under the root element.
 [dom/traversal/TreeWalker-nextNode-detached-currentNode.window.html]
 FAIL=nextNode() returns null after exhausting a detached subtree

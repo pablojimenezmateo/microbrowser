@@ -131,6 +131,37 @@ void RegisterCspEnforcementTests(std::vector<TestCase>& tests) {
     Expect(!session.Requested("/no.png"), "and nothing else does");
   });
 
+  AddTest(tests, "CspEnforcement/AnInlineEventHandlerNeedsUnsafeInline", [] {
+    // An `on*` **content attribute** is inline script, and it is the one kind
+    // only `'unsafe-inline'` can permit: an attribute carries no nonce and CSP
+    // never hashes one. The driver is an *external* same-origin script in both
+    // halves, so what differs between them is the handler and nothing else --
+    // an inline `<script>` would be refused by the second policy too and the
+    // test would pass for the wrong reason.
+    const std::string_view markup =
+        "<html><body><div id=\"d\" onclick=\"console.log('handler ran')\"></div>"
+        "<script src=\"/drive.js\"></script></body></html>";
+    const std::string_view driver =
+        "document.getElementById('d').dispatchEvent(new Event('click'))";
+    {
+      Session session;
+      session.factory.script.push_back(ScriptedTransport::Exchange{
+          "", 443, true, OkResponse("text/javascript", std::string(driver))});
+      session.Load("Content-Security-Policy: script-src 'self' 'unsafe-inline'\r\n", markup);
+      ExpectEqString(session.Console(), "handler ran",
+                     "'unsafe-inline' is what compiles an onclick attribute");
+    }
+    {
+      Session session;
+      session.factory.script.push_back(ScriptedTransport::Exchange{
+          "", 443, true, OkResponse("text/javascript", std::string(driver))});
+      session.Load("Content-Security-Policy: script-src 'self'\r\n", markup);
+      ExpectEqString(session.Console(), "",
+                     "and without it the attribute is never compiled -- the event still "
+                     "dispatches, and reaches nothing");
+    }
+  });
+
   AddTest(tests, "CspEnforcement/ARefusedScriptIsNeverRequested", [] {
     Session session;
     session.Load("Content-Security-Policy: script-src 'self'\r\n",

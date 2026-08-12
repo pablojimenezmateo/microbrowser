@@ -292,6 +292,138 @@ Known causes already visible from 150 tests:
 | C8 | `shadow-dom/` + `custom-elements/` — reactions, `adoptedCallback`, `:host`/`::slotted`, slot assignment | C4, C6 | 75% |
 | C9 | `domparsing/` — `DOMParser`, `XMLSerializer`, `insertAdjacent*` | C1 | 80% |
 | C10 | `html/dom/` — reflection: every reflected IDL attribute, `Element` interface mixins | C3 | 70% |
+| C11 | event handler **content** attributes: `<div onclick="…">` and `setAttribute("onclick", …)` compile a handler | C6 | 200 subtests |
+
+**C11 landed on 2026-08-12, and its security half is the part to read before
+touching it.** Nothing in this browser used to compile an `on*`
+*attribute*: `RunListenersOn` read the wrapper's `on<type>` **property**, so
+`el.onclick = fn` worked and markup did not. That was 47 subtests in
+`dom/events/Body-FrameSet-Event-Handlers.html`, the tail of
+`dom/nodes/remove-unscopable.html`, and a share of the 121 in
+`Event-dispatch-single-activation-behavior.html`, which drives every activation
+through `oninput`/`onsubmit`/`onreset`/`ontoggle` written in markup.
+
+It compiles **lazily** — HTML calls an unset one an *internal raw uncompiled
+handler*, so the moment to compile is the first time anything looks: `RunListenersOn` already asks for
+`on<type>` and finds nothing, and that is the point at which to compile the
+attribute's text — no parser hook, and an element without the attribute pays a
+lookup it was already paying. Cache the compiled function against the
+attribute's *source text* so that changing the attribute recompiles and
+`removeAttribute` clears it.
+
+**The security half: an inline event handler is exactly what CSP
+`'unsafe-inline'` governs, and `src/bindings` cannot see `src/csp`** — its
+`allow:` line is a security boundary (ADR 0008), and `DocumentPolicy::
+AllowsInline` lives in `src/engine`. So the gate is a flag the engine sets on
+this layer, the same inversion `GeometrySource` and `NetworkSource` use. It is
+one boolean per document rather than a per-handler question: nonces and hashes
+do not apply to handlers, only `'unsafe-inline'` does (`script-src-attr`
+falling back to `script-src`). Landing the compilation without that flag would
+open a script-execution path CSP does not see.
+
+Two things a later session must not undo. `csp::Policy::AllowsInlineHandler` is
+its own function rather than `AllowsInline` with two empty strings: the rule
+that a nonce **cancels** `'unsafe-inline'` is about `<script>` *elements*, which
+can carry a nonce, and an attribute cannot — so
+`script-src 'unsafe-inline' 'nonce-abc'` permits a handler while refusing an
+un-nonced inline script, and the general form refuses both. And the compile is
+**capped at 10,000 per document**, because `Interpreter::Run` begins a host turn
+(resetting the step budget) and retains the AST: a loop that rewrites the
+attribute and dispatches would refresh the budget metering it, which is a hang a
+page can drive.
+
+**`dom/collections` was written, measured at 7 -> 36 of 53, and then set aside
+rather than landed — read this before writing it again.** A live
+`HTMLCollection` is the right answer and the shape is settled: a Proxy over a
+target holding (root, kind, two strings), with the match list cached against
+`dom::Document::MutationVersion` so that `for (i = 0; i < coll.length; i++)` is
+not quadratic. Two things that pass measured tests are worth keeping from that
+attempt: the cache must key on **`ConnectedDocument`**, not `NodeDocument` — a
+collection rooted at a detached element has a node document whose version never
+moves, so caching against it freezes the collection at its first answer — and
+the supported property names are **id then name per element in tree order**,
+not all ids followed by all names.
+
+It was set aside because it cost `Document-getElementsByTagName.html` eight
+subtests with a symptom nobody should ship without understanding: for a
+non-HTML-namespace or non-ASCII element, `assert_array_equals` reported
+`coll.length` as correct and `0 in coll` as **false**.
+
+**Two probes ruled out the obvious causes, and their results are the reason
+this note exists rather than a fix.** A probe that appends
+`createElementNS("test", "st")` to a div and asks both
+`document.getElementsByTagName("st")` and `element.getElementsByTagName("st")`
+reports `length=1 0in=true idx0=true item0=true keys=["0"]` for both — so the
+matcher, the `has` trap, the indexed getter and the cache all agree in
+isolation. A second probe that replays the earlier operations of
+`Document-Element-getElementsByTagName.js` first — the `l[5] = "foopy"` expando
+on an index, and the uppercase-HTML-tagName append — and *then* asks, reports
+`len=1 0in=true idx0eq=true`. So neither the isolated query nor the two
+obvious prior interactions reproduce it.
+
+The measurement, so the trade is on the record: with the collection in place,
+`Document-getElementsByTagName.html` + `Element-getElementsByTagName.html` go
+**23 → 11 of 37**, against `dom/collections` **7 → 36 of 53**. Net +17 and a
+mechanism nobody understands, which is the wrong side of this project's rules.
+
+What is left to check, in order: whether `instanceof` on a Proxy consults a
+`getPrototypeOf` trap this handler does not define (the file's *first* test is
+`coll instanceof HTMLCollection`), and whether `Object.getOwnPropertyNames` on
+a Proxy re-validates each reported key through `getOwnPropertyDescriptor`. Both
+are engine questions in `src/js`, not binding questions — which is the useful
+part of this: the next attempt should start in the Proxy implementation, not in
+the collection.
+
+**`Event-dispatch-single-activation-behavior.html` is 121 subtests and is
+*not* the HTML feature it looks like — the activation behaviour already
+exists.** `engine::Page::ResolveClickActivation` walks the composed ancestors
+of a click target and already handles submit controls, reset controls,
+checkable inputs, anchors with an `href`, and media playback. What it is
+missing is a caller: it runs from `EngineInput.cpp`, which only sees *real*
+pointer input, so `element.click()` from script dispatches the event and no
+activation follows.
+
+The seam to reach it already exists too, and this is the point of writing it
+down: **`PendingSubmit`**. `src/bindings` cannot navigate or lay out, so a form
+submission a script asks for is *recorded* on `DomBindings` and the engine
+takes it after the turn ends (`TakePendingSubmit`, drained in `Page.cpp`).
+A pending *activation* is the same shape -- one element recorded by
+`DispatchClick` when nothing called `preventDefault`, taken by the engine, fed
+to `ResolveClickActivation`. That is one member, one accessor and one drain,
+not a form-control subsystem.
+
+Two things the test needs that the walk above does not yet cover: `<details>`/
+`<summary>` toggling, and a `<label>` forwarding activation to its labelled
+control (with the specification's exception -- a label whose event target is
+already interactive content does nothing). Both belong in the same walk.
+
+**The next block after C11 is `Body-FrameSet-Event-Handlers.html`, 48 subtests,
+and it is worth writing down because it is not what its name suggests.** The six
+names (`onblur`, `onerror`, `onfocus`, `onload`, `onresize`, `onscroll`) on
+`<body>` and `<frameset>` are *window-reflected*: the element's handler slot **is
+the Window's**, so `body.setAttribute('onload', 'return')` has to make
+`window.onload` a function and `window.onload === body.onload`. Four properties
+have to hold at once, and the test asserts each separately:
+
+- `body.onload` is **null** before anything sets it, not undefined;
+- the accessor pair is **enumerable** on the prototype, because the test walks
+  `for (var attribute in element)`;
+- setting the *content* attribute compiles and lands on the **window**, which
+  means the compile happens at the attribute write rather than lazily at
+  dispatch — reading `window.onload` afterwards must already see it, and the
+  window's slot is plain data;
+- setting a non-function (a string, null) stores **null**.
+
+So it wants the attribute-write path in ReflectedAttributes.cpp — which the
+module deliberately has exactly one of — plus an accessor pair on
+`HTMLBodyElement.prototype` and `HTMLFrameSetElement.prototype` that reads and
+writes the window's slot, and the same CSP gate C11 introduced, since compiling
+is compiling. A *detached* `document.createElement('body')` forwards too; the
+test uses one, so there is no connectedness check to add.
+
+What is left of C11 is the *IDL* half — `el.onclick` reading back the compiled
+attribute, since HTML makes the two one slot — and that belongs to C10's
+reflected-attribute table.
 
 C1 and C2 are the two that unblock the rest of the suite and should be done
 first, by one agent, in that order. C4–C10 are parallel after them.

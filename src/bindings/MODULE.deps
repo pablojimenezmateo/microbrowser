@@ -54,7 +54,7 @@ purpose: The seam between script and the document. The only module that sees bot
 # check lives, and an origin is a `url::Origin`. A layer that cannot name one cannot check one.
 allow: util js dom html css xml url
 
-public: AnimationFrames.h DomBindings.h Geometry.h History.h IdleCallbacks.h IndexedDb.h Media.h Network.h Performance.h Sockets.h Storage.h Cookies.h Timers.h ViewObservers.h Canvas.h Workers.h Waapi.h
+public: AnimationFrames.h DomBindings.h Geometry.h History.h IdleCallbacks.h IndexedDb.h Input.h Media.h Network.h Performance.h Sockets.h Storage.h Cookies.h Timers.h ViewObservers.h Canvas.h Workers.h Waapi.h
 
 extern:
 
@@ -301,7 +301,30 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # is public because the *engine* calls it -- once per script, at the only moment
 # a bare global can next be read -- and the member is what makes that call one
 # integer compare on a page whose tree has not moved.
-budget: DomBindings header_lines=935 public_methods=47 members=27
+# A twenty-seventh member, and it is a *refusal* rather than a capability:
+# whether this document's CSP permits compiling an `on*` content attribute.
+# It has to be a member because this module may not see `src/csp` -- that
+# allow: line is a security boundary (ADR 0008) -- so the engine answers the
+# question and the answer crosses as a flag. It defaults to false, because a
+# path from markup to running code that is on until somebody turns it off is
+# the wrong default for the one gate between the two.
+# A twenty-eighth member, and it is the same shape as the ninth: an element a
+# script's `click()` activated, recorded rather than acted on. The activation
+# behaviour of a checkbox, a submit control or an anchor lays out, navigates or
+# repaints, none of which this module may see -- and `engine::Page::
+# ResolveClickActivation` already implements every case for real pointer input.
+# A second copy here is how a click from script and a click from a mouse come
+# to disagree, so the engine takes this after the turn exactly as it takes a
+# `requestSubmit`.
+# The three numbering comments above were written in three separate worktrees against the same
+# base, so "twenty-seventh" is said twice and neither is right: named access, the CSP gate and
+# the script-activated element are three different members and they all landed -- 29. The count
+# below is measured after the merge rather than reasoned about, and two of the three numbers did
+# **not** move: `header_lines` is back to 930 and `public_methods` to 47, because `SyncNamedAccess`
+# arrived while `InstallReflections` and `InstallHyperlinkElementUtils` left -- the second of those
+# to `Reflector`, which is the split the note above the cap keeps asking for, taken one method at
+# a time. Three features landed and the class got *smaller*.
+budget: DomBindings header_lines=930 public_methods=47 members=29
 # ADR 0038's `indexedDB` seam: a database/store/key/version question this module
 # declares and `src/engine` answers, the same inversion StorageSource uses. Four
 # extra "methods" over what reads as the API (16) are the deleted copy ops and
@@ -337,7 +360,12 @@ budget: FinishedAnimation header_lines=15 public_methods=0 members=2
 # because the collector cannot see a value in a C++ field and a callback it
 # cannot see is one it frees while the timer still points at it.
 # header_lines 70: QueueTask BeginTask, host-task batching, nested timer clamp.
-budget: TimerQueue  header_lines=70 public_methods=6 members=3
+# +1 public method and +9 header lines for QueueDelayedTask: a deadline the
+# *browser* chose. `AbortSignal.timeout` is its first caller and the reason it
+# is not simply a call to the page's `setTimeout` -- a page may replace that
+# function, and a timeout the browser owns must not be cancellable with a
+# `clearTimeout` on an id the page can guess.
+budget: TimerQueue  header_lines=79 public_methods=7 members=3
 # members 6: host_task + nesting_level for HTML clamp / MessageChannel drain.
 budget: Timer       header_lines=30 public_methods=0 members=6
 # requestAnimationFrame, and deliberately not part of TimerQueue. A timer is a

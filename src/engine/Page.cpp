@@ -406,6 +406,43 @@ std::optional<FormSubmission> Page::TakeScriptFormSubmission() {
   return BuildFormSubmission(*pending->form, pending->submitter, *document_, url_);
 }
 
+std::optional<FormSubmission> Page::ApplyScriptActivation(bool& changed_document,
+                                                          std::optional<std::string>& href) {
+  changed_document = false;
+  href.reset();
+  const std::vector<dom::Element*> clicked = script_.TakePendingActivations();
+  if (clicked.empty()) {
+    return std::nullopt;
+  }
+  // **The same walk a real click takes**, once per click. `element.click()`
+  // from script has the activation behaviour a pointer release has -- the
+  // specification runs one algorithm, and two copies of it is how a checkbox
+  // toggles under the mouse and not under `click()`. The `preventDefault`
+  // check already happened where the event was dispatched.
+  //
+  // Every element in the list, in the order they were clicked. A turn that
+  // clicked four things activated only one before this was a list, and the
+  // other three did nothing -- silently, which is the worst way for an
+  // activation to fail.
+  std::optional<FormSubmission> submission;
+  for (dom::Element* element : clicked) {
+    if (element == nullptr) {
+      continue;
+    }
+    const ClickActivation activation = ResolveClickActivation(element);
+    if (activation.form.has_value() && !submission.has_value()) {
+      submission = activation.form;
+    }
+    if (activation.href.has_value() && !href.has_value()) {
+      href = activation.href;
+    }
+    changed_document = changed_document || activation.reset_form ||
+                       activation.toggled_checkable || activation.toggled_media ||
+                       activation.toggled_details;
+  }
+  return submission;
+}
+
 std::optional<FormSubmission> Page::FormSubmissionRequestAt(gfx::FloatPoint document_point) {
   EnsureLayoutClean();
   if (boxes_ == nullptr || document_ == nullptr) {
@@ -878,48 +915,5 @@ bool Page::ResetFormOn(const dom::Element& reset) {
   InvalidateBoxTree();
   return true;
 }
-
-ClickActivation Page::ResolveClickActivation(dom::Element* click_target) {
-  ClickActivation activation;
-  if (click_target == nullptr || document_ == nullptr) {
-    return activation;
-  }
-  EnsureLayoutClean();
-
-  auto parent_element = [](dom::Element* element) -> dom::Element* {
-    return ComposedParentElement(element);
-  };
-
-  for (dom::Element* at = click_target; at != nullptr; at = parent_element(at)) {
-    if (html::IsSubmitControl(*at)) {
-      const dom::Element* form = html::FormOwner(*at, *document_);
-      if (form != nullptr) {
-        activation.form = SubmitForm(*form, at);
-      }
-      return activation;
-    }
-    if (html::IsResetControl(*at)) {
-      activation.reset_form = ResetFormOn(*at);
-      return activation;
-    }
-    if (html::IsCheckableInput(*at)) {
-      activation.toggled_checkable = ActivateCheckableInputOn(*at);
-      return activation;
-    }
-    if (at->TagName() == "a") {
-      const std::string* href = at->GetAttribute("href");
-      if (href != nullptr && !href->empty()) {
-        activation.href = *href;
-        return activation;
-      }
-    }
-  }
-
-  if (ToggleMediaPlaybackOn(*click_target)) {
-    activation.toggled_media = true;
-  }
-  return activation;
-}
-
 
 }  // namespace microbrowser::engine

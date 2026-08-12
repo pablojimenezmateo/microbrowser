@@ -59,6 +59,15 @@ class TimerQueue {
   // installed, which is a host with no timers rather than a failure.
   static bool QueueTask(js::Interpreter& interpreter, const js::Value& callback);
 
+  // The same, `delay_ms` from now, for a deadline the *browser* chose rather
+  // than one a page asked for -- `AbortSignal.timeout` is the first and is the
+  // reason this exists. Not routed through the page's `setTimeout` global,
+  // which is the obvious shortcut and is wrong twice: a page may replace that
+  // function, and a timeout the browser owns must not be cancellable with a
+  // `clearTimeout` on an id the page can guess.
+  static bool QueueDelayedTask(js::Interpreter& interpreter, const js::Value& callback,
+                               std::int64_t delay_ms);
+
  private:
   struct Timer {
     double id = 0.0;

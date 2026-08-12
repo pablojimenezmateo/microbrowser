@@ -595,6 +595,142 @@ void DomBindings::InstallRange() {
       document_interface.object->Set("createRange", create);
     }
   }
+
+  InstallStaticRange();
+}
+
+// `StaticRange`: the same two boundary points, and deliberately none of the
+// behaviour.
+//
+// It is not a cut-down Range and it is not an optimisation. A Range is *live* --
+// the tree moving moves it, which costs every mutation a walk of the registry --
+// and a StaticRange is a **record of where two points were**, which is what an
+// `input` event's `getTargetRanges()` hands a page and what a page keeps when it
+// wants to remember a selection without pinning the tree. So the two share the
+// slot names and nothing else: no live-range registration, no revalidation, and
+// no refusal for an offset past the node's length, because a StaticRange whose
+// endpoints have since moved is a valid StaticRange.
+//
+// The one refusal it does have is on the *kind* of node: a DocumentType or an
+// Attr cannot be a container, which is the check `Range` makes too and for the
+// same reason -- neither is a node a boundary point can be inside.
+void DomBindings::InstallStaticRange() {
+  const Value prototype = MakeInterface("StaticRange", Value::Undefined());
+  if (!prototype.IsObject()) {
+    return;
+  }
+  struct Endpoint {
+    const char* property;
+    const char* member;
+    const char* slot;
+    bool node;
+  };
+  static constexpr Endpoint kEndpoints[] = {
+      {"startContainer", "startContainer", kStartNodeSlot, true},
+      {"startOffset", "startOffset", kStartOffsetSlot, false},
+      {"endContainer", "endContainer", kEndNodeSlot, true},
+      {"endOffset", "endOffset", kEndOffsetSlot, false},
+  };
+  for (const Endpoint& endpoint : kEndpoints) {
+    const char* slot = endpoint.slot;
+    const bool is_node = endpoint.node;
+    const Value getter =
+        interpreter_->NewNativeValue(endpoint.property, [slot, is_node](NativeCall& call) -> Value {
+          DomBindings* owner = OwnerOf(call);
+          const Value* stored = call.self.IsObject() ? call.self.object->GetOwn(slot) : nullptr;
+          if (stored == nullptr) {
+            return Value::Undefined();
+          }
+          if (!is_node) {
+            return *stored;
+          }
+          auto* node = reinterpret_cast<dom::Node*>(static_cast<std::uintptr_t>(stored->number));
+          return owner == nullptr || node == nullptr ? Value::Null() : owner->WrapperFor(node);
+        });
+    if (getter.IsObject()) {
+      getter.object->Set(kOwnerSlot, PointerValue(this));
+      prototype.object->DefineAccessor(endpoint.property, getter.object, nullptr);
+    }
+  }
+  const Value collapsed = interpreter_->NewNativeValue("collapsed", [](NativeCall& call) {
+    if (!call.self.IsObject()) {
+      return Value::Bool(false);
+    }
+    const Value* start_node = call.self.object->GetOwn(kStartNodeSlot);
+    const Value* end_node = call.self.object->GetOwn(kEndNodeSlot);
+    const Value* start_offset = call.self.object->GetOwn(kStartOffsetSlot);
+    const Value* end_offset = call.self.object->GetOwn(kEndOffsetSlot);
+    return Value::Bool(start_node != nullptr && end_node != nullptr &&
+                       start_node->number == end_node->number && start_offset != nullptr &&
+                       end_offset != nullptr && start_offset->number == end_offset->number);
+  });
+  if (collapsed.IsObject()) {
+    prototype.object->DefineAccessor("collapsed", collapsed.object, nullptr);
+  }
+
+  const Value constructor =
+      interpreter_->NewNativeValue("StaticRange", [prototype](NativeCall& call) -> Value {
+        if (!RequireArguments(call, "StaticRange", "constructor", 1) ||
+            !call.arguments[0].IsObject()) {
+          return call.HasThrown() ? call.ThrownValue()
+                                  : call.Throw("TypeError",
+                                               "StaticRange requires a StaticRangeInit");
+        }
+        js::Object* init = call.arguments[0].object;
+        struct Member {
+          const char* name;
+          const char* slot;
+          bool node;
+        };
+        static constexpr Member kMembers[] = {
+            {"startContainer", kStartNodeSlot, true},
+            {"startOffset", kStartOffsetSlot, false},
+            {"endContainer", kEndNodeSlot, true},
+            {"endOffset", kEndOffsetSlot, false},
+        };
+        const Value range = call.interpreter.NewObjectValue();
+        if (!range.IsObject()) {
+          return Value::Undefined();
+        }
+        range.object->SetPrototype(prototype.object);
+        for (const Member& member : kMembers) {
+          const Value* given = init->Get(member.name);
+          // **Every member of StaticRangeInit is `required`**, so an absent one
+          // is a TypeError rather than a zero. WebIDL treats `undefined` as
+          // absent, which is why the test is on the value and not only on the
+          // key -- `{startOffset: undefined}` is a dictionary missing its
+          // `startOffset`, and a range silently starting at 0 instead is a
+          // wrong answer where the page asked a wrong question.
+          if (given == nullptr || given->IsUndefined()) {
+            return call.Throw("TypeError", std::string("StaticRangeInit is missing ") +
+                                               member.name);
+          }
+          if (!member.node) {
+            std::uint32_t offset = 0;
+            if (!ToUnsignedLong(call, *given, IntegerRange::Modulo, offset)) {
+              return call.ThrownValue();
+            }
+            range.object->SetHidden(member.slot, Value::Number(static_cast<double>(offset)));
+            continue;
+          }
+          dom::Node* node = NodeOf(*given);
+          if (node == nullptr) {
+            return call.Throw("TypeError",
+                              std::string(member.name) + " is not a Node");
+          }
+          if (node->GetKind() == dom::Node::Kind::DocumentType) {
+            return ThrowDom(call, "InvalidNodeTypeError",
+                            "a DocumentType cannot be a boundary point's container");
+          }
+          range.object->SetHidden(member.slot, PointerValue(node));
+        }
+        return range;
+      });
+  if (constructor.IsObject()) {
+    constructor.object->Set("prototype", prototype);
+    prototype.object->Set("constructor", constructor);
+    interpreter_->GlobalScope()->Declare("StaticRange", constructor, false);
+  }
 }
 
 }  // namespace microbrowser::bindings

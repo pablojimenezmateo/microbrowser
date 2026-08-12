@@ -436,6 +436,7 @@ microbrowser_module(engine
     src/engine/Workers.cpp
     src/engine/PageCanvas.cpp
     src/engine/PageWorkers.cpp
+    src/engine/PageActivation.cpp
     src/engine/PageAnimations.cpp
     src/engine/MediaElements.cpp
     src/engine/DecoderClient.cpp
@@ -524,6 +525,7 @@ microbrowser_module(bindings
     src/bindings/WaapiBindings.cpp
     src/bindings/EventBindings.cpp
     src/bindings/EventDispatch.cpp
+    src/bindings/EventListeners.cpp
     src/bindings/FocusBindings.cpp
     src/bindings/FormBindings.cpp
     src/bindings/FormDataBindings.cpp

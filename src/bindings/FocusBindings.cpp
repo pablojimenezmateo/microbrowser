@@ -152,7 +152,26 @@ void DomBindings::InstallFocus(const js::Value& target) {
     }
     pointer.button = 0;
     pointer.buttons = 0;
-    (void)owner->DispatchClick(element, pointer);
+    // **The activation behaviour is the engine's, and it is recorded rather
+    // than run.** Toggling a checkbox, submitting a form, following an
+    // `href` -- all of it lays out, navigates or repaints, none of which this
+    // module may see. `engine::Page::ResolveClickActivation` already
+    // implements every case for real pointer input; a second copy here is how
+    // a click from script and a click from a mouse come to disagree. So the
+    // element is left for the engine, exactly as a `requestSubmit()` is.
+    //
+    // Only when nothing cancelled: `preventDefault` in a handler is what
+    // stops the default action, and that is the whole contract of a
+    // cancelable click.
+    if (!owner->DispatchClick(element, pointer)) {
+      // Bounded: a page can call `click()` in a loop, and this list is drained
+      // once per turn. Past the bound the activation is dropped rather than
+      // the list grown, which is the same choice the live-range ring makes.
+      constexpr std::size_t kMaxPendingActivations = 256;
+      if (owner->pending_activations_.size() < kMaxPendingActivations) {
+        owner->pending_activations_.push_back(&element);
+      }
+    }
     return Value::Undefined();
   });
 }

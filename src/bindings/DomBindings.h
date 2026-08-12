@@ -11,6 +11,7 @@
 #include "bindings/Geometry.h"
 #include "util/UrlEncoded.h"
 #include "bindings/History.h"
+#include "bindings/Input.h"
 #include "bindings/Canvas.h"
 #include "bindings/Workers.h"
 #include "bindings/IndexedDb.h"
@@ -30,61 +31,6 @@ struct Selector;
 }
 
 namespace microbrowser::bindings {
-
-// A form submission a script asked for and has not had yet.
-//
-// Recorded rather than performed, for two reasons and the second is the one
-// that matters. This module cannot navigate: it cannot see a URL, a loader or
-// a network, which is the module contract working. And a navigation started
-// from inside a running script would tear down the interpreter that is running
-// it -- ADR 0026 §3 makes document teardown the most safety-critical routine in
-// the engine, and "not while script is on the stack" is the first rule of it.
-// So the engine takes this after the turn ends.
-struct PendingSubmit {
-  dom::Element* form = nullptr;
-  // The button that submitted, or null. It decides `formaction`, `formmethod`
-  // and which submit control appears in the form data set.
-  dom::Element* submitter = nullptr;
-};
-
-// One pointer act, as the thing that saw it describes it. The coordinates are
-// CSS pixels: `client` is measured from the viewport and `page` from the top of
-// the document, and they differ by the scroll offset -- which is why both are
-// here rather than one plus a subtraction a caller might forget.
-struct PointerInput {
-  float client_x = 0.0f;
-  float client_y = 0.0f;
-  float page_x = 0.0f;
-  float page_y = 0.0f;
-  // The DOM's numbering: 0 is the primary button, and `buttons` is the bitmask
-  // of what is still held.
-  std::uint8_t button = 0;
-  std::uint16_t buttons = 0;
-  bool control = false;
-  bool shift = false;
-  bool alt = false;
-  bool meta = false;
-};
-
-// One key press or release, as the thing that saw it describes it.
-//
-// Three strings rather than one, and ADR 0017 §1 is where the reasoning is: a
-// game reads `code` because WASD is a shape on the keyboard, a shortcut reads
-// `key` because Ctrl+C is a letter, and an editor reads `text` because a dead
-// key produces nothing until the next one. This struct is deliberately not
-// `ipc::KeyInputMessage`: this module cannot see `ipc`, and the engine
-// translating one into the other at the seam is what keeps it that way.
-struct KeyInput {
-  bool down = true;
-  std::string code;
-  std::string key;
-  std::string text;
-  bool control = false;
-  bool shift = false;
-  bool alt = false;
-  bool meta = false;
-  bool repeat = false;
-};
 
 // Gives a script a document to act on.
 //
@@ -228,6 +174,16 @@ class DomBindings {
   // The submission a script asked for, taken. Empty when it asked for none.
   std::optional<PendingSubmit> TakePendingSubmit();
 
+  // The element `element.click()` activated and nothing cancelled, taken.
+  //
+  // Recorded rather than performed, for the reason a submission is: the
+  // activation behaviour of a checkbox, a submit button, an anchor or a
+  // `<details>` is the *engine's* -- it lays out, navigates and repaints, none
+  // of which this module may see. `Page::ResolveClickActivation` already
+  // implements all of it for real pointer input; this is the same act arriving
+  // from script, and running it here would be a second copy that disagrees.
+  std::vector<dom::Element*> TakePendingActivations();
+
   // Samples every `IntersectionObserver` and `ResizeObserver` against the
   // layout about to be painted and runs the callbacks whose answers changed.
   // True when one ran, which is the caller's signal that the document may have
@@ -313,6 +269,13 @@ class DomBindings {
   void SetTrustedScriptFlush(std::function<void()> hook) { trusted_script_flush_ = std::move(hook); }
   void SyncNamedAccess();
   void SetScriptStrictDynamic(bool enabled) { csp_script_strict_dynamic_ = enabled; }
+  // Whether an `on*` **content attribute** may be compiled into a handler --
+  // `DocumentPolicy::AllowsInlineHandler`, crossed as a flag because this
+  // module may not see `src/csp`. Default false, so a document whose engine
+  // never says compiles nothing: a script-execution path that is on until
+  // somebody remembers to turn it off is the wrong default for the one gate
+  // between markup and running code.
+  void SetInlineHandlersAllowed(bool allowed) { inline_handlers_allowed_ = allowed; }
   void MarkCspTrustedScript(const dom::Element& element) { csp_trusted_scripts_.insert(&element); }
   bool IsCspTrustedScript(const dom::Element& element) const {
     return csp_trusted_scripts_.contains(&element);
@@ -404,9 +367,9 @@ class DomBindings {
   // `popstate` carries a state and `hashchange` carries two URLs, and neither
   // can be added after the listeners have run.
   bool DispatchAtWindowWith(const char* type, const js::Value& event);
-  // Puts `composedPath()` on an event, over the path dispatch already built.
-  // Stored rather than recomputed, because the path is fixed before any handler
-  // runs -- a handler that reparents the target must not change it.
+  // Gives an event the propagation path `Event.prototype.composedPath` reads.
+  // Fixed before any handler runs -- one that reparents the target must not
+  // change it -- and empty is how dispatch says it is over.
   void InstallComposedPath(const js::Value& event, const std::vector<js::Value>& path);
   void SetReadyState(const char* state);
   // `DOMTokenList`, in TokenList.cpp. The interface is shared and installed
@@ -860,6 +823,10 @@ class DomBindings {
   void InstallTreeWalkers(const js::Value& document);
   void InstallRange();  // boundary points; RangeContents.cpp has the tree surgery
   void InstallRangeContents(const js::Value& range_interface);
+  // Two boundary points with none of the liveness. Beside Range because they
+  // share the slot names, and separate because they are opposites: a Range is
+  // pinned to the tree and a StaticRange is a record of where two points were.
+  void InstallStaticRange();
 
   // --- DOM Parsing and Serialization, in HtmlParsing.cpp / DomParsing.cpp ---
   // Markup becoming nodes and back, and in every one of them the *context* is
@@ -916,8 +883,20 @@ class DomBindings {
   // Runs connected or disconnected reactions over `node` and its subtree. The
   // subtree matters: appending a detached tree connects everything in it.
   void NotifyConnection(dom::Node& node, bool connected);
+  // `preserve` is `moveBefore`'s atomic move: the node stays connected across
+  // it, so neither reaction runs. Without the flag a move is a disconnect
+  // followed by a connect, which is exactly the state loss the method exists
+  // to avoid.
   js::Value InsertNodeBefore(dom::Node& parent, dom::Node* child, dom::Node* reference,
-                             bool record = true);
+                             bool record = true, bool preserve = false);
+  // `moveBefore` on a ParentNode: the insertion above with the two reactions
+  // taken away. Installed from InstallParentQueries and defined beside the
+  // insertion, because it *is* the insertion.
+  void InstallAtomicMove(const js::Value& target);
+  // `<body onload="…">` sets `window.onload`. Called from the one attribute
+  // write path, because a window-reflected handler has to compile at the write
+  // rather than at a dispatch that never reaches the element.
+  void ForwardWindowReflectedHandler(dom::Element& element, const std::string& name);
   // Detaches `child` and keeps it alive for the life of the document.
   //
   // This is the whole reason removal was not in the first slice. A wrapper
@@ -953,6 +932,15 @@ class DomBindings {
   std::vector<std::unique_ptr<dom::Node>> detached_;
   // The submission a script asked for. See PendingSubmit for why it waits.
   std::optional<PendingSubmit> pending_submit_;
+  // The elements a script's `click()` activated, waiting for the engine.
+  //
+  // A *list*, and one element was a bug: four `click()` calls in one turn --
+  // which is what a test that clicks four things does -- left only the last,
+  // and the other three silently did nothing. Raw pointers for the reason
+  // every node pointer here is one: the tree outlives this class and nothing
+  // frees a node before its document. Bounded, because a page can click in a
+  // loop and this list is drained once per turn.
+  std::vector<dom::Element*> pending_activations_;
   // Borrowed, like the interpreter and the document, and null when there is no
   // layout behind this binding layer.
   GeometrySource* geometry_ = nullptr;
@@ -982,6 +970,7 @@ class DomBindings {
   std::string clipboard_;
   std::uint32_t trusted_script_depth_ = 0;
   bool csp_script_strict_dynamic_ = false;
+  bool inline_handlers_allowed_ = false;
   std::function<void()> trusted_script_flush_;
   std::unordered_set<const dom::Element*> csp_trusted_scripts_;
 };

@@ -423,6 +423,46 @@ inline DomBindings* OwnerOf(const js::NativeCall& call) {
   return reinterpret_cast<DomBindings*>(static_cast<std::uintptr_t>(slot->number));
 }
 
+// `addEventListener` and `removeEventListener` on an object, in
+// EventListeners.cpp. Free functions rather than members of DomBindings
+// because a listener list lives on the receiver and nothing in either asks a
+// question about the document -- which is what lets `new EventTarget()` be an
+// ordinary object with a prototype and no special case anywhere.
+void InstallListenerRegistration(js::Interpreter& interpreter, const js::Value& wrapper,
+                                 const void* owner);
+
+// Whether a listener entry is still in the list it was taken from. The
+// dispatch loop runs over a *copy* -- the set that existed when the event
+// reached this node -- but the DOM says a listener removed while that copy is
+// being walked does not run, which is the whole behaviour of an AbortSignal
+// aborted from inside a handler.
+bool ListenerStillRegistered(const js::Value& listeners, const js::Value& entry);
+
+// The compiled handler behind an `on*` **content attribute**, in
+// EventDispatch.cpp. `type` is the event type without the `on`, `holder` is
+// the element's wrapper, and `allowed` is this document's CSP answer -- see
+// the definition, which is where the gate and the compile bound are argued.
+js::Value CompiledAttributeHandler(js::Interpreter& interpreter, const js::Value& holder,
+                                   const std::string& type, bool allowed);
+
+// The six handlers on `<body>` and `<frameset>` whose slot is the **Window's**
+// (HTML §8.1.7.2.1). Defined in EventListeners.cpp beside the rest of what a
+// target does with handlers. A free function because the accessors touch only
+// the window: the element is a receiver they check and never read from.
+void InstallWindowReflectedHandlers(js::Interpreter& interpreter, const js::Value& prototype);
+
+// Whether `name` is one of those six, so the attribute-write path can forward
+// it. Shared so the writer and the accessors cannot disagree about the list.
+bool IsWindowReflectedHandlerName(std::string_view name);
+
+// An `Attr` with no element behind it -- what `document.createAttribute` makes,
+// in ElementQueries.cpp beside the one that has an element. One builder rather
+// than two, because two of them is exactly the bug `getAttributeNode` and
+// `attributes[i]` had before they were merged: they disagreed about
+// `localName`.
+js::Value MakeDetachedAttr(DomBindings& owner, js::Interpreter& interpreter,
+                           const dom::Attribute& attribute);
+
 // A rectangle as a page reads one: the eight members of a `DOMRect`, where
 // `x`/`y`/`width`/`height` and `top`/`right`/`bottom`/`left` are the same four
 // numbers under two names.

@@ -77,6 +77,106 @@ void ForgetListener(const Value& listeners, const Value& entry) {
 
 }  // namespace
 
+// The compiled handler behind an `on*` **content attribute**, or undefined.
+//
+// HTML calls an uncompiled one an *internal raw uncompiled handler* and
+// compiles it the first time anything looks: which is why this is asked from
+// the dispatch path rather than from the parser or from `setAttribute`. There
+// is no hook to add and an element without the attribute pays one lookup it
+// was already paying.
+//
+// **Gated on `allowed`, which is this document's CSP answer.** An event
+// handler attribute is the one inline script that only `'unsafe-inline'` can
+// permit -- it carries no nonce and CSP never hashes it -- and this module may
+// not see `src/csp`, so the answer arrives as a flag (ADR 0008). The default
+// is *deny*: a path from markup to running code that is on until somebody
+// remembers to turn it off is the wrong default.
+//
+// Cached against the attribute's own text, so changing the attribute
+// recompiles and removing it stops answering. Caching against the type alone
+// would make `el.setAttribute('onclick', …)` a one-time write.
+//
+// **What is deliberately not here, so nobody assumes it is:** the *IDL*
+// attribute. HTML makes `el.onclick` and the content attribute one slot, so
+// reading `el.onclick` on an element that only has the markup should compile
+// it and hand it back. Here it still answers undefined -- the attribute is
+// reachable only from dispatch. That is a real gap and it is the half that
+// wants the reflected-attribute table (task C10), not this one.
+js::Value CompiledAttributeHandler(js::Interpreter& interpreter, const js::Value& holder,
+                                   const std::string& type, bool allowed) {
+  if (!allowed || !holder.IsObject()) {
+    return Value::Undefined();
+  }
+  dom::Node* node = NodeOf(holder);
+  if (node == nullptr || !node->IsElement()) {
+    return Value::Undefined();
+  }
+  const std::string* source =
+      static_cast<dom::Element&>(*node).GetAttribute("on" + type);
+  if (source == nullptr) {
+    return Value::Undefined();
+  }
+  const std::string cache_slot = "#onattr:" + type;
+  const std::string source_slot = "#onattrsrc:" + type;
+  if (const Value* cached_source = holder.object->GetOwn(source_slot);
+      cached_source != nullptr && cached_source->IsString() &&
+      cached_source->AsString() == *source) {
+    const Value* cached = holder.object->GetOwn(cache_slot);
+    return cached == nullptr ? Value::Undefined() : *cached;
+  }
+  // **A bound, and it is not tidiness.** `Interpreter::Run` begins a host turn,
+  // which resets the step budget, and it retains the parsed program for the
+  // life of the page -- both correct for a `<script>`, which a document has a
+  // handful of. A handler compiled from a *dispatch* is neither: a page can
+  // write `el.setAttribute('onclick', i++)` in a loop and dispatch, and every
+  // iteration would compile a new text, refresh the budget the loop is being
+  // metered against, and add an AST. That is a hang a page can drive, which is
+  // the one thing this browser's other bounds exist to stop. Counted on the
+  // global for the reason the live-range registry is: it is per document, and
+  // a C++ field the collector cannot see is a field this module has got wrong
+  // before.
+  constexpr const char* kCompileCountSlot = "#onattrCompiles";
+  constexpr double kMaxHandlerCompiles = 10000;
+  js::Object* global = interpreter.Global();
+  double compiles = 0;
+  if (global != nullptr) {
+    if (const Value* counted = global->GetOwn(kCompileCountSlot); counted != nullptr) {
+      compiles = js::ToNumber(*counted);
+    }
+    if (compiles >= kMaxHandlerCompiles) {
+      // Refused rather than truncated, and the *cache* is still written, so a
+      // page past the bound pays one lookup per dispatch rather than a compile
+      // it will not get.
+      holder.object->SetHidden(source_slot, Value::String(*source));
+      holder.object->SetHidden(cache_slot, Value::Undefined());
+      return Value::Undefined();
+    }
+    global->SetHidden(kCompileCountSlot, Value::Number(compiles + 1));
+  }
+  // One `event` parameter, which is the name the body may use. The element,
+  // its form owner and the document are **not** in scope -- HTML puts them
+  // there and this does not, so `onclick="remove()"` reaches the global
+  // `remove` rather than the element's. That is the same answer
+  // `Element.prototype[Symbol.unscopables]` gives for the six mixin methods,
+  // and the wrong answer for everything else on the element.
+  const js::Result compiled =
+      interpreter.Run("(function (event) {\n" + *source + "\n})");
+  Value handler = Value::Undefined();
+  if (compiled.completion == js::Completion::Throw) {
+    // A handler that does not parse is *null*, not a throw at the dispatch
+    // that found it: the page's mistake must not stop the event reaching
+    // everything else on the path. Reported, because a silent one is a handler
+    // that never runs for no visible reason.
+    interpreter.ReportUncaught(compiled.value, "event handler attribute");
+  } else if (compiled.value.IsObject() && compiled.value.object->IsCallable()) {
+    handler = compiled.value;
+  }
+  holder.object->SetHidden(source_slot, Value::String(*source));
+  holder.object->SetHidden(cache_slot, handler);
+  return handler;
+}
+
+
 bool DomBindings::RunListenersOn(const js::Value& holder, const js::Value& event,
                                  const std::string& slot, EventPhase phase, EventPhase pass) {
   if (!holder.IsObject() || !event.IsObject()) {
@@ -100,6 +200,20 @@ bool DomBindings::RunListenersOn(const js::Value& holder, const js::Value& event
       (type == nullptr || pass == EventPhase::Capturing)
           ? nullptr
           : holder.object->Get("on" + js::ToString(*type));
+  // Nothing assigned the property, so the *content attribute* is asked --
+  // HTML's raw uncompiled handler, compiled here because this is the first
+  // moment anything looks at it. A page that assigned `el.onclick = fn` wins:
+  // the property is the handler and the attribute is only its uncompiled
+  // form, so the order of these two is the specification's.
+  Value compiled_attribute;
+  if (type != nullptr && pass != EventPhase::Capturing &&
+      (attribute == nullptr || !attribute->IsObject() || !attribute->object->IsCallable())) {
+    compiled_attribute = CompiledAttributeHandler(*interpreter_, holder, js::ToString(*type),
+                                                  inline_handlers_allowed_);
+    if (compiled_attribute.IsObject()) {
+      attribute = &compiled_attribute;
+    }
+  }
   if ((listeners == nullptr || !listeners->IsObject()) &&
       (attribute == nullptr || !attribute->IsObject() || !attribute->object->IsCallable())) {
     return false;
@@ -151,6 +265,14 @@ bool DomBindings::RunListenersOn(const js::Value& holder, const js::Value& event
     // tree around it gets: an AbortSignal, an XHR, a slot.
     if (pass != EventPhase::AtTarget &&
         ListenerFlag(entry, kListenerCaptureSlot) != (pass == EventPhase::Capturing)) {
+      continue;
+    }
+    // Removed since the copy was taken, by an earlier listener or by an
+    // AbortSignal one of them aborted. The DOM's "removed" flag: the copy
+    // fixes *which* listeners this node considers, not that every one of them
+    // still exists. Without this, `controller.abort()` from inside a handler
+    // still ran every later listener the same controller was meant to cancel.
+    if (!ListenerStillRegistered(*listeners, entry)) {
       continue;
     }
     // Removed before it is called, not after: a `once` listener that dispatches
@@ -290,10 +412,12 @@ bool DomBindings::DispatchEventTo(dom::Node& target, const js::Value& event) {
                                EventPhase::Bubbling);
     }
   }
-  // Dispatch is over: `currentTarget` is null and the phase is NONE outside it,
-  // which is what a handler that stashed the event and reads it later sees.
+  // Dispatch is over: `currentTarget` is null, the phase is NONE and the
+  // propagation path is empty outside it, which is what a handler that stashed
+  // the event and reads it later sees.
   event.object->Set("currentTarget", Value::Null());
   event.object->Set("eventPhase", Value::Number(static_cast<double>(EventPhase::None)));
+  InstallComposedPath(event, {});
   // Handlers run as a turn of their own, so anything they queued settles
   // before the event is over -- the same rule a script gets.
   interpreter_->DrainMicrotasks();
@@ -499,35 +623,12 @@ void DomBindings::InstallComposedPath(const js::Value& event,
   if (interpreter_ == nullptr || !event.IsObject()) {
     return;
   }
-  // Stored on the event and handed back by a method, rather than computed when
-  // asked: the path is built before any handler runs -- a handler that reparents
-  // the target must not change it -- and `composedPath()` has to answer with that
-  // same path afterwards.
-  const Value stored = interpreter_->NewArrayValue(path);
-  event.object->SetHidden("#path", stored);
-  const Value method = interpreter_->NewNativeValue("composedPath", [](js::NativeCall& call) {
-    const Value* composed =
-        call.self.IsObject() ? call.self.object->GetOwn("composed") : nullptr;
-    const Value* stored_path =
-        call.self.IsObject() ? call.self.object->GetOwn("#path") : nullptr;
-    if (stored_path == nullptr || !stored_path->IsObject()) {
-      return call.interpreter.NewArrayValue({});
-    }
-    if (composed == nullptr || !js::ToBoolean(*composed)) {
-      // A non-composed event does not escape its tree, so its path stops at the
-      // root it was fired in. Answering with the full path would tell a listener
-      // outside about nodes the event never reached.
-      std::vector<Value> inside;
-      for (std::size_t i = 0; i < stored_path->object->ElementCount(); ++i) {
-        inside.push_back(stored_path->object->GetElement(i));
-      }
-      return call.interpreter.NewArrayValue(std::move(inside));
-    }
-    return *stored_path;
-  });
-  if (method.IsObject()) {
-    event.object->Set("composedPath", method);
-  }
+  // Stored on the event and read back by `Event.prototype.composedPath`: the
+  // path is built before any handler runs -- a handler that reparents the
+  // target must not change it -- and it exists **only** while the event is
+  // being dispatched. An empty vector is how dispatch says it is over, which
+  // is what makes `event.composedPath()` answer `[]` afterwards.
+  event.object->SetHidden("#path", interpreter_->NewArrayValue(path));
 }
 
 bool DomBindings::DispatchAtWindow(const char* type) {

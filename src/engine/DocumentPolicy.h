@@ -81,6 +81,13 @@ class DocumentPolicy {
     return policies_.AllowsInline(directive, nonce, body);
   }
 
+  // Whether an `on*` **content attribute** may be compiled into a handler.
+  // Asked once per document and handed to the binding layer as a flag, because
+  // `src/bindings` may not see `src/csp` -- that `allow:` line is a security
+  // boundary (ADR 0008), and this is the one CSP question the layer on the
+  // other side of it has to know the answer to.
+  bool AllowsInlineHandler() const { return policies_.AllowsInlineHandler(); }
+
   // Whether `eval` / `Function` may run under this document's CSP (ADR 0039).
   bool AllowsEval() const { return policies_.AllowsEval(); }
 

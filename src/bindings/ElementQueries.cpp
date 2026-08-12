@@ -129,8 +129,8 @@ void EachDescendantElement(dom::Node& root,
 // whether it still carries this attribute, so a record taken before a
 // `removeAttribute` answers null afterwards -- which is what the DOM says and
 // what `attributes.js`'s `attributes_are` checks on every attribute it is given.
-js::Value MakeAttr(DomBindings& owner, js::Interpreter& interpreter, dom::Element& element,
-                   const dom::Attribute& attribute) {
+js::Value MakeAttrImpl(DomBindings& owner, js::Interpreter& interpreter, dom::Element* element,
+                       const dom::Attribute& attribute) {
   const js::Value entry = interpreter.NewObjectValue();
   if (!entry.IsObject()) {
     return entry;
@@ -159,13 +159,25 @@ js::Value MakeAttr(DomBindings& owner, js::Interpreter& interpreter, dom::Elemen
   // looks the pair up again on every read. Holding the wrapper instead would
   // make this object keep an element alive that the page has dropped, which is
   // the shape of every DOM leak.
-  dom::Element* holder = &element;
+  // `nodeType` is 2, which is the one thing about an Attr a page checks that is
+  // not a string: `ATTRIBUTE_NODE`. It answers even though this is not a Node
+  // here, because the number is what a page switches on.
+  entry.object->Set("nodeType", js::Value::Number(2));
+  // The element is captured as a pointer and the name by value, and the getter
+  // looks the pair up again on every read. Holding the wrapper instead would
+  // make this object keep an element alive that the page has dropped, which is
+  // the shape of every DOM leak.
+  //
+  // **Null when there is no element at all**, which is what
+  // `document.createAttribute` produces: an Attr exists before anything
+  // carries it, and `attr.ownerElement === null` is the test for that.
+  dom::Element* holder = element;
   DomBindings* bindings = &owner;
   const dom::NamespaceRef name_space = attribute.name_space;
   const std::string local(attribute.LocalName());
   const js::Value getter = interpreter.NewNativeValue(
       "ownerElement", [holder, bindings, name_space, local](js::NativeCall&) {
-        if (holder->GetAttributeNS(name_space, local) == nullptr) {
+        if (holder == nullptr || holder->GetAttributeNS(name_space, local) == nullptr) {
           return js::Value::Null();
         }
         return bindings->WrapperFor(holder);
@@ -173,7 +185,50 @@ js::Value MakeAttr(DomBindings& owner, js::Interpreter& interpreter, dom::Elemen
   if (getter.IsObject()) {
     entry.object->DefineAccessor("ownerElement", getter.object, nullptr);
   }
+  // The three namespace lookups every Node answers, which an Attr has to as
+  // well -- and a **disconnected** one answers null and false, because there is
+  // no element above it to carry an `xmlns`. They are on the record rather than
+  // inherited because this object is not a Node; leaving them off made
+  // `document.createAttribute('x').lookupNamespaceURI(null)` a TypeError the
+  // moment `createAttribute` started answering at all, which is a regression a
+  // missing method introduced by a method arriving.
+  struct Lookup {
+    const char* name;
+    bool boolean;
+  };
+  for (const Lookup& lookup : {Lookup{"lookupNamespaceURI", false},
+                               Lookup{"lookupPrefix", false},
+                               Lookup{"isDefaultNamespace", true}}) {
+    const char* name = lookup.name;
+    const bool boolean = lookup.boolean;
+    const js::Value native = interpreter.NewNativeValue(
+        name, [name, boolean](js::NativeCall& inner) -> js::Value {
+          // Delegated to the element when there is one, so an attached Attr
+          // answers what its element answers rather than a second opinion.
+          const js::Value* owner_element =
+              inner.self.IsObject() ? inner.self.object->Get("ownerElement") : nullptr;
+          if (owner_element != nullptr && owner_element->IsObject()) {
+            const js::Value method =
+                inner.interpreter.GetPropertyValue(*owner_element, name);
+            if (method.IsObject() && method.object->IsCallable()) {
+              const js::Result answered = inner.interpreter.CallFunction(
+                  method, *owner_element, {Argument(inner.arguments, 0)});
+              return answered.IsAbrupt() ? inner.ThrowValue(answered.value) : answered.value;
+            }
+          }
+          return boolean ? js::Value::Bool(false) : js::Value::Null();
+        });
+    if (native.IsObject()) {
+      native.object->Set(kOwnerSlot, PointerValue(&owner));
+      entry.object->Set(name, native);
+    }
+  }
   return entry;
+}
+
+js::Value MakeAttr(DomBindings& owner, js::Interpreter& interpreter, dom::Element& element,
+                   const dom::Attribute& attribute) {
+  return MakeAttrImpl(owner, interpreter, &element, attribute);
 }
 
 // The element siblings either side of `node`, since `nextSibling` gives
@@ -269,6 +324,15 @@ bool LocateNamespace(const dom::Element* element, std::string_view prefix,
 
 }  // namespace
 
+// An `Attr` with no element behind it -- what `document.createAttribute` makes.
+// Declared in BindingSupport.h so DocumentBindings.cpp can reach the one
+// builder rather than growing a second one that disagrees, which is the bug
+// `getAttributeNode` and `attributes[i]` had before they were merged.
+js::Value MakeDetachedAttr(DomBindings& owner, js::Interpreter& interpreter,
+                           const dom::Attribute& attribute) {
+  return MakeAttrImpl(owner, interpreter, nullptr, attribute);
+}
+
 // Node: what every node can answer, whatever kind it is.
 void DomBindings::InstallNodeQueries(const js::Value& target) {
   const auto method = [this, &target](const char* name, js::NativeFunction function) {
@@ -285,6 +349,23 @@ void DomBindings::InstallNodeQueries(const js::Value& target) {
       target.object->DefineAccessor(name, native.object, nullptr);
     }
   };
+
+  // Null at the root, where `parentNode` is the document -- which is the whole
+  // difference between the two and why both exist.
+  //
+  // **On Node rather than on Element**, which is where the DOM puts it and is
+  // not a detail: a detached Comment answered `undefined` here, and a page
+  // testing `node.parentElement === null` to decide whether a node is in a
+  // tree took the wrong branch for every node that is not an element.
+  accessor("parentElement", [](NativeCall& call) {
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* self = NodeOf(call.self);
+    if (owner == nullptr || self == nullptr || self->Parent() == nullptr ||
+        !self->Parent()->IsElement()) {
+      return Value::Null();
+    }
+    return owner->WrapperFor(self->Parent());
+  });
 
   // Inclusive, which is the specification's and the surprising half: a node
   // contains itself. A polyfill that walks up asking `root.contains(node)`
@@ -474,6 +555,11 @@ void DomBindings::InstallParentQueries(const js::Value& target) {
     }
   };
 
+  // `moveBefore`, the atomic move, in TreeMutation.cpp -- which is where
+  // every other thing that changes the tree lives, and where the insertion it
+  // is written in terms of already is.
+  InstallAtomicMove(target);
+
   // --- Searching within a subtree -------------------------------------------
   //
   // The same selector support the document-level versions have, and
@@ -638,18 +724,6 @@ void DomBindings::InstallParentQueries(const js::Value& target) {
     return owner == nullptr ? Value::Null()
                             : owner->WrapperFor(ElementSibling(NodeOf(call.self), -1));
   });
-  // Null at the root, where `parentNode` is the document -- which is the whole
-  // difference between the two and why both exist.
-  accessor("parentElement", [](NativeCall& call) {
-    DomBindings* owner = OwnerOf(call);
-    dom::Node* self = NodeOf(call.self);
-    if (owner == nullptr || self == nullptr || self->Parent() == nullptr ||
-        !self->Parent()->IsElement()) {
-      return Value::Null();
-    }
-    return owner->WrapperFor(self->Parent());
-  });
-
 }
 
 // Element only: the things a document has no answer for. Kept apart rather

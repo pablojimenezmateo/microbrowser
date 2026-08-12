@@ -856,11 +856,45 @@ bool Engine::FollowScriptNavigation() {
     }
   }
   const std::optional<FormSubmission> submission = page_.TakeScriptFormSubmission();
-  if (!submission.has_value()) {
-    return false;
+  if (submission.has_value()) {
+    AddPerformanceCounter(PerfCounterId::EngineScriptNavigations);
+    return Navigate(*submission);
   }
-  AddPerformanceCounter(PerfCounterId::EngineScriptNavigations);
-  return Navigate(*submission);
+  // And the activation behaviour of an `element.click()` a script ran, which
+  // is the same walk a real pointer release takes -- one algorithm, because
+  // two of them is how a checkbox toggles under the mouse and not under
+  // `click()`. See Page::ApplyScriptActivation.
+  bool changed_document = false;
+  std::optional<std::string> href;
+  const std::optional<FormSubmission> activated =
+      page_.ApplyScriptActivation(changed_document, href);
+  if (activated.has_value()) {
+    AddPerformanceCounter(PerfCounterId::EngineScriptNavigations);
+    return Navigate(*activated);
+  }
+  if (href.has_value()) {
+    const std::optional<std::string> resolved = ResolveLink(*href, page_.Url());
+    if (resolved.has_value()) {
+      AddPerformanceCounter(PerfCounterId::EngineScriptNavigations);
+      // **`NavigateToFragment` first, exactly as the real click path does.**
+      // Leaving it out is what hung the loop: `a.click()` on an `href="#link"`
+      // went straight to a full navigation, which re-fetched the same
+      // document, whose script clicked the anchor again. One anchor click and
+      // the page reloaded forever. A same-document hash change is a scroll and
+      // a `hashchange`, not a load, and both callers have to agree about that
+      // for the same reason they share the activation walk.
+      if (NavigateToFragment(*resolved)) {
+        return true;
+      }
+      NavigateFromCurrentDocument(*resolved, {});
+      return true;
+    }
+  }
+  if (changed_document) {
+    page_.InvalidateLayout();
+    return true;
+  }
+  return false;
 }
 
 bool Engine::Navigate(const FormSubmission& submission) {

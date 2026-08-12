@@ -324,6 +324,43 @@ void DomBindings::Install() {
     node->SetNodeDocument(&into);
     return owner->WrapperFor(node);
   });
+  // `createAttribute`, and the two things it does that make it more than a
+  // record constructor: it **validates the name** -- an attribute whose name
+  // carries a space or an `=` is one no serialiser could write out and no
+  // parser could read back, which is why the DOM makes it an
+  // InvalidCharacterError rather than letting it into the tree -- and it
+  // **lower-cases in an HTML document and not in an XML one**, which is the
+  // same rule `createElement` follows and the same reason: case is part of a
+  // name everywhere except HTML.
+  //
+  // The Attr it answers with has no element, and `attr.ownerElement === null`
+  // is what a page checks for that. What it is *not* is a Node -- `NodeOf`
+  // does not recognise it, so it cannot be appended or ranged over. That gap
+  // is C4's named remainder and it is written down at MakeAttrImpl.
+  method("createAttribute", [](NativeCall& call) -> Value {
+    DomBindings* owner = OwnerOf(call);
+    if (!RequireArguments(call, "Document", "createAttribute", 1)) {
+      return call.ThrownValue();
+    }
+    std::string name;
+    if (!ToDomString(call, call.arguments[0], name)) {
+      return call.ThrownValue();
+    }
+    if (!IsValidLocalName(name, NameKind::Attribute)) {
+      return ThrowDom(call, "InvalidCharacterError",
+                      "'" + name + "' is not a valid attribute name");
+    }
+    if (owner == nullptr) {
+      return Value::Null();
+    }
+    const dom::Document* owning = owner->DocumentOf(call.self);
+    if (owning != nullptr && owning->IsHtmlDocument()) {
+      name = util::AsciiLowerCase(name);
+    }
+    dom::Attribute attribute;
+    attribute.name = std::move(name);
+    return MakeDetachedAttr(*owner, call.interpreter, attribute);
+  });
   method("createComment", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
     if (owner == nullptr) {

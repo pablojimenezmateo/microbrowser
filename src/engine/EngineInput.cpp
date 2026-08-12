@@ -125,7 +125,8 @@ bool Engine::HandlePointer(const ipc::PointerInputMessage& pointer) {
   if (activation.form.has_value()) {
     return Navigate(*activation.form);
   }
-  if (activation.reset_form || activation.toggled_checkable || activation.toggled_media) {
+  if (activation.reset_form || activation.toggled_checkable || activation.toggled_media ||
+      activation.toggled_details) {
     LayoutAndPaint();
     return true;
   }
