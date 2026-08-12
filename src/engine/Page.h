@@ -157,17 +157,21 @@ class Page : private layout::ImageProvider,
   }
 
   // The child browsing contexts, one per `<iframe>` (ADR 0027 §1). The reasoning
-  // for every one of these is in Frames.h and PageResources.cpp; what matters at
-  // this seam is that `SetFrameDocument` is *told* whether the child is
-  // same-origin rather than deciding, because this class cannot see `src/url`.
-  const std::vector<Frame>& Frames() const { return frames_; }
-  std::vector<Frame>& MutableFrames() { return frames_; }
+  // for every one of these is in Frames.h; what matters at this seam is that
+  // `SetDocument` is *told* whether the child is same-origin rather than
+  // deciding, because this class cannot see `src/url`.
+  const FrameTree& Frames() const { return frames_; }
+  FrameTree& MutableFrames() { return frames_; }
+  // Re-derives the frame list from this document, returning the indices with no
+  // document yet. Cheap to call on a settled page: it walks the tree only when
+  // the document's *structure* has moved. See FrameTree::NeedsCollect.
   std::vector<std::size_t> CollectFrames();
-  void SetFrameDocument(std::size_t index, std::string_view html, std::string url,
-                        csp::PolicyList header_policy, std::string_view content_type,
-                        bool same_origin);
-  bool FramesLoaded() const;
-  void ClearFrames();
+  bool FramesLoaded() const { return frames_.AllLoaded(); }
+  void ClearFrames() { frames_.Clear(); }
+  // Fires the `load` events owed to `<iframe>` elements whose documents arrived.
+  // True when one was dispatched, which means script ran and the document may
+  // have moved under everything that had already looked at it.
+  bool DispatchPendingFrameLoads();
 
   // The external scripts this document referenced, in document order. Fetched
   // by the caller for the same reason a stylesheet is: a fetch needs a privacy
@@ -977,7 +981,7 @@ class Page : private layout::ImageProvider,
   // and it matters: a `Frame` owns a `Page`, so this is what makes the class
   // recursive, and destruction runs bottom-up -- children before the document
   // whose elements hold borrowed pointers to their documents.
-  std::vector<Frame> frames_;
+  FrameTree frames_;
 };
 
 }  // namespace microbrowser::engine

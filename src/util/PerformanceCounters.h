@@ -267,6 +267,22 @@ namespace microbrowser::util {
   /* Pending list rebuilt after an observation callback assigned img.src.      */ \
   X(EngineImagesRecollectedAfterObservation,                                     \
     "engine.images_recollected_after_observation")                               \
+  /* --- nested browsing contexts (ADR 0027) --------------------------------*/ \
+  /* `frames_collected` counts *walks of the document*, not frames -- the     */ \
+  /* cost of asking rather than the answer -- and is the one to watch: only   */ \
+  /* FrameTree::NeedsCollect stands between it and a 60Hz walk of every node  */ \
+  /* (TD-0021's shape). Read `created` against it: that one is per context    */ \
+  /* exactly once. `renavigated` is `iframe.src = other`, and every one is a  */ \
+  /* request -- a page assigning `src` in a loop is visible here and nowhere  */ \
+  /* else. `failed` is counted *inside* `loaded`, because a refused child     */ \
+  /* still gets an empty document so `load` fires; without the pair, a page   */ \
+  /* of dead embeds and a page of live ones read identically.                 */ \
+  X(EngineFramesCollected, "engine.frames_collected")                            \
+  X(EngineFramesCreated, "engine.frames_created")                                \
+  X(EngineFramesLoaded, "engine.frames_loaded")                                  \
+  X(EngineFramesRenavigated, "engine.frames_renavigated")                        \
+  X(EngineFramesFailed, "engine.frames_failed")                                  \
+  X(EngineFrameLoadEvents, "engine.frame_load_events")                           \
   /* --- fetch (ADR 0020 §1) -------------------------------------------------*/ \
   /* What a *page* asked the network for, as against what the browser asked    */ \
   /* for on its behalf. The pair to read is `requests` against `delivered`     */ \

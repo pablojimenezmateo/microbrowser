@@ -2603,3 +2603,53 @@ read the tree the way `DocumentBaseUrl` does — and then point `url_of` in `Url
 encoding worktree's version cannot pass the standard's setter vectors and the URL worktree's cannot
 pass `encoding/legacy-mb-*`'s href cases. Neither branch's tests cover the other's case, so **the
 suite is green either way** — check both before believing a change here.
+
+## TD-0059 — `contentWindow` is not a window, because a browsing context is a realm and `src/js` has one
+
+Landed 2026-08-12 with the rest of ADR 0027 §1's first half: a child browsing context now fetches
+its document, parses it, fires `load` at its element, re-navigates when a script assigns `src`, and
+answers `contentDocument` when it is same-origin. **What it does not do is run the child's script,
+and it cannot, and the reason is one sentence:** `js::Interpreter` has exactly one global object and
+one set of intrinsics, so "a second document with its own `window`" has nowhere to be.
+
+What that costs today, in the order a page notices:
+
+| symptom | what a page sees |
+|---|---|
+| `iframe.contentWindow` | an object with a `.document` and nothing else — no `location`, no globals the child set, not an instance of `Window` |
+| a `<script>` in the child | never runs; the child's document is inert markup |
+| `parent`, `top`, `frames`, `postMessage` | absent |
+| `childDoc.defaultView` | absent |
+| cross-realm `instanceof` | wrong by construction: there is one `Array`, one `HTMLDivElement`, one of everything |
+
+`src/bindings/FrameBindings.cpp` says this at the point where it matters, and the plain object it
+returns instead is **the stub ADR 0012 forbids** — it is here only because returning nothing broke
+more than returning something. It should be read as a debt with a name rather than as an API.
+
+**The fix is a realm, and it belongs in `src/js`.** `Interpreter` grows N globals rather than one:
+`global_`, `global_scope_` and `WellKnown` become a `Realm`, the interpreter holds a vector of them,
+and a compiled function records which realm it belongs to so a builtin allocates from its own
+`Array.prototype` rather than from whichever one ran last. The well-known *symbols* stay on the
+interpreter, because the specification shares those across realms and a per-realm
+`Symbol.iterator` would break every protocol that crosses one.
+
+**Same-origin contexts then share one interpreter and one heap; cross-origin ones get their own.**
+That is not a convenience — it is ADR 0027 §2 becoming structural. A cross-origin child in a
+separate heap cannot hand an object to its embedder even by accident, which is the property ADR 0027
+§5 needs for the process split to be an extraction, and it is strictly stronger than the check
+`Engine::OnFrameFetch` performs today.
+
+**Measured, so the priority is arguable rather than asserted.** Of the 8,417 web-platform-tests
+whose harness never reported (2026-08-12 expectations), **1,083 use an `<iframe>`** — 1,022 alone,
+plus 61 that also want a worker, a module or a canvas. That is second only to the 2,446 that want a
+worker global, and unlike those it is not duplicate coverage: a `.any.worker.html` is the same
+assertions as a `.any.html` twin that mostly passes already, while an iframe test is the only place
+its behaviour is tested at all. TD-0057 has the same conclusion reached from `url/` (188 subtests,
+all of them `frame.contentWindow.location = badUrl`) and `docs/session-log.md`'s C6 entry has it
+from `dom/` (~4,176 subtests behind two `<iframe>`s). Three independent areas, one feature.
+
+**Do not approximate it.** A `contentWindow` that proxied a few names onto the parent's global would
+make `iframe.contentWindow.document === iframe.contentDocument` true and `frames[0].Array === Array`
+true, and both are the observable that tells a page it is in one realm. The tests that would start
+passing are the ones that check the shallow answer; the pages that would break are the ones that
+feature-detect and take the native path.

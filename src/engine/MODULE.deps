@@ -143,7 +143,15 @@ max_tu_lines: 990
 # member itself, keyed by the page's own partition key like EngineStorage.cpp.
 # Raised public_methods for HasInFlightScriptFetches: snapshot Accept drain
 # (TD-0032) must wait on page fetch without waiting on stuck fonts (TD-0031).
-budget: Engine header_lines=530 public_methods=22 members=26
+# 545 for ADR 0027's child contexts, and **no new members and no new public
+# methods** -- which is the shape to check before reading the raise as growth.
+# The four are private and every one of them is routing: a late child document,
+# the `load` its arrival owes, and the completion drain those two joined. The
+# drain in particular *left* Engine.cpp for EngineSubresources.cpp, so the
+# translation unit shrank by sixty lines while the header grew by fifteen. The
+# frames themselves live in `FrameTree`, which is why `Page` did not gain a
+# member either.
+budget: Engine header_lines=545 public_methods=22 members=26
 # Raised for deferred location navigation (pending_location_ + replacing_document_)
 # — ADR 0026 §3 assign/replace/reload without tearing the document under script.
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
@@ -316,12 +324,24 @@ budget: PendingLoad header_lines=125 public_methods=8 members=21
 # `<meta charset>` changes what leaves the browser.
 budget: Page   header_lines=990 public_methods=189 members=26
 budget: LayoutState header_lines=40 public_methods=0 members=8
-# ADR 0027 §1's child browsing context. Five members and each is a distinct
-# question: which element holds it, what context is behind it, what URL it was
-# told to load, whether that has arrived, and whether it is same-origin. The
-# last is recorded rather than recomputed so that one frame cannot be
-# same-origin to one caller and not to another.
-budget: Frame header_lines=40 public_methods=0 members=6
+# ADR 0027 §1's child browsing context. Each member is a distinct question:
+# which element holds it, what context is behind it, what URL it was told to
+# load, whether that has arrived, whether it has been asked for, and whether it
+# is same-origin. The last is recorded rather than recomputed so that one frame
+# cannot be same-origin to one caller and not to another.
+# Raised to 7 for `requested_source`: the collection pass now runs on every turn
+# rather than once per parse, so "is this element still asking for what it was
+# asking for" has to be answerable without a second network round trip. It is
+# what makes `iframe.src = other` a navigation and `div.className = x` not one,
+# and it is a *recorded* answer for the same reason `same_origin` is -- deriving
+# it at each caller is how two callers come to disagree.
+budget: Frame header_lines=45 public_methods=0 members=7
+# The tree those frames hang off, lifted out of Page when the collection pass
+# stopped being a once-per-parse walk. Three members: the frames, the structure
+# version the last collection saw, and the elements owed a `load`. Page was at
+# its member budget with the vector alone, which is ADR 0027's "Page stops
+# meaning *the document*" arriving as a lint failure.
+budget: FrameTree header_lines=85 public_methods=16 members=4
 # ADR 0031's decoder child and the surface registry it feeds. Two members: the playback coordinator and
 # the last composited generation per surface id, which is how a playing video damages the screen when
 # the display list is byte-identical.

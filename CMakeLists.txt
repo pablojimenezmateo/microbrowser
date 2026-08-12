@@ -698,6 +698,7 @@ add_executable(microbrowser_tests
   tests/BrowserChromeTests.cpp
   tests/DisplayListDiffTests.cpp
   tests/EngineTests.cpp
+  tests/FrameTests.cpp
   tests/FloatTests.cpp
   tests/FocusTests.cpp
   tests/FontCatalogTests.cpp

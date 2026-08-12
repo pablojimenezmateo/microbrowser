@@ -201,7 +201,8 @@ bool Engine::Advance() {
   // script, which is why it is here and not inside the paint.
   bool socket_activity = AdvanceSockets();
   socket_activity = AdvanceEventSources() || socket_activity;
-  if (!load_.active && post_load_.images.empty() && post_load_.scripts.empty() && script_fetches_.empty() &&
+  if (!load_.active && post_load_.images.empty() && post_load_.scripts.empty() &&
+      post_load_.frames.empty() && script_fetches_.empty() &&
       module_fetches_.empty() && font_fetches_.empty() && worker_fetches_.empty() &&
       !page_.HasPendingModules()) {
     if (socket_activity) {
@@ -211,64 +212,14 @@ bool Engine::Advance() {
     }
     return socket_activity;
   }
-  std::vector<Loader::Completion> completions = loader_.TakeCompletions();
+  // Everything the loader answered this turn, routed to whoever asked for it. In its own
+  // translation unit with the rest of the subresource routing: which table an id is in *is* the
+  // question that file exists to answer, and Advance's job is the turn rather than the answer.
   bool moved = false;
-  bool font_changed = false;
-  for (Loader::Completion& completion : completions) {
-    if (post_load_.images.find(completion.id) != post_load_.images.end()) {
-      moved = OnLateImage(std::move(completion)) || moved;
-      continue;
-    }
-    if (post_load_.scripts.find(completion.id) != post_load_.scripts.end()) {
-      if (OnLateScript(std::move(completion))) {
-        moved = true;
-        if (FollowScriptNavigation()) {
-          return true;
-        }
-      }
-      continue;
-    }
-    if (worker_fetches_.find(completion.id) != worker_fetches_.end()) {
-      if (OnWorkerScriptFetch(std::move(completion))) {
-        moved = true;
-      }
-      continue;
-    }
-    if (font_fetches_.find(completion.id) != font_fetches_.end()) {
-      if (OnFontFetch(std::move(completion))) {
-        moved = true;
-        font_changed = true;
-      }
-      continue;
-    }
-    if (module_fetches_.find(completion.id) != module_fetches_.end()) {
-      moved = OnModuleFetch(std::move(completion)) || moved;
-      continue;
-    }
-    if (script_fetches_.find(completion.id) != script_fetches_.end()) {
-      moved = OnScriptFetch(std::move(completion)) || moved;
-      // A `then` handler can navigate, and a navigation from inside one leaves
-      // every id in this batch belonging to a document that is gone.
-      if (FollowScriptNavigation()) {
-        return true;
-      }
-      continue;
-    }
-    if (!load_.active) {
-      // A completion for a load that is gone. Only a late image outlives one.
-      continue;
-    }
-    OnCompletion(std::move(completion));
-    if (!load_.active) {
-      // The document failed, or a navigation replaced this one from inside a
-      // completion. Anything still in the batch belongs to a load that is gone.
-      return true;
-    }
+  if (DrainCompletionBatch(moved)) {
+    return true;
   }
-  if (font_changed) {
-    LayoutAndPaint();
-  }
-  moved = moved || !completions.empty();
+
   // The module graph, after the completions and before the load is carried
   // forward: a settled `import()` runs a page's `then`, and that is a script turn
   // like any other.
@@ -319,7 +270,7 @@ bool Engine::HasRunnableWork() const {
     return true;
   }
   return (load_.active || !post_load_.images.empty() || !post_load_.scripts.empty() ||
-          !script_fetches_.empty() ||
+          !post_load_.frames.empty() || !script_fetches_.empty() ||
           !module_fetches_.empty() || !font_fetches_.empty() || !worker_fetches_.empty() ||
           page_.HasPendingModules()) &&
          loader_.HasRunnableWork();
@@ -339,6 +290,7 @@ std::string Engine::LoadingReason() const {
   note(load_.active, "load");
   note(!post_load_.images.empty(), "late_images");
   note(!post_load_.scripts.empty(), "late_scripts");
+  note(!post_load_.frames.empty(), "late_frames");
   if (!script_fetches_.empty()) {
     note(true, "script_fetches");
     out << "(n=" << script_fetches_.size() << ')';
@@ -388,6 +340,11 @@ bool Engine::RunDueWork() {
   }
   bool script_ran = false;
   const Page::DueWorkKind due = page_.RunDueWork(NowMilliseconds(), &script_ran);
+  // A timer that appended an `<iframe>` made a browsing context. Gated on `script_ran` because
+  // nothing else can have: a video frame and an animation tick cannot append an element.
+  if (script_ran) {
+    (void)ProcessDynamicFrames();
+  }
   if (due == Page::DueWorkKind::None) {
     return from_workers;
   }

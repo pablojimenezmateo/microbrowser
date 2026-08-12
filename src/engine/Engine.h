@@ -89,8 +89,12 @@ class Engine : private bindings::NetworkSource,
   // TD-0031). The tool asks `IsDocumentLoading`; the loop still watches the
   // sockets through `AppendWaitDescriptors`.
   bool IsDocumentLoading() const {
+    // A child document a script asked for is on this list for the same reason a late image is: it
+    // is part of what the document *is*, and a loop that stopped turning would leave an `<iframe>`
+    // holding an empty box and a `load` handler that never ran. HTML agrees -- a frame blocks the
+    // embedder's `load` event, which is the whole difference between it and a `fetch`.
     return load_.active || !post_load_.images.empty() || !post_load_.scripts.empty() ||
-           !module_fetches_.empty() || page_.HasPendingModules() ||
+           !post_load_.frames.empty() || !module_fetches_.empty() || page_.HasPendingModules() ||
            page_.HasOutstandingScriptFetches();
   }
   bool IsLoading() const {
@@ -236,10 +240,24 @@ class Engine : private bindings::NetworkSource,
   // frames are re-collected -- a script that appends an `<iframe>` creates a
   // context the same way the parser does.
   void StartFrameRequests();
+  // Re-collects the child contexts, fetches the new ones, and fires the `load` events owed to
+  // those whose documents arrived. True when a handler ran, so the document may have moved.
+  bool ProcessDynamicFrames();
+  // The above, plus what a handler having run implies: the navigation it asked for, or a relayout
+  // and a paint. `navigated` says the document is gone and the caller must touch nothing else.
+  bool SettleFrameLoads(bool& navigated);
+  // Every completion the loader has ready, routed to whichever table its id is in. Sets `moved`
+  // when anything happened; true when the caller must return at once, because a handler navigated
+  // and the rest of the batch belongs to a document that is gone.
+  bool DrainCompletionBatch(bool& moved);
   // One child document's bytes, into the frame that asked for them. Decides
   // *here* whether the child is same-origin, because this is the module that
   // understands URLs -- see Page::SetFrameDocument and ADR 0027 §2.
   bool OnFrameFetch(Loader::Completion completion, const PendingResource& resource);
+  // A child document that arrived after the navigation was over -- most of them, since a script
+  // appending an `<iframe>` is the common case. False when the completion is not one. Does not
+  // fire `load`; see the body.
+  bool OnLateFrame(Loader::Completion& completion);
   void StartWorkerScriptRequests();
   bool OnWorkerScriptFetch(Loader::Completion completion);
   // One face's bytes. True when the provider took them and the page therefore
@@ -487,10 +505,17 @@ class Engine : private bindings::NetworkSource,
     bool document_interactive = false;
     std::map<Loader::RequestId, std::string> images;
     std::map<Loader::RequestId, std::size_t> scripts;
+    // Child documents a script asked for after the load was over -- which is
+    // most of them, because `iframe.onload = f; document.body.appendChild(f)`
+    // is how a page (and almost every WPT test) makes a second document. The
+    // frame index rather than a URL, for the same reason `scripts` holds one:
+    // the completion carries an id and the tree is addressed by position.
+    std::map<Loader::RequestId, std::size_t> frames;
     void Clear() {
       document_interactive = false;
       images.clear();
       scripts.clear();
+      frames.clear();
     }
   } post_load_;
   // The requests this page's own script made and has not been answered for.
