@@ -15,10 +15,17 @@ namespace microbrowser::wpt {
 // of their own origin.** The server binds ephemeral ports -- it asks the kernel for
 // a free one, because a fixed port makes two runs on one machine collide -- so those
 // names differ on every run, and an expectation file full of them churns entirely
-// for free. Measured on 2026-08-12: re-recording `fetch/` moved 292 lines of which
-// **~250 were nothing but a port number changing**, which is worse than useless. The
-// diff of these files is what a session delivers, and a diff nobody can read is a
-// deliverable nobody can check.
+// for free. Counted on 2026-08-12: **65 recorded lines across `fetch/`, `cors/` and
+// `resource-timing/` carry a port** -- 22, 4 and 39 -- and every one of them changes on
+// every run in both directions at once. The diff of these files is what a session
+// delivers, so churn that is guaranteed and meaningless is worth removing even at that
+// size.
+//
+// (An earlier version of this comment said ~250 lines in `fetch/` alone. That was wrong,
+// and wrong in the way worth recording: it came from *sampling* the top of a 292-line
+// diff, where the port lines happened to sort first, and then reporting the sample as
+// the total. The real figure is 22 of those 292 -- the rest were genuine status changes.
+// Counting the whole file takes one `grep -c`.)
 //
 // **By index rather than to a single placeholder, and that distinction is the whole
 // of the design.** `fetch/api/basic/scheme-others.any.html` has one subtest per

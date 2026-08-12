@@ -297,17 +297,17 @@ FAIL=XMLHttpRequest: timeout event
 [xhr/event-timeout.any.worker.html]
 harness=TIMEOUT
 [xhr/event-upload-progress-crossorigin.any.html]
-FAIL=Upload events registered on time (http://127.0.0.1:40817/xhr/resources/corsenabled.py)
-FAIL=Upload events registered on time (resources/redirect.py?code=307&location=http://127.0.0.1:40817/xhr/resources/corsenabled.py)
-FAIL=Upload events registered too late (http://127.0.0.1:40817/xhr/resources/corsenabled.py)
-FAIL=Upload events registered too late (resources/redirect.py?code=307&location=http://127.0.0.1:40817/xhr/resources/corsenabled.py)
+FAIL=Upload events registered on time (http://127.0.0.1:{{port[0]}}/xhr/resources/corsenabled.py)
+FAIL=Upload events registered on time (resources/redirect.py?code=307&location=http://127.0.0.1:{{port[0]}}/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (http://127.0.0.1:{{port[0]}}/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (resources/redirect.py?code=307&location=http://127.0.0.1:{{port[0]}}/xhr/resources/corsenabled.py)
 [xhr/event-upload-progress-crossorigin.any.worker.html]
 harness=TIMEOUT
 [xhr/event-upload-progress.any.html]
-FAIL=Upload events registered on time (http://127.0.0.1:40817/xhr/resources/corsenabled.py)
-FAIL=Upload events registered on time (resources/redirect.py?code=307&location=http://127.0.0.1:40817/xhr/resources/corsenabled.py)
-FAIL=Upload events registered too late (http://127.0.0.1:40817/xhr/resources/corsenabled.py)
-FAIL=Upload events registered too late (resources/redirect.py?code=307&location=http://127.0.0.1:40817/xhr/resources/corsenabled.py)
+FAIL=Upload events registered on time (http://127.0.0.1:{{port[0]}}/xhr/resources/corsenabled.py)
+FAIL=Upload events registered on time (resources/redirect.py?code=307&location=http://127.0.0.1:{{port[0]}}/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (http://127.0.0.1:{{port[0]}}/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (resources/redirect.py?code=307&location=http://127.0.0.1:{{port[0]}}/xhr/resources/corsenabled.py)
 [xhr/event-upload-progress.any.worker.html]
 harness=TIMEOUT
 [xhr/firing-events-http-content-length.html]
@@ -1008,7 +1008,7 @@ FAIL=XMLHttpRequest: The send() method: event order when there is no response en
 FAIL=XMLHttpRequest: send() - non same-origin (about:blank)
 FAIL=XMLHttpRequest: send() - non same-origin (blob:bogusidentifier)
 FAIL=XMLHttpRequest: send() - non same-origin (folder.txt)
-FAIL=XMLHttpRequest: send() - non same-origin (http://127.0.0.1:40817)
+FAIL=XMLHttpRequest: send() - non same-origin (http://127.0.0.1:{{port[0]}})
 FAIL=XMLHttpRequest: send() - non same-origin (javascript:alert('FAIL'))
 FAIL=XMLHttpRequest: send() - non same-origin (mailto:test@example.org)
 FAIL=XMLHttpRequest: send() - non same-origin (tel:+31600000000)
@@ -1038,24 +1038,14 @@ FAIL=XMLHttpRequest: The send() method: POSTing to URL that redirects (303)
 FAIL=XMLHttpRequest: The send() method: POSTing to URL that redirects (307 (blob))
 FAIL=XMLHttpRequest: The send() method: POSTing to URL that redirects (307 (string))
 [xhr/send-redirect-to-cors.htm]
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (301 GET with explicit Content-Type safelisted)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (301 GET with explicit Content-Type)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (301 POST with string and explicit Content-Type safelisted)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (301 POST with string and explicit Content-Type)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (301)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (302 FOO with string and explicit Content-Type safelisted)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (302 POST with string and explicit Content-Type)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (302)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (303 FOO with string and explicit Content-Type safelisted)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (303 GET with explicit Content-Type safelisted)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (303)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307 FOO with string and explicit Content-Type)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307 POST with string and explicit Content-Type safelisted)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307 POST with string and explicit Content-Type)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307 post with null)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307 post with string)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307 post with typed array)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (308 FOO with string and explicit Content-Type multipart/form-data)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (308 FOO with string and explicit Content-Type safelisted)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (308 FOO with string and explicit Content-Type text/plain)

@@ -4,21 +4,14 @@ FAIL=A 304 can contract Access-Control-Expose-Headers
 FAIL=A 304 can expand Access-Control-Expose-Headers
 FAIL=A 304 response with no CORS headers inherits from the stored response
 [cors/access-control-expose-headers-parsing.window.html]
-FAIL=Parsing: Access-Control-Expose-Headers%3A%0D%0AAccess-Control-Expose-Headers%3A%20bb-8
 FAIL=Parsing: Access-Control-Expose-Headers%3A%20%22bb-8%22%2Cbb-8
-FAIL=Parsing: Access-Control-Expose-Headers%3A%20%2Cbb-8
 FAIL=Parsing: Access-Control-Expose-Headers%3A%20%40%23%24%23%25%25%26%5E%26%5E*()()11!%2Cbb-8
-FAIL=Parsing: Access-Control-Expose-Headers%3A%20'bb-8'
-FAIL=Parsing: Access-Control-Expose-Headers%3A%20'bb-8'%2Cbb-8
 FAIL=Parsing: Access-Control-Expose-Headers%3A%20bb-8%0B
 FAIL=Parsing: Access-Control-Expose-Headers%3A%20bb-8%0B%2Cbb-8
 FAIL=Parsing: Access-Control-Expose-Headers%3A%20bb-8%0C
-FAIL=Parsing: Access-Control-Expose-Headers%3A%20bb-8%0D%0AAccess-Control-Expose-Headers%3A%20no
 FAIL=Parsing: Access-Control-Expose-Headers%3A%20bb-8%0D%0AAccess-Control-Expose-Headers%3A%20no%20no
 FAIL=Parsing: Access-Control-Expose-Headers%3A%20bb-8%2C%20no%20no
 FAIL=Parsing: Access-Control-Expose-Headers%3A%20bb-8%2C%2C%40%23%24%23%25%25%26%5E%26%5E*()()11!
-FAIL=Parsing: Access-Control-Expose-Headers%3A%20no%0D%0AAccess-Control-Expose-Headers%3A%20bb-8
-FAIL=Parsing: access-control-expose-headers%3A%20BB-8
 [cors/basic.htm]
 FAIL=Same domain basic usage, origin: echo
 FAIL=Same domain basic usage, origin: none
@@ -90,11 +83,11 @@ FAIL=Late listeners: Preflight
 [cors/origin.htm]
 FAIL=Allow origin: *
 FAIL=Allow origin: [tab]*
-FAIL=Allow origin: [tab]http://localhost:40817
+FAIL=Allow origin: [tab]http://localhost:{{port[0]}}
 FAIL=Allow origin: _*__
-FAIL=Allow origin: _http://localhost:40817
-FAIL=Allow origin: _http://localhost:40817___[tab]_
-FAIL=Allow origin: http://localhost:40817
+FAIL=Allow origin: _http://localhost:{{port[0]}}
+FAIL=Allow origin: _http://localhost:{{port[0]}}___[tab]_
+FAIL=Allow origin: http://localhost:{{port[0]}}
 [cors/preflight-cache-partitioning.sub.window.html]
 harness=TIMEOUT
 [cors/preflight-cache.htm]
