@@ -2419,14 +2419,14 @@ functions in one file differ.
 
 ## TD-0053 — `url/`'s last 188 subtests are an iframe, and its last 24 test files are a worker
 
-`url/` is 9,695 of 9,909 subtests (2026-08-12). Everything a URL parser can be asked, it answers:
+`url/` is 9,696 of 9,909 subtests (2026-08-12). Everything a URL parser can be asked, it answers:
 the WHATWG's own vectors are 891/891 parses, 278/278 setters, 87/87 `toascii` and 2,670/2,671
 `IdnaTestV2`. What is left is two features that have nothing to do with URLs, and the point of
 this entry is that **no amount of URL work reaches them**:
 
 | what | cost, measured |
 |---|---|
-| `failure.html`'s `frame.contentWindow.location = badUrl` third | **188 subtests** |
+| `failure.html`'s `frame.contentWindow.location = badUrl` third | **188 subtests**, which is 99% of what is left |
 | `data-uri-fragment`, `javascript-urls.window`, `percent-encoding.window` | **3 test files**, all `iframe.onload`, all TIMEOUT |
 | `*.any.worker.html` | **24 test files**, all TIMEOUT |
 

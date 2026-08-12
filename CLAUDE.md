@@ -439,8 +439,8 @@ one; unmasking it needs a way to evaluate a prelude before a page's own scripts,
 `microbrowser_snapshot` cannot yet do. **`www.reddit.com` is a separate problem** — a JavaScript
 challenge, unaffected by the `User-Agent`; see `docs/roadmap-to-any-page.md` Phase A.
 
-**`url/` is 9,695 of 9,909 web-platform-tests subtests (97.8%), and what is left is not URL work.**
-188 of the 214 are `failure.html`'s `frame.contentWindow.location = badUrl` third and 24 of the
+**`url/` is 9,696 of 9,909 web-platform-tests subtests (97.9%), and what is left is not URL work.**
+188 of the 190 are `failure.html`'s `frame.contentWindow.location = badUrl` third and 24 of the
 31 timeouts are `*.any.worker.html` — ADR 0027 and ADR 0022 §2, which is the same wall `dom/`
 hit from the other direction (see `docs/session-log.md`'s C6 entry: ~4,176 of its subtests are
 behind two `<iframe>`s). TD-0052 and TD-0053 carry the numbers. **Nested browsing contexts is the

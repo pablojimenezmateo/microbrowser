@@ -4939,7 +4939,7 @@ that were not URLs"; "FormData, a live iterator, and a string that was two surro
 "A sequence is an iterator, and a function's name is not a key"; "A host object is not clonable,
 and an href is not a scalar string".
 
-**Left:** 214 subtests and 31 timeouts, and **none of them is a URL bug**:
+**Left:** 190 subtests and 31 timeouts, and **none of them is a URL bug**:
 
 - **188** are `failure.html`'s iframe third: `frame.contentWindow.location = badUrl` must throw
   that frame's own `SyntaxError`. Plus `data-uri-fragment.html`, `javascript-urls.window.html` and
@@ -4949,10 +4949,9 @@ and an href is not a scalar string".
   own thread with its own heap, and its global has `self`, `postMessage`, `name` and nothing else
   — no `importScripts`, no binding layer, so no `URL` or `URLSearchParams` to test. That is
   ADR 0022 §2 rather than a gap: the file says "no fetch, no DOM, no storage" on purpose.
-- **2** are JavaScript conformance rather than URL: assigning to a getter-only accessor must throw
-  in strict mode (`Interpreter.cpp` treats the whole engine as sloppy and says so in a comment),
-  and `DOMException.prototype.name` must be an accessor with a Web IDL brand check rather than a
-  data property.
+- **1** is JavaScript conformance rather than URL: assigning to a getter-only accessor must throw
+  in strict mode, and `Interpreter.cpp` treats the whole engine as sloppy and says so in a comment.
+  Nothing anywhere records strictness. TD-0052.
 - **1** is `idlharness`, which wants the whole IDL surface introspectable.
 
 **Found:**
