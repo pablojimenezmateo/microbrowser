@@ -698,6 +698,12 @@ and the ledger. **A session that cannot hand off through those three files has n
 `status: done` means the session's `check` was *run* and *passed*. Nothing else may set it; a
 session wrongly marked done costs the next agent a whole session to discover.
 
+**Build the *whole* sanitizer preset, not just `microbrowser_tests`.** `DecoderClient/ConfigureFlushRoundTrip`
+spawns `microbrowser_decoder` from its own build tree, so a preset where only the test binary was built
+fails that one test with `configure` — which looks exactly like a real regression in the IPC path and is
+not. `cmake --build --preset microbrowser-asan` with no `--target` is the fix. (Cost me two
+false-positive investigations on 2026-08-12.)
+
 TSan needs ASLR cleared (`setarch -R`); `run-checks.sh` does this automatically. Running `ctest` on
 the tsan preset by hand without it fails with "unexpected memory mapping" — that is the environment,
 not a bug.
