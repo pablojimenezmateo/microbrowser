@@ -49,4 +49,12 @@ slow-unit-*
 # daily would be a fork nobody maintains and would drown every real diff. What
 # is tracked is the pin (tools/wpt/REVISION) and the scope
 # (tools/wpt/directories.txt). See docs/adr/0040-web-platform-tests.md.
-/third_party/
+#
+# **No trailing slash, and that is not tidiness.** `/third_party/` ignores a
+# *directory* and nothing else, so when a worktree replaced it with a symlink
+# into the main checkout -- which is how five parallel agents shared one 600MB
+# fetch -- `git add -A` committed the symlink. Merging that branch back wrote
+# the link into the main worktree, where it pointed at itself, and the checkout
+# it was standing in for was gone. Every WPT run then died on "Too many levels
+# of symbolic links" rather than on anything to do with the browser.
+/third_party

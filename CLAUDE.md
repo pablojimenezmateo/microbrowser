@@ -134,6 +134,34 @@ serializes the bitmap inline rather than naming it in a resource table. Roadmap 
 
 ## Where To Pick Up
 
+**Five parallel worktrees were merged into master on 2026-08-12** — `url/`, declarative shadow DOM,
+reflected IDL attributes, `dom/`, and the legacy multi-byte encodings. All five branched from the
+same commit, so most of what a merge had to decide was not textual. Four decisions are worth
+knowing before trusting anything in this file:
+
+- **Two branches implemented the DOM's NodeIterator pre-removing steps.** `NodeIterators.h` (from
+  the `dom/` branch) is the one that survived; the copy in `LiveRanges.h` is gone and that header
+  says where it went. Verified: `dom/traversal/` is 1,584 of 1,608 with **0 unexpected results**.
+- **Two branches implemented `a.href` and its decomposition attributes**, and each got a different
+  half right. The merge kept the URL branch's — the real parser, base re-read from the tree — so
+  the query is resolved as UTF-8 where a browser would use the document's charset. **TD-0058** has
+  the whole argument and the order the fix has to happen in. Neither branch's tests cover the
+  other's case, so *the suite is green either way*.
+- **`DomBindings` got three features and shrank.** `InstallReflections`,
+  `InstallHyperlinkElementUtils` and `InstallFrameElement` all left the class (to `Reflector`,
+  `UrlObject.cpp` and the new `FrameBindings.h`), which is the cut `src/bindings/MODULE.deps` has
+  been asking for across six cap raises. `NodeInterfaces.cpp` split too: the tag→interface table is
+  `TagInterfaces.h`.
+- **Six tech-debt entries collided on TD-0052/TD-0053** — three branches numbered from the same
+  base. They are now TD-0052 through TD-0057; check `docs/tech-debt.md` rather than a number you
+  remember.
+
+**The WPT checkout had to be re-fetched** and the per-area baselines have *not* all been re-measured
+against the merged tree. `docs/wpt-baseline.md` carries five separate paragraphs dated 2026-08-12,
+each true of the branch that wrote it and none measured with the other four in place. The head of
+`tests/wpt/expectations/shadow-dom.txt` names the one directory that is a *guess* rather than a
+measurement. Re-record before planning against any of those numbers.
+
 **Read this first: `build/` is a *Debug* build.** `build/microbrowser-perf/` is Release+LTO and is
 between four and seven times faster on every page. Every number in the table below and in
 `docs/tech-debt.md` up to 2026-08-06 is a Debug number -- wikipedia is 6.36s in one build and 1.13s
