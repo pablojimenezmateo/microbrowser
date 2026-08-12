@@ -5022,3 +5022,70 @@ a character-set question underneath every origin check. And the document's encod
 `DocumentPolicy` beside the base URL rather than on `Page`, because HTML's "encoding-parse a URL"
 takes both and nothing else — holding them apart is how a `<base href>` and a `<meta charset>` end
 up describing different documents.
+
+## 2026-08-12 — ADR 0027, first increment: a browsing context is a tree
+
+**Status:** in_progress. The context tree, frame loading, `contentDocument` and `frame-src` are in
+and green (`microbrowser_tests` 2100/2100, `encoding/legacy-mb-` 0 unexpected). Nested layout,
+nested display lists, hit-test descent and the cross-origin half are not. **No test moved**, and
+the reason is in "what is next" below — it is not this commit's shape, it is a missing feature two
+layers away.
+
+### What landed
+
+`engine::Page` owns `Frame`s and a `Frame` owns a `Page`. That shape was chosen because `Page`'s
+own header already called it "the unit that a second tab duplicates" — the child needs a document,
+a style resolver, a box tree, a script interpreter and a loader state, which is exactly what `Page`
+is. Nothing in it holds a pointer into its parent, which is ADR 0027 §5's first constraint.
+
+**The origin check is the absence of a pointer, and that is the part to preserve.**
+`dom::Element` gained a borrowed `Document*` that only `src/engine` writes and only for a
+same-origin child. `src/bindings` cannot compare origins — it may not see `src/url` — and now it
+does not have to: a cross-origin frame has *nothing there to return*. Every alternative shape
+(a flag on the binding, a check in `contentDocument`) is one forgotten test away from a universal
+cross-origin read, and this one cannot be.
+
+### What is next, in the order it blocks things
+
+1. **Event handler content attributes.** `<body onload="showNodes()">` never fires. This engine
+   implements `el.onload = fn` as a JavaScript property and has **no path at all from an `on…`
+   *content attribute* to a function** — `<div onclick="…">` is inert on every page this browser
+   has ever rendered, and nothing had noticed because the target sites all use
+   `addEventListener`. All 38 `encoding/legacy-mb-*` decode files are started from
+   `<body onload>`, so they cannot pass until it exists.
+
+   It is not a small change and the reason is worth knowing before starting: an event handler
+   content attribute is *compiling source at runtime*, and `src/js` deliberately has no `eval` and
+   no `Function(source)` — there is a test that says so. What is needed is a C++-only
+   `Interpreter` entry point for compiling a function body, reachable from `src/bindings` and
+   nowhere else, gated on CSP's `AllowsInline(Script, …)` exactly as an inline `<script>` is.
+   That gate is not optional: `<img onerror=…>` is the most common XSS payload on the web, and an
+   engine that compiles one without asking the page's policy is a worse browser than one that
+   compiles none.
+
+2. **Nested layout and nested display lists** (ADR 0027 §6 step 1's other half). `layout_.box_by_element`
+   already gives the iframe element's box, and `PushTransformCommand` + `PushClipCommand` already
+   exist — so a child's list splices under a transform and a clip, which is the same thing a child
+   in another process would deliver. Until this lands a frame loads and is readable and paints
+   nothing, which is a hole ADR 0012 would call a stub if it were left standing.
+
+3. **Hit-test descent**, then the cross-origin half of §2: `WindowProxy`, `postMessage`,
+   `X-Frame-Options`, `frame-ancestors`.
+
+4. **`contentWindow` is not the child's global**, and cannot be as things stand. Each context has
+   its own `js::Interpreter` and therefore its own heap — which is what makes ADR 0027 §5's process
+   split an extraction — and an object from one heap handed to another is a use-after-free waiting
+   for the first collection. What is installed today answers `.document` and nothing else.
+   **A same-origin page reaching a global its own frame's script set needs a realm concept in
+   `src/js`: one interpreter per *site*, with one global per browsing context.** That is the
+   correct end state (ADR 0004's "a process hosts one site" says same-site contexts share a
+   process, so they may share a heap) and it is a change to the JavaScript engine rather than to
+   the engine layer. It was not visible from the ADR and it is the largest single cost left in it.
+
+### One thing found on the way that has nothing to do with frames
+
+`privacy::ResourceType::Document` on a *subresource* request is refused by the blocking engine, and
+silently: the request never reaches the network and nothing anywhere says why. A frame started with
+it looked exactly like a frame whose URL did not parse. `Subdocument` is the right type and is what
+every blocklist means by a frame load, but the silence is worth a look — it is the second
+"refused with no way to see it" in this area in two sessions.
