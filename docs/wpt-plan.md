@@ -374,6 +374,29 @@ are engine questions in `src/js`, not binding questions — which is the useful
 part of this: the next attempt should start in the Proxy implementation, not in
 the collection.
 
+**`Event-dispatch-single-activation-behavior.html` is 121 subtests and is
+*not* the HTML feature it looks like — the activation behaviour already
+exists.** `engine::Page::ResolveClickActivation` walks the composed ancestors
+of a click target and already handles submit controls, reset controls,
+checkable inputs, anchors with an `href`, and media playback. What it is
+missing is a caller: it runs from `EngineInput.cpp`, which only sees *real*
+pointer input, so `element.click()` from script dispatches the event and no
+activation follows.
+
+The seam to reach it already exists too, and this is the point of writing it
+down: **`PendingSubmit`**. `src/bindings` cannot navigate or lay out, so a form
+submission a script asks for is *recorded* on `DomBindings` and the engine
+takes it after the turn ends (`TakePendingSubmit`, drained in `Page.cpp`).
+A pending *activation* is the same shape -- one element recorded by
+`DispatchClick` when nothing called `preventDefault`, taken by the engine, fed
+to `ResolveClickActivation`. That is one member, one accessor and one drain,
+not a form-control subsystem.
+
+Two things the test needs that the walk above does not yet cover: `<details>`/
+`<summary>` toggling, and a `<label>` forwarding activation to its labelled
+control (with the specification's exception -- a label whose event target is
+already interactive content does nothing). Both belong in the same walk.
+
 **The next block after C11 is `Body-FrameSet-Event-Handlers.html`, 48 subtests,
 and it is worth writing down because it is not what its name suggests.** The six
 names (`onblur`, `onerror`, `onfocus`, `onload`, `onresize`, `onscroll`) on
