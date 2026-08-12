@@ -5974,3 +5974,107 @@ day it was written and silently wrong at the first new entry point.
 Also unlanded and named in §5: `DomBindings` caches a wrapper per node, so two of them over one heap
 gives a node two wrappers, and `parent.document.body === parent.document.body` from a child has to
 stay true. Decide whether the cache is shared or realm-keyed before writing either.
+
+## 2026-08-12 — A2 continued: nine handlers, the instrument that ranks them, and a segfault a page could cause
+
+### The ranking everyone was using was wrong, and no amount of grep fixed it
+
+A2's remaining work is "pick the next handler to write", and `Handlers.h` ranks the
+unimplemented ones by how many test files *name* them. Re-counting that today puts
+`gentest.py` first at 3,766 files, `generate.py` second at 2,085 and
+`build-compute-kind-widget-fallback-props.py` third at 802. **None of the three is ever
+fetched.** They are the generator scripts that produced the tests, named in a header comment in
+every file they generated. The previous session's log already said "a reference is not a request"
+— and then there was no table, because nothing recorded which handler a 501 was for.
+
+`MICROBROWSER_WPT_HANDLER_REPORT=1` records it. Over `xhr/` + `fetch/` + `cors/`: **79
+unimplemented handlers, requested 2,877 times**, and the head bears no resemblance to the grep
+list — `dispatcher.py` at 1,091 requests does not appear in the grep top thirty at all.
+
+Two details of it are deliberate. It prints "(none in the tests this run selected)" rather than an
+empty table, because silence reads as the much stronger claim that nothing is missing. And the
+SIGTERM handler that lets `Serve` return — the runner ends a run by killing the server, so a report
+after the loop would never print — is installed **only when the report is asked for**: an
+instrument that changes how the server shuts down is measuring a different server.
+
+### Nine handlers, and the audit that mattered more than the handlers
+
+Picked from the report: `dispatcher.py` (1,091), `record-headers.py` (442), `image.py` (113),
+`content-length.py` (36), `corsenabled.py` (32), `status-code.py` (32+16), `nosniff.py` (15),
+`expose-headers.py` (15), `method.py` (15). `HandlerResponse` grew a `raw` mode because a family of
+these is *about* the bytes — `fetch/h1-parsing/`'s `status-code.py` writes a status line the test
+supplied with bare LF and no framing — and the ordinary path would have added `Content-Length`,
+`Cache-Control` and `Connection`, repairing precisely the malformation under test.
+
+**Then: a handler is dispatched by file name, and a name is not unique.** `image.py` exists four
+times with four different bodies — a PNG with nosniff, a different PNG with CORP, a BMP generated
+in Python, and one alternating green and red to test an ETag. Hashing every copy of every
+implemented name found that **ten of the twenty-one pre-existing handlers are ambiguous too**,
+`redirect.py` with eight files and eight distinct bodies. Serving the transcribed one for a path it
+was not transcribed from is worse than a 501 in exactly the way `Handlers.h` argues: a 501 names its
+own cause and gets ranked, a plausible wrong answer moves the failure somewhere else and says
+nothing.
+
+The three introduced today are scoped by directory. The pre-existing ten are **TD-0061 with the
+audit table, not blanket-fixed**, and the reason is the interesting part: it is not uniformly a bug.
+The four-line `redirect.py` under `html/browsers/` is a compatible *subset* of `common/redirect.py`,
+so scoping it would turn a working answer into a 501; `xhr/resources/redirect.py` is a genuinely
+different handler. Which copies are subsets needs deciding one at a time.
+
+### The handler table had no tests, and that is why a wrong transcription cost a day
+
+Seventeen now. A handler was only reachable by running the suite, so a transcription that got a
+header name or a default wrong surfaced as a mysterious failure in an unrelated test hours later.
+They are pure functions; the table is checkable in milliseconds. Verified the tests test something
+by reintroducing the `image.py` scoping bug and watching the right one go red.
+
+### What the re-record actually bought, and the shape to expect
+
+    unimplemented handler requests   2877 -> 1609   (-1268)
+    harness-level failures            267 ->  260   (fetch -3, resource-timing -4)
+    recorded failure lines           6047 -> 6020   (-27)
+
+**Subtest-level movement is close to flat — 162 newly passing against 159 newly failing — and that
+is the expected shape.** A handler that starts answering lets a test run *further*, so subtests that
+never executed now execute and some fail. The signal for handler work is the harness column and the
+request count, not the subtest net.
+
+### The find: a page could segfault the browser by filling the heap
+
+`fetch/metadata/generated/element-video-poster.sub.html` crashed — and only because
+`record-headers.py` landed, which let it get past the 501 it used to die on. It polls
+`new Promise(r => step_timeout(r, 0)).then(poll)` for a condition that never becomes true,
+allocating each turn. `Interpreter::NewNative` used `heap_.AllocateObject`'s result without checking
+it, so when the heap hit its ADR 0034 bound **the bound working correctly became a null
+dereference** — the opposite of what a bound is for. Every other caller in that chain already
+checked, including `ResolvePromise` immediately above it.
+
+**Both sanitizers were clean, which is the part worth keeping.** ASan does not crash here: it is
+slow enough that the test times out before the heap fills, while the perf build reaches the limit in
+five seconds. Raising the stack to 64MB changed nothing, ruling out the obvious theory. **UBSan
+found it in one run and named the line**, because "member call on null pointer" is a thing it checks
+and a segfault is not. Audited the class afterwards: zero other sites in `src/js` or `src/bindings`
+dereference an allocation unchecked.
+
+### Two measurement mistakes I made, both caught, both worth more than the fixes
+
+**I discarded a good measurement as noise.** The first re-record ran while I was building and
+running the test suite, so I assumed its 361 timeouts were machine load and threw it away. Re-run on
+an idle machine it produced *identical* totals. The suspicion was reasonable and the conclusion was
+wrong; the check that settled it was cheap.
+
+**I reported a sample as a total.** The port-normalization commit claims ~250 of `fetch/`'s 292
+changed lines were port churn. The real figure is **22**, and 65 across all four areas. I had
+sampled the top of a diff where the port lines happened to sort first. One `grep -c` counts the
+whole file. `Expectations.h` carries the correction and how it happened.
+
+### Left
+
+- **74 unimplemented handlers still requested, 1,609 times.** The head is now `stale-script.py`
+  (806), `http-cache.py` (140), `cache.py` (103), `clear-site-data.py` (91), `header-link.py` (74).
+  `stale-script.py` grew from 401 to 806 precisely *because* tests get further now and retry.
+- TD-0061's ten ambiguous names, one decision each.
+- `dispatcher.py` answers but its tests still need somewhere to send *from* — a popup, an iframe
+  with a realm, a worker. That is ADR 0042 §5 and ADR 0022. Implementing it was still right: it
+  converts "fails because the server refused" into "fails for the reason it actually needs", which
+  is the only thing that makes the ranked table mean anything.

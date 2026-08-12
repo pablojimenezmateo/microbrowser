@@ -142,7 +142,7 @@ That bucket is the score, and it is three projects rather than a long tail:
 |--:|---|---|
 | 2,446 | a worker global that can run testharness (`.any.worker.html`) | ADR 0022 §1, task G5 |
 | 1,083 | an `<iframe>` | ADR 0027 + **ADR 0042 §5**; the language half is done, the host half is not |
-| ~2,214 files | **our own server's `.py` handlers** — 21 landed, 287 to go | ADR 0040, task **A2** |
+| ~2,214 files | **our own server's `.py` handlers** — 31 landed; **74 still requested, 1,609 times** | ADR 0040, task **A2** |
 | 226 | the module loader | — |
 
 Read that table with two caveats. **Workers are bigger by count and smaller by information**: a
@@ -150,6 +150,25 @@ Read that table with two caveats. **Workers are bigger by count and smaller by i
 already. And **the third row is the only one that needs no browser feature at all** — `tools/wpt/Server.cpp`
 answers 501 to every `.py` handler *and* to every method that is not GET or HEAD, which is probably
 the cheapest points in the tree and had not been written down before A2.
+
+**Pick the next handler from `MICROBROWSER_WPT_HANDLER_REPORT=1`, never from grep.** The server now
+records every `.py` handler that was actually *requested* and is not implemented, ranked. The obvious
+ranking — how many files name a handler — puts `gentest.py` first at 3,766 files, `generate.py` at
+2,085 and `build-compute-kind-widget-fallback-props.py` at 802, and **none of those three is ever
+fetched**: they are the generator scripts that produced the tests, named in a comment in every file
+they generated. A reference is not a request. The real head is `stale-script.py` (806),
+`http-cache.py` (140), `cache.py` (103), `clear-site-data.py` (91), `header-link.py` (74).
+
+Two things to know before adding one. **A handler name is not unique** — `image.py` is four
+different handlers and `redirect.py` is eight — so ten of the original twenty-one are dispatched
+ambiguously today (TD-0061, with the audit and why it wants fixing one copy at a time). And
+`tools/wpt/Handlers.cpp` is compiled into `microbrowser_tests`, so a transcription is checkable in
+milliseconds rather than in a suite run; add a test with each handler.
+
+**Judge handler work by the harness column, not the subtest net.** The second landing moved
+unimplemented handler requests 2,877 → 1,609 and harness-level failures 267 → 260, while subtests
+went 162 newly passing against 159 newly failing — because a handler that answers lets a test run
+*further*, so subtests that never executed now execute and some fail.
 
 **A2's first 21 handlers landed 2026-08-12, with POST**, and the arithmetic is the argument for
 the rest: xhr 135 → 120 harness failures, cors 7 → 8, fetch 204 → 192, and **672 recorded subtest
@@ -682,6 +701,7 @@ MICROBROWSER_STARTUP_SUMMARY=1 # same, for startup scopes
 MICROBROWSER_TRACE_REDRAW=1    # one line per presented frame: full/partial, rects, coverage
 MICROBROWSER_LOAD_TIMELINE=1   # one navigation on one clock, in order, with a gap column
 MICROBROWSER_JS_TREEWALK=1     # run script on the tree-walker instead of the bytecode machine
+MICROBROWSER_WPT_HANDLER_REPORT=1  # which .py handlers a WPT run asked for and this server lacks, ranked
 ```
 
 **A ranked summary ranks *work*; it cannot see *waiting*.** On a page whose cost is round trips it
