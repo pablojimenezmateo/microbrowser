@@ -177,9 +177,14 @@ touching this.** `engine::PageScript` owns an interpreter per `Page`, a same-ori
 borrow its parent's, and every one of ~40 host entry points must then run in the child's realm — a
 timer, an event, a fetch response, a reaction, a microtask drain. **A missed one is a same-origin
 escape rather than a bug**: the child's script would see the embedder's `window`, which is worse than
-the stub it replaces. §5 argues for a realm-bound handle whose `operator->` carries the guard for the
-full expression rather than `RealmScope` at 40 sites, and names the one thing to *decide* first —
-`DomBindings` caches a wrapper per node, so two of them over one heap gives a node two wrappers.
+the stub it replaces. §5 has the mechanism and one correction worth reading before you start: **the ~40 `interpreter_` uses
+are not the boundary.** `PageScript` reaches script through `bindings_` far more often — every
+`DispatchClick`, observer delivery and attribute reaction calls the interpreter from inside
+`src/bindings`, where no realm is in scope — so guarding the `interpreter_->…` sites produces
+something that *looks* guarded, passes a test that runs a child `<script>`, and still runs the child's
+click handler in the parent's realm. The seam is `engine::PageScript`'s own public API. §5 also names
+the thing to decide first: `DomBindings` caches a wrapper per node, so two of them over one heap gives
+a node two wrappers.
 
 Until that lands, `contentWindow` is still a plain object with a `.document`, the child's scripts
 still do not run, and `parent`/`top`/`postMessage` are still absent. The smallest end-to-end check is

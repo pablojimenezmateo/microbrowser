@@ -160,6 +160,24 @@ are the *only* ones, which is a list short enough to audit.
 **Do not do this by adding `RealmScope` at 40 call sites.** It would work on the day it was written
 and would be wrong at the first new entry point, and the failure is silent.
 
+**And the 40 `interpreter_` sites are not the boundary anyway** — this was checked rather than
+assumed, and it is the correction that matters most here. About a third of them are null tests that
+run no script at all. Worse in the other direction, `PageScript` reaches script through `bindings_`
+far more often than through `interpreter_`: `DispatchClick`, `DispatchPointerMouse`,
+`DispatchSubmit`, every observer delivery and every reflected-attribute reaction call into the
+interpreter *inside* `src/bindings`, where no realm is in scope and none can be. Guarding
+`interpreter_->…` would therefore produce something that looks guarded, passes a test that runs a
+child's `<script>`, and still runs the child's click handler in the parent's realm.
+
+So **the boundary is `engine::PageScript`'s own public API**, not its uses of the interpreter. That is
+the right seam for an independent reason: a `PageScript` *is* the script half of one document, so the
+realm is a property of the object rather than of each call, and there is exactly one of these per
+browsing context. What has to be decided is how each public method acquires the guard without a
+future method being able to omit it — a private `Enter()` returning the scope that every method opens
+with is the cheap version and is still omittable; making the public methods thin wrappers over a
+guarded private implementation is the version that cannot be. Pick one deliberately, and say which in
+the commit, because this is the decision the whole security property rests on.
+
 The rest of the host half, in the order it has to happen:
 
 1. `PageScript` borrows an interpreter and a realm rather than owning one, behind `RealmHandle`.
