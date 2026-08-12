@@ -2316,6 +2316,54 @@ and dialog visibility probes agree with `getBoundingClientRect`. **Met**
 (Release soft8: `getClientRects` throw count **0**; soft7 soft-nav MSE
 remasure already closed TD-0049/0050).
 
+## TD-0052 — `img.width` / `img.height` answer with the attribute, not the rendered size
+
+**Opened** 2026-08-12, by C10's reflection table. HTML says these return the *rendered* width when
+the image is being rendered, the density-corrected natural width when it is not but the image is
+available, and 0 otherwise; the setter reflects. This browser now reflects both ways, so the
+setter is right and the getter answers with the content attribute or 0.
+
+**Why it reads as passing.** `html/dom/reflection-embedded.html` marks `img.width`, `img.height`,
+`input.width`, `input.height` and every `meter` dimension `customGetter` and does not test the
+getter at all — 100% of that file passes with this wrong. The same is true of `video.width` and
+`video.height`, which are plain unsigned longs here.
+
+**Measured cost.** Not measured on a real page, and that is the honest state of it: no page in the
+target set was seen to read `img.width`. What is known is the direction of the error — a page that
+sizes something from `img.width` with no `width` attribute gets 0 where a browser gives it the
+laid-out width. Before this change it got `undefined`, which is worse arithmetic and equally wrong.
+
+**End state.** A reflection kind that asks the `GeometrySource` first: the border-box width when
+there is a box, `QueryImageState`'s natural width when there is not, and the attribute only for the
+setter. The seam already exists (`InstallImageElement` reads `QueryImageState` for `naturalWidth`),
+which is why this is debt rather than a milestone.
+
+---
+
+## TD-0053 — CSP reads the `nonce` content attribute; the spec reads the internal slot
+
+**Opened** 2026-08-12, by C10. `nonce` reflects one way: the content attribute feeds a hidden slot
+on the wrapper, the IDL setter writes the slot, and only a *connected* element's attribute follows.
+That is HTML's own setter and it is what `html/dom/reflection-metadata.html` asserts — an attribute
+a page can read back through the DOM is a nonce an injected stylesheet exfiltrates with
+`script[nonce^=a] { background: url(...) }`.
+
+**What is wrong.** The specification then has CSP consult the internal slot. `src/csp` consults the
+content attribute (`PageResources.cpp` `NonceOf`, `PageScript.cpp`), because `src/csp` may see only
+`util` and `url` and can no more read a JavaScript slot than it can open a socket. So a nonce a
+page sets from script on a detached element is invisible to the policy.
+
+**Measured cost.** Zero on every path that exists today, which is why this is written down rather
+than fixed: `PageScript::Collect` gathers a document's scripts once, at parse, so a script element
+built by script never runs whatever its nonce says. The reachable case is a `<style>` built by
+script under a nonce-only `style-src`, and it fails **closed** — the sheet is refused rather than
+admitted.
+
+**End state.** The nonce a policy sees comes from the same place the IDL attribute reads, which
+means either the engine passes it down (it can see both) or `dom::Element` grows a nonce field the
+binding layer writes. The second is the smaller change and the one that keeps `src/csp` blind.
+
+
 ---
 
 ## Closed

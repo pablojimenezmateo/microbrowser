@@ -554,11 +554,11 @@ class DomBindings {
   void AfterAttributeWrite(dom::Element& element, const std::string& name,
                            const js::Value& old_value, const js::Value& new_value,
                            std::string_view attribute_namespace = {});
-  // The IDL attributes that reflect content attributes, as get/set pairs on
-  // the interface each belongs to. `el.value = 'x'` and `setAttribute('value',
-  // 'x')` are the same act; before this they were not.
-  void InstallReflections();  // also InstallHyperlinkElementUtils (HTMLAnchorElement URL parts)
-  void InstallHyperlinkElementUtils();
+  // The IDL attributes that reflect content attributes (Reflection.h). A friend
+  // rather than more methods here: it needs exactly two things from this class,
+  // the attribute-write path above and the document's address, and this header
+  // being at its line cap is the module asking for that split.
+  friend class Reflector;
 
   // --- Geometry, in GeometryBindings.cpp ------------------------------------
   // `getBoundingClientRect`, `offsetWidth`/`offsetHeight` and

@@ -4924,3 +4924,101 @@ Two further things the goal should be judged against. **431 subtests are tentati
 (`dom/observable/`, `OpaqueRange`) and **126 are a WICG proposal** no browser ships — 1.3 points of
 the remaining gap is specs that are not stable, and ADR 0012's rule about stubs is the argument for
 leaving them where they are rather than chasing a percentage into them.
+
+## 2026-08-12 — C10: reflected IDL attributes, as a table and twelve algorithms
+
+**Status:** `html/dom/` **35.8% → 95.5%** (21,450 of 59,930 → 57,411 of 60,139 subtests),
+**0 unexpected results**.
+`html/dom/reflection-*.html` is **56,660 of 56,660**, from 35,560 recorded failures to none.
+**35,847 expectation lines deleted.**
+
+**The shape of the work is the finding, and it is not "add the missing attributes".** HTML states a
+dozen reflection *algorithms* — a string, a URL, an enumerated value limited to known keywords, a
+boolean, five integer kinds, two doubles — and then applies them a few hundred times across the
+element interfaces. The browser had about fifty hand-written accessor pairs, which is the shape
+that guarantees `td.colSpan` clamps and `col.span` does not, from the same paragraph of the same
+specification, with nothing to compare them against. So:
+
+- `src/bindings/Reflection.h` is the vocabulary (the twelve kinds and their per-attribute
+  parameters), `ReflectionTable.cpp` is ~430 rows of data, and `ReflectedAttributes.cpp` is the
+  algorithms, once each.
+- The parsers are transcriptions of HTML's "rules for parsing integers", "…non-negative integers"
+  and "…floating-point number values". They are **not** `util::ParseInt`: that one rejects trailing
+  garbage and these must stop at it, and `"1. 1"` is the number 1 to HTML and an error to everyone
+  else. A vertical tab is whitespace to C and is not to HTML — that difference alone is tested
+  thirty-odd times per numeric attribute.
+
+**A table of a few hundred rows needs a checker, and it got one that is not the suite.**
+`tools/`-free: a throwaway script read WPT's own `elements-*.js` and the browser's tag→interface
+table and compared every (interface, property, attribute, kind) against `ReflectionTable.cpp`. The
+suite proves the tested rows behave; that comparison proves the *untested* rows spell their content
+attribute right — and a mistyped content-attribute name reads as an absent property, which is
+silent.
+
+### Three things this uncovered that the reflection tests do not test
+
+**`<canvas>`'s `width` and `height` were a resize that only one spelling reached.**
+`InstallCanvas` owned an accessor pair that wrote the attribute and resized the surface, so
+`canvas.width = 50` resized and `canvas.setAttribute('width', '50')` did not. It also parsed with
+`ToNumber` rather than HTML's rules, so `width="50px"` was a **zero-width canvas** where every
+other browser draws 50. The accessors are gone: `width`/`height` are ordinary reflected
+`unsigned long`s with the defaults 300 and 150, and the resize hangs off the attribute *write*,
+which is the one place every spelling converges. `html/canvas/element/canvas-host/` 24.2% → 50.0%,
+0 regressions.
+
+**`<a href>` did not resolve, so `a.pathname` was not a path.** A reflected URL answers with the
+attribute resolved against the document's address — that is what a page follows — while the setter
+still stores what was written. The hyperlink parts (`protocol`, `host`, `pathname`, …) now split
+the *resolved* href rather than the attribute, so `a.href = 'c.png'` on a page at `/a/b` has the
+pathname `/a/c.png` instead of `c.png`. `<area>` got the same set; it had none.
+
+**`nonce` reflects in one direction, and that is a security property rather than a quirk.** The
+content attribute feeds an internal slot and the IDL setter does not feed it back, because a
+stylesheet may say `script[nonce^=a] { background: url(…) }` — an attribute a page can read back
+through the DOM is a nonce an injected stylesheet exfiltrates one character at a time. The suite
+asserts the attribute does not move.
+
+### What was checked, and what was not
+
+`ctest` **2,099 tests, 0 failed** (two new: one for the twelve algorithms, one for URL
+resolution). ASan: 2,099 tests, no memory errors — the one LeakSanitizer report is
+`ConstructableStylesheets.cpp` and is **byte-for-byte identical with these changes stashed**
+(368 bytes in 12 allocations, before and after), so it is pre-existing and now TD-worthy on its own.
+`html/dom/` re-measured and re-verified at **0 unexpected results**.
+
+**What was compared against the pre-change binary**, which is the only way to tell a regression from
+an expectation file that was already stale: `dom/`, `custom-elements/`, `shadow-dom/`,
+`domparsing/`, `content-security-policy/` and `html/canvas/element/canvas-host/`. The only
+difference anywhere is **45 new subtests** in `shadow-dom/reference-target/tentative/` that exist
+only because `label.htmlFor` exists now, and all 45 die on `setHTMLUnsafe`, which this browser does
+not have. Four `dom/` timeouts and two in `html/dom/render-blocking/` are load flakes — each passes
+run alone, and the pre-change binary times out on the same two.
+
+**Two areas were deliberately not re-measured, and both are the next agent's inheritance.**
+`html/browsers/` is 751 tests of navigation this browser cannot do, almost all of them 20-second
+timeouts: four hours to learn nothing about reflection. `html/semantics/` is 2,597 tests at roughly
+eight a minute — a six-hour run that was started, watched to **367 tests with 3 subtests going
+PASS → FAIL** (all three in one `.tentative` file, all three `action_sequence() is not implemented
+by testdriver-vendor.js`, i.e. B5), and then stopped. **Its expectation file is now stale in the
+optimistic direction**: reflected attributes are read all over `html/semantics`, so its recorded
+failures overstate what fails today. Re-measuring it is one machine-hours task with no thinking in
+it.
+
+`docs/wpt-baseline.md`'s `html/dom` row was merged **by hand**, for the reason the note at the top
+of that file already gives — `--summary` refuses to write a document describing fewer areas than it
+already has, and the state file it wants lives in `/tmp`. That is task B6 and this is the fourth
+session to pay for it.
+
+### Known gaps, written down rather than half-built
+
+- **`img.width` / `img.height` / `video.width` return the attribute, not the rendered size.** HTML
+  says the rendered width when the image is being rendered, the density-corrected natural width
+  when it is not, and 0 otherwise. The reflection suite marks these `customGetter` and does not
+  test the getter at all, which is why they read as passing. The setter is correct.
+- **A `nonce` set from script on a *detached* element is invisible to CSP.** The spec has CSP read
+  the internal slot; `src/csp` reads the content attribute, and `src/csp` may not see `src/js`. The
+  failure is closed rather than open — a style this browser cannot prove was nonced is blocked —
+  and it is unreachable from the paths that exist today, because scripts are collected once at
+  parse.
+- **`Document`'s five colour reflections and `document.dir` resolve against the binding layer's
+  one document URL**, like every other URL answer here.

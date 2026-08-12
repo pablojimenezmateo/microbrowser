@@ -18,15 +18,30 @@
 // case -- it is [[Set]] finding a setter on the prototype chain, which is
 // exactly what these are.
 //
-// The table is deliberately not the whole of HTML. It is the attributes a page
-// writes through the property rather than through `setAttribute`, which is a
-// much shorter list and one that can be checked by reading it.
+// **Which attributes** is ReflectionTable.cpp; **how each kind behaves** is
+// here. The split is the point: HTML states the twelve reflection algorithms
+// once and then applies them a few hundred times, and a browser that writes
+// them out per attribute gets `td.colSpan` clamping while `col.span` does not.
+//
+// The parsers below are transcriptions of HTML's "rules for parsing integers",
+// "…non-negative integers" and "…floating-point number values". They are here
+// rather than in `util` because they are reflection's, not the language's:
+// `util::ParseInt` rejects trailing garbage and these must stop at it, and
+// "1. 1" is the number 1 to HTML and an error to everyone else.
 
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 
 #include "bindings/BindingSupport.h"
+#include "bindings/Canvas.h"
 #include "bindings/DomBindings.h"
+#include "bindings/Network.h"
+#include "bindings/Reflection.h"
+#include "util/StringUtil.h"
 
 namespace microbrowser::bindings {
 
@@ -35,115 +50,265 @@ using js::Value;
 
 namespace {
 
-enum class Reflect : std::uint8_t {
-  // A string both ways: the attribute's value, or "" when it is absent.
-  Text,
-  // Presence: `disabled` is true when the attribute is there whatever it says,
-  // and setting it false removes the attribute rather than writing "false".
-  Presence,
-  // A string, with `type` defaulting to "text" when absent -- which is what a
-  // page that branches on `input.type` expects, and the one default worth
-  // spelling out because a missing `type` *is* a text input.
-  InputType,
-  // The one that is not a content attribute at all: a textarea's value is its
-  // text. Read as the `value` attribute when something set one and as the
-  // element's text otherwise, which is exactly what the engine's own
-  // ControlValue does -- the two have to agree or a page reads back something
-  // different from what it submits.
-  TextareaValue,
-};
+constexpr double kMaxLong = 2147483647.0;
+constexpr double kMinLong = -2147483648.0;
+constexpr double kTwoToThe32 = 4294967296.0;
 
-struct Reflection {
-  const char* interface;
-  const char* property;
-  const char* attribute;
-  Reflect kind;
-};
+// The five characters HTML calls ASCII whitespace. Deliberately not
+// `std::isspace`: a vertical tab is whitespace to C and is not to HTML, and
+// `"7"` parsing as 7 rather than as an error is a difference the suite
+// tests thirty-odd times per numeric attribute.
+constexpr bool IsHtmlSpace(char c) {
+  return c == ' ' || c == '\t' || c == '\n' || c == '\f' || c == '\r';
+}
 
-constexpr Reflection kReflections[] = {
-    {"Element", "id", "id", Reflect::Text},
-    {"Element", "className", "class", Reflect::Text},
-    {"HTMLElement", "title", "title", Reflect::Text},
-    {"HTMLElement", "lang", "lang", Reflect::Text},
-    {"HTMLElement", "dir", "dir", Reflect::Text},
-    // Presence, and the reason youtube's expandable metadata used to stay open:
-    // Polymer writes `el.hidden = !isExpanded` from `hidden="[[!isExpanded]]"`.
-    // Without a setter that reaches the content attribute the assignment was an
-    // expando, the cascade never saw `[hidden]`, and search rows grew to ~900px.
-    {"HTMLElement", "hidden", "hidden", Reflect::Presence},
+constexpr bool IsAsciiDigit(char c) { return c >= '0' && c <= '9'; }
 
-    // `href` is HTMLHyperlinkElementUtils — see InstallHyperlinkElementUtils.
-    {"HTMLAnchorElement", "target", "target", Reflect::Text},
-    {"HTMLAnchorElement", "rel", "rel", Reflect::Text},
+// "Rules for parsing integers". Returns nothing when the string does not begin
+// with an optionally-signed run of digits; stops at the first character that is
+// not one, rather than rejecting what follows.
+//
+// The accumulator is a double because the caller's question is always "is this
+// in range", and a value large enough to overflow an integer is already out of
+// every range below. It saturates rather than wrapping for the same reason:
+// wrapping would put a huge attribute *inside* the range it is far outside of.
+std::optional<double> ParseInteger(std::string_view text) {
+  std::size_t position = 0;
+  double sign = 1;
+  while (position < text.size() && IsHtmlSpace(text[position])) {
+    ++position;
+  }
+  if (position >= text.size()) {
+    return std::nullopt;
+  }
+  if (text[position] == '-') {
+    sign = -1;
+    ++position;
+  } else if (text[position] == '+') {
+    ++position;
+  }
+  if (position >= text.size() || !IsAsciiDigit(text[position])) {
+    return std::nullopt;
+  }
+  double value = 0;
+  while (position < text.size() && IsAsciiDigit(text[position])) {
+    if (value < 1e18) {
+      value = value * 10 + static_cast<double>(text[position] - '0');
+    }
+    ++position;
+  }
+  // Zero has no sign here, which is why "-0" is a *non-negative* integer to
+  // HTML and `img.hspace = '-0'` reads back as 0 rather than falling back.
+  return value == 0 ? 0.0 : sign * value;
+}
 
-    {"HTMLImageElement", "src", "src", Reflect::Text},
-    {"HTMLImageElement", "alt", "alt", Reflect::Text},
+// "Rules for parsing non-negative integers": the above, with a negative result
+// treated as an error.
+std::optional<double> ParseNonNegativeInteger(std::string_view text) {
+  const std::optional<double> value = ParseInteger(text);
+  if (!value.has_value() || *value < 0) {
+    return std::nullopt;
+  }
+  return value;
+}
 
-    {"HTMLInputElement", "name", "name", Reflect::Text},
-    {"HTMLInputElement", "type", "type", Reflect::InputType},
-    {"HTMLInputElement", "value", "value", Reflect::Text},
-    {"HTMLInputElement", "placeholder", "placeholder", Reflect::Text},
-    {"HTMLInputElement", "checked", "checked", Reflect::Presence},
-    {"HTMLInputElement", "disabled", "disabled", Reflect::Presence},
-    {"HTMLInputElement", "required", "required", Reflect::Presence},
-    {"HTMLInputElement", "readOnly", "readonly", Reflect::Presence},
+// "Rules for parsing floating-point number values". Transcribed step for step,
+// including the two things that surprise: it stops at the first character it
+// cannot use (so "1. 1" is 1), and a value that overflows to infinity is an
+// error rather than an infinity.
+std::optional<double> ParseFloatingPoint(std::string_view input) {
+  std::size_t position = 0;
+  double value = 1;
+  double divisor = 1;
+  double exponent = 1;
+  while (position < input.size() && IsHtmlSpace(input[position])) {
+    ++position;
+  }
+  if (position >= input.size()) {
+    return std::nullopt;
+  }
+  if (input[position] == '-') {
+    value = -1;
+    divisor = -1;
+    ++position;
+  } else if (input[position] == '+') {
+    ++position;
+  }
+  if (position >= input.size()) {
+    return std::nullopt;
+  }
+  if (input[position] == '.' && position + 1 < input.size() && IsAsciiDigit(input[position + 1])) {
+    value = 0;
+  } else if (!IsAsciiDigit(input[position])) {
+    return std::nullopt;
+  } else {
+    double whole = 0;
+    while (position < input.size() && IsAsciiDigit(input[position])) {
+      whole = whole * 10 + static_cast<double>(input[position] - '0');
+      ++position;
+    }
+    value *= whole;
+  }
+  if (position < input.size() && input[position] == '.') {
+    ++position;
+    while (position < input.size() && IsAsciiDigit(input[position])) {
+      divisor *= 10;
+      value += static_cast<double>(input[position] - '0') / divisor;
+      ++position;
+    }
+  }
+  if (position < input.size() && (input[position] == 'e' || input[position] == 'E')) {
+    ++position;
+    if (position < input.size()) {
+      if (input[position] == '-') {
+        exponent = -1;
+        ++position;
+      } else if (input[position] == '+') {
+        ++position;
+      }
+      if (position < input.size() && IsAsciiDigit(input[position])) {
+        double magnitude = 0;
+        do {
+          magnitude = magnitude * 10 + static_cast<double>(input[position] - '0');
+          ++position;
+        } while (position < input.size() && IsAsciiDigit(input[position]));
+        exponent *= magnitude;
+        value *= std::pow(10.0, exponent);
+      }
+    }
+  }
+  if (!std::isfinite(value)) {
+    return std::nullopt;
+  }
+  return value == 0 ? 0.0 : value;
+}
 
-    {"HTMLButtonElement", "name", "name", Reflect::Text},
-    {"HTMLButtonElement", "type", "type", Reflect::Text},
-    {"HTMLButtonElement", "value", "value", Reflect::Text},
-    {"HTMLButtonElement", "disabled", "disabled", Reflect::Presence},
-
-    {"HTMLSelectElement", "name", "name", Reflect::Text},
-    {"HTMLSelectElement", "disabled", "disabled", Reflect::Presence},
-    {"HTMLSelectElement", "multiple", "multiple", Reflect::Presence},
-    {"HTMLSelectElement", "required", "required", Reflect::Presence},
-
-    {"HTMLOptionElement", "value", "value", Reflect::Text},
-    {"HTMLOptionElement", "label", "label", Reflect::Text},
-    {"HTMLOptionElement", "selected", "selected", Reflect::Presence},
-    {"HTMLOptionElement", "disabled", "disabled", Reflect::Presence},
-
-    {"HTMLTextAreaElement", "name", "name", Reflect::Text},
-    {"HTMLTextAreaElement", "placeholder", "placeholder", Reflect::Text},
-    {"HTMLTextAreaElement", "value", "value", Reflect::TextareaValue},
-    {"HTMLTextAreaElement", "disabled", "disabled", Reflect::Presence},
-    {"HTMLTextAreaElement", "readOnly", "readonly", Reflect::Presence},
-
-    {"HTMLFormElement", "action", "action", Reflect::Text},
-    {"HTMLFormElement", "method", "method", Reflect::Text},
-    {"HTMLFormElement", "enctype", "enctype", Reflect::Text},
-    {"HTMLFormElement", "target", "target", Reflect::Text},
-    {"HTMLFormElement", "name", "name", Reflect::Text},
-
-    {"HTMLScriptElement", "src", "src", Reflect::Text},
-    {"HTMLScriptElement", "type", "type", Reflect::Text},
-    {"HTMLScriptElement", "nonce", "nonce", Reflect::Text},
-    {"HTMLScriptElement", "defer", "defer", Reflect::Presence},
-    {"HTMLScriptElement", "async", "async", Reflect::Presence},
-    {"HTMLScriptElement", "noModule", "nomodule", Reflect::Presence},
-
-    {"HTMLLinkElement", "href", "href", Reflect::Text},
-    {"HTMLLinkElement", "rel", "rel", Reflect::Text},
-    {"HTMLLinkElement", "type", "type", Reflect::Text},
-
-    {"HTMLIFrameElement", "src", "src", Reflect::Text},
-    // `<video>` and `<audio>`'s `src`, which was missing -- so `video.src = url` set a plain JavaScript
-    // property on the wrapper and the element never saw it. Found by an MSE page whose `sourceopen`
-    // never fired: the attach hook in SetElementAttribute was right and nothing was reaching it.
-    //
-    // On both interfaces rather than a shared `HTMLMediaElement`, because this engine's interface
-    // table is flat -- the same reason `InstallMediaElement` is called twice.
-    {"HTMLVideoElement", "src", "src", Reflect::Text},
-    {"HTMLVideoElement", "preload", "preload", Reflect::Text},
-    {"HTMLVideoElement", "poster", "poster", Reflect::Text},
-    {"HTMLAudioElement", "src", "src", Reflect::Text},
-    {"HTMLAudioElement", "preload", "preload", Reflect::Text},
-    {"HTMLIFrameElement", "name", "name", Reflect::Text},
-};
+// Web IDL's integer conversion: truncate, then wrap modulo 2^32 into the signed
+// or unsigned range. Not a clamp -- a page assigning 2^32 to a `long` gets 0,
+// and the reflected setter then writes that.
+double ToWebIdlInteger(double number, bool is_signed) {
+  if (!std::isfinite(number) || number == 0) {
+    return 0;
+  }
+  double value = std::fmod(std::trunc(number), kTwoToThe32);
+  if (value < 0) {
+    value += kTwoToThe32;
+  }
+  if (is_signed && value >= 2147483648.0) {
+    value -= kTwoToThe32;
+  }
+  return value;
+}
 
 dom::Element* ElementOf(const js::Value& value) {
   dom::Node* node = NodeOf(value);
   return node != nullptr && node->IsElement() ? static_cast<dom::Element*>(node) : nullptr;
+}
+
+// The invalid value default, which is the missing value default unless the
+// attribute names its own. `nullptr` is the null state a nullable attribute has.
+const char* InvalidDefault(const Reflection& entry) {
+  return entry.invalid != nullptr ? entry.invalid : entry.missing;
+}
+
+Value KeywordValue(const char* keyword) {
+  return keyword == nullptr ? Value::Null() : Value::String(std::string(keyword));
+}
+
+// ASCII case folding, and deliberately not Unicode's. A KELVIN SIGN folds to
+// `k` under full case folding, so `type="checKbox"` would be a checkbox in
+// a browser that used it -- a keyword matched by a string no author could have
+// written, which is a parser difference a page gets to choose between.
+bool AsciiEqualsIgnoreCase(std::string_view left, std::string_view right) {
+  if (left.size() != right.size()) {
+    return false;
+  }
+  for (std::size_t i = 0; i < left.size(); ++i) {
+    char a = left[i];
+    char b = right[i];
+    if (a >= 'A' && a <= 'Z') {
+      a = static_cast<char>(a - 'A' + 'a');
+    }
+    if (b >= 'A' && b <= 'Z') {
+      b = static_cast<char>(b - 'A' + 'a');
+    }
+    if (a != b) {
+      return false;
+    }
+  }
+  return true;
+}
+
+// The keyword the content attribute puts the element in the state of, in its
+// canonical spelling -- so `dir="LTR"` reads back as "ltr" while the attribute
+// itself keeps what was written.
+Value EnumeratedValue(const Reflection& entry, const std::string* attribute) {
+  if (attribute == nullptr) {
+    return KeywordValue(entry.missing);
+  }
+  for (const std::string_view keyword : entry.keywords) {
+    if (AsciiEqualsIgnoreCase(*attribute, keyword)) {
+      return Value::String(std::string(keyword));
+    }
+  }
+  return KeywordValue(InvalidDefault(entry));
+}
+
+// A number as a content attribute: "the shortest string representing the number
+// as a valid integer", which is what JavaScript's own number-to-string produces
+// for an integral double -- including "0" for negative zero.
+std::string NumberAttribute(double value) { return js::NumberToString(value); }
+
+// Where a nonce lives once it is not in the attribute: a hidden slot on the
+// element's wrapper, which is the closest this browser has to Web IDL's
+// [[CryptographicNonce]].
+constexpr const char* kNonceSlot = "#cryptographicNonce";
+
+// Whether the element is in a document, which is the one condition under which
+// HTML lets the nonce setter write the content attribute back. A detached
+// element keeps its nonce hidden, which is what the reflection suite asserts
+// and what stops `document.createElement('script').nonce` from being a way to
+// read one back out of the DOM.
+// `<canvas>`'s two reflected dimensions, which are also the backing store's
+// size -- so writing either has to reach the surface as well as the attribute.
+//
+// Both spellings converge here rather than only the IDL one, and that is the
+// point: `canvas.setAttribute('width', '50')` resizes the canvas in every
+// browser, and an accessor pair that owned the resize would have missed it.
+constexpr int kDefaultCanvasWidth = 300;
+constexpr int kDefaultCanvasHeight = 150;
+
+bool IsCanvas(const dom::Element& element) {
+  return element.Namespace().IsHtml() && element.TagName() == "canvas";
+}
+
+int CanvasDimension(const dom::Element& element, const char* attribute, int fallback) {
+  const std::string* value = element.GetAttribute(attribute);
+  const std::optional<double> parsed =
+      value == nullptr ? std::nullopt : ParseNonNegativeInteger(*value);
+  if (!parsed.has_value() || *parsed > kMaxLong) {
+    return fallback;
+  }
+  return static_cast<int>(*parsed);
+}
+
+// Called from both attribute writes, including the removal -- taking the
+// surface rather than the binding layer so that it stays a free function and
+// `DomBindings` grows no declaration for a `<canvas>` special case.
+void ResizeCanvas(CanvasSurface* canvas, dom::Element& element, const std::string& name) {
+  if (canvas == nullptr || (name != "width" && name != "height") || !IsCanvas(element)) {
+    return;
+  }
+  canvas->SetCanvasSize(element, CanvasDimension(element, "width", kDefaultCanvasWidth),
+                        CanvasDimension(element, "height", kDefaultCanvasHeight));
+}
+
+bool IsConnected(const dom::Node& node) {
+  const dom::Node* walk = &node;
+  while (walk->Parent() != nullptr) {
+    walk = walk->Parent();
+  }
+  return walk->GetKind() == dom::Node::Kind::Document;
 }
 
 }  // namespace
@@ -205,6 +370,7 @@ void DomBindings::AfterAttributeWrite(dom::Element& element, const std::string& 
       media_->IsMedia(element) && media_->AttachMediaSource(element, value)) {
     ScheduleMediaSourceOpened(media_->SourceForObjectUrl(value));
   }
+  ResizeCanvas(canvas_, element, name);
   // Keep binding tokens in the attribute map for getAttribute / Polymer
   // annotation parsing, but do not deliver attributeChangedCallback — that
   // path JSON.parses Array/Object types and is what hung youtube (TD-0017).
@@ -224,139 +390,347 @@ void DomBindings::RemoveElementAttribute(dom::Element& element, const std::strin
   }
   const Value old_value = Value::String(*previous);
   element.RemoveAttribute(name);
+  // Removing `width` is a resize to the default, not "no change": the surface
+  // follows the attribute in both directions.
+  ResizeCanvas(canvas_, element, name);
   // The reaction is told the new value is null, which is how a class
   // distinguishes "set to empty" from "gone".
   RunAttributeReaction(element, name, old_value, Value::Null());
   RecordMutation(element, "attributes", name, old_value, {}, {});
 }
 
-void DomBindings::InstallReflections() {
-  for (const Reflection& entry : kReflections) {
-    const Value* prototype = interfaces_.object->GetOwn(entry.interface);
+std::string Reflector::Resolve(std::string_view relative) const {
+  if (bindings_.network_ == nullptr) {
+    return std::string(relative);
+  }
+  std::string resolved = bindings_.network_->ResolveUrl(relative, bindings_.url_);
+  // "If parsing fails, then the value of the content attribute must be
+  // returned instead" -- a URL attribute is a string a page wrote, and a
+  // browser that answered "" for one it could not parse would lose it.
+  return resolved.empty() ? std::string(relative) : resolved;
+}
+
+js::Value Reflector::Get(const Reflection& entry, dom::Element& element,
+                         js::Object* wrapper) {
+  const std::string* attribute = element.GetAttribute(entry.attribute);
+  switch (entry.kind) {
+    case Reflect::Nonce: {
+      // The slot when there is one, and the attribute otherwise -- which is how
+      // a nonce written by the parser is readable at all. Nothing writes the
+      // slot except this attribute's own setter.
+      const Value* stored = wrapper == nullptr ? nullptr : wrapper->GetOwn(kNonceSlot);
+      if (stored != nullptr && stored->IsString()) {
+        return *stored;
+      }
+      return Value::String(attribute == nullptr ? std::string() : *attribute);
+    }
+    case Reflect::Boolean:
+      return Value::Bool(attribute != nullptr);
+    case Reflect::Enumerated:
+      return EnumeratedValue(entry, attribute);
+    case Reflect::TextareaValue:
+      return Value::String(attribute == nullptr ? element.TextContent() : *attribute);
+    case Reflect::Url:
+      return Value::String(attribute == nullptr ? std::string()
+                                                : Resolve(*attribute));
+    case Reflect::Url_OrDocumentAddress:
+      // Missing *or empty*: a form with `action=""` submits to the page it is
+      // on, and a getter that answered "" would make that indistinguishable
+      // from one that submits to the site root.
+      return Value::String(attribute == nullptr || attribute->empty()
+                               ? bindings_.url_
+                               : Resolve(*attribute));
+    case Reflect::Long: {
+      const std::optional<double> parsed =
+          attribute == nullptr ? std::nullopt : ParseInteger(*attribute);
+      const bool usable = parsed.has_value() && *parsed >= kMinLong && *parsed <= kMaxLong;
+      return Value::Number(usable ? *parsed : entry.fallback);
+    }
+    case Reflect::Long_NonNegative:
+    case Reflect::UnsignedLong: {
+      const std::optional<double> parsed =
+          attribute == nullptr ? std::nullopt : ParseNonNegativeInteger(*attribute);
+      const bool usable = parsed.has_value() && *parsed <= kMaxLong;
+      return Value::Number(usable ? *parsed : entry.fallback);
+    }
+    case Reflect::UnsignedLong_NonZero:
+    case Reflect::UnsignedLong_Fallback: {
+      const std::optional<double> parsed =
+          attribute == nullptr ? std::nullopt : ParseNonNegativeInteger(*attribute);
+      const bool usable = parsed.has_value() && *parsed >= 1 && *parsed <= kMaxLong;
+      return Value::Number(usable ? *parsed : entry.fallback);
+    }
+    case Reflect::UnsignedLong_Clamped: {
+      const std::optional<double> parsed =
+          attribute == nullptr ? std::nullopt : ParseNonNegativeInteger(*attribute);
+      if (!parsed.has_value()) {
+        return Value::Number(entry.fallback);
+      }
+      // Clamped rather than defaulted, which is the difference the name
+      // carries: `rowspan="99999"` is 65534 rows, not one.
+      return Value::Number(std::min(std::max(*parsed, entry.minimum), entry.maximum));
+    }
+    case Reflect::Double: {
+      const std::optional<double> parsed =
+          attribute == nullptr ? std::nullopt : ParseFloatingPoint(*attribute);
+      return Value::Number(parsed.value_or(entry.fallback));
+    }
+    case Reflect::Double_Positive: {
+      const std::optional<double> parsed =
+          attribute == nullptr ? std::nullopt : ParseFloatingPoint(*attribute);
+      return Value::Number(parsed.has_value() && *parsed > 0 ? *parsed : entry.fallback);
+    }
+    case Reflect::Text:
+    case Reflect::TextNullToEmpty:
+      break;
+  }
+  return Value::String(attribute == nullptr ? std::string() : *attribute);
+}
+
+js::Value Reflector::Set(const Reflection& entry, dom::Element& element,
+                         js::NativeCall& call, js::Object* wrapper) {
+  const Value assigned = Argument(call.arguments, 0);
+  switch (entry.kind) {
+    case Reflect::Nonce: {
+      std::string nonce;
+      if (!CoerceToString(call, assigned, nonce)) {
+        return call.ThrownValue();
+      }
+      if (wrapper != nullptr) {
+        wrapper->SetHidden(kNonceSlot, Value::String(nonce));
+      }
+      // Only a connected element's attribute follows. A detached one keeps the
+      // value in the slot, so a script that builds an element cannot read the
+      // nonce back out of the tree -- see the note on Reflect::Nonce.
+      if (IsConnected(element)) {
+        bindings_.SetElementAttribute(element, entry.attribute, nonce);
+      }
+      return Value::Undefined();
+    }
+    case Reflect::Boolean:
+      // Presence, so a false is a removal. Writing "false" into the attribute
+      // would leave the element disabled, which is the opposite of what the
+      // page asked for and the reason this is not one code path with Text.
+      if (js::ToBoolean(assigned)) {
+        bindings_.SetElementAttribute(element, entry.attribute, std::string());
+      } else {
+        bindings_.RemoveElementAttribute(element, entry.attribute);
+      }
+      return Value::Undefined();
+    case Reflect::Enumerated:
+      // A nullable enumerated attribute assigned null is the attribute going
+      // away -- `img.crossOrigin = null` is how a page opts back out of CORS,
+      // and writing the string "null" would opt it into a mode named for one.
+      if (entry.nullable && (assigned.IsNull() || assigned.IsUndefined())) {
+        bindings_.RemoveElementAttribute(element, entry.attribute);
+        return Value::Undefined();
+      }
+      break;
+    case Reflect::TextNullToEmpty:
+      if (assigned.IsNull()) {
+        bindings_.SetElementAttribute(element, entry.attribute, std::string());
+        return Value::Undefined();
+      }
+      break;
+    case Reflect::Long:
+    case Reflect::Long_NonNegative:
+    case Reflect::UnsignedLong:
+    case Reflect::UnsignedLong_NonZero:
+    case Reflect::UnsignedLong_Fallback:
+    case Reflect::UnsignedLong_Clamped: {
+      double number = 0;
+      const js::Result converted = call.interpreter.ToNumberOf(assigned, number);
+      if (converted.IsAbrupt()) {
+        return call.ThrowValue(converted.value);
+      }
+      const bool is_signed =
+          entry.kind == Reflect::Long || entry.kind == Reflect::Long_NonNegative;
+      double value = ToWebIdlInteger(number, is_signed);
+      if (entry.kind == Reflect::Long_NonNegative && value < 0) {
+        return ThrowDom(call, "IndexSizeError",
+                        std::string("cannot set ") + entry.property + " to a negative value");
+      }
+      if (entry.kind == Reflect::UnsignedLong_NonZero && value == 0) {
+        return ThrowDom(call, "IndexSizeError",
+                        std::string("cannot set ") + entry.property + " to zero");
+      }
+      // Out of the range the getter can read back is written as the default
+      // rather than as itself, so that setting and getting agree.
+      const bool below = entry.kind == Reflect::UnsignedLong_Fallback && value < 1;
+      if (below || (!is_signed && value > kMaxLong)) {
+        value = entry.fallback;
+      }
+      bindings_.SetElementAttribute(element, entry.attribute, NumberAttribute(value));
+      return Value::Undefined();
+    }
+    case Reflect::Double:
+    case Reflect::Double_Positive: {
+      double number = 0;
+      const js::Result converted = call.interpreter.ToNumberOf(assigned, number);
+      if (converted.IsAbrupt()) {
+        return call.ThrowValue(converted.value);
+      }
+      if (!std::isfinite(number)) {
+        // Web IDL `double` is the restricted one: an infinity or a NaN is a
+        // TypeError rather than an attribute nothing can parse.
+        return call.Throw("TypeError",
+                          std::string("cannot set ") + entry.property + " to a non-finite number");
+      }
+      // Positive-only, and a non-positive set is *ignored* -- the attribute
+      // keeps what it had. That is not the same as writing the default, which
+      // is why `<progress max>` needs its own kind.
+      if (entry.kind == Reflect::Double_Positive && !(number > 0)) {
+        return Value::Undefined();
+      }
+      bindings_.SetElementAttribute(element, entry.attribute, NumberAttribute(number));
+      return Value::Undefined();
+    }
+    case Reflect::Text:
+    case Reflect::Url:
+    case Reflect::Url_OrDocumentAddress:
+    case Reflect::TextareaValue:
+      break;
+  }
+  // DOMString conversion runs toString/valueOf (Web IDL). Pure js::ToString
+  // invents "[object Object]" for Location/URL — youtube then requested
+  // `https://www.youtube.com/[object%20Object]` (seen as consent continue=
+  // after redirect). Same class as TD-0027; href on <a> already coerced.
+  std::string text;
+  if (!CoerceToString(call, assigned, text)) {
+    return call.ThrownValue();
+  }
+  bindings_.SetElementAttribute(element, entry.attribute, text);
+  return Value::Undefined();
+}
+
+void Reflector::Install() {
+  // The accessors capture the *binding layer*, not this object: a Reflector is
+  // a reference with algorithms attached, built at the point of use, and one
+  // captured here would be a pointer into this frame.
+  DomBindings* owner = &bindings_;
+  for (const Reflection& entry : ReflectionTable()) {
+    const Value* prototype = bindings_.interfaces_.object->GetOwn(entry.interface);
     if (prototype == nullptr || !prototype->IsObject()) {
       continue;
     }
-    const char* attribute = entry.attribute;
-    const Reflect kind = entry.kind;
+    const Reflection* reflection = &entry;
 
-    const Value get = interpreter_->NewNativeValue(entry.property, [attribute,
-                                                                    kind](NativeCall& call) {
+    const Value get = bindings_.interpreter_->NewNativeValue(entry.property, [reflection,
+                                                                             owner](
+                                                                                NativeCall& call) {
       dom::Element* element = ElementOf(call.self);
       if (element == nullptr) {
         return Value::Undefined();
       }
-      const std::string* value = element->GetAttribute(attribute);
-      switch (kind) {
-        case Reflect::Presence:
-          return Value::Bool(value != nullptr);
-        case Reflect::InputType:
-          return Value::String(value == nullptr || value->empty() ? std::string("text") : *value);
-        case Reflect::TextareaValue:
-          return Value::String(value == nullptr ? element->TextContent() : *value);
-        case Reflect::Text:
-          break;
-      }
-      return Value::String(value == nullptr ? std::string() : *value);
+      return Reflector(*owner).Get(*reflection, *element,
+                                   call.self.IsObject() ? call.self.object : nullptr);
     });
-    const Value set = interpreter_->NewNativeValue(entry.property, [attribute,
-                                                                    kind](NativeCall& call) {
-      DomBindings* owner = OwnerOf(call);
+    const Value set = bindings_.interpreter_->NewNativeValue(entry.property, [reflection,
+                                                                             owner](
+                                                                                NativeCall& call) {
       dom::Element* element = ElementOf(call.self);
-      if (owner == nullptr || element == nullptr) {
+      if (element == nullptr) {
         return Value::Undefined();
       }
-      const Value assigned = Argument(call.arguments, 0);
-      if (kind == Reflect::Presence) {
-        // Presence, so a false is a removal. Writing "false" into the attribute
-        // would leave the element disabled, which is the opposite of what the
-        // page asked for and the reason this is not one code path with Text.
-        if (js::ToBoolean(assigned)) {
-          owner->SetElementAttribute(*element, attribute, std::string());
-        } else {
-          owner->RemoveElementAttribute(*element, attribute);
-        }
-        return Value::Undefined();
-      }
-      // DOMString conversion runs toString/valueOf (Web IDL). Pure js::ToString
-      // invents "[object Object]" for Location/URL — youtube then requested
-      // `https://www.youtube.com/[object%20Object]` (seen as consent continue=
-      // after redirect). Same class as TD-0027; href on <a> already coerced.
-      std::string text;
-      if (!CoerceToString(call, assigned, text)) {
-        return call.ThrownValue();
-      }
-      owner->SetElementAttribute(*element, attribute, text);
-      return Value::Undefined();
+      return Reflector(*owner).Set(*reflection, *element, call,
+                                   call.self.IsObject() ? call.self.object : nullptr);
     });
     if (!get.IsObject() || !set.IsObject()) {
       continue;
     }
-    get.object->Set(kOwnerSlot, PointerValue(this));
-    set.object->Set(kOwnerSlot, PointerValue(this));
+    get.object->Set(kOwnerSlot, PointerValue(owner));
+    set.object->Set(kOwnerSlot, PointerValue(owner));
     prototype->object->DefineAccessor(entry.property, get.object, set.object);
   }
+  InstallDocumentReflections();
   InstallHyperlinkElementUtils();
 }
 
-void DomBindings::InstallHyperlinkElementUtils() {
-  // HTMLHyperlinkElementUtils on `<a>`. youtube's searchbox resolves
-  // `location.href` through `document.createElement('a'); a.href = url;
-  // a.pathname` (`n0n`). Without `pathname` that call threw and Enter never
-  // navigated (TD-0026).
-  const Value* prototype = interfaces_.IsObject() ? interfaces_.object->GetOwn("HTMLAnchorElement")
-                                                  : nullptr;
+void Reflector::InstallDocumentReflections() {
+  const Value* prototype = bindings_.interfaces_.object->GetOwn("Document");
   if (prototype == nullptr || !prototype->IsObject()) {
     return;
   }
-
-  const auto href_string = [](dom::Element* element) -> std::string {
-    if (element == nullptr) {
-      return {};
+  DomBindings* owner = &bindings_;
+  for (const DocumentReflection& entry : DocumentReflectionTable()) {
+    const DocumentReflection* row = &entry;
+    // The element that carries the attribute, found on the *receiver* document
+    // rather than the page's -- the same inversion every other `document.*`
+    // answer went through when `createHTMLDocument` landed.
+    const auto target = [owner, row](NativeCall& call) -> dom::Element* {
+      dom::Document* document = owner->DocumentOf(call.self);
+      if (document == nullptr) {
+        return nullptr;
+      }
+      return row->on_body ? document->Body() : document->DocumentElement();
+    };
+    const Value get = bindings_.interpreter_->NewNativeValue(
+        entry.reflection.property, [owner, row, target](NativeCall& call) {
+          dom::Element* element = target(call);
+          // No body yet is not an error: `document.bgColor` before the parser
+          // has reached `<body>` is the empty string, not a throw.
+          return element == nullptr ? Value::String("")
+                                    : Reflector(*owner).Get(row->reflection, *element, nullptr);
+        });
+    const Value set = bindings_.interpreter_->NewNativeValue(
+        entry.reflection.property, [owner, row, target](NativeCall& call) {
+          dom::Element* element = target(call);
+          if (element == nullptr) {
+            return Value::Undefined();
+          }
+          return Reflector(*owner).Set(row->reflection, *element, call, nullptr);
+        });
+    if (!get.IsObject() || !set.IsObject()) {
+      continue;
     }
-    const std::string* value = element->GetAttribute("href");
-    return value == nullptr ? std::string() : *value;
-  };
-
-  const Value href_get = interpreter_->NewNativeValue("href", [href_string](NativeCall& call) {
-    return Value::String(href_string(ElementOf(call.self)));
-  });
-  const Value href_set = interpreter_->NewNativeValue("href", [](NativeCall& call) {
-    DomBindings* owner = OwnerOf(call);
-    dom::Element* element = ElementOf(call.self);
-    if (owner == nullptr || element == nullptr) {
-      return Value::Undefined();
-    }
-    std::string href;
-    if (!CoerceToString(call, Argument(call.arguments, 0), href)) {
-      return call.ThrownValue();
-    }
-    owner->SetElementAttribute(*element, "href", href);
-    return Value::Undefined();
-  });
-  if (href_get.IsObject() && href_set.IsObject()) {
-    href_get.object->Set(kOwnerSlot, PointerValue(this));
-    href_set.object->Set(kOwnerSlot, PointerValue(this));
-    prototype->object->DefineAccessor("href", href_get.object, href_set.object);
+    get.object->Set(kOwnerSlot, PointerValue(owner));
+    set.object->Set(kOwnerSlot, PointerValue(owner));
+    prototype->object->DefineAccessor(entry.reflection.property, get.object, set.object);
   }
+}
 
-  const auto install_part = [this, prototype, href_string](const char* name, auto pick) {
-    const Value get = interpreter_->NewNativeValue(name, [href_string, pick](NativeCall& call) {
-      const HrefParts parts = SplitHref(href_string(ElementOf(call.self)));
-      return Value::String(pick(parts));
-    });
-    if (get.IsObject()) {
-      get.object->Set(kOwnerSlot, PointerValue(this));
-      prototype->object->DefineAccessor(name, get.object, nullptr);
+void Reflector::InstallHyperlinkElementUtils() {
+  // HTMLHyperlinkElementUtils on `<a>` and `<area>`. youtube's searchbox
+  // resolves `location.href` through `document.createElement('a'); a.href = url;
+  // a.pathname` (`n0n`). Without `pathname` that call threw and Enter never
+  // navigated (TD-0026).
+  //
+  // The parts are split from the *resolved* href rather than from the
+  // attribute, because that is what they are parts of: `a.href = 'foo'` on a
+  // page at `/x/y` has the pathname `/x/foo`, and splitting the attribute would
+  // answer `foo` -- which is not a path at all.
+  static constexpr const char* kHyperlinkInterfaces[] = {"HTMLAnchorElement", "HTMLAreaElement"};
+  DomBindings* owner = &bindings_;
+  for (const char* name : kHyperlinkInterfaces) {
+    const Value* prototype =
+        bindings_.interfaces_.IsObject() ? bindings_.interfaces_.object->GetOwn(name) : nullptr;
+    if (prototype == nullptr || !prototype->IsObject()) {
+      continue;
     }
-  };
-  install_part("protocol", [](const HrefParts& p) { return p.protocol; });
-  install_part("host", [](const HrefParts& p) { return p.host; });
-  install_part("hostname", [](const HrefParts& p) { return p.hostname; });
-  install_part("port", [](const HrefParts& p) { return p.port; });
-  install_part("pathname", [](const HrefParts& p) { return p.pathname; });
-  install_part("search", [](const HrefParts& p) { return p.search; });
-  install_part("hash", [](const HrefParts& p) { return p.hash; });
-  install_part("origin", [](const HrefParts& p) { return p.origin; });
+    const auto install_part = [owner, prototype](const char* part, auto pick) {
+      const Value get =
+          owner->interpreter_->NewNativeValue(part, [owner, pick](NativeCall& call) {
+            dom::Element* element = ElementOf(call.self);
+            const std::string* attribute =
+                element == nullptr ? nullptr : element->GetAttribute("href");
+            const HrefParts parts = SplitHref(
+                attribute == nullptr ? std::string() : Reflector(*owner).Resolve(*attribute));
+            return Value::String(pick(parts));
+          });
+      if (get.IsObject()) {
+        get.object->Set(kOwnerSlot, PointerValue(owner));
+        prototype->object->DefineAccessor(part, get.object, nullptr);
+      }
+    };
+    install_part("protocol", [](const HrefParts& p) { return p.protocol; });
+    install_part("host", [](const HrefParts& p) { return p.host; });
+    install_part("hostname", [](const HrefParts& p) { return p.hostname; });
+    install_part("port", [](const HrefParts& p) { return p.port; });
+    install_part("pathname", [](const HrefParts& p) { return p.pathname; });
+    install_part("search", [](const HrefParts& p) { return p.search; });
+    install_part("hash", [](const HrefParts& p) { return p.hash; });
+    install_part("origin", [](const HrefParts& p) { return p.origin; });
+  }
 }
 
 }  // namespace microbrowser::bindings

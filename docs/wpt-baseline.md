@@ -7,6 +7,15 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
+**Partly re-measured, 2026-08-12 (C10, reflected IDL attributes).** The one row for `html/dom`
+is from that run and was merged in **by hand**, for the reason three paragraphs below: 35.8% ->
+**95.5%** (21,450 of 59,930 -> 57,411 of 60,139 subtests), 0 unexpected results, 35,847 expectation
+lines deleted. `html/dom/reflection-*.html` alone went from 35,560 recorded failures to none --
+56,660 of 56,660. **Every other `html/` row is still the M-B baseline and is now wrong in the
+optimistic direction**: reflected attributes are read everywhere, so `html/semantics` in particular
+should be re-measured before anyone plans against its number. `html/browsers/` was deliberately not
+run -- 751 tests of navigation this browser cannot do, almost all of them 20-second timeouts.
+
 **Partly re-measured again, 2026-08-11 (C4, both halves).** The 26 rows for `dom/`,
 `custom-elements/`, `shadow-dom/` and `domparsing/` are from that run, merged in by hand for
 the reason the next paragraph gives. **Read the counts before the percentages.** The runner's
@@ -211,7 +220,7 @@ it is a page that never reported, which almost always means something threw befo
 | `html/cross-origin-embedder-policy` | 88 | 45 | 5 | 38 | 0 | 345 | 15 | 4.3 |
 | `html/cross-origin-opener-policy` | 114 | 90 | 2 | 22 | 0 | 583 | 2 | 0.3 |
 | `html/document-isolation-policy` | 38 | 35 | 1 | 2 | 0 | 150 | 0 | 0.0 |
-| `html/dom` | 264 | 239 | 0 | 25 | 0 | 59930 | 21450 | 35.8 |
+| `html/dom` | 264 | 240 | 0 | 24 | 0 | 60139 | 57411 | 95.5 |
 | `html/editing` | 115 | 58 | 0 | 57 | 0 | 614 | 39 | 6.4 |
 | `html/embedded-content` | 1 | 1 | 0 | 0 | 0 | 2 | 0 | 0.0 |
 | `html/infrastructure` | 65 | 35 | 0 | 29 | 1 | 463 | 45 | 9.7 |

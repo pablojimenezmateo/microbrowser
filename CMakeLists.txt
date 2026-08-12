@@ -490,6 +490,7 @@ microbrowser_module(bindings
     src/bindings/HistoryBindings.cpp
     src/bindings/NodeInterfaces.cpp
     src/bindings/ReflectedAttributes.cpp
+    src/bindings/ReflectionTable.cpp
     src/bindings/HrefParts.cpp
     src/bindings/ShadowBindings.cpp
     src/bindings/MediaBindings.cpp

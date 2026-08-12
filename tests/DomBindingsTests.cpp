@@ -1109,6 +1109,177 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "2:id:first");
   });
 
+  AddTest(tests, "DomBindings/ReflectionKindsFollowTheSpecifiedAlgorithm", [] {
+    // HTML states a dozen reflection algorithms and then applies them a few
+    // hundred times. web-platform-tests exercises the applications; this
+    // exercises the algorithms, which is the half that can be wrong in the same
+    // way in every one of those places at once.
+
+    // Enumerated: canonical spelling out, whatever case went in, and the string
+    // as written stays in the attribute. The match is ASCII-only, so U+212A
+    // KELVIN SIGN is not a K -- Unicode case folding here would let
+    // `type="checKbox"` be a checkbox.
+    ExpectScript(kPage,
+                 "const d = document.createElement('div'); d.setAttribute('dir', 'RTL');"
+                 "d.dir + '/' + d.getAttribute('dir')",
+                 "rtl/RTL");
+    ExpectScript(kPage,
+                 "const d = document.createElement('div'); d.dir = 'LTR';"
+                 "d.dir + '/' + d.getAttribute('dir')",
+                 "ltr/LTR");
+    // Invalid value default, then missing value default.
+    ExpectScript(kPage,
+                 "const t = document.createElement('td'); t.setAttribute('scope', 'nonsense');"
+                 "'[' + t.scope + ']/[' + document.createElement('td').scope + ']'",
+                 "[]/[]");
+    ExpectScript(kPage,
+                 "const i = document.createElement('input');"
+                 "i.setAttribute('type', 'chec\\u212Abox'); i.type",
+                 "text");
+    // Nullable: unset is null, not "", and assigning null removes the
+    // attribute rather than writing the string "null".
+    ExpectScript(kPage,
+                 "const m = document.createElement('img');"
+                 "const before = m.crossOrigin; m.crossOrigin = 'ANONYMOUS';"
+                 "const on = m.crossOrigin; m.crossOrigin = null;"
+                 "before + '/' + on + '/' + m.crossOrigin + '/' + m.hasAttribute('crossorigin')",
+                 "null/anonymous/null/false");
+
+    // The integer kinds, which differ only in what they do out of range.
+    // Clamped: `rowspan` reads into [0, 65534] rather than falling back.
+    ExpectScript(kPage,
+                 "const c = document.createElement('td'); c.setAttribute('rowspan', '99999');"
+                 "c.setAttribute('colspan', '0');"
+                 "c.rowSpan + '/' + c.colSpan",
+                 "65534/1");
+    // Out of the range the getter can read back is written as the default, so
+    // that setting and getting agree rather than disagreeing silently.
+    ExpectScript(kPage,
+                 "const c = document.createElement('td'); c.colSpan = 2147483648;"
+                 "c.getAttribute('colspan') + '/' + c.colSpan",
+                 "1/1");
+    // Non-negative-only kinds throw rather than writing a value that could
+    // never be read back.
+    ExpectScript(kPage,
+                 "const i = document.createElement('input');"
+                 "try { i.maxLength = -1; 'no throw' } catch (e) { e.name }",
+                 "IndexSizeError");
+    ExpectScript(kPage,
+                 "const i = document.createElement('input');"
+                 "try { i.size = 0; 'no throw' } catch (e) { e.name }",
+                 "IndexSizeError");
+    ExpectScript(kPage, "document.createElement('input').size", "20");
+    // With fallback rather than a throw, which is the whole difference between
+    // `<input size>` and `<textarea cols>`.
+    ExpectScript(kPage,
+                 "const t = document.createElement('textarea'); t.cols = 0;"
+                 "t.getAttribute('cols') + '/' + t.cols + '/' + t.rows",
+                 "20/20/2");
+    // HTML's integer rules, which are not C's: a vertical tab is not
+    // whitespace, so "\\u000B7" is an error and the default comes back, while
+    // "-0" is a *non-negative* zero and reads as 0.
+    ExpectScript(kPage,
+                 "const i = document.createElement('img');"
+                 "i.setAttribute('hspace', '\\u000B7'); const bad = i.hspace;"
+                 "i.setAttribute('hspace', '-0'); const zero = i.hspace;"
+                 "i.setAttribute('hspace', '\\t7x'); bad + '/' + zero + '/' + i.hspace",
+                 "0/0/7");
+
+    // Doubles: HTML's float rules stop at the first character they cannot use,
+    // and an overflow to infinity is an error rather than an infinity.
+    ExpectScript(kPage,
+                 "const m = document.createElement('meter');"
+                 "m.setAttribute('value', '1. 1'); const stops = m.value;"
+                 "m.setAttribute('value', '1.8e308'); stops + '/' + m.value",
+                 "1/0");
+    // Positive-only: a set that is not greater than zero leaves the attribute
+    // alone, which is not the same as writing the default.
+    ExpectScript(kPage,
+                 "const p = document.createElement('progress'); p.max = 4; p.max = 0;"
+                 "p.getAttribute('max') + '/' + p.max + '/' + document.createElement('progress').max",
+                 "4/4/1");
+
+    // [LegacyNullToEmptyString]: `body.bgColor = null` clears the colour rather
+    // than asking for one named "null".
+    ExpectScript(kPage,
+                 "document.body.bgColor = null; '[' + document.body.getAttribute('bgcolor') + ']'",
+                 "[]");
+    // And the `Document` half of the same reflection, which describes the body
+    // rather than its own receiver.
+    ExpectScript(kPage,
+                 "document.bgColor = 'red';"
+                 "document.body.getAttribute('bgcolor') + '/' + document.bgColor",
+                 "red/red");
+    ExpectScript(kPage,
+                 "document.dir = 'RTL';"
+                 "document.documentElement.getAttribute('dir') + '/' + document.dir",
+                 "RTL/rtl");
+
+    // `nonce` reflects one way only: the content attribute feeds the internal
+    // slot and the IDL setter does not feed it back, because an attribute a
+    // page can read through the DOM is a nonce an injected stylesheet can
+    // exfiltrate with `script[nonce^=a]`.
+    ExpectScript(kPage,
+                 "const s = document.createElement('style'); s.setAttribute('nonce', 'from-markup');"
+                 "const parsed = s.nonce; s.nonce = 'from-script';"
+                 "parsed + '/' + s.nonce + '/' + s.getAttribute('nonce')",
+                 "from-markup/from-script/from-markup");
+  });
+
+  AddTest(tests, "DomBindings/ReflectedUrlsResolveAgainstTheDocument", [] {
+    // A reflected URL answers with the attribute *resolved*, which is what a
+    // page follows -- `img.src` on a page at /a/b is an absolute address, and a
+    // browser that answered with the attribute would hand every consumer a
+    // string that only means something relative to a document it does not know.
+    // Setting still stores what was written: the resolution is a property of
+    // reading.
+    struct StubNetwork final : bindings::NetworkSource {
+      std::uint64_t StartFetch(const bindings::ScriptRequest&) override { return 0; }
+      void AbortFetch(std::uint64_t) override {}
+      std::string ResolveUrl(std::string_view relative, std::string_view base) const override {
+        if (relative.find("://") != std::string_view::npos) {
+          return std::string(relative);
+        }
+        const std::size_t cut = base.rfind('/');
+        std::string out(cut == std::string_view::npos ? base : base.substr(0, cut + 1));
+        out.append(relative);
+        return out;
+      }
+      std::string RegisterBlobUrl(std::string, std::string) override { return {}; }
+      void RevokeBlobUrl(const std::string&) override {}
+    } network;
+
+    auto document = html::ParseDocument("<html><body></body></html>");
+    auto interpreter = std::make_unique<js::Interpreter>();
+    bindings::DomBindings dom(*interpreter, *document, "https://example.org/a/b", nullptr, &network,
+                              nullptr, nullptr, nullptr, nullptr, nullptr);
+    dom.Install();
+
+    ExpectEqString(js::ToString(interpreter
+                                    ->Run("const i = document.createElement('img'); i.src = 'c.png';"
+                                          "i.src + '|' + i.getAttribute('src')")
+                                    .value),
+                   "https://example.org/a/c.png|c.png", "img.src resolves on read only");
+    // An `<a>`'s URL parts are parts of the *resolved* address: `a.pathname` on
+    // a relative href is what youtube's searchbox reads to build a navigation.
+    ExpectEqString(js::ToString(interpreter
+                                    ->Run("const a = document.createElement('a'); a.href = 'c.png';"
+                                          "a.href + '|' + a.pathname + '|' + a.host")
+                                    .value),
+                   "https://example.org/a/c.png|/a/c.png|example.org",
+                   "hyperlink parts come from the resolved href");
+    // A form with no action submits to the page it is on, so its getter answers
+    // with the document's address rather than "" -- which would be
+    // indistinguishable from a form posting to the site root.
+    ExpectEqString(js::ToString(interpreter
+                                    ->Run("const f = document.createElement('form');"
+                                          "const missing = f.action; f.action = '';"
+                                          "missing + '|' + f.action")
+                                    .value),
+                   "https://example.org/a/b|https://example.org/a/b",
+                   "a missing or empty action is the document's address");
+  });
+
   AddTest(tests, "DomBindings/DocumentAllIsHTMLDDA", [] {
     // HTML [[IsHTMLDDA]]: falsy, typeof "undefined", == null, but still an
     // object so `!== undefined` is true. Polymer resin's
