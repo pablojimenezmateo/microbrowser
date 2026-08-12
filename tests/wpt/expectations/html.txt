@@ -10175,10 +10175,20 @@ FAIL=isolate-and-require-corp (derived from blob URL creator)
 FAIL=Returns empty string when accesskey is invalid
 # ADR 0012: this file is w3c/aria PR 2484, a *proposal*, and it contradicts the
 # shipped specification rather than extending it -- with `aria-busy` absent it
-# wants "false" where `aria-attribute-reflection.html` wants null. The stable
-# behaviour is what is implemented (every `aria-*` is a nullable DOMString,
-# ReflectionTable.cpp); passing this file means failing that one. Deliberate; do
-# not "fix" without a decision that the proposal has shipped.
+# wants "false" where `aria-attribute-reflection.html` wants null. Passing this
+# file means failing that one, and the trade was measured rather than argued
+# (2026-08-12, by implementing the proposal and reverting it):
+#
+#                              aria-attribute-reflection   this file
+#   DOMString? (shipped, ours)          41/41  (100%)      562/1722 (32.6%)
+#   enumerated (PR 2484)                28/41  (68.3%)    1696/1722 (98.5%)
+#
+# So the proposal is worth +1134 subtests here and -13 there. It is still
+# refused, and the number is the reason to write the refusal down rather than to
+# reverse it: those 13 are the *shipped* behaviour of every browser, `el.ariaBusy`
+# on an element with no `aria-busy` is null in all of them, and a page reading it
+# gets an answer no other engine gives. Correctness before pass rate -- see
+# AGENTS.md's priority order. Revisit when the proposal ships, not before.
 [html/dom/aria-attribute-reflection-enumerated.tentative.html]
 FAIL=div.ariaAtomic (<div aria-atomic>): IDL set to " \0\x01\x02\x03\x04\x05\x06\x07 \b\t\n\v\f\r\x0e\x0f \x10\x11\x12\x13\x14\x15\x16\x17 \x18\x19\x1a\x1b\x1c\x1d\x1e\x1f  foo "
 FAIL=div.ariaAtomic (<div aria-atomic>): IDL set to ""

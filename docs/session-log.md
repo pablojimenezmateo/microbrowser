@@ -4990,15 +4990,31 @@ Two thirds of what is left is one file, and it is a file this browser should not
 | ~90 | `dom-tree-accessors/{title,body,getElementsByName,nameditem}*` | four separate accessors |
 | 26 | `global-attributes/dir-*` | `dir=auto` directionality, which is a bidi question |
 
-**The 1,160 are a deliberate refusal and the reasoning is now in the expectation file**, where the
-README asks for it. That file is w3c/aria PR 2484 — a proposal to convert twenty `aria-*`
-attributes from `DOMString?` to enumerated — and it **contradicts the shipped specification rather
-than extending it**: with `aria-busy` absent the proposal wants `"false"` and
-`aria-attribute-reflection.html` wants `null`. Passing one means failing the other. The stable
-behaviour is what landed: every `aria-*` and `role` is a nullable string on `Element`, which took
+**The 1,160 are a deliberate refusal, and the refusal was *measured* rather than argued.** That
+file is w3c/aria PR 2484 — a proposal to convert twenty `aria-*` attributes from `DOMString?` to
+enumerated — and it contradicts the shipped specification rather than extending it: with
+`aria-busy` absent the proposal wants `"false"` and `aria-attribute-reflection.html` wants `null`.
+Reading two specifications and concluding "these disagree" is not evidence, so the proposal was
+implemented, both files run, and it was reverted:
+
+| implementation | `aria-attribute-reflection.html` | `…-enumerated.tentative.html` |
+|---|---:|---:|
+| `DOMString?` — shipped, and what landed | **41 / 41 (100%)** | 562 / 1722 (32.6%) |
+| enumerated — PR 2484 | 28 / 41 (68.3%) | **1696 / 1722 (98.5%)** |
+
+**The proposal is worth +1,134 subtests there and −13 here, and it is still refused.** That number
+is the reason to write the refusal down rather than to reverse it: those 13 are the shipped
+behaviour of every browser — `el.ariaBusy` on an element with no `aria-busy` is `null` in all of
+them — so taking the trade buys 1,134 points by giving a page an answer no other engine gives.
+AGENTS.md puts correctness first and a pass rate nowhere. The stable behaviour is what landed:
+every `aria-*` and `role` is a nullable string on `Element`, which took
 `aria-attribute-reflection.html` and its `.tentative` sibling from 3 of 44 to **44 of 44** and is
-worth 282 subtests across the area. Chasing the other 1,160 would be ADR 0012's stub rule pointed
-at a percentage.
+worth 282 subtests across the area.
+
+**This is the shape to expect from the rest of the gap, and it is why "`html/dom/` at 100%" is not
+a goal anyone should adopt.** Of the 2,311 subtests left, 1,341 are two tentative proposals and 505
+are `innerText`; a browser that passed all of them would be one that had implemented a
+contradiction and a layout-dependent serialisation, in that order.
 
 **`html/dom/render-blocking/` is flaky by construction and it is not this change.** Two *identical*
 runs of the same binary against the same expectations reported **0 unexpected and then 2**. Those
