@@ -189,7 +189,7 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
   // holds a reference to it, so dropping the script half after replacing the
   // document would leave that reference dangling for exactly as long as it took
   // the next page's first script to read the tree.
-  script_->Detach();
+  script_.Detach();
   // Before the document goes, for the reason the line above is: every frame's element lives in the
   // document that is about to be replaced, and the borrowed pointer each one holds has to be
   // cleared while that element is still there to clear it on. ADR 0027 §1, and see Frames.h.
@@ -573,7 +573,7 @@ DispatchOutcome Page::DispatchClickAt(gfx::FloatPoint document_point,
 void Page::AbandonForNavigation() {
   // Interpreter, timers, rAF, idle, host tasks. The DOM stays until Load; it
   // must not schedule against the in-flight document GET (TD-0048).
-  script_->Detach();
+  script_.Detach();
   animations_.Clear();
   util::AddPerformanceCounter(util::PerfCounterId::EngineScriptAbandonedForNavigation);
 }

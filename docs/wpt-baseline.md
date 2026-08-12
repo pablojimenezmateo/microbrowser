@@ -7,6 +7,27 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
+**Five areas re-measured 2026-08-13, after ADR 0042 §5's host half (a same-origin `<iframe>` runs
+script in its own realm). Trust these over every row in the table below.** Merged in by hand for the
+reason four paragraphs down.
+
+| area | before | after | note |
+|---|--:|--:|---|
+| `url/` | 97.9% (9,696/9,909) | **99.8%** (9,884/9,903) | all 188 are `failure.html`'s `frame.contentWindow.location = badUrl` third case |
+| `dom/` | 38,589/46,530, **1 crash** | 38,596/46,531, **0 crashes** | the crash was a use-after-free three lines of script could reach |
+| `custom-elements/` + `shadow-dom/` + `domparsing/` | — | 10,094/15,261 | **+141 subtests, 0 lost**, against the 2026-08-12 record |
+| `fetch/` | 1,093/5,772, 176 timeouts | 1,091/5,772, 174 timeouts | three `dangling-markup` tests went 20,000ms -> 45ms |
+
+`fetch/`'s two-subtest fall is worth reading rather than the rate: those three tests stopped timing
+out and started *reporting*, so subtests that never executed now execute, and some of them fail.
+That is the same shape the handler work produced on 2026-08-12 and the same warning applies --
+**judge frame work by the harness column, not the subtest net.**
+
+`docs/session-log.md`'s C12 entry has what is left, and the two findings worth more than the
+feature: a `DomBindings` can now outlive nothing and be outlived by its own natives (so the owner
+slot is a never-reused serial, not an address), and `js::kMaxRealms` was bounding realms *ever
+made* rather than realms alive.
+
 **`dom/` re-measured 2026-08-12, after the `<iframe>` lifecycle landed, and it is the row below to
 trust.** 667 tests, **46,530 subtests, 38,589 passed (82.9%)**, 132 timeouts. Merged in by hand for
 the reason four paragraphs down. **35 tests went from reporting nothing at all to reporting**, and

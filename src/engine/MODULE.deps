@@ -445,10 +445,16 @@ budget: PageTextContext header_lines=30 public_methods=5 members=2
 # the next thing added to it should be a separate class; see bindings/BrowsingContexts.h.
 budget: PageScript header_lines=560 public_methods=80 members=37
 # ADR 0042 §5's realm guard, and it is meant to stay this small. One member --
-# the `PageScript` it is the sole friend of -- and three methods, two of which
-# are the same `operator->` differing in constness. If this grows, something has
-# started living in the guard that belongs in the thing being guarded.
-budget: RealmBoundScript header_lines=60 public_methods=5 members=1
+# the `PageScript` it is the sole friend of -- and the same `operator->` twice,
+# differing in constness. If this grows, something has started living in the
+# guard that belongs in the thing being guarded.
+# The sixth method is `Detach`, and it is the *unguarded* one: it frees this
+# page's interpreter, so a `RealmScope` taken on the way in would restore into an
+# object the call itself destroyed. ASan found that on the navigation path. It is
+# a named method rather than a general escape hatch for exactly the reason the
+# constructor is private -- and it runs no script, so there is nothing a realm
+# would be current for. **A seventh method here should be argued for, not added.**
+budget: RealmBoundScript header_lines=75 public_methods=6 members=1
 # This document's policy plus the two things every question about one needs.
 # Three members and one of them mutable: a refusal is recorded where it is
 # decided, because eight call sites remembering to log is how a browser ends up

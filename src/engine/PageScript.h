@@ -656,6 +656,19 @@ class RealmBoundScript {
     std::optional<js::Interpreter::RealmScope> scope_;
   };
 
+  // **The one call that does not enter the realm, because what it does is end
+  // it.** `Detach` frees this page's own interpreter, and a `RealmScope` taken
+  // on the way in would restore into it on the way out -- reading a `Realm`
+  // vector that the call itself freed. ASan caught exactly that on the
+  // navigation path (`Page::AbandonForNavigation`), which is the shape of hazard
+  // a guard applied to *every* route has to answer for somewhere.
+  //
+  // It is a named method rather than a general unguarded accessor for that
+  // reason: an escape hatch anyone could reach for would give back what the
+  // private constructor bought. This one runs no script -- it drops the binding
+  // layer and every queue -- so there is nothing a realm would be current *for*.
+  void Detach() { script_.Detach(); }
+
   AccessTo<PageScript> operator->() { return AccessTo<PageScript>(script_); }
   AccessTo<const PageScript> operator->() const {
     return AccessTo<const PageScript>(script_);
