@@ -52,6 +52,45 @@ struct ErrorName {
   std::string_view constant;
 };
 
+// The twenty-five legacy code constants, in numeric order, which is the order Web IDL lists them
+// in and therefore the order they enumerate in.
+//
+// Their own table rather than a column of the one below, because five of them (2, 6, 16, 17, 21)
+// name no error the modern table has: the numbering was abandoned mid-way, and the constants that
+// outlived their names still have to be there and still have to be in order.
+struct LegacyConstant {
+  std::string_view constant;
+  int code;
+};
+
+constexpr LegacyConstant kLegacyConstants[] = {
+    {"INDEX_SIZE_ERR", 1},
+    {"DOMSTRING_SIZE_ERR", 2},
+    {"HIERARCHY_REQUEST_ERR", 3},
+    {"WRONG_DOCUMENT_ERR", 4},
+    {"INVALID_CHARACTER_ERR", 5},
+    {"NO_DATA_ALLOWED_ERR", 6},
+    {"NO_MODIFICATION_ALLOWED_ERR", 7},
+    {"NOT_FOUND_ERR", 8},
+    {"NOT_SUPPORTED_ERR", 9},
+    {"INUSE_ATTRIBUTE_ERR", 10},
+    {"INVALID_STATE_ERR", 11},
+    {"SYNTAX_ERR", 12},
+    {"INVALID_MODIFICATION_ERR", 13},
+    {"NAMESPACE_ERR", 14},
+    {"INVALID_ACCESS_ERR", 15},
+    {"VALIDATION_ERR", 16},
+    {"TYPE_MISMATCH_ERR", 17},
+    {"SECURITY_ERR", 18},
+    {"NETWORK_ERR", 19},
+    {"ABORT_ERR", 20},
+    {"URL_MISMATCH_ERR", 21},
+    {"QUOTA_EXCEEDED_ERR", 22},
+    {"TIMEOUT_ERR", 23},
+    {"INVALID_NODE_TYPE_ERR", 24},
+    {"DATA_CLONE_ERR", 25},
+};
+
 constexpr ErrorName kErrorNames[] = {
     {"IndexSizeError", 1, "INDEX_SIZE_ERR"},
     {"HierarchyRequestError", 3, "HIERARCHY_REQUEST_ERR"},
@@ -226,17 +265,19 @@ void InstallDomException(js::Interpreter& interpreter) {
   }
   constructor.object->SetHidden("prototype", prototype);
   prototype.object->SetHidden("constructor", constructor);
-  // The legacy code constants, which live on both the constructor and the
-  // prototype: `DOMException.NOT_FOUND_ERR` and `e.NOT_FOUND_ERR` are both
-  // written, and both were 8 before anyone stopped writing either.
-  for (const ErrorName& entry : kErrorNames) {
-    if (entry.constant.empty()) {
-      continue;
-    }
+  // The legacy code constants, on both the constructor and the prototype:
+  // `DOMException.NOT_FOUND_ERR` and `e.NOT_FOUND_ERR` are both written, and both were 8 before
+  // anyone stopped writing either.
+  //
+  // **Enumerable**, which is what Web IDL says a constant on an interface object is, and is not a
+  // detail: `Object.keys(DOMException)` is these twenty-five names, and anything that converts an
+  // interface object to a record sees all of them or none. The URL Standard's own suite converts
+  // this one, which is how the non-enumerable version was found.
+  for (const LegacyConstant& entry : kLegacyConstants) {
     const std::string constant(entry.constant);
     const Value code = Value::Number(static_cast<double>(entry.code));
-    constructor.object->SetHidden(constant, code);
-    prototype.object->SetHidden(constant, code);
+    constructor.object->Set(constant, code);
+    prototype.object->Set(constant, code);
   }
   interpreter.Global()->Set("DOMException", constructor);
   interpreter.GlobalScope()->Declare("DOMException", constructor, false);

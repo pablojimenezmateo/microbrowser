@@ -203,7 +203,8 @@ void Interpreter::InstallFunctionPrototype() {
     bound->Set(kBoundThis, Argument(call.arguments, 0));
     bound->Set(kBoundArguments, call.interpreter.NewArrayValue(rest));
     const Value* name = target->GetOwn("name");
-    bound->Set("name", Value::String("bound " + (name == nullptr ? std::string() : ToString(*name))));
+    bound->SetHidden("name",
+                     Value::String("bound " + (name == nullptr ? std::string() : ToString(*name))));
     return Value::Obj(bound);
   });
 }

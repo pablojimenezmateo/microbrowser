@@ -93,7 +93,7 @@ Result Interpreter::EvaluateClass(const Node& node, Environment& scope,
   } else {
     constructor->MakeFunction(constructor_parameters, constructor_body, class_scope, false);
   }
-  constructor->Set("name", Value::String(node.string));
+  constructor->SetHidden("name", Value::String(node.string));
   constructor->Set("prototype", Value::Obj(prototype));
   constructor->SetHomeObject(prototype);
   constructor->SetSuperConstructor(superclass);
@@ -185,7 +185,7 @@ Result Interpreter::EvaluateClass(const Node& node, Environment& scope,
     if (!method.IsObject()) {
       return Throw("RangeError", "out of memory");
     }
-    method.object->Set("name", Value::String(display));
+    method.object->SetHidden("name", Value::String(display));
     // The home object is what `super.x` resolves against: the *defining*
     // object's prototype, not the receiver's. Without it, a method that calls
     // super in a three-level hierarchy recurses into itself.

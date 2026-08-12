@@ -94,7 +94,8 @@ inline bool CoerceToString(js::NativeCall& call, const js::Value& value, std::st
 
 // The same conversion, to a Web IDL **USVString** rather than a DOMString: a JavaScript string is
 // a sequence of UTF-16 code units and may hold an unpaired surrogate, and a USVString may not, so
-// every lone one becomes U+FFFD.
+// every lone one becomes U+FFFD. One replacement per *code unit* -- see ScrubLoneSurrogates for
+// why the byte-oriented decoder is the wrong tool here.
 //
 // It is a separate function rather than a flag because the choice belongs to the *interface*: the
 // URL Standard takes USVStrings everywhere, because a URL becomes bytes on a wire and a lone
@@ -103,8 +104,65 @@ inline bool CoerceToUsvString(js::NativeCall& call, const js::Value& value, std:
   if (!CoerceToString(call, value, out)) {
     return false;
   }
-  out = util::Utf8DecodeLossy(out);
+  out = util::ScrubLoneSurrogates(out);
   return true;
+}
+
+// Walks a value with the iterator protocol into `out`. False when something threw, in which case
+// the caller returns `call.ThrownValue()`.
+//
+// Web IDL's `sequence<T>` conversion is *not* "read the indices": it is `@@iterator`, called, and
+// stepped. The difference is every iterable that is not an array -- a `Map`, a `Set`, a `FormData`,
+// a `URLSearchParams`, or a page's own object with a custom `@@iterator` -- all of which have no
+// indices at all and would convert to an empty sequence.
+//
+// Bounded, because the iterator is a page's and `next` need never say it is done.
+inline bool IterateValue(js::NativeCall& call, const js::Value& value,
+                         std::vector<js::Value>& out) {
+  if (!value.IsObject()) {
+    (void)call.Throw("TypeError", "value is not iterable");
+    return false;
+  }
+  const js::Value* method =
+      value.object->Get(js::PropertyKey::Symbol(call.interpreter.SymbolIterator()));
+  if (method == nullptr || !method->IsObject() || !method->object->IsCallable()) {
+    (void)call.Throw("TypeError", "value is not iterable");
+    return false;
+  }
+  const js::Result iterator = call.interpreter.CallFunction(*method, value, {});
+  if (iterator.IsAbrupt()) {
+    (void)call.ThrowValue(iterator.value);
+    return false;
+  }
+  if (!iterator.value.IsObject()) {
+    (void)call.Throw("TypeError", "iterator is not an object");
+    return false;
+  }
+  const js::Value* next = iterator.value.object->Get("next");
+  if (next == nullptr) {
+    (void)call.Throw("TypeError", "iterator has no next()");
+    return false;
+  }
+  constexpr std::size_t kMaxSteps = 1u << 22;
+  for (std::size_t step = 0; step < kMaxSteps; ++step) {
+    const js::Result stepped = call.interpreter.CallFunction(*next, iterator.value, {});
+    if (stepped.IsAbrupt()) {
+      (void)call.ThrowValue(stepped.value);
+      return false;
+    }
+    if (!stepped.value.IsObject()) {
+      (void)call.Throw("TypeError", "iterator result is not an object");
+      return false;
+    }
+    const js::Value* done = stepped.value.object->Get("done");
+    if (done != nullptr && js::ToBoolean(*done)) {
+      return true;
+    }
+    const js::Value* item = stepped.value.object->Get("value");
+    out.push_back(item == nullptr ? js::Value::Undefined() : *item);
+  }
+  (void)call.Throw("TypeError", "iterator did not finish");
+  return false;
 }
 
 // `DOMException`: the type a *web API* throws, as against the `Error` types the

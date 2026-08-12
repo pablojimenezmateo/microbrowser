@@ -291,6 +291,32 @@ inline std::string Utf8DecodeLossy(std::string_view input) {
   return out;
 }
 
+// Replaces every unpaired surrogate with U+FFFD, leaving everything else alone.
+//
+// This is the Web IDL DOMString-to-USVString conversion, and it is **not** `Utf8DecodeLossy` above.
+// A JavaScript string is UTF-16, and this engine stores one as UTF-8 that may carry a surrogate
+// encoded in three bytes; converting it means replacing that *code unit* with one U+FFFD. Running
+// the byte-oriented decoder over it instead produces three, because the standard's decoder rejects
+// the sequence one byte at a time -- which is right for bytes off a network and wrong for a string
+// a page already holds.
+inline std::string ScrubLoneSurrogates(std::string_view text) {
+  std::string out;
+  out.reserve(text.size());
+  std::size_t at = 0;
+  while (at < text.size()) {
+    std::uint32_t code = 0;
+    const std::size_t start = at;
+    if (!DecodeUtf8(text, at, code)) {
+      at = start + 1;
+      code = 0xFFFD;
+    } else if (code >= 0xD800 && code <= 0xDFFF) {
+      code = 0xFFFD;  // a pair would already have been one code point
+    }
+    AppendUtf8(out, code);
+  }
+  return out;
+}
+
 // Compares two UTF-8 strings as JavaScript compares them: by **UTF-16 code unit**.
 //
 // The two orders are not the same, and the difference is not exotic. A supplementary character

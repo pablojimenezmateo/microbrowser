@@ -378,37 +378,65 @@ void DomBindings::InstallUrlSearchParams() {
         if (prototype.IsObject()) {
           made.object->SetPrototype(prototype.object);
         }
+        // The Web IDL union `(sequence<sequence<USVString>> or record<USVString, USVString> or
+        // USVString)`, resolved the way the standard resolves it: an object with a callable
+        // `@@iterator` is a sequence, any other object is a record, and anything else is a string.
+        // Asking `ElementCount()` instead -- which is what this did -- means a `FormData` or a
+        // `Map`, both of which are iterable and neither of which has indices, silently became an
+        // empty list.
         std::vector<Value> pairs;
         const Value init = Argument(call.arguments, 0);
-        if (init.IsObject() && init.object->GetOwn(kPairsSlot) != nullptr) {
-          // Copied, not shared: `new URLSearchParams(other)` is a snapshot,
-          // and aliasing the array would make a write to one show up in both.
-          pairs = ReadPairs(init);
-          for (Value& pair : pairs) {
-            pair = MakePair(call.interpreter, PairPart(pair, 0), PairPart(pair, 1));
+        bool iterable = false;
+        if (init.IsObject()) {
+          const Value* iterator_method =
+              init.object->Get(js::PropertyKey::Symbol(call.interpreter.SymbolIterator()));
+          iterable = iterator_method != nullptr && iterator_method->IsObject() &&
+                     iterator_method->object->IsCallable();
+        }
+        if (iterable) {
+          std::vector<Value> entries;
+          if (!IterateValue(call, init, entries)) {
+            return call.ThrownValue();
           }
-        } else if (init.IsObject() && init.object->ElementCount() > 0) {
-          // A sequence of two-element sequences, which is what
-          // `Object.entries(x)` produces and what a page passes most often
-          // after a string.
-          for (std::size_t i = 0; i < init.object->ElementCount(); ++i) {
-            const Value entry = init.object->GetElement(i);
-            pairs.push_back(MakePair(call.interpreter, PairPart(entry, 0), PairPart(entry, 1)));
+          for (const Value& entry : entries) {
+            std::vector<Value> parts;
+            if (!IterateValue(call, entry, parts)) {
+              return call.ThrownValue();
+            }
+            if (parts.size() != 2) {
+              // The standard says exactly two, and says it as a TypeError rather than by padding:
+              // a one-element inner sequence is a program that meant something else.
+              return call.Throw("TypeError",
+                                "each element of a URLSearchParams sequence must have two members");
+            }
+            pairs.push_back(MakePair(call.interpreter, UsvOf(call, parts[0]),
+                                     UsvOf(call, parts[1])));
           }
         } else if (init.IsObject()) {
+          // A `record` is a *map*, so two keys that scrub to the same USVString are one entry: the
+          // later value wins and the earlier position is kept. `{"\uD835x": "1", "xx": "2",
+          // "\uD83Dx": "3"}` is two parameters, not three, and the first is `\uFFFDx=3`.
           for (const std::string& key : init.object->EnumerableKeys()) {
             const Value* value = init.object->Get(key);
-            pairs.push_back(MakePair(call.interpreter, key,
-                                     value == nullptr ? std::string() : js::ToString(*value)));
+            const std::string name = util::ScrubLoneSurrogates(key);
+            const std::string text = value == nullptr ? std::string() : UsvOf(call, *value);
+            const auto found = std::find_if(pairs.begin(), pairs.end(), [&](const Value& pair) {
+              return PairPart(pair, 0) == name;
+            });
+            if (found == pairs.end()) {
+              pairs.push_back(MakePair(call.interpreter, name, text));
+            } else {
+              *found = MakePair(call.interpreter, name, text);
+            }
           }
         } else if (init.type != js::ValueType::Undefined && init.type != js::ValueType::Null) {
           // A single leading "?" is removed, so `new URLSearchParams(location.search)` and
           // `new URLSearchParams(location.search.slice(1))` are the same list.
-          std::string text = js::ToString(init);
+          std::string text = UsvOf(call, init);
           if (!text.empty() && text.front() == '?') {
             text.erase(0, 1);
           }
-          for (const util::QueryPair& pair : util::ParseUrlEncoded(util::Utf8DecodeLossy(text))) {
+          for (const util::QueryPair& pair : util::ParseUrlEncoded(text)) {
             pairs.push_back(MakePair(call.interpreter, pair.first, pair.second));
           }
         }

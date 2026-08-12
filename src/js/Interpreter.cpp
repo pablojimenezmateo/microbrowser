@@ -436,7 +436,7 @@ Value Interpreter::NewFunction(const Node& node, Environment& scope, bool arrow)
   }
   function->SetPrototype(well_known_.function_prototype);
   function->MakeFunction(node.Child(0), node.Child(1), &scope, arrow);
-  function->Set("name", Value::String(node.string));
+  function->SetHidden("name", Value::String(node.string));
   function->Set("length", Value::Number(DeclaredArity(node.Child(0))));
   if (!arrow) {
     // Every ordinary function gets a fresh `prototype` object, because any of
@@ -458,7 +458,7 @@ Value Interpreter::NewCompiledFunction(const CompiledFunction& code, Environment
   }
   function->SetPrototype(well_known_.function_prototype);
   function->MakeCompiled(&code, &scope, arrow);
-  function->Set("name", Value::String(code.name));
+  function->SetHidden("name", Value::String(code.name));
   function->Set("length", Value::Number(static_cast<double>(code.parameter_count)));
   if (!arrow) {
     if (Object* prototype = NewObject()) {
