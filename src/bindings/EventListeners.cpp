@@ -382,4 +382,55 @@ void InstallListenerRegistration(js::Interpreter& interpreter, const js::Value& 
   });
 }
 
+
+// --- The six that belong to the Window --------------------------------------
+//
+// `onblur`, `onerror`, `onfocus`, `onload`, `onresize` and `onscroll` on
+// `<body>` and `<frameset>` are **window-reflected** (HTML §8.1.7.2.1): the
+// element's handler slot *is* the Window's. `body.onload = f` sets
+// `window.onload`, and `body.setAttribute('onload', …)` sets it too -- which is
+// why every page that has ever written `<body onload="init()">` works at all,
+// since the event fires at the window and never at the body.
+//
+// The accessors touch only the window. The element is a receiver they check
+// and never read from, which is what lets them be one pair installed on two
+// prototypes.
+bool IsWindowReflectedHandlerName(std::string_view name) {
+  return name == "onblur" || name == "onerror" || name == "onfocus" || name == "onload" ||
+         name == "onresize" || name == "onscroll";
+}
+
+void InstallWindowReflectedHandlers(js::Interpreter& interpreter, const js::Value& prototype) {
+  if (!prototype.IsObject()) {
+    return;
+  }
+  static constexpr const char* kNames[] = {"onblur",   "onerror",  "onfocus",
+                                           "onload",   "onresize", "onscroll"};
+  for (const char* name : kNames) {
+    const std::string slot = name;
+    const Value getter = interpreter.NewNativeValue(name, [slot](NativeCall& call) -> Value {
+      // **Null rather than undefined when nothing has set one.** A page tests
+      // `if (window.onerror === null)` to decide whether it may install its
+      // own, and undefined is a different answer to that question.
+      const Value* stored = call.interpreter.Global()->GetOwn(slot);
+      if (stored == nullptr || !stored->IsObject() || !stored->object->IsCallable()) {
+        return Value::Null();
+      }
+      return *stored;
+    });
+    const Value setter = interpreter.NewNativeValue(name, [slot](NativeCall& call) -> Value {
+      const Value given = Argument(call.arguments, 0);
+      // Anything that is not callable stores null: the IDL type is
+      // `EventHandler`, which is a nullable callback, so `body.onload = ""`
+      // *clears* the handler rather than remembering the string.
+      const bool callable = given.IsObject() && given.object->IsCallable();
+      call.interpreter.Global()->Set(slot, callable ? given : Value::Null());
+      return Value::Undefined();
+    });
+    if (getter.IsObject() && setter.IsObject()) {
+      prototype.object->DefineAccessor(slot, getter.object, setter.object);
+    }
+  }
+}
+
 }  // namespace microbrowser::bindings

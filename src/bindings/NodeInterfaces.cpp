@@ -819,6 +819,16 @@ void DomBindings::EnsureInterfaces() {
     interpreter_->Global()->SetPrototype(window_interface.object);
   }
 
+  // `<body onload>` and `<frameset onload>` set **`window.onload`**, so the six
+  // window-reflected handlers are accessors over the window's slot rather than
+  // over anything on the element. Two prototypes, one pair of accessors: the
+  // element is a receiver they check and never read from.
+  for (const char* tag : {"HTMLBodyElement", "HTMLFrameSetElement"}) {
+    if (const Value* prototype = interfaces_.object->GetOwn(tag)) {
+      InstallWindowReflectedHandlers(*interpreter_, *prototype);
+    }
+  }
+
   // After every interface exists, because a reflected property lands on the
   // prototype of the tag it belongs to.
   InstallReflections();

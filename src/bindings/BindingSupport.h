@@ -332,6 +332,23 @@ void InstallListenerRegistration(js::Interpreter& interpreter, const js::Value& 
 // aborted from inside a handler.
 bool ListenerStillRegistered(const js::Value& listeners, const js::Value& entry);
 
+// The compiled handler behind an `on*` **content attribute**, in
+// EventDispatch.cpp. `type` is the event type without the `on`, `holder` is
+// the element's wrapper, and `allowed` is this document's CSP answer -- see
+// the definition, which is where the gate and the compile bound are argued.
+js::Value CompiledAttributeHandler(js::Interpreter& interpreter, const js::Value& holder,
+                                   const std::string& type, bool allowed);
+
+// The six handlers on `<body>` and `<frameset>` whose slot is the **Window's**
+// (HTML §8.1.7.2.1). Defined in EventListeners.cpp beside the rest of what a
+// target does with handlers. A free function because the accessors touch only
+// the window: the element is a receiver they check and never read from.
+void InstallWindowReflectedHandlers(js::Interpreter& interpreter, const js::Value& prototype);
+
+// Whether `name` is one of those six, so the attribute-write path can forward
+// it. Shared so the writer and the accessors cannot disagree about the list.
+bool IsWindowReflectedHandlerName(std::string_view name);
+
 // An `Attr` with no element behind it -- what `document.createAttribute` makes,
 // in ElementQueries.cpp beside the one that has an element. One builder rather
 // than two, because two of them is exactly the bug `getAttributeNode` and

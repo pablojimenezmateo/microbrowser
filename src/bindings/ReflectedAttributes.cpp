@@ -211,7 +211,37 @@ void DomBindings::AfterAttributeWrite(dom::Element& element, const std::string& 
   if (!IsTemplateBindingToken(value)) {
     RunAttributeReaction(element, name, old_value, new_value);
   }
+  ForwardWindowReflectedHandler(element, name);
   RecordMutation(element, "attributes", name, old_value, {}, {}, attribute_namespace);
+}
+
+// `<body onload="…">` sets **`window.onload`**, and this is where it happens.
+//
+// The six window-reflected handlers are the one case where writing a content
+// attribute has to compile *at the write* rather than lazily at dispatch. The
+// reason is that the compiled function has to be visible on the window
+// immediately: the event fires at the window and never at the body, so nothing
+// would ever look at the element again. It is also what a page reads back --
+// `window.onload` straight after `body.setAttribute('onload', …)`.
+//
+// Gated on the same CSP flag as every other handler compile, because it is the
+// same act; see CompiledAttributeHandler for that argument.
+void DomBindings::ForwardWindowReflectedHandler(dom::Element& element,
+                                                const std::string& name) {
+  if (interpreter_ == nullptr || !IsWindowReflectedHandlerName(name)) {
+    return;
+  }
+  // Only on `<body>` and `<frameset>`. The same attribute on a `<div>` is an
+  // ordinary handler that fires at the div, and forwarding it would move every
+  // page's `onscroll` to the window.
+  if (!element.Namespace().IsHtml() ||
+      (element.LocalName() != "body" && element.LocalName() != "frameset")) {
+    return;
+  }
+  const js::Value handler = CompiledAttributeHandler(*interpreter_, WrapperFor(&element),
+                                                     name.substr(2), inline_handlers_allowed_);
+  const bool callable = handler.IsObject() && handler.object->IsCallable();
+  interpreter_->Global()->Set(name, callable ? handler : js::Value::Null());
 }
 
 void DomBindings::RemoveElementAttribute(dom::Element& element, const std::string& name) {
@@ -227,6 +257,9 @@ void DomBindings::RemoveElementAttribute(dom::Element& element, const std::strin
   // The reaction is told the new value is null, which is how a class
   // distinguishes "set to empty" from "gone".
   RunAttributeReaction(element, name, old_value, Value::Null());
+  // Removing `<body onload>` clears `window.onload`, which is the other half
+  // of the forward above.
+  ForwardWindowReflectedHandler(element, name);
   RecordMutation(element, "attributes", name, old_value, {}, {});
 }
 

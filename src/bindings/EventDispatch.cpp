@@ -75,6 +75,8 @@ void ForgetListener(const Value& listeners, const Value& entry) {
   listeners.object->SetElements(std::move(kept), {});
 }
 
+}  // namespace
+
 // The compiled handler behind an `on*` **content attribute**, or undefined.
 //
 // HTML calls an uncompiled one an *internal raw uncompiled handler* and
@@ -100,8 +102,8 @@ void ForgetListener(const Value& listeners, const Value& entry) {
 // it and hand it back. Here it still answers undefined -- the attribute is
 // reachable only from dispatch. That is a real gap and it is the half that
 // wants the reflected-attribute table (task C10), not this one.
-Value CompiledAttributeHandler(js::Interpreter& interpreter, const Value& holder,
-                               const std::string& type, bool allowed) {
+js::Value CompiledAttributeHandler(js::Interpreter& interpreter, const js::Value& holder,
+                                   const std::string& type, bool allowed) {
   if (!allowed || !holder.IsObject()) {
     return Value::Undefined();
   }
@@ -174,7 +176,6 @@ Value CompiledAttributeHandler(js::Interpreter& interpreter, const Value& holder
   return handler;
 }
 
-}  // namespace
 
 bool DomBindings::RunListenersOn(const js::Value& holder, const js::Value& event,
                                  const std::string& slot, EventPhase phase, EventPhase pass) {

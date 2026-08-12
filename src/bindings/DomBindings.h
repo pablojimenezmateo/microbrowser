@@ -864,6 +864,10 @@ class DomBindings {
   // taken away. Installed from InstallParentQueries and defined beside the
   // insertion, because it *is* the insertion.
   void InstallAtomicMove(const js::Value& target);
+  // `<body onload="…">` sets `window.onload`. Called from the one attribute
+  // write path, because a window-reflected handler has to compile at the write
+  // rather than at a dispatch that never reaches the element.
+  void ForwardWindowReflectedHandler(dom::Element& element, const std::string& name);
   // Detaches `child` and keeps it alive for the life of the document.
   //
   // This is the whole reason removal was not in the first slice. A wrapper

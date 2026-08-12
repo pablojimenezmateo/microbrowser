@@ -85,55 +85,6 @@ harness=TIMEOUT
 FAIL=Passing an AbortSignal to addEventListener options should allow removing a listener
 [dom/events/AddEventListenerOptions-signal.any.worker.html]
 harness=TIMEOUT
-[dom/events/Body-FrameSet-Event-Handlers.html]
-FAIL=Enumerate HTMLBodyElement.onblur
-FAIL=Enumerate HTMLBodyElement.onerror
-FAIL=Enumerate HTMLBodyElement.onfocus
-FAIL=Enumerate HTMLBodyElement.onload
-FAIL=Enumerate HTMLBodyElement.onresize
-FAIL=Enumerate HTMLBodyElement.onscroll
-FAIL=Enumerate HTMLFrameSetElement.onblur
-FAIL=Enumerate HTMLFrameSetElement.onerror
-FAIL=Enumerate HTMLFrameSetElement.onfocus
-FAIL=Enumerate HTMLFrameSetElement.onload
-FAIL=Enumerate HTMLFrameSetElement.onresize
-FAIL=Enumerate HTMLFrameSetElement.onscroll
-FAIL=Forward HTMLBodyElement.onblur to Window
-FAIL=Forward HTMLBodyElement.onerror to Window
-FAIL=Forward HTMLBodyElement.onfocus to Window
-FAIL=Forward HTMLBodyElement.onload to Window
-FAIL=Forward HTMLBodyElement.onresize to Window
-FAIL=Forward HTMLBodyElement.onscroll to Window
-FAIL=Forward HTMLFrameSetElement.onblur to Window
-FAIL=Forward HTMLFrameSetElement.onerror to Window
-FAIL=Forward HTMLFrameSetElement.onfocus to Window
-FAIL=Forward HTMLFrameSetElement.onload to Window
-FAIL=Forward HTMLFrameSetElement.onresize to Window
-FAIL=Forward HTMLFrameSetElement.onscroll to Window
-FAIL=Reflect HTMLBodyElement.onblur
-FAIL=Reflect HTMLBodyElement.onerror
-FAIL=Reflect HTMLBodyElement.onfocus
-FAIL=Reflect HTMLBodyElement.onload
-FAIL=Reflect HTMLBodyElement.onresize
-FAIL=Reflect HTMLBodyElement.onscroll
-FAIL=Reflect HTMLFrameSetElement.onblur
-FAIL=Reflect HTMLFrameSetElement.onerror
-FAIL=Reflect HTMLFrameSetElement.onfocus
-FAIL=Reflect HTMLFrameSetElement.onload
-FAIL=Reflect HTMLFrameSetElement.onresize
-FAIL=Reflect HTMLFrameSetElement.onscroll
-FAIL=Set HTMLBodyElement.onblur
-FAIL=Set HTMLBodyElement.onerror
-FAIL=Set HTMLBodyElement.onfocus
-FAIL=Set HTMLBodyElement.onload
-FAIL=Set HTMLBodyElement.onresize
-FAIL=Set HTMLBodyElement.onscroll
-FAIL=Set HTMLFrameSetElement.onblur
-FAIL=Set HTMLFrameSetElement.onerror
-FAIL=Set HTMLFrameSetElement.onfocus
-FAIL=Set HTMLFrameSetElement.onload
-FAIL=Set HTMLFrameSetElement.onresize
-FAIL=Set HTMLFrameSetElement.onscroll
 [dom/events/CustomEvent.html]
 FAIL=First parameter to initCustomEvent should be mandatory.
 FAIL=initCustomEvent's default parameter values.
@@ -421,35 +372,35 @@ FAIL=offsetX is correctly adjusted
 FAIL=Click editable element in link
 FAIL=Click editable link
 [dom/events/non-cancelable-when-passive/non-passive-mousewheel-event-listener-on-body.html]
-harness=TIMEOUT
+FAIL=non-passive mousewheel event listener on body
 [dom/events/non-cancelable-when-passive/non-passive-mousewheel-event-listener-on-div.html]
-harness=TIMEOUT
+FAIL=non-passive mousewheel event listener on div
 [dom/events/non-cancelable-when-passive/non-passive-mousewheel-event-listener-on-document.html]
-harness=TIMEOUT
+FAIL=non-passive mousewheel event listener on document
 [dom/events/non-cancelable-when-passive/non-passive-mousewheel-event-listener-on-root.html]
-harness=TIMEOUT
+FAIL=non-passive mousewheel event listener on root
 [dom/events/non-cancelable-when-passive/non-passive-mousewheel-event-listener-on-window.html]
-harness=TIMEOUT
+FAIL=non-passive mousewheel event listener on window
 [dom/events/non-cancelable-when-passive/non-passive-touchmove-event-listener-on-body.html]
-harness=TIMEOUT
+FAIL=non-passive touchmove event listener on body
 [dom/events/non-cancelable-when-passive/non-passive-touchmove-event-listener-on-div.html]
-harness=TIMEOUT
+FAIL=non-passive touchmove event listener on div
 [dom/events/non-cancelable-when-passive/non-passive-touchmove-event-listener-on-document.html]
 harness=TIMEOUT
 [dom/events/non-cancelable-when-passive/non-passive-touchmove-event-listener-on-root.html]
-harness=TIMEOUT
+FAIL=non-passive touchmove event listener on root
 [dom/events/non-cancelable-when-passive/non-passive-touchmove-event-listener-on-window.html]
-harness=TIMEOUT
+FAIL=non-passive-touchmove-event-listener-on-window
 [dom/events/non-cancelable-when-passive/non-passive-touchstart-event-listener-on-body.html]
-harness=TIMEOUT
+FAIL=non-passive touchstart event listener on body
 [dom/events/non-cancelable-when-passive/non-passive-touchstart-event-listener-on-div.html]
-harness=TIMEOUT
+FAIL=non-passive touchstart event listener on div
 [dom/events/non-cancelable-when-passive/non-passive-touchstart-event-listener-on-document.html]
-harness=TIMEOUT
+FAIL=non-passive touchstart event listener on document
 [dom/events/non-cancelable-when-passive/non-passive-touchstart-event-listener-on-root.html]
-harness=TIMEOUT
+FAIL=non-passive touchstart event listener on root
 [dom/events/non-cancelable-when-passive/non-passive-touchstart-event-listener-on-window.html]
-harness=TIMEOUT
+FAIL=non-passive touchstart event listener on window
 [dom/events/non-cancelable-when-passive/non-passive-wheel-event-listener-on-body.html]
 harness=TIMEOUT
 [dom/events/non-cancelable-when-passive/non-passive-wheel-event-listener-on-div.html]
@@ -457,49 +408,49 @@ harness=TIMEOUT
 [dom/events/non-cancelable-when-passive/non-passive-wheel-event-listener-on-document.html]
 harness=TIMEOUT
 [dom/events/non-cancelable-when-passive/non-passive-wheel-event-listener-on-root.html]
-harness=TIMEOUT
+FAIL=non-passive wheel event listener on root
 [dom/events/non-cancelable-when-passive/non-passive-wheel-event-listener-on-window.html]
-harness=TIMEOUT
+FAIL=non-passive wheel event listener on window
 [dom/events/non-cancelable-when-passive/passive-mousewheel-event-listener-on-body.html]
-harness=TIMEOUT
+FAIL=passive mousewheel event listener on body
 [dom/events/non-cancelable-when-passive/passive-mousewheel-event-listener-on-div.html]
-harness=TIMEOUT
+FAIL=passive mousewheel event listener on div
 [dom/events/non-cancelable-when-passive/passive-mousewheel-event-listener-on-document.html]
-harness=TIMEOUT
+FAIL=passive mousewheel event listener on document
 [dom/events/non-cancelable-when-passive/passive-mousewheel-event-listener-on-root.html]
-harness=TIMEOUT
+FAIL=passive mousewheel event listener on root
 [dom/events/non-cancelable-when-passive/passive-mousewheel-event-listener-on-window.html]
-harness=TIMEOUT
+FAIL=passive mousewheel event listener on window
 [dom/events/non-cancelable-when-passive/passive-touchmove-event-listener-on-body.html]
-harness=TIMEOUT
+FAIL=passive touchmove event listener on body
 [dom/events/non-cancelable-when-passive/passive-touchmove-event-listener-on-div.html]
-harness=TIMEOUT
+FAIL=passive touchmove event listener on div
 [dom/events/non-cancelable-when-passive/passive-touchmove-event-listener-on-document.html]
-harness=TIMEOUT
+FAIL=passive touchmove event listener on document
 [dom/events/non-cancelable-when-passive/passive-touchmove-event-listener-on-root.html]
-harness=TIMEOUT
+FAIL=passive touchmove event listener on root
 [dom/events/non-cancelable-when-passive/passive-touchmove-event-listener-on-window.html]
-harness=TIMEOUT
+FAIL=passive touchmove event listener on window
 [dom/events/non-cancelable-when-passive/passive-touchstart-event-listener-on-body.html]
-harness=TIMEOUT
+FAIL=passive touchstart event listener on body
 [dom/events/non-cancelable-when-passive/passive-touchstart-event-listener-on-div.html]
-harness=TIMEOUT
+FAIL=passive touchstart event listener on div
 [dom/events/non-cancelable-when-passive/passive-touchstart-event-listener-on-document.html]
-harness=TIMEOUT
+FAIL=passive touchstart event listener on document
 [dom/events/non-cancelable-when-passive/passive-touchstart-event-listener-on-root.html]
-harness=TIMEOUT
+FAIL=passive touchstart event listener on root
 [dom/events/non-cancelable-when-passive/passive-touchstart-event-listener-on-window.html]
-harness=TIMEOUT
+FAIL=passive touchstart event listener on window
 [dom/events/non-cancelable-when-passive/passive-wheel-event-listener-on-body.html]
-harness=TIMEOUT
+FAIL=passive wheel event listener on body
 [dom/events/non-cancelable-when-passive/passive-wheel-event-listener-on-div.html]
 harness=TIMEOUT
 [dom/events/non-cancelable-when-passive/passive-wheel-event-listener-on-document.html]
-harness=TIMEOUT
+FAIL=passive wheel event listener on document
 [dom/events/non-cancelable-when-passive/passive-wheel-event-listener-on-root.html]
-harness=TIMEOUT
+FAIL=passive wheel event listener on root
 [dom/events/non-cancelable-when-passive/passive-wheel-event-listener-on-window.html]
-harness=TIMEOUT
+FAIL=passive wheel event listener on window
 [dom/events/non-cancelable-when-passive/synthetic-events-cancelable.html]
 FAIL=Synthetic mousewheel event with interface Event is not cancelable
 FAIL=Synthetic mousewheel event with interface WheelEvent is not cancelable
