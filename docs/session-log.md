@@ -5936,9 +5936,31 @@ it needs is `iframe.contentWindow.document.body.appendChild(...)` — which make
 end-to-end check for the half that has not landed.
 
 The tree-walker differential is unchanged at 54 failures, measured against master rather than assumed.
-Worth noting separately: the list at the top of `tests/JsVmTests.cpp` documents ~40, so **14
-differences on master are undocumented** — "anything else appearing in that list is a difference nobody
-decided on", by that file's own rule.
+
+### Diffing that list against a run, rather than reading it, found a real bug
+
+The list at the top of `tests/JsVmTests.cpp` documented 40 failures and the run produced 54. The list
+was accurate about its 40 — none of them passes — and silent about fourteen more, which made that
+file's own closing rule ("anything else appearing in that list is a difference nobody decided on")
+false. Thirteen were decided-and-unwritten, in three groups: strict-mode `this` (already explained in
+`CallFunction`, just not listed), two things only a compiled program has, and seven whose *fixture* is
+an `async function` so the deliberate refusal means the test observes nothing.
+
+**The fourteenth was a bug.** `super(...xs)` on the tree-walker evaluated each argument node as an
+ordinary expression, so a spread reached `case NodeKind::Spread` and returned
+`Throw("SyntaxError", "unsupported expression")` — at run time, from inside a constructor, for syntax
+the parser had accepted. The `New` case immediately above it in the same file already carries exactly
+this fix, with a comment saying exactly this; `super(...)` never got it.
+
+That is the shape Lit and every transpiler emits, which is why the three `ShadowDom` super-upgrade
+tests were the ones complaining. **And the machine has always compiled it, so spread-`super` had no
+differential at all** — which is the point: two engines agreeing is the only evidence here that either
+is right, and this was a constructor path real pages take with no second opinion on it. 54 → 50, and
+the list is now re-verified against a run rather than against itself: 50 documented, 50 produced,
+nothing listed that passes.
+
+Thirteen known-noise lines in a differential is worse than none, for the same reason a counter on the
+cheap half of an operation is worse than no counter: a genuinely new difference stops standing out.
 
 ### Left, and read ADR 0042 §5 before starting it
 
