@@ -357,6 +357,10 @@ enum class ShadowFlags : std::uint8_t {
   // by matching names. The bit is the non-default direction so that a root
   // attached with no opinion is "named", which is what the DOM's default is.
   ManualSlotAssignment = 1u << 6,
+  // Whether `<template shadowrootadoptedstylesheets>` was *authored*, which is a
+  // different fact from what it said: an absent attribute and an authored empty
+  // one serialize differently, and the string alone cannot tell them apart.
+  AuthoredAdoptedStyleSheets = 1u << 7,
 };
 
 constexpr ShadowFlags operator|(ShadowFlags a, ShadowFlags b) {
@@ -669,6 +673,28 @@ class DocumentFragment : public Node {
     return Any(flags_ & ShadowFlags::ManualSlotAssignment);
   }
 
+  // The `shadowrootadoptedstylesheets` attribute *as the parser read it*, kept
+  // so that `getHTML` can hand back what the author wrote.
+  //
+  // **The specifiers are not resolved and this is deliberate**, not a stub with
+  // a getter over it. Resolving one means an import map against CSS module
+  // scripts (HTML PR 12339), and this browser has no module loader yet -- so
+  // every specifier here is unresolvable, and an unresolvable specifier is
+  // *specified* to be skipped silently. `AdoptedStyleSheets()` stays empty,
+  // which is the right answer rather than an approximation of one.
+  //
+  // Whoever lands the module loader owes this the other half: resolve these
+  // into `adopted_style_sheets_` at attach time. Until then the round trip is
+  // complete and the effect is nil, which is exactly what it should be.
+  const std::string& AuthoredAdoptedStyleSheetSpecifiers() const { return adopted_specifiers_; }
+  bool HasAuthoredAdoptedStyleSheets() const {
+    return Any(flags_ & ShadowFlags::AuthoredAdoptedStyleSheets);
+  }
+  void SetAuthoredAdoptedStyleSheetSpecifiers(std::string specifiers) {
+    adopted_specifiers_ = std::move(specifiers);
+    flags_ |= ShadowFlags::AuthoredAdoptedStyleSheets;
+  }
+
   // Constructable stylesheets adopted by this root. Empty on every fragment
   // that is not a shadow root or the document.
   const std::vector<SharedConstructableSheet>& AdoptedStyleSheets() const {
@@ -682,6 +708,10 @@ class DocumentFragment : public Node {
   Element* host_ = nullptr;
   ShadowFlags flags_ = ShadowFlags::None;
   std::vector<SharedConstructableSheet> adopted_style_sheets_;
+  // What `shadowrootadoptedstylesheets` said, verbatim. Empty on every fragment
+  // that is not a declarative shadow root -- and empty is not the same as
+  // absent, which is what the flag beside it records.
+  std::string adopted_specifiers_;
 };
 
 class Document : public Node {

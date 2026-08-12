@@ -438,6 +438,33 @@ void InstallTemplateShadowReflection(DomBindings& owner_bindings, js::Interprete
         return Value::Undefined();
       });
 
+  // `shadowRootAdoptedStyleSheets` is a plain DOMString reflection -- no
+  // enumeration, no whitespace normalisation, no splitting. The empty string
+  // when the attribute is absent, and verbatim otherwise, which is what makes
+  // `"  foo   bar  "` come back with its spaces.
+  define(
+      "shadowRootAdoptedStyleSheets",
+      [](NativeCall& call) {
+        dom::Node* self = NodeOf(call.self);
+        if (self == nullptr || !self->IsElement()) {
+          return Value::String("");
+        }
+        const std::string* value =
+            static_cast<dom::Element&>(*self).GetAttribute("shadowrootadoptedstylesheets");
+        // Absent reads as "" and must not create the attribute on the way past:
+        // a getter with a side effect on the tree is a getter a page can use to
+        // change the document by reading it.
+        return Value::String(value == nullptr ? std::string() : *value);
+      },
+      [](NativeCall& call) {
+        dom::Node* self = NodeOf(call.self);
+        if (self != nullptr && self->IsElement()) {
+          static_cast<dom::Element&>(*self).SetAttribute("shadowrootadoptedstylesheets",
+                                                         js::ToString(Argument(call.arguments, 0)));
+        }
+        return Value::Undefined();
+      });
+
   // The three boolean reflections. Present means true whatever the value, which
   // is why `shadowrootclonable="foobar"` is still clonable; assigning false
   // removes the attribute rather than setting it to "false".

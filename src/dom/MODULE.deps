@@ -24,7 +24,10 @@ extern:
 # already here, now written once instead of six times. The file got longer
 # because the *arguments* got longer -- most of the added lines are the comments
 # saying why serializing a shadow tree needs the page to ask twice.
-max_tu_lines: 830
+# 841 after `shadowrootadoptedstylesheets`: three accessors and the paragraph
+# saying why the specifiers are kept as text and *not* resolved -- which is the
+# obligation the next session inherits, so it is the wrong comment to shorten.
+max_tu_lines: 845
 
 # Twenty-one, for `IsDocumentFragment`. It sits beside IsElement and IsText
 # for the same reason those do: the kind is a switch a caller would
@@ -152,7 +155,15 @@ budget: Document     header_lines=130 public_methods=24 members=7
 # Element would also have needed a budget raise there, where this needed none --
 # `shadow_open_` moved off Element in the same change, so Element went 9 members
 # to 8 while gaining the whole feature.
-budget: DocumentFragment header_lines=75 public_methods=15 members=3
+#
+# +3 public methods and **+1 member** for `shadowrootadoptedstylesheets`, kept
+# verbatim so `getHTML` can hand back what the author wrote. The member is a
+# string and the fourth here; it is not derivable from `adopted_style_sheets_`,
+# which holds resolved sheets and is empty because resolving a specifier needs
+# an import map this browser has no module loader for. Absent and
+# authored-empty are different documents, which is why the flag beside it
+# exists rather than testing the string.
+budget: DocumentFragment header_lines=105 public_methods=18 members=4
 # The bitmask itself. A budget so that later growth is visible, which is the
 # point of the mechanism: the next bit added to a shadow root shows up in a diff
 # against this line rather than disappearing into a header.

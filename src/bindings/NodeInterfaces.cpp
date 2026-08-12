@@ -609,6 +609,31 @@ void DomBindings::EnsureInterfaces() {
   // before it inserts it, which is most of the reason to build it detached.
   const Value fragment = MakeInterface("DocumentFragment", node);
   InstallParentQueries(fragment);
+  // `getElementById` on a fragment, which is the DOM's NonElementParentNode
+  // mixin -- Document and DocumentFragment have it and Element does not,
+  // because an element's scoped lookup is `querySelector('#id')`.
+  //
+  // It matters because a shadow root *is* a DocumentFragment, and a component
+  // looking inside its own root by id has nowhere else to go: the root is not
+  // in the document, so `document.getElementById` cannot see it by design.
+  if (fragment.IsObject()) {
+    const Value by_id = interpreter_->NewNativeValue("getElementById", [](NativeCall& call) {
+      DomBindings* owner = OwnerOf(call);
+      dom::Node* self = NodeOf(call.self);
+      if (owner == nullptr || self == nullptr) {
+        return Value::Null();
+      }
+      const std::string wanted = js::ToString(Argument(call.arguments, 0));
+      return owner->WrapperFor(FindElementIn(*self, [&wanted](const dom::Element& candidate) {
+        const std::string* id = candidate.GetAttribute("id");
+        return id != nullptr && *id == wanted;
+      }));
+    });
+    if (by_id.IsObject()) {
+      by_id.object->Set(kOwnerSlot, PointerValue(this));
+      fragment.object->Set("getElementById", by_id);
+    }
+  }
   // `innerHTML` on a fragment, because a shadow root *is* one and
   // `root.innerHTML = …` is how every component fills one. The context element
   // for the parse is the host -- see HtmlParsing.cpp.

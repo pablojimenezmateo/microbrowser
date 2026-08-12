@@ -502,6 +502,7 @@ bool TreeBuilder::ProcessDeclarativeShadowRoot(const Token& token) {
   bool clonable = false;
   bool serializable = false;
   bool manual_slots = false;
+  const std::string* adopted_sheets = nullptr;
   for (const Attribute& attribute : token.attributes) {
     if (attribute.name == "shadowrootmode") {
       mode = &attribute.value;
@@ -511,6 +512,8 @@ bool TreeBuilder::ProcessDeclarativeShadowRoot(const Token& token) {
       clonable = true;
     } else if (attribute.name == "shadowrootserializable") {
       serializable = true;
+    } else if (attribute.name == "shadowrootadoptedstylesheets") {
+      adopted_sheets = &attribute.value;
     } else if (attribute.name == "shadowrootslotassignment") {
       // Enumerated with "named" as the invalid-value default, so only the one
       // spelling turns it on and everything else -- including the empty string
@@ -557,6 +560,14 @@ bool TreeBuilder::ProcessDeclarativeShadowRoot(const Token& token) {
     // `<template>` element, which is what the page sees left in the tree.
     ++errors_;
     return false;
+  }
+
+  // Kept verbatim rather than resolved: see the accessor's comment in Node.h --
+  // resolving a specifier needs an import map, there is no module loader, and an
+  // unresolvable one is specified to be skipped silently. This is what lets
+  // `getHTML` hand back what the author wrote.
+  if (adopted_sheets != nullptr) {
+    attached.root->SetAuthoredAdoptedStyleSheetSpecifiers(*adopted_sheets);
   }
 
   // Created but *not inserted*: the spec adds it to the stack of open elements

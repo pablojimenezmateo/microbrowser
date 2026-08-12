@@ -127,7 +127,7 @@ FAIL=Capturing event listeners should be invoked before bubbling event listeners
 FAIL=Capturing event listeners should be invoked before bubbling event listeners when an event is dispatched via a slot
 # --- shadow-dom/declarative -------------------------------------------------
 #
-# 7,724 of 7,788 as of 2026-08-12, from 114. What is left is three causes and
+# 7,731 of 7,791 as of 2026-08-12, from 114. What is left is three causes and
 # none of them is declarative shadow DOM:
 #
 #   * **Six subtests need a script to run *during* the parse.** Each one puts an
@@ -141,11 +141,16 @@ FAIL=Capturing event listeners should be invoked before bubbling event listeners
 #   * **Two need nested browsing contexts** (ADR 0027): declarative-shadow-dom-opt-in
 #     ends in four `<iframe>` async_tests, and declarative-shadow-dom-write-to-iframe
 #     is `document.write` into one.
-#   * **Forty are tentative/shadowrootadoptedstylesheets**, which is HTML PR
-#     12339: `shadowrootadoptedstylesheets="foo"` resolved through an *import
+#   * **Thirty-four are tentative/shadowrootadoptedstylesheets**, which is HTML
+#     PR 12339: `shadowrootadoptedstylesheets="foo"` resolved through an *import
 #     map* against CSS module scripts, with `modulepreload`. That needs the
 #     module loader (still unbuilt, see CLAUDE.md) plus CSS module scripts, and
-#     it is an unshipped proposal on top.
+#     it is an unshipped proposal on top. Six of that suite *do* pass -- the
+#     attribute reflects, is kept verbatim and round-trips through `getHTML` --
+#     because those halves are complete on their own and an unresolvable
+#     specifier is specified to be skipped silently, which is every specifier
+#     until an import map exists to resolve one against. `adoptedStyleSheets`
+#     stays empty, which is the right answer and not an approximation.
 [shadow-dom/declarative/declarative-after-attachshadow.html]
 FAIL=Declarative Shadow DOM: declarative shadow should fail if attachShadow() already called
 [shadow-dom/declarative/declarative-shadow-dom-opt-in.html]
@@ -193,6 +198,7 @@ FAIL=Shared CSS module specifier across shadow roots produces the same CSSStyleS
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-async-fetch.html]
 FAIL=Async-fetched CSS module replaces placeholder and applies styles.
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-basic.html]
+FAIL=Styles from the adoptedStyleSheets are applied to elements.
 FAIL=adoptedStyleSheets is populated from a <template> element's shadowrootadoptedstylesheets attribute.
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-clonenode-async-fetch.html]
 FAIL=cloneNode handles both placeholder and resolved async-fetched adoptedStyleSheets.
@@ -200,16 +206,8 @@ FAIL=cloneNode handles both placeholder and resolved async-fetched adoptedStyleS
 harness=TIMEOUT
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-fetched-module.html]
 harness=TIMEOUT
-[shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-idl-absent-and-empty.html]
-FAIL=shadowRootAdoptedStyleSheets reflects absent and authored-empty content attributes correctly.
-[shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-idl-feature-detection.html]
-FAIL=shadowRootAdoptedStyleSheets is exposed as a configurable, enumerable accessor on HTMLTemplateElement.prototype.
-[shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-idl-reflection.html]
-FAIL=Empty-string assignment and removeAttribute() are distinguishable on shadowRootAdoptedStyleSheets.
-FAIL=shadowRootAdoptedStyleSheets reflects the shadowrootadoptedstylesheets content attribute.
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-invalid-specifier.html]
 FAIL=Mixed valid/invalid specifiers: only valid ones produce entries and apply styles.
-FAIL=Unresolvable bare specifier produces no entry and applies no styles.
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-modulepreload-async.html]
 FAIL=Modulepreload after shadow root creation resolves the placeholder.
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-modulepreload-basic.html]
@@ -225,6 +223,7 @@ harness=TIMEOUT
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-modulepreload-shared.html]
 harness=TIMEOUT
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-multiple.html]
+FAIL=Styles from the sheets applied via shadowrootadoptedstylesheets are applied to elements.
 FAIL=adoptedStyleSheets is populated from a <template> element's shadowrootadoptedstylesheets attribute.
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-nested-async.html]
 FAIL=Nested shadow roots independently resolve async adoptedStyleSheets.
@@ -235,9 +234,7 @@ FAIL=Placeholder CSSStyleSheet is replaced by a different object after fetch.
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-same-document.html]
 harness=TIMEOUT
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-serialization.html]
-FAIL=Element.getHTML() round-trips shadowrootadoptedstylesheets across absent, empty, basic, and whitespace values.
 FAIL=getHTML() ignores script-added entries in adoptedStyleSheets and emits only the authored shadowrootadoptedstylesheets value.
-FAIL=getHTML() with an empty authored shadowrootadoptedstylesheets value is unaffected by script mutations.
 [shadow-dom/dragenter-related-target.html]
 harness=TIMEOUT
 [shadow-dom/dragleave-related-target.html]

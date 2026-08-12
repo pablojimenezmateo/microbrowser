@@ -297,6 +297,16 @@ void AppendShadowRoot(const DocumentFragment& root, const SerializeOptions& opti
   if (root.IsClonable()) {
     out += " shadowrootclonable=\"\"";
   }
+  // Verbatim, whitespace and all, and emitted on the *authored* flag rather than
+  // on the string being non-empty: `shadowrootadoptedstylesheets=""` is a
+  // different document from one with no such attribute, and both round-trip.
+  // What the live `adoptedStyleSheets` list holds is deliberately not consulted
+  // -- a sheet script pushed has no specifier that could be written down.
+  if (root.HasAuthoredAdoptedStyleSheets()) {
+    out += " shadowrootadoptedstylesheets=\"";
+    AppendEscaped(root.AuthoredAdoptedStyleSheetSpecifiers(), true, out);
+    out += '"';
+  }
   out += '>';
   out += SerializeNodeChildren(root, options);
   out += "</template>";

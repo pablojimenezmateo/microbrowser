@@ -4929,7 +4929,7 @@ leaving them where they are rather than chasing a percentage into them.
 
 **Status:** done
 **Check:** `microbrowser_wpt --testharness-only --long-timeout 180000 shadow-dom/declarative/`
-prints `7788 subtests, 7724 passed (99.2%) … 0 unexpected results`, from **114 passed (1.5%)**
+prints `7791 subtests, 7731 passed (99.2%) … 0 unexpected results`, from **114 passed (1.5%)**
 at the start. `microbrowser_tests` is 2097/2097 including `ArchitectureInvariants`.
 `shadow-dom.txt` lost 8,568 lines net.
 
@@ -4989,11 +4989,29 @@ a regression; 31 of 78 shadow-dom additions and all but two of the dom ones were
 suspicious block alone before you write it down** — `--update-expectations` believes whatever the
 machine was doing at the time.
 
-**Left.** 64 declarative subtests, in three groups, none of them declarative shadow DOM: six need a
+**Left.** 60 declarative subtests, in three groups, none of them declarative shadow DOM: six need a
 script to run *during* the parse (ADR 0030 — each puts an inline `<script>` inside the template so a
-MutationObserver fires mid-parse), two need iframes (ADR 0027), and 40 are
+MutationObserver fires mid-parse), two need iframes (ADR 0027), and 34 are
 `tentative/shadowrootadoptedstylesheets`, which is HTML PR 12339 — import maps resolving CSS module
-scripts — and wants the module loader first. The comment block at the head of the declarative
+scripts — and wants the module loader first.
+
+**Eight of that tentative suite were reachable anyway, and the last two came from somewhere else.**
+`shadowrootadoptedstylesheets` splits cleanly into three halves and only one of them needs a module
+loader: the DOMString reflection is ordinary, keeping the authored value verbatim so `getHTML`
+round-trips it is ordinary, and *resolving* a specifier is the part that cannot be done. Doing the
+first two is not the stub ADR 0012 forbids, because an **unresolvable specifier is specified to be
+skipped silently** — so `adoptedStyleSheets` staying empty is the correct answer rather than an
+approximation of one, and it stays correct on the day the resolver lands. The obligation that
+creates is written at the accessor in `Node.h`.
+
+The last two needed two unrelated absences that only this suite had reached. Its `support/helpers.js`
+uses `import(url, {with: {type: "css"}})` — **dynamic import's second argument**, which the parser
+rejected — and a `SyntaxError` is not local: it killed the whole file, so `createStylesheetHost` did
+not exist and every test that called it failed on a name. The options bag is parsed and dropped
+(there is nowhere to put an import attribute yet), which is enough. Behind that was
+`shadowRoot.getElementById` — the DOM's NonElementParentNode mixin, which Document and
+DocumentFragment have and Element does not. A component looking inside its own root by id has
+nowhere else to go, because the root is not in the document by design. The comment block at the head of the declarative
 section in `shadow-dom.txt` says the same thing where the next agent will trip over it.
 
 **Found — ASan is red, and not because of this.** `run-checks.sh asan` fails four of
