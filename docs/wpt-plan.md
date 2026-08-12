@@ -332,6 +332,30 @@ un-nonced inline script, and the general form refuses both. And the compile is
 attribute and dispatches would refresh the budget metering it, which is a hang a
 page can drive.
 
+**The next block after C11 is `Body-FrameSet-Event-Handlers.html`, 48 subtests,
+and it is worth writing down because it is not what its name suggests.** The six
+names (`onblur`, `onerror`, `onfocus`, `onload`, `onresize`, `onscroll`) on
+`<body>` and `<frameset>` are *window-reflected*: the element's handler slot **is
+the Window's**, so `body.setAttribute('onload', 'return')` has to make
+`window.onload` a function and `window.onload === body.onload`. Four properties
+have to hold at once, and the test asserts each separately:
+
+- `body.onload` is **null** before anything sets it, not undefined;
+- the accessor pair is **enumerable** on the prototype, because the test walks
+  `for (var attribute in element)`;
+- setting the *content* attribute compiles and lands on the **window**, which
+  means the compile happens at the attribute write rather than lazily at
+  dispatch — reading `window.onload` afterwards must already see it, and the
+  window's slot is plain data;
+- setting a non-function (a string, null) stores **null**.
+
+So it wants the attribute-write path in ReflectedAttributes.cpp — which the
+module deliberately has exactly one of — plus an accessor pair on
+`HTMLBodyElement.prototype` and `HTMLFrameSetElement.prototype` that reads and
+writes the window's slot, and the same CSP gate C11 introduced, since compiling
+is compiling. A *detached* `document.createElement('body')` forwards too; the
+test uses one, so there is no connectedness check to add.
+
 What is left of C11 is the *IDL* half — `el.onclick` reading back the compiled
 attribute, since HTML makes the two one slot — and that belongs to C10's
 reflected-attribute table.
