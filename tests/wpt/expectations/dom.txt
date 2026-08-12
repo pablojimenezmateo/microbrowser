@@ -1,3 +1,7 @@
+# ADR 0022: this browser runs nothing in a background thread, so every
+# `.any.worker.html` variant of a `.any.js` file is a page that never reports.
+# The `.window` and bare variants of these same files pass; the worker ones are
+# the same assertions in a global that does not exist here. Deliberate.
 [dom/abort/AbortSignal.any.worker.html]
 harness=TIMEOUT
 [dom/abort/abort-signal-any.any.worker.html]
@@ -2042,6 +2046,14 @@ FAIL=before() should be unscopable
 FAIL=prepend() should be unscopable
 FAIL=remove() should be unscopable
 FAIL=replaceWith() should be unscopable
+# **`Observable` is refused, and every failure under dom/observable/ below is
+# that one decision.** ADR 0012: WPT keeps it under `tentative/` because it is
+# a proposal -- not standardised, and no engine ships it. `EventTarget.when()`
+# and the whole operator set are exactly the shape that ADR warns about: a page
+# that feature-detects `Observable` and finds a partial one has no fallback
+# path left, where a page that finds nothing loads a library that works.
+# Implementing it is a change to ADR 0012, which is a separate commit and a
+# separate argument. 251 subtests, and they are not bugs.
 [dom/observable/tentative/crashtests/observable-gc.any.html]
 FAIL=every(): does not crash on observable being GCed
 FAIL=find(): does not crash on observable being GCed

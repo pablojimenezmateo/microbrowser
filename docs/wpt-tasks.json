@@ -19,7 +19,7 @@
     "its target revised HERE and in the plan, with the reason."
   ],
   "source": "docs/wpt-plan.md",
-  "updated": "2026-08-10",
+  "updated": "2026-08-12",
   "milestones": [
     { "id": "M-A", "title": "the instrument", "status": "done" },
     { "id": "M-B", "title": "the baseline", "status": "done" },
@@ -126,8 +126,9 @@
     {
       "id": "C7", "milestone": "M-C", "title": "abort and observable triage", "area": "dom/abort/",
       "scope": "Implement or refuse with an ADR line.",
-      "check": "Every test in dom/abort/ and dom/observable/ is either passing or has an expectation naming an ADR.",
-      "depends": ["C1"], "target": "", "status": "not_started", "agent": null, "adr": "0012", "notes": ""
+      "check": "Every test in dom/abort/ and dom/observable/ is either passing or has an expectation naming an ADR. Run 2026-08-12: dom/abort 10 of 37 subtests -> 35 of 37. The two left are iframe-driven (ADR 0027) and the four .any.worker.html variants are ADR 0022; both now carry a comment. dom/observable is refused in one block naming ADR 0012 -- a tentative proposal no engine ships.",
+      "depends": ["C1"], "target": "", "status": "done", "agent": null, "adr": "0012",
+      "notes": "AbortSignal.any follows DOM 3.3 including the flattening: a signal composed from a composed signal links to the original sources, so abort events fire source-first then in creation order however deep the composition goes. Chaining instead fires them depth-first, which is a different order for the same tree. AbortSignal.timeout needed TimerQueue::QueueDelayedTask -- a deadline the browser owns, deliberately not the page's setTimeout."
     },
     {
       "id": "C8", "milestone": "M-C", "title": "shadow DOM and custom elements", "area": "shadow-dom/",

@@ -344,6 +344,44 @@ void DomBindings::InstallNodeMixins(const js::Value& wrapper) {
     RecordMutation(*parent, "childList", {}, Value::Null(), added, removed_nodes);
     return Value::Undefined();
   });
+
+  // **`[Unscopable]`, which is what these six carry in the IDL and the reason
+  // they could be added to the DOM at all.**
+  //
+  // An event handler content attribute runs with the element in scope, so
+  // `onclick="remove()"` on a page written before `ChildNode.remove` existed
+  // meant the page's own global `remove`. Adding a method to Element would
+  // have silently rebound every such handler; the `@@unscopables` object is
+  // how the language was taught to keep the old meaning. A page can read it,
+  // and `Element.prototype[Symbol.unscopables].remove` being undefined is a
+  // page finding a DOM from before 2015.
+  //
+  // Here rather than on Element, because this file installs the six on
+  // `Node.prototype` -- so the object hangs where the methods do, and
+  // `Element.prototype[Symbol.unscopables]` finds it up the chain.
+  // `Symbol` is a *binding* in the global scope rather than an own property of
+  // the global object -- the shape every builtin has here -- so the scope is
+  // asked first and the object second.
+  const Value* symbol_constructor = interpreter_->GlobalScope()->Lookup("Symbol");
+  if (symbol_constructor == nullptr) {
+    symbol_constructor = interpreter_->Global()->GetOwn("Symbol");
+  }
+  if (symbol_constructor == nullptr || !symbol_constructor->IsObject()) {
+    return;
+  }
+  const Value* unscopables_symbol = symbol_constructor->object->GetOwn("unscopables");
+  if (unscopables_symbol == nullptr || !unscopables_symbol->IsSymbol()) {
+    return;
+  }
+  const Value unscopables = interpreter_->NewObjectValue();
+  if (!unscopables.IsObject()) {
+    return;
+  }
+  for (const char* name : {"after", "append", "before", "prepend", "remove", "replaceChildren",
+                           "replaceWith"}) {
+    unscopables.object->Set(name, Value::Bool(true));
+  }
+  wrapper.object->Set(js::PropertyKey::Symbol(unscopables_symbol->object), unscopables);
 }
 
 }  // namespace microbrowser::bindings

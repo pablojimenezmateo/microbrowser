@@ -4924,3 +4924,117 @@ Two further things the goal should be judged against. **431 subtests are tentati
 (`dom/observable/`, `OpaqueRange`) and **126 are a WICG proposal** no browser ships — 1.3 points of
 the remaining gap is specs that are not stable, and ADR 0012's rule about stubs is the argument for
 leaving them where they are rather than chasing a percentage into them.
+
+## 2026-08-12 — `dom/`, one tractable block at a time, and what the remaining gap actually is
+
+**Status:** five commits in a worktree, every one verified with **0 unexpected results** before it
+was recorded. Per-area, measured in isolation on a quiet machine:
+
+| area / file | before | after |
+|---|---|---|
+| `dom/abort` | 10 of 37 | **35 of 37** |
+| `dom/traversal` | 1572 of 1608 | **1584 of 1608** |
+| `dom/events` | 312 of 677 | **342 of 677** |
+| `dom/ranges/StaticRange-constructor.html` | 0 of 17 | **16 of 17** |
+| `dom/nodes/moveBefore/Node-moveBefore.html` | 2 of 32 | **29 of 32** |
+| `dom/nodes/Node-properties.html` | 37 failures | **0** |
+| `dom/nodes/Node-textContent.html` | 30 failures | **10** |
+| `dom/traversal/NodeIterator-removal.html` | 21 failures | **2** |
+
+### The three bugs that were not the feature they were filed under
+
+**A listener removed mid-dispatch still ran.** The dispatch loop walks a *copy* of the listener
+list, which is right — the set that runs is the set that existed when the event reached the node —
+and it is only half the rule. The DOM also gives each listener a "removed" flag, and one taken off
+the list does not run even though the copy still holds it. Without it, `controller.abort()` from
+inside a handler still called every later listener the same controller was meant to cancel, so
+`AddEventListenerOptions-signal.any.html` failed in a way that looked like the signal option was
+missing rather than like dispatch was.
+
+**A duplicate listener was added twice.** The DOM's identity for one is (type, callback, capture)
+and re-registering is a no-op. Here it took as many `removeEventListener` calls as registrations —
+which on a real page reads as a handler firing twice, and is a leak a re-rendering component drives
+by itself.
+
+**`acceptNode` was read with `Object::Get`, which answers nullptr for an accessor.** A filter
+written as `{ get acceptNode() { … } }` therefore read as *no filter at all* and the walk accepted
+everything. That is the shape worth remembering: the wrong read did not fail, it succeeded with a
+different answer. Fixing it needed the accessor-aware read *with* the abrupt completion, which is
+now `Interpreter::GetPropertyOrThrow` — the three-argument `GetProperty` is private on purpose,
+because inside an evaluation propagating is not optional, and this is the door for callers outside
+one.
+
+### `composedPath()` was installed by the dispatcher, so it existed only sometimes
+
+It was put on the *event object* by the node dispatch path. So it was "not a function" before
+dispatch, on `window`, on an `AbortSignal`, and on any `EventTarget` a page constructed — and it
+kept answering after dispatch was over, when the specification says the path is empty. It is on
+`Event.prototype` now, over a slot dispatch sets and clears, which is also what makes
+`currentTarget` null once dispatch ends.
+
+### `AbortSignal.any` flattens, and the flattening is observable
+
+The three statics were absent for the right reason — the note said each needs a decision (a timer,
+a composed signal) that ADR 0012 says not to fake. Both decisions are made now. The timer is
+`TimerQueue::QueueDelayedTask`, a deadline the *browser* chose: deliberately not a call to the
+page's `setTimeout`, which a page may replace and whose ids a page can guess.
+
+The composition is the part that is easy to get wrong. `any` does not chain — a signal composed
+from a composed signal links to the **original sources**, and a source marks every dependent
+aborted *before* any of their handlers run. Chaining instead fires them depth-first, which is a
+different order for the same tree, and `abort-signal-any.any.html` asserts the order explicitly
+(`"01234"`).
+
+### `moveBefore.length` is 2, and that is load-bearing
+
+WPT's shared pre-insertion helper branches on it: `parent[method].length > 1` decides whether to
+pass the reference at all, because passing null blindly would move nodes before the validation it
+is testing. With a length of 0 all nine of those cases took the one-argument path and reported a
+TypeError where the test wanted a HierarchyRequestError — nine failures that say nothing about
+`moveBefore` and everything about a property nobody thinks of as behaviour.
+
+The other trap in that method is its tree check. The specification says **the same shadow-including
+root**, not "both connected", and the difference runs both ways: two disconnected nodes under one
+detached root move fine, and a connected node and a disconnected one never share a root. Being in
+the document is a consequence of the rule rather than the rule.
+
+### What is left, and why the goal was "all of `dom/`"
+
+The session was asked for every `dom/` subtest passing. It is not reachable from here, and the
+reasons are worth having in one place because three of the four are decisions rather than gaps:
+
+- **~570 subtests need `<iframe>`** — `Document-createElementNS.html` alone is 389 of them, all in
+  its "XML document" and "XHTML document" variants. ADR 0027 is accepted and unimplemented; the
+  previous session priced the same wall at ~4,700 subtests across `dom/ranges`. This is the single
+  largest item in `dom/` and it is a browsing-context tree, not a DOM fix.
+- **251 subtests are `Observable`**, a tentative proposal no engine ships, now refused in one block
+  naming ADR 0012.
+- **126 are attributes on a *processing instruction*** — WICG/declarative-partial-updates, which
+  the test file's own `link rel=help` points at. The DOM gives a ProcessingInstruction no
+  `getAttribute` at all. Also refused, with the reason written down.
+- **~130 are `OpaqueRange`**, tentative, refused before this session.
+
+So roughly 1,080 of the remaining failures are one unbuilt feature and three deliberate refusals.
+What is left after them is real work and it is mostly two things: **`Attr` as a `Node`** (~86
+subtests across `Document-createAttribute`, `attributes.html` and `Range-attribute-nodes`), which
+the code comment in ElementQueries.cpp already describes as a design rather than an addition; and
+**event handler content attributes** — `div.setAttribute("onclick", …)` compiles nothing here, which
+is 47 subtests in `Body-FrameSet-Event-Handlers.html`, the tail of `remove-unscopable.html`, and
+part of the 121 in `Event-dispatch-single-activation-behavior.html`.
+
+### The measurement is the least trustworthy thing in this session, and it is the machine
+
+Three separate full-`dom/` runs disagreed with each other by **15,000 subtests** — 43,207 then
+27,494 then 40,399 — with no code change between two of them. Every difference was a handful of
+large tests crossing their timeout: `Range-comparePoint.html` alone is 5,580 subtests and takes
+between 19 and 59 seconds *on the same binary*, depending on what else is on the machine. Under
+`load average: 54` on twelve cores, with other agents running their own WPT sweeps, a `TIMEOUT` is
+a fact about the room.
+
+**So the per-area numbers above were each taken in isolation, and the full-area sweep was
+abandoned rather than recorded.** A run whose expectations would have written `harness=TIMEOUT`
+against `Range-comparePoint.html` is a run that files a machine's bad afternoon as a browser
+regression, and the next session pays for it. `--timeout-multiplier` is the mitigation;
+`docs/wpt-baseline.md` is **not** regenerated here for the same reason, and because `--summary`
+rewrites it from a `--summary-state` file that lives in `/tmp` and described one area (task B6
+already names this).
