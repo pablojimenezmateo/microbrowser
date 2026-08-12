@@ -8,6 +8,7 @@
 #include "dom/FlatTree.h"
 #include "engine/PageGestures.h"
 #include "html/FormControl.h"
+#include "util/StringUtil.h"
 
 // What a click *does* after the event has been dispatched and nothing
 // cancelled it: the DOM's activation behaviour.
@@ -76,6 +77,19 @@ ClickActivation Page::ResolveClickActivation(dom::Element* click_target) {
   };
 
   for (dom::Element* at = click_target; at != nullptr; at = parent_element(at)) {
+    // **A control with no activation behaviour still stops the search.** A
+    // `<button type=button>` does nothing when clicked -- and clicking one
+    // inside an `<a>` must therefore do *nothing*, not follow the link. The
+    // walk is for the nearest activatable ancestor, and a button is one; that
+    // its behaviour is empty is the answer rather than a reason to keep
+    // looking. Without this, a button inside an anchor navigated.
+    if (at->Namespace().IsHtml() &&
+        (at->LocalName() == "button" || at->LocalName() == "input")) {
+      const std::string* type = at->GetAttribute("type");
+      if (type != nullptr && util::AsciiLowerCase(*type) == "button") {
+        return activation;
+      }
+    }
     if (html::IsSubmitControl(*at)) {
       const dom::Element* form = html::FormOwner(*at, *document_);
       if (form != nullptr) {
