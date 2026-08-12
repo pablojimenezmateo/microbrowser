@@ -245,7 +245,12 @@ budget: MatchOp             header_lines=60 public_methods=0  members=0
 # And by one for a bigint's digits, borrowed from the heap's table. A pointer
 # on the cell rather than a lookup, because every arithmetic operation reads it
 # twice and a hash there would be the cost of the whole type.
-budget: Object      header_lines=320 public_methods=60 members=19
+# +1 member and +5 lines for `serializable_`: whether the *language* may copy this object.
+# It is a bool rather than a slot the binding layer sets, because `src/js` is the module that
+# does the copying and `src/bindings` is the one that knows an object is a handle onto something
+# outside this heap. A structured clone of a `URL` would otherwise be a plain object carrying its
+# href with none of its behaviour -- which a page keeps until something calls a method on it.
+budget: Object      header_lines=326 public_methods=62 members=20
 # Grew by one kind (`HTMLAllCollection`) and `IsHTMLDDA()` for `document.all`:
 # polymer resin's `Z !== document.all` must see a real exotic, or undefined
 # sinks become `"zClosurez"` and boolean IDL like `hidden` sticks on.

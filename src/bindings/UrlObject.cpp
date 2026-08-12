@@ -232,6 +232,9 @@ void DomBindings::InstallUrlConstructor() {
         object.object->SetPrototype(prototype.object);
         object.object->SetHidden(kHrefSlot, Value::String(parsed->Serialize()));
         object.object->Set(kOwnerSlot, PointerValue(this));
+        // Not clonable: a `URL` is a handle, and a structured clone of one would be a plain object
+        // carrying its href with none of its behaviour. The standard's answer is a DataCloneError.
+        object.object->MarkHostObject();
         return object;
       });
   if (!constructor.IsObject()) {
@@ -354,6 +357,9 @@ void DomBindings::InstallUrlConstructor() {
         object.object->SetPrototype(prototype.object);
         object.object->SetHidden(kHrefSlot, Value::String(parsed->Serialize()));
         object.object->Set(kOwnerSlot, PointerValue(this));
+        // Not clonable: a `URL` is a handle, and a structured clone of one would be a plain object
+        // carrying its href with none of its behaviour. The standard's answer is a DataCloneError.
+        object.object->MarkHostObject();
         return object;
       });
   if (parse_static.IsObject()) {
@@ -478,8 +484,12 @@ void DomBindings::InstallHyperlinkElementUtils() {
       if (href == nullptr) {
         return std::nullopt;
       }
+      // The attribute is a DOMString and may hold a lone surrogate; the URL parser's input is a
+      // scalar value string, so the conversion happens here rather than at the setter -- the
+      // attribute keeps what was written, and only the *parse* sees U+FFFD.
+      const std::string text = util::ScrubLoneSurrogates(*href);
       const std::optional<url::Url> base = url::Url::Parse(DocumentBaseUrl(element->NodeDocument()));
-      return base.has_value() ? url::Url::Parse(*href, *base) : url::Url::Parse(*href);
+      return base.has_value() ? url::Url::Parse(text, *base) : url::Url::Parse(text);
     };
 
     const Value href_get =

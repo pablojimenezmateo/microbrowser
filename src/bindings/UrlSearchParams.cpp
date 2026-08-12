@@ -441,6 +441,8 @@ void DomBindings::InstallUrlSearchParams() {
           }
         }
         made.object->SetHidden(kPairsSlot, call.interpreter.NewArrayValue(std::move(pairs)));
+        // Not clonable, for the reason a `URL` is not: see `MarkHostObject`.
+        made.object->MarkHostObject();
         return made;
       });
   if (constructor.IsObject()) {

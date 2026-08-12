@@ -251,6 +251,14 @@ class Object {
     return kind_ == Kind::Proxy && ProxyTargetIsCallable();
   }
 
+  // Whether the *language* may copy this object. False for a host object -- a `URL`, a `Node`, a
+  // `URLSearchParams` -- which is a handle onto something outside the heap: structured cloning one
+  // would produce a plain object wearing its properties, and a page would carry it around until
+  // something called a method on it. The specification's answer is a DataCloneError, and this flag
+  // is how the module that *knows* an object is a host object tells the one that does the copying.
+  bool IsSerializable() const { return serializable_; }
+  void MarkHostObject() { serializable_ = false; }
+
   Object* Prototype() const { return prototype_; }
   void SetPrototype(Object* prototype) { prototype_ = prototype; }
 
@@ -492,6 +500,7 @@ class Object {
   const CompiledFunction* code_ = nullptr;
   Environment* closure_ = nullptr;
   bool arrow_ = false;
+  bool serializable_ = true;
   Value bound_this_;
   NativeFunction native_;
   Object* home_object_ = nullptr;
