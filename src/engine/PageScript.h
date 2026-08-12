@@ -485,6 +485,11 @@ class PageScript {
   bool script_strict_dynamic_ = false;
   // CSP without `'unsafe-eval'`: `eval` / `Function` throw (ADR 0039).
   bool eval_forbidden_ = false;
+  // CSP with `'unsafe-inline'` on `script-src`: an `on*` content attribute may
+  // be compiled. Held here as well as pushed to the bindings, because the
+  // bindings are rebuilt on navigation and the flag has to survive to be set
+  // on the new ones.
+  bool inline_handlers_allowed_ = false;
   std::function<void()> trusted_insertion_flush_;
 };
 

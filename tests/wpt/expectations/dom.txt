@@ -378,7 +378,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [dom/events/EventTarget-dispatchEvent.html]
 FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (BeforeUnloadEvent).
-FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (CompositionEvent).
 FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (DeviceMotionEvent).
 FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (DeviceOrientationEvent).
 FAIL=If the event's initialized flag is not set, an InvalidStateError must be thrown (StorageEvent).
@@ -2039,13 +2038,6 @@ FAIL=Mixed HTML/SVG/MathML tree with various mixed-case attributes
 FAIL=Check that removing a node and then adopting its parent into a different window/document doesn't crash.
 [dom/nodes/remove-next-sibling-during-replace-with.html]
 FAIL=remove-next-sibling-during-replace-with
-[dom/nodes/remove-unscopable.html]
-FAIL=after() should be unscopable
-FAIL=append() should be unscopable
-FAIL=before() should be unscopable
-FAIL=prepend() should be unscopable
-FAIL=remove() should be unscopable
-FAIL=replaceWith() should be unscopable
 # **`Observable` is refused, and every failure under dom/observable/ below is
 # that one decision.** ADR 0012: WPT keeps it under `tentative/` because it is
 # a proposal -- not standardised, and no engine ships it. `EventTarget.when()`

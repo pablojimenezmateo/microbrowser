@@ -5058,3 +5058,54 @@ is that it is *one boolean per document*: nonces and hashes do not apply to hand
 without that flag would open a script-execution path CSP cannot see, and the browser would still
 pass more tests — which is the shape of the mistake worth naming. It is task **C11** now, in
 `docs/wpt-plan.md` and the ledger.
+
+### C11 landed after all, and the gate is the interesting half
+
+`<div onclick="…">` compiles now, lazily, at the point `RunListenersOn` already
+asks for the `on<type>` property and finds nothing — HTML's *internal raw
+uncompiled handler*, so there is no parser hook and an element without the
+attribute pays a lookup it was already paying. `remove-unscopable.html` went
+0 → 6 of 6 with it, which is the whole test finally reaching the behaviour it
+was written for.
+
+**The CSP question turned out to be its own function rather than a call to the
+existing one, and the difference is a real case.** `Policy::AllowsInline`
+implements the rule that a nonce or a hash *cancels* `'unsafe-inline'` — which
+is the whole mechanism by which a modern policy stays safe on a browser that
+understands nonces and usable on one that does not. That rule is about
+`<script>` **elements**, which can carry a nonce. An attribute cannot: it has
+nowhere to put one and CSP never hashes it. So a policy of
+`script-src 'unsafe-inline' 'nonce-abc'` must still permit a handler while
+refusing an un-nonced inline `<script>`, and calling the general form would
+have refused both. `AllowsInlineHandler` says what it means, and the unit test
+asserts exactly that divergence.
+
+The answer crosses into `src/bindings` as a **flag**, because that module may
+not see `src/csp` — its `allow:` line is a security boundary (ADR 0008). It
+defaults to *deny*: a path from markup to running code that is on until
+somebody remembers to turn it off is the wrong default for the one gate between
+the two.
+
+**And the compile needed a bound, which is the part that would have been easy
+to miss.** `Interpreter::Run` calls `BeginHostTurn`, which resets the step
+budget, and retains the parsed program for the life of the page — both correct
+for a `<script>`, of which a document has a handful. A handler compiled from a
+*dispatch* is neither: `for(;;){ el.setAttribute('onclick', i++); el.dispatchEvent(e) }`
+would compile a new text every iteration, refresh the budget the loop is being
+metered against, and add an AST. That is a hang a page can drive — the exact
+thing `RunCompiled`'s own comment says it fixed once already for microtasks. It
+is capped at 10,000 compiles per document, refused rather than truncated past
+it, and the cache is still written so a page past the bound pays one lookup per
+dispatch.
+
+505 tests across `dom/events/` and `dom/nodes/` re-run afterwards: **two
+improvements and no regressions.** The two `harness: expected OK, got TIMEOUT`
+in that run both finish in 0.7 seconds when run alone — the sweep took 29
+minutes under `load average` in the forties, which is the same measurement
+caveat as everywhere else in this entry.
+
+What is still missing from C11 is the *IDL* half: HTML makes `el.onclick` and
+the content attribute one slot, so reading `el.onclick` on an element that has
+only the markup should compile it and hand it back. Here it still answers
+undefined — the attribute is reachable only from dispatch. That is the half
+that wants the reflected-attribute table, which is task C10.

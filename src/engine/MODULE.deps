@@ -390,7 +390,11 @@ budget: PageScript header_lines=500 public_methods=69 members=32
 # The two methods are UpdateDocumentUrl and IsSameOrigin, and the second is the
 # one origin comparison `pushState` makes: it is here rather than in
 # `src/bindings` because that module may not see `url`.
-budget: DocumentPolicy header_lines=120 public_methods=18 members=5
+# +1 method and +7 header lines for AllowsInlineHandler: the one CSP question
+# the binding layer has to know the answer to. It cannot ask -- `src/bindings`
+# may not see `src/csp`, and that allow: line is a security boundary (ADR 0008)
+# -- so the answer crosses as a flag, once per document.
+budget: DocumentPolicy header_lines=127 public_methods=19 members=5
 # Back and forward, for one tab, where the documents are. Three members: the
 # entries, the cursor, and the generation counter `history.state`'s memo is keyed
 # on. ADR 0026 §1 moved it out of `src/ui` because a `pushState` entry is a URL

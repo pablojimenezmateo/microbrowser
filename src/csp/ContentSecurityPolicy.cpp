@@ -484,6 +484,29 @@ bool Policy::AllowsInline(Directive directive, std::string_view nonce,
   return unsafe_inline && !nonce_or_hash;
 }
 
+bool Policy::AllowsInlineHandler() const {
+  const std::vector<Source>* list = ListFor(Directive::Script);
+  if (list == nullptr) {
+    // No `script-src` and no `default-src`: nothing is being said about
+    // script, so a handler runs the way it does on a page with no policy.
+    return true;
+  }
+  // **Only `'unsafe-inline'`, and it is *not* cancelled by a nonce or a hash
+  // here.** That cancellation exists so a modern policy can carry
+  // `'unsafe-inline'` as a fallback for browsers that do not understand
+  // nonces, and it applies to `<script>` elements, which can carry a nonce. An
+  // event handler attribute cannot: it has nowhere to put one and CSP never
+  // hashes it. So a policy that lists both still permits handlers, which is
+  // what every engine does and is the difference between this and
+  // `AllowsInline`.
+  for (const Source& source : *list) {
+    if (source.kind == Source::Kind::UnsafeInline) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void PolicyList::AddFromHeader(std::string_view value) {
   std::size_t at = 0;
   while (at <= value.size()) {
@@ -519,6 +542,11 @@ bool PolicyList::AllowsInline(Directive directive, std::string_view nonce,
   return std::all_of(policies_.begin(), policies_.end(), [&](const Policy& policy) {
     return policy.AllowsInline(directive, nonce, body);
   });
+}
+
+bool PolicyList::AllowsInlineHandler() const {
+  return std::all_of(policies_.begin(), policies_.end(),
+                     [](const Policy& policy) { return policy.AllowsInlineHandler(); });
 }
 
 bool PolicyList::Governs(Directive directive) const {

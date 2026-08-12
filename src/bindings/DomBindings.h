@@ -257,6 +257,13 @@ class DomBindings {
   }
   void SetTrustedScriptFlush(std::function<void()> hook) { trusted_script_flush_ = std::move(hook); }
   void SetScriptStrictDynamic(bool enabled) { csp_script_strict_dynamic_ = enabled; }
+  // Whether an `on*` **content attribute** may be compiled into a handler --
+  // `DocumentPolicy::AllowsInlineHandler`, crossed as a flag because this
+  // module may not see `src/csp`. Default false, so a document whose engine
+  // never says compiles nothing: a script-execution path that is on until
+  // somebody remembers to turn it off is the wrong default for the one gate
+  // between markup and running code.
+  void SetInlineHandlersAllowed(bool allowed) { inline_handlers_allowed_ = allowed; }
   void MarkCspTrustedScript(const dom::Element& element) { csp_trusted_scripts_.insert(&element); }
   bool IsCspTrustedScript(const dom::Element& element) const {
     return csp_trusted_scripts_.contains(&element);
@@ -920,6 +927,7 @@ class DomBindings {
   std::string clipboard_;
   std::uint32_t trusted_script_depth_ = 0;
   bool csp_script_strict_dynamic_ = false;
+  bool inline_handlers_allowed_ = false;
   std::function<void()> trusted_script_flush_;
   std::unordered_set<const dom::Element*> csp_trusted_scripts_;
 };

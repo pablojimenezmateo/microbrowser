@@ -256,7 +256,14 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # `IdbIndexKeyPath` reads, none of which may live as free functions because each
 # calls another private member (InterfaceNamed, MaybeCompleteIdbTransaction) that
 # a free function gets no access to just because its only caller has some.
-budget: DomBindings header_lines=930 public_methods=46 members=26
+# A twenty-seventh member, and it is a *refusal* rather than a capability:
+# whether this document's CSP permits compiling an `on*` content attribute.
+# It has to be a member because this module may not see `src/csp` -- that
+# allow: line is a security boundary (ADR 0008) -- so the engine answers the
+# question and the answer crosses as a flag. It defaults to false, because a
+# path from markup to running code that is on until somebody turns it off is
+# the wrong default for the one gate between the two.
+budget: DomBindings header_lines=940 public_methods=46 members=27
 # ADR 0038's `indexedDB` seam: a database/store/key/version question this module
 # declares and `src/engine` answers, the same inversion StorageSource uses. Four
 # extra "methods" over what reads as the API (16) are the deleted copy ops and
