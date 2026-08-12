@@ -7,6 +7,15 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
+**`url/` re-measured 2026-08-12, and it is the one row below that is current.** 21.7% -> **97.8%**
+(9,695 of 9,909), 32 timeouts -> 31. Merged in by hand for the reason the next-but-one paragraph
+gives. **What is left of that area is not URL work**, and it is worth knowing before picking it up:
+188 of the 214 remaining subtests are `failure.html`'s three iframe cases, and 24 of the 31
+timeouts are `*.any.worker.html`. Everything a URL parser can answer, this one answers -- the
+standard's own vectors are 891/891, 278/278 setters, 87/87 toascii and 2,670/2,671 IdnaTestV2 --
+so the remaining gap is ADR 0027 (nested browsing contexts) and ADR 0022 §2 (a worker global that
+can run testharness), which is the same conclusion `dom/` reached from the other direction.
+
 **Partly re-measured again, 2026-08-11 (C4, both halves).** The 26 rows for `dom/`,
 `custom-elements/`, `shadow-dom/` and `domparsing/` are from that run, merged in by hand for
 the reason the next paragraph gives. **Read the counts before the percentages.** The runner's
@@ -309,7 +318,7 @@ it is a page that never reported, which almost always means something threw befo
 | `uievents/textInput` | 7 | 7 | 0 | 0 | 0 | 24 | 0 | 0.0 |
 | `upgrade-insecure-requests` | 1 | 1 | 0 | 0 | 0 | 8 | 0 | 0.0 |
 | `upgrade-insecure-requests/gen` | 196 | 196 | 0 | 0 | 0 | 992 | 0 | 0.0 |
-| `url` | 71 | 39 | 0 | 32 | 0 | 9395 | 2042 | 21.7 |
+| `url` | 71 | 40 | 0 | 31 | 0 | 9909 | 9695 | 97.8 |
 | `user-timing` | 58 | 29 | 0 | 29 | 0 | 180 | 64 | 35.6 |
 | `web-animations` | 1 | 1 | 0 | 0 | 0 | 1 | 0 | 0.0 |
 | `web-animations/animation-model` | 25 | 25 | 0 | 0 | 0 | 146 | 20 | 13.7 |
