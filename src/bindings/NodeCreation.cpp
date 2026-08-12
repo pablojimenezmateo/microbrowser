@@ -163,8 +163,8 @@ void DomBindings::InstallCharacterData(const js::Value& target) {
     const Value getter = interpreter_->NewNativeValue(name, std::move(get));
     const Value setter = interpreter_->NewNativeValue(name, std::move(set));
     if (getter.IsObject() && setter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
-      setter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
+      setter.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->DefineAccessor(name, getter.object, setter.object);
     }
   };
@@ -172,7 +172,7 @@ void DomBindings::InstallCharacterData(const js::Value& target) {
   const auto method = [this, &target](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->SetHidden(name, native);
     }
   };

@@ -83,7 +83,7 @@ js::Value DomBindings::MakeNamedCollection(const std::vector<dom::Element*>& ele
     return found == nullptr || !found->IsObject() ? Value::Null() : *found;
   });
   if (named.IsObject()) {
-    named.object->Set(kOwnerSlot, PointerValue(this));
+    named.object->Set(kOwnerSlot, OwnerValue(this));
     collection.object->SetHidden("namedItem", named);
   }
   return collection;
@@ -131,7 +131,7 @@ void DomBindings::InstallFormApis() {
         });
         if (accessor.IsObject() && document_interface != nullptr &&
             document_interface->IsObject()) {
-          accessor.object->Set(kOwnerSlot, PointerValue(this));
+          accessor.object->Set(kOwnerSlot, OwnerValue(this));
           document_interface->object->DefineAccessor(name, accessor.object, nullptr);
         }
       };
@@ -178,14 +178,14 @@ void DomBindings::InstallFormApis() {
     return owner->MakeNamedCollection(found);
   });
   if (elements.IsObject()) {
-    elements.object->Set(kOwnerSlot, PointerValue(this));
+    elements.object->Set(kOwnerSlot, OwnerValue(this));
     form_prototype.object->DefineAccessor("elements", elements.object, nullptr);
   }
 
   const auto method = [this, &form_prototype](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       form_prototype.object->Set(name, native);
     }
   };
@@ -257,7 +257,7 @@ void DomBindings::InstallFormApis() {
     return owner->WrapperFor(const_cast<dom::Element*>(found));
   });
   if (owner_form.IsObject()) {
-    owner_form.object->Set(kOwnerSlot, PointerValue(this));
+    owner_form.object->Set(kOwnerSlot, OwnerValue(this));
     element_interface->object->DefineAccessor("form", owner_form.object, nullptr);
   }
 }

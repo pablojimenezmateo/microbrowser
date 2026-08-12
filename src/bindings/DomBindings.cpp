@@ -24,6 +24,26 @@ using js::NativeCall;
 using js::Object;
 using js::Value;
 
+// One entry per binding layer that currently exists. See `OwnerValue` in
+// BindingSupport.h for why the key is a serial rather than the address.
+struct LiveOwner {
+  std::uint64_t serial = 0;
+  DomBindings* bindings = nullptr;
+};
+
+std::vector<LiveOwner>& LiveOwners() {
+  static std::vector<LiveOwner> live;
+  return live;
+}
+
+// Never reused, which is the whole point: a stale native must find nothing
+// rather than whatever was built at the same address afterwards. 64 bits at one
+// per document outlasts any process.
+std::uint64_t NextOwnerSerial() {
+  static std::uint64_t next = 0;
+  return ++next;
+}
+
 bool MatchesAny(const dom::Element& element, const std::vector<css::Selector>& selectors) {
   for (const css::Selector& selector : selectors) {
     if (selector.Matches(element)) {
@@ -64,6 +84,67 @@ DomBindings::DomBindings(js::Interpreter& interpreter, dom::Document& document,
       workers_(workers),
       animations_(animations) {}
 
+js::Value OwnerValue(const DomBindings* owner) {
+  return js::Value::Number(owner == nullptr ? 0.0
+                                            : static_cast<double>(owner->identity_.Serial()));
+}
+
+OwnerIdentity::OwnerIdentity(DomBindings* owner) : serial_(NextOwnerSerial()) {
+  LiveOwners().push_back(LiveOwner{serial_, owner});
+}
+
+OwnerIdentity::~OwnerIdentity() {
+  std::vector<LiveOwner>& live = LiveOwners();
+  for (std::size_t i = 0; i < live.size(); ++i) {
+    if (live[i].serial == serial_) {
+      live[i] = live.back();
+      live.pop_back();
+      return;
+    }
+  }
+}
+
+std::unique_ptr<dom::Node> DomBindings::TakeUnattached(dom::Node* node) {
+  for (std::vector<std::unique_ptr<dom::Node>>* list : {&unattached_, &detached_}) {
+    for (std::size_t i = 0; i < list->size(); ++i) {
+      if ((*list)[i].get() == node) {
+        std::unique_ptr<dom::Node> owned = std::move((*list)[i]);
+        list->erase(list->begin() + static_cast<std::ptrdiff_t>(i));
+        return owned;
+      }
+    }
+  }
+  return nullptr;
+}
+
+DomBindings* BindingsForDocument(const dom::Document& document) {
+  for (const LiveOwner& owner : LiveOwners()) {
+    if (owner.bindings != nullptr && &owner.bindings->Document() == &document) {
+      return owner.bindings;
+    }
+  }
+  return nullptr;
+}
+
+DomBindings* OwnerOf(const js::NativeCall& call) {
+  const js::Value* slot = call.callee == nullptr ? nullptr : call.callee->GetOwn(kOwnerSlot);
+  if (slot == nullptr || !slot->IsNumber()) {
+    return nullptr;
+  }
+  const auto serial = static_cast<std::uint64_t>(slot->number);
+  // A linear scan, and it stays one: the list holds one entry per *live*
+  // document in this process, which is the top-level page plus its scripted
+  // frames -- bounded at `js::kMaxRealms` + 1 and one or two in practice. A
+  // hash table over two entries is slower than the compare it replaces, and
+  // this runs on the way into every native the binding layer installs.
+  for (const LiveOwner& owner : LiveOwners()) {
+    if (owner.serial == serial) {
+      return owner.bindings;
+    }
+  }
+  return nullptr;
+}
+
 bool DomBindings::Matches(const dom::Element& element, const std::string& selector) {
   // The real CSS selector engine, not the three-form toy this used to be.
   // `#id`, `.class` and an exact tag were enough for early tests and wrong for
@@ -102,6 +183,25 @@ bool DomBindings::MatchesSelectorList(const dom::Element& element,
 js::Value DomBindings::WrapperFor(dom::Node* node) {
   if (node == nullptr) {
     return Value::Null();  // `null`, not undefined: an absent node is the DOM's null
+  }
+  // **A node is wrapped by its node document's binding layer, whoever was
+  // asked.** ADR 0042 §5 step 3, and it is the difference between a wrapper
+  // cache and a wrapper cache *per realm*. Two layers over one heap -- which is
+  // what a same-origin `<iframe>` is -- would otherwise give one node two
+  // wrappers, so `parent.document.body === parent.document.body` read from the
+  // frame answers false, and a node adopted into the top-level document keeps
+  // the frame realm's prototypes, so `instanceof Text` answers false about a
+  // Text node.
+  //
+  // The lookup is over the same live-owner list `OwnerOf` walks, for the same
+  // reason it is a list: there is one entry per live document, which is the page
+  // plus its scripted frames. The delegate call cannot recurse more than once,
+  // because the layer it finds is by definition the one whose document this is.
+  if (node->NodeDocument() != nullptr && node->NodeDocument() != document_) {
+    if (DomBindings* home = BindingsForDocument(*node->NodeDocument());
+        home != nullptr && home != this) {
+      return home->WrapperFor(node);
+    }
   }
   if (!wrappers_.IsObject()) {
     wrappers_ = interpreter_->NewObjectValue();
@@ -163,14 +263,14 @@ void DomBindings::InstallNodeInterface(const js::Value& target) {
       // The bindings instance travels on the function object rather than in a
       // capture, because a capture is invisible to the collector -- the same
       // rule every other native in this engine follows.
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->Set(name, native);
     }
   };
   const auto accessor = [this, &target](const char* name, js::NativeFunction get) {
     const Value native = interpreter_->NewNativeValue(name, std::move(get));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->DefineAccessor(name, native.object, nullptr);
     }
   };
@@ -179,8 +279,8 @@ void DomBindings::InstallNodeInterface(const js::Value& target) {
     const Value getter = interpreter_->NewNativeValue(name, std::move(get));
     const Value setter = interpreter_->NewNativeValue(name, std::move(set));
     if (getter.IsObject() && setter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
-      setter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
+      setter.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->DefineAccessor(name, getter.object, setter.object);
     }
   };
@@ -364,14 +464,14 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
       // The bindings instance travels on the function object rather than in a
       // capture, because a capture is invisible to the collector -- the same
       // rule every other native in this engine follows.
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->Set(name, native);
     }
   };
   const auto accessor = [this, &target](const char* name, js::NativeFunction get) {
     const Value native = interpreter_->NewNativeValue(name, std::move(get));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->DefineAccessor(name, native.object, nullptr);
     }
   };
@@ -380,8 +480,8 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
     const Value getter = interpreter_->NewNativeValue(name, std::move(get));
     const Value setter = interpreter_->NewNativeValue(name, std::move(set));
     if (getter.IsObject() && setter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
-      setter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
+      setter.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->DefineAccessor(name, getter.object, setter.object);
     }
   };
@@ -743,7 +843,7 @@ void DomBindings::InstallImageElement(const js::Value& target) {
   const auto install = [this, &target](const char* name, auto read) {
     const Value getter = interpreter_->NewNativeValue(name, std::move(read));
     if (getter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->DefineAccessor(name, getter.object, nullptr);
     }
   };

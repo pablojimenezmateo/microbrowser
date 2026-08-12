@@ -1,9 +1,15 @@
 #pragma once
 
+#include "bindings/BrowsingContexts.h"
 #include "js/Interpreter.h"
 #include "js/Value.h"
 
-// `contentDocument` and `contentWindow` on `<iframe>` -- ADR 0027 §1.
+// `contentDocument` and `contentWindow` on `<iframe>`. ADR 0027 §1.
+//
+// The *state* those two read is `BrowsingContexts.h` next to this, which is a
+// public header because only `src/engine` can fill it in. This one stays
+// private because it needs `DomBindings`, and that is the whole line between
+// them.
 //
 // A free function rather than a `DomBindings` method, for the reason
 // ShadowDom.h gives at length: that header is at the module's line cap, and the
@@ -13,6 +19,10 @@
 // pointer that goes in `kOwnerSlot`, and the public `WrapperFor`.
 //
 // Private to the module, same standing as ShadowDom.h and LiveRanges.h.
+
+namespace microbrowser::dom {
+class Element;
+}
 
 namespace microbrowser::bindings {
 

@@ -80,6 +80,11 @@ void PageScript::Detach() {
   // interpreter of its own and stop being same-origin with its parent.
   interpreter_ = nullptr;
   owned_interpreter_.reset();
+  // The keys are `<iframe>` elements in the document that is about to be
+  // replaced. Kept, they would be a use-after-free waiting for the next page to
+  // allocate an element at the same address -- the rule every per-element map in
+  // `Page::Load` follows, and this is one.
+  frame_windows_.Clear();
   slots_.clear();
   pending_urls_.clear();
   pending_slots_.clear();
@@ -294,6 +299,12 @@ void PageScript::EnsureInterpreter(dom::Document& document, const std::string& u
                                                      cookies_, sockets_, media_, canvas_,
                                                      workers_, indexed_db_, animations_);
   bindings_->Install();
+  // After it, and reaching the interface table through the interpreter rather
+  // than through `DomBindings`: this replaces the `contentWindow` stub that
+  // installer put there with one that answers with the child's *actual* global.
+  // See BrowsingContexts.h for why it is not a method on that class.
+  bindings::InstallFrameWindows(*interpreter_, frame_windows_);
+  bindings::PublishFrameWindows(*interpreter_, frame_windows_);
   bindings_->SetScriptStrictDynamic(script_strict_dynamic_);
   bindings_->SetInlineHandlersAllowed(inline_handlers_allowed_);
   if (trusted_insertion_flush_) {

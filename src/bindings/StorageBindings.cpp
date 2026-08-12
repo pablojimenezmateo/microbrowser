@@ -173,7 +173,7 @@ void DomBindings::InstallStorage() {
                 return found.has_value() ? Value::String(*found) : Value::Null();
               });
           if (method.IsObject()) {
-            method.object->Set(kOwnerSlot, PointerValue(owner));
+            method.object->Set(kOwnerSlot, OwnerValue(owner));
             method.object->Set(kStorageKindSlot, KindValue(this_kind));
             method.object->Set("#storage-method", Value::String(name));
           }
@@ -182,7 +182,7 @@ void DomBindings::InstallStorage() {
     if (!getter.IsObject()) {
       return Value::Undefined();
     }
-    getter.object->Set(kOwnerSlot, PointerValue(this));
+    getter.object->Set(kOwnerSlot, OwnerValue(this));
     getter.object->Set(kStorageKindSlot, KindValue(kind));
     handler.object->Set("get", getter);
 
@@ -209,7 +209,7 @@ void DomBindings::InstallStorage() {
       return Value::Bool(true);
     });
     if (setter.IsObject()) {
-      setter.object->Set(kOwnerSlot, PointerValue(this));
+      setter.object->Set(kOwnerSlot, OwnerValue(this));
       setter.object->Set(kStorageKindSlot, KindValue(kind));
       handler.object->Set("set", setter);
     }
@@ -232,7 +232,7 @@ void DomBindings::InstallStorage() {
           return Value::Bool(true);
         });
     if (deleter.IsObject()) {
-      deleter.object->Set(kOwnerSlot, PointerValue(this));
+      deleter.object->Set(kOwnerSlot, OwnerValue(this));
       deleter.object->Set(kStorageKindSlot, KindValue(kind));
       handler.object->Set("deleteProperty", deleter);
     }
@@ -254,7 +254,7 @@ void DomBindings::InstallStorage() {
       return Value::Bool(owner->storage_->GetItem(KindOf(call), name).has_value());
     });
     if (has.IsObject()) {
-      has.object->Set(kOwnerSlot, PointerValue(this));
+      has.object->Set(kOwnerSlot, OwnerValue(this));
       has.object->Set(kStorageKindSlot, KindValue(kind));
       handler.object->Set("has", has);
     }
@@ -281,7 +281,7 @@ void DomBindings::InstallStorage() {
           return call.interpreter.NewArrayValue(std::move(keys));
         });
     if (own_keys.IsObject()) {
-      own_keys.object->Set(kOwnerSlot, PointerValue(this));
+      own_keys.object->Set(kOwnerSlot, OwnerValue(this));
       own_keys.object->Set(kStorageKindSlot, KindValue(kind));
       handler.object->Set("ownKeys", own_keys);
     }

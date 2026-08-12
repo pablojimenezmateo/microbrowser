@@ -166,8 +166,8 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
     const Value getter = interpreter_->NewNativeValue(name, std::move(get));
     const Value setter = interpreter_->NewNativeValue(name, std::move(set));
     if (getter.IsObject() && setter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
-      setter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
+      setter.object->Set(kOwnerSlot, OwnerValue(this));
       wrapper.object->DefineAccessor(name, getter.object, setter.object);
     }
   };
@@ -240,7 +240,7 @@ void DomBindings::InstallMutationMethods(const js::Value& wrapper) {
                                        double arity = 0) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       SetFunctionLength(native, arity);
       wrapper.object->Set(name, native);
     }
@@ -592,6 +592,21 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
         }
       }
     }
+    if (owned == nullptr && child->NodeDocument() != nullptr) {
+      // **A node another document made, being inserted into this one.** Its
+      // `unique_ptr` is parked in the binding layer that created it, not in
+      // this one, so without this the whole insertion silently answered null --
+      // `document.body.appendChild(frame.contentWindow.document.createElement('div'))`
+      // did nothing at all. It only became reachable when `contentWindow`
+      // started being the child's real window (ADR 0042 §5): before that,
+      // `contentWindow.document` was the embedder's own document and no node
+      // ever crossed. The DOM calls this step "adopt", and `Node::Append` does
+      // its other half -- rewriting the node document of the whole subtree.
+      if (DomBindings* home = BindingsForDocument(*child->NodeDocument());
+          home != nullptr && home != this) {
+        owned = home->TakeUnattached(child);
+      }
+    }
   }
   if (owned == nullptr) {
     return Value::Null();  // not a node this layer can give away
@@ -736,7 +751,7 @@ void DomBindings::InstallAtomicMove(const js::Value& target) {
   if (!native.IsObject()) {
     return;
   }
-  native.object->Set(kOwnerSlot, PointerValue(this));
+  native.object->Set(kOwnerSlot, OwnerValue(this));
   target.object->Set("moveBefore", native);
   // **`moveBefore.length` is 2, and it is load-bearing rather than cosmetic.**
   // WPT's shared pre-insertion helper branches on it -- `parent[method].length

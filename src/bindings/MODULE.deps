@@ -54,7 +54,7 @@ purpose: The seam between script and the document. The only module that sees bot
 # check lives, and an origin is a `url::Origin`. A layer that cannot name one cannot check one.
 allow: util js dom html css xml url
 
-public: AnimationFrames.h DomBindings.h Geometry.h History.h IdleCallbacks.h IndexedDb.h Input.h Media.h Network.h Performance.h Sockets.h Storage.h Cookies.h Timers.h ViewObservers.h Canvas.h Workers.h Waapi.h
+public: AnimationFrames.h BrowsingContexts.h DomBindings.h Geometry.h History.h IdleCallbacks.h IndexedDb.h Input.h Media.h Network.h Performance.h Sockets.h Storage.h Cookies.h Timers.h ViewObservers.h Canvas.h Workers.h Waapi.h
 
 extern:
 
@@ -120,7 +120,16 @@ extern:
 # kind of thing that should never have landed on this class, and it touches nothing private, so it
 # is a free function in FrameBindings.h beside ShadowDom.h. That is the third member the cut has
 # taken back, and this note is no longer only asking.
-max_tu_lines: 990
+# **Raised to 1000, and this one is a decision rather than a reflex.** ADR 0042 §5 let a
+# same-origin `<iframe>` borrow its embedder's interpreter, and with it came the first way a
+# `DomBindings` can be destroyed while the heap holding its natives lives on: a frame that
+# renavigates. Every native the dead layer stamped still resolved to its *address*, which
+# `f.contentWindow.postMessage(...)` after `f.src = other` reaches -- found as a segfault in
+# `dom/events/scrolling/scroll-cross-origin-iframes.html`. The fix is `OwnerIdentity`, an RAII
+# member that registers a never-reused serial, so a stale native resolves to nothing instead. Two
+# lines in this header bought that. The split this note has been asking for is still owed, and it
+# is now owed *more*: a class that cannot take a two-line member without a cap raise is a class.
+max_tu_lines: 1000
 
 # A wrapper is a JavaScript object holding a raw `dom::Node*`, which is only
 # safe while nothing frees a node before its document. `Node::Remove` would;
@@ -246,6 +255,11 @@ max_tu_lines: 990
 # +1 member and +8 header lines for ADR 0021's StorageSource: sessionStorage and
 # localStorage are answered through an interface this module declares, like geometry
 # and the network, so no partition key and no store appears here.
+# The windows around one document (ADR 0027 §1, ADR 0042 §5). Three members, and the third is the
+# only one that is a list: which `<iframe>` holds which child global. It is deliberately *not* a
+# member of `DomBindings`, which is at 989 of its 990 permitted lines -- the note above that cap
+# has been asking for a split rather than a raise for six raises now, and this is one.
+budget: FrameGlobals header_lines=45 public_methods=9 members=3
 budget: StorageSource header_lines=50 public_methods=11 members=0
 # Raised for MSE (ADR 0028 §3, session 28). The element half and the MediaSource half are one
 # interface on purpose: `video.src = URL.createObjectURL(source)` is the *only* way a MediaSource
@@ -341,7 +355,15 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # script through a raw pointer on the JS object, and that pointer used to come from
 # `unique_ptr::release()` with nothing to free it -- so `new CSSStyleSheet()` leaked, unboundedly, from
 # three lines of script. LeakSanitizer found it; nothing else would have. The member is the owner.
-budget: DomBindings header_lines=942 public_methods=47 members=30
+# +2 header lines and +1 member for `OwnerIdentity` (ADR 0042 §5); see the note on max_tu_lines
+# above for what it closes and why it is not optional. No new public methods -- being non-copyable
+# it deletes this class's copy and move for free, which they had to be anyway.
+# +5 lines and +1 method for `TakeUnattached`, the DOM's "adopt" step for a node that crosses
+# documents. It has to be public because the layer performing the insertion is not the layer
+# holding the node's `unique_ptr` -- which is the whole situation a same-origin `<iframe>` creates,
+# and before it `document.body.appendChild(frame.contentWindow.document.createElement('div'))`
+# silently did nothing.
+budget: DomBindings header_lines=950 public_methods=48 members=31
 # ADR 0038's `indexedDB` seam: a database/store/key/version question this module
 # declares and `src/engine` answers, the same inversion StorageSource uses. Four
 # extra "methods" over what reads as the API (16) are the deleted copy ops and

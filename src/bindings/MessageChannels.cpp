@@ -77,7 +77,7 @@ void DomBindings::InstallMessageChannel() {
   const auto method = [this, &port_interface](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       port_interface.object->Set(name, native);
     }
   };
@@ -146,8 +146,8 @@ void DomBindings::InstallMessageChannel() {
         return Value::Undefined();
       });
   if (get_handler.IsObject() && set_handler.IsObject()) {
-    get_handler.object->Set(kOwnerSlot, PointerValue(this));
-    set_handler.object->Set(kOwnerSlot, PointerValue(this));
+    get_handler.object->Set(kOwnerSlot, OwnerValue(this));
+    set_handler.object->Set(kOwnerSlot, OwnerValue(this));
     port_interface.object->DefineAccessor("onmessage", get_handler.object, set_handler.object);
   }
 

@@ -173,59 +173,32 @@ class Page : private layout::ImageProvider,
   // have moved under everything that had already looked at it.
   bool DispatchPendingFrameLoads();
 
-  // The external scripts this document referenced, in document order. Fetched
-  // by the caller for the same reason a stylesheet is: a fetch needs a privacy
-  // verdict, and producing one is the loader's job.
-  const std::vector<SubresourceRequest>& PendingScripts() const { return script_->PendingUrls(); }
-  // Whether `PendingScripts()[index]` is one the page said it would not wait
-  // for. The caller asks so it knows which outstanding scripts hold the first
-  // paint and which do not -- see PageScript::Timing and ADR 0011.
-  bool PendingScriptIsAsync(std::size_t index) const { return script_->IsAsync(index); }
   void AddScript(std::size_t pending_index, std::string source);
-  // A pending script was refused or failed before Run — fire `error` on the
-  // element so a page waiting on `load` (YouTube At7 / GXC) does not hang.
-  void NotifyScriptFetchFailed(std::size_t pending_index) {
-    script_->NotifyFetchFailed(pending_index);
-  }
   // Finds `<script>` elements added after the parse-time walk and queues them.
   // True when any were found.
   bool CollectInsertedScripts();
-  std::vector<SubresourceRequest> TakeUnrequestedScripts() {
-    return script_->TakeUnrequestedScripts();
-  }
-  bool HasOutstandingScriptFetches() const { return script_->HasOutstandingScriptFetches(); }
-  void MarkScriptsRequested() { script_->MarkScriptsRequested(); }
-  // Runs any `async` script whose source arrived after RunScripts. True when
-  // one did, which means the document may have changed.
-  bool RunReadyAsyncScripts() { return script_->RunReadyAsync(); }
-  bool RunPendingScripts() { return script_->RunPendingScripts(); }
   // Runs the document's scripts. Idempotent, so a caller that fetches
   // subresources first and one that does not can both end with it.
   void RunScripts(std::int64_t now_ms);
 
-  // --- browsing contexts and realms, ADR 0042 §5 ----------------------------
-
-  // This document's script runs in `host`'s realm `realm`. What a **same-origin**
-  // child context is given, by the engine, because deciding same-origin needs
-  // `src/url` and this class may not see it -- the same inversion `same_origin`
-  // on a `Frame` already is (ADR 0027 §2).
-  void AttachScriptRealm(js::Interpreter& host, js::RealmId realm) {
-    script_->AttachToRealm(host, realm);
-  }
-  // The interpreter this page's script runs in, built if it has none yet. Asked
-  // of a *parent* when a same-origin child needs a realm: a parent with no
-  // script of its own still has to supply the heap its child's objects live in,
-  // because a child that allocated from an interpreter nobody else held would
-  // hand its parent pointers into a heap that dies with it.
+  // This page's script half, so the engine can give a same-origin child a realm
+  // of this document's interpreter and read the windows around it. ADR 0042 §5.
   //
-  // Null when there is no document to build one against, which is a frame whose
-  // response has not arrived.
-  js::Interpreter* EnsureScriptInterpreter(std::int64_t now_ms) {
-    if (document_ == nullptr) {
-      return nullptr;
-    }
-    return &script_->EnsureHostInterpreter(*document_, url_, now_ms);
-  }
+  // **One accessor rather than the six forwarders this began as**, because six
+  // methods that did nothing but name `script_` put this header over the
+  // module's line cap -- and the note on that cap says a file over it means a
+  // missing seam, not a bigger file. The seam is that the browsing-context tree
+  // is the *engine's* to shape: deciding same-origin needs `src/url` and this
+  // class may not see it (ADR 0027 §2). It widens nothing, because the realm
+  // guard is `RealmBoundScript` itself -- handing the object out carries the
+  // guard with it, which is the property that made the guard a type.
+  // Eight one-line forwarders were deleted to make room for it, and that is the
+  // improvement rather than the price: `PendingScripts`, `MarkScriptsRequested`,
+  // `RunPendingScripts` and the rest named `script_` and did nothing else, so
+  // `Page` was a pass-through for its own script half. The engine now asks the
+  // script half directly and `Page` is back to coordinating.
+  RealmBoundScript& ScriptHalf() { return script_; }
+  const RealmBoundScript& ScriptHalf() const { return script_; }
 
   // Samples this page's `IntersectionObserver`s and `ResizeObserver`s against
   // the layout about to be painted, and runs the callbacks whose answers

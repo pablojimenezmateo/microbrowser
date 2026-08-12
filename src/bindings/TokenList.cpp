@@ -220,7 +220,7 @@ js::Value DomBindings::TokenListInterface() {
   const auto method = [this, &prototype](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       prototype.object->SetHidden(name, native);
     }
   };
@@ -229,8 +229,8 @@ js::Value DomBindings::TokenListInterface() {
     const Value getter = interpreter_->NewNativeValue(name, std::move(get));
     const Value setter = interpreter_->NewNativeValue(name, std::move(set));
     if (getter.IsObject() && setter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
-      setter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
+      setter.object->Set(kOwnerSlot, OwnerValue(this));
       prototype.object->DefineAccessor(name, getter.object, setter.object);
     }
   };
@@ -445,7 +445,7 @@ js::Value DomBindings::TokenListInterface() {
   const Value values = interpreter_->NewNativeValue(
       "values", [snapshot, iterator_of](NativeCall& call) { return iterator_of(call, snapshot(call)); });
   if (values.IsObject()) {
-    values.object->Set(kOwnerSlot, PointerValue(this));
+    values.object->Set(kOwnerSlot, OwnerValue(this));
     prototype.object->SetHidden("values", values);
     prototype.object->SetHidden(js::PropertyKey::Symbol(interpreter_->SymbolIterator()), values);
   }
@@ -523,7 +523,7 @@ js::Value DomBindings::MakeTokenList(dom::Element& element, const char* attribut
   const auto trap = [this, &handler](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       handler.object->Set(name, native);
     }
   };

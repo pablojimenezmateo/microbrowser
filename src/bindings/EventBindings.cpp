@@ -173,7 +173,7 @@ void DomBindings::InstallEventMethods(const js::Value& wrapper) {
   const auto method = [this, &wrapper](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       wrapper.object->Set(name, native);
     }
   };
@@ -512,7 +512,7 @@ js::Value DomBindings::EventPrototype(const char* name, const char* parent) {
     return event;
   });
   if (constructor.IsObject()) {
-    constructor.object->Set(kOwnerSlot, PointerValue(this));
+    constructor.object->Set(kOwnerSlot, OwnerValue(this));
     constructor.object->Set("prototype", prototype);
     // On the constructor as well as the prototype, because that is where a page
     // spells them: `Event.CAPTURING_PHASE`, not `Event.prototype.…`.

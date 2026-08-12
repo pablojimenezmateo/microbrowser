@@ -9,6 +9,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "bindings/BindingSupport.h"
 #include "bindings/Geometry.h"
 #include "util/UrlEncoded.h"
 #include "bindings/History.h"
@@ -86,6 +87,11 @@ class DomBindings {
   void Install();
 
   dom::Document& Document() { return *document_; }
+
+  // Hands over a node this layer created and nobody has inserted yet. What the
+  // DOM's "adopt" step needs when a node crosses documents: the `unique_ptr` is
+  // parked in the layer that made it. See TreeMutation.cpp's insertion path.
+  std::unique_ptr<dom::Node> TakeUnattached(dom::Node* node);
 
   // The wrapper for a node, made once and cached. Public because the engine
   // will need it to hand an event its target.
@@ -974,6 +980,8 @@ class DomBindings {
   // polyfill that writes `el.style` every frame is not preferred over nothing
   // when the engine has no clock behind the name (ADR 0012).
   AnimationSource* animations_ = nullptr;
+  OwnerIdentity identity_{this};  // see OwnerValue; also deletes copy and move
+  friend js::Value OwnerValue(const DomBindings* owner);
   // What a page last wrote to the clipboard. Held here rather than handed to the system, because
   // reaching the platform clipboard from the binding layer would be a module boundary crossed for one
   // string -- and a test needs to see what was written either way. Write-only for now: the reader

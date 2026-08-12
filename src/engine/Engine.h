@@ -95,7 +95,7 @@ class Engine : private bindings::NetworkSource,
     // embedder's `load` event, which is the whole difference between it and a `fetch`.
     return load_.active || !post_load_.images.empty() || !post_load_.scripts.empty() ||
            !post_load_.frames.empty() || !module_fetches_.empty() || page_.HasPendingModules() ||
-           page_.HasOutstandingScriptFetches();
+           page_.ScriptHalf()->HasOutstandingScriptFetches();
   }
   bool IsLoading() const {
     return IsDocumentLoading() || !script_fetches_.empty() || !font_fetches_.empty();
@@ -251,7 +251,18 @@ class Engine : private bindings::NetworkSource,
   // same-origin question, and `Page` may not see `src/url` -- the same inversion that put
   // `Frame::same_origin` on this side of the seam (ADR 0027 §2). True when any script ran, which
   // is the caller's signal that some document in the tree may have moved.
-  bool RunFrameScripts(Page& parent);
+  //
+  // `top_window` is the root of the whole tree, null at the outermost call. Threaded rather than
+  // re-derived, because `top` is the *first* window in the chain and every level below the second
+  // would otherwise answer with its own parent.
+  //
+  // **`run_scripts` splits the two halves, and they happen at different moments.** A child's
+  // *window* has to exist as soon as its element is in the document, because the embedder's own
+  // first script reads `iframe.contentWindow` -- but its *scripts* must not have run by then, or a
+  // child would see the embedder's globals before the embedder's own script had set them. Browsers
+  // get this for free because a frame's document arrives asynchronously; here it is a parameter,
+  // false on the pass before the page's scripts and true on the passes after.
+  bool RunFrameScripts(Page& parent, bool run_scripts, js::Object* top_window = nullptr);
   // The above, plus what a handler having run implies: the navigation it asked for, or a relayout
   // and a paint. `navigated` says the document is gone and the caller must touch nothing else.
   bool SettleFrameLoads(bool& navigated);

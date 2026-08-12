@@ -91,7 +91,7 @@ void DomBindings::InstallFocus(const js::Value& target) {
   const auto method = [this, &target](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->Set(name, native);
     }
   };
@@ -196,7 +196,7 @@ void DomBindings::InstallActiveElement(const js::Value& document) {
     return owner->WrapperFor(focused != nullptr ? focused : owner->BodyElement());
   });
   if (native.IsObject()) {
-    native.object->Set(kOwnerSlot, PointerValue(this));
+    native.object->Set(kOwnerSlot, OwnerValue(this));
     document.object->DefineAccessor("activeElement", native.object, nullptr);
   }
 }

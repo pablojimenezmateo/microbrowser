@@ -73,7 +73,7 @@ void DomBindings::InstallMatchMedia() {
     return Value::Bool(owner->geometry_->QueryMediaMatches(js::ToString(*query)));
   });
   if (matches.IsObject()) {
-    matches.object->Set(kOwnerSlot, PointerValue(this));
+    matches.object->Set(kOwnerSlot, OwnerValue(this));
     list_interface.object->DefineAccessor("matches", matches.object, nullptr);
   }
 
@@ -142,7 +142,7 @@ void DomBindings::InstallMatchMedia() {
         return list;
       });
   if (match_media.IsObject()) {
-    match_media.object->Set(kOwnerSlot, PointerValue(this));
+    match_media.object->Set(kOwnerSlot, OwnerValue(this));
     interpreter_->Global()->Set("matchMedia", match_media);
     interpreter_->GlobalScope()->Declare("matchMedia", match_media, false);
   }

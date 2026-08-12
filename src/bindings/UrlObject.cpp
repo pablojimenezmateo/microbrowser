@@ -232,7 +232,7 @@ void DomBindings::InstallUrlConstructor() {
         }
         object.object->SetPrototype(prototype.object);
         object.object->SetHidden(kHrefSlot, Value::String(parsed->Serialize()));
-        object.object->Set(kOwnerSlot, PointerValue(this));
+        object.object->Set(kOwnerSlot, OwnerValue(this));
         // Not clonable: a `URL` is a handle, and a structured clone of one would be a plain object
         // carrying its href with none of its behaviour. The standard's answer is a DataCloneError.
         object.object->MarkHostObject();
@@ -241,7 +241,7 @@ void DomBindings::InstallUrlConstructor() {
   if (!constructor.IsObject()) {
     return;
   }
-  constructor.object->Set(kOwnerSlot, PointerValue(this));
+  constructor.object->Set(kOwnerSlot, OwnerValue(this));
 
   // The components, as accessors on the prototype over the one href slot. On the prototype rather
   // than as own properties so that a setter cannot be shadowed by the value it wrote.
@@ -278,7 +278,7 @@ void DomBindings::InstallUrlConstructor() {
           return Value::Undefined();
         });
     if (set.IsObject()) {
-      set.object->Set(kOwnerSlot, PointerValue(this));
+      set.object->Set(kOwnerSlot, OwnerValue(this));
       prototype.object->DefineAccessor(PartName(part), get.object, set.object);
     }
   }
@@ -305,7 +305,7 @@ void DomBindings::InstallUrlConstructor() {
         return params;
       });
   if (search_params_get.IsObject()) {
-    search_params_get.object->Set(kOwnerSlot, PointerValue(this));
+    search_params_get.object->Set(kOwnerSlot, OwnerValue(this));
     prototype.object->DefineAccessor("searchParams", search_params_get.object, nullptr);
   }
 
@@ -357,14 +357,14 @@ void DomBindings::InstallUrlConstructor() {
         }
         object.object->SetPrototype(prototype.object);
         object.object->SetHidden(kHrefSlot, Value::String(parsed->Serialize()));
-        object.object->Set(kOwnerSlot, PointerValue(this));
+        object.object->Set(kOwnerSlot, OwnerValue(this));
         // Not clonable: a `URL` is a handle, and a structured clone of one would be a plain object
         // carrying its href with none of its behaviour. The standard's answer is a DataCloneError.
         object.object->MarkHostObject();
         return object;
       });
   if (parse_static.IsObject()) {
-    parse_static.object->Set(kOwnerSlot, PointerValue(this));
+    parse_static.object->Set(kOwnerSlot, OwnerValue(this));
     constructor.object->Set("parse", parse_static);
   }
 
@@ -448,8 +448,8 @@ void DomBindings::InstallBaseElementHref() {
     return Value::Undefined();
   });
   if (get.IsObject() && set.IsObject()) {
-    get.object->Set(kOwnerSlot, PointerValue(this));
-    set.object->Set(kOwnerSlot, PointerValue(this));
+    get.object->Set(kOwnerSlot, OwnerValue(this));
+    set.object->Set(kOwnerSlot, OwnerValue(this));
     prototype->object->DefineAccessor("href", get.object, set.object);
   }
 }
@@ -526,8 +526,8 @@ void Reflector::InstallHyperlinkElementUtils() {
       return Value::Undefined();
     });
     if (href_get.IsObject() && href_set.IsObject()) {
-      href_get.object->Set(kOwnerSlot, PointerValue(owner));
-      href_set.object->Set(kOwnerSlot, PointerValue(owner));
+      href_get.object->Set(kOwnerSlot, OwnerValue(owner));
+      href_set.object->Set(kOwnerSlot, OwnerValue(owner));
       prototype->object->DefineAccessor("href", href_get.object, href_set.object);
     }
 
@@ -549,7 +549,7 @@ void Reflector::InstallHyperlinkElementUtils() {
       if (!get.IsObject()) {
         continue;
       }
-      get.object->Set(kOwnerSlot, PointerValue(owner));
+      get.object->Set(kOwnerSlot, OwnerValue(owner));
       if (part == Part::Origin) {
         prototype->object->DefineAccessor(PartName(part), get.object, nullptr);
         continue;
@@ -576,7 +576,7 @@ void Reflector::InstallHyperlinkElementUtils() {
             return Value::Undefined();
           });
       if (set.IsObject()) {
-        set.object->Set(kOwnerSlot, PointerValue(owner));
+        set.object->Set(kOwnerSlot, OwnerValue(owner));
         prototype->object->DefineAccessor(PartName(part), get.object, set.object);
       }
     }
@@ -610,7 +610,7 @@ void DomBindings::InstallLocationParts(const js::Value& location_prototype) {
           return Value::String(url.has_value() ? ReadPart(*url, part) : std::string());
         });
     if (get.IsObject()) {
-      get.object->Set(kOwnerSlot, PointerValue(this));
+      get.object->Set(kOwnerSlot, OwnerValue(this));
       location_prototype.object->DefineAccessor(PartName(part), get.object, nullptr);
     }
   }

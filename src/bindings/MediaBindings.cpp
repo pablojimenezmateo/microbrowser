@@ -105,7 +105,7 @@ void DomBindings::InstallMediaElement(const js::Value& target) {
       return Value::String(std::string());
     });
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       native.object->Set("#media-method", Value::String(name));
       target.object->Set(name, native);
     }
@@ -196,9 +196,9 @@ void DomBindings::InstallMediaElement(const js::Value& target) {
       return Value::Undefined();
     });
     if (getter.IsObject() && setter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
       getter.object->Set("#media-prop", Value::String(name));
-      setter.object->Set(kOwnerSlot, PointerValue(this));
+      setter.object->Set(kOwnerSlot, OwnerValue(this));
       setter.object->Set("#media-prop", Value::String(name));
       target.object->DefineAccessor(name, getter.object, setter.object);
     }
@@ -229,7 +229,7 @@ void DomBindings::InstallMediaElement(const js::Value& target) {
         owner->media_->MediaBuffered(static_cast<const dom::Element&>(*node)));
   });
   if (buffered.IsObject()) {
-    buffered.object->Set(kOwnerSlot, PointerValue(this));
+    buffered.object->Set(kOwnerSlot, OwnerValue(this));
     target.object->DefineAccessor("buffered", buffered.object, nullptr);
   }
 }

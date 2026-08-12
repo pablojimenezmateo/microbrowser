@@ -168,8 +168,8 @@ void DomBindings::InstallHtmlParsing(const js::Value& element_interface) {
     const Value getter = interpreter_->NewNativeValue(name, std::move(get));
     const Value setter = interpreter_->NewNativeValue(name, std::move(set));
     if (getter.IsObject() && setter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
-      setter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
+      setter.object->Set(kOwnerSlot, OwnerValue(this));
       element_interface.object->DefineAccessor(name, getter.object, setter.object);
     }
   };
@@ -270,7 +270,7 @@ void DomBindings::InstallHtmlParsing(const js::Value& element_interface) {
   const auto method = [this, &element_interface](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       element_interface.object->Set(name, native);
     }
   };

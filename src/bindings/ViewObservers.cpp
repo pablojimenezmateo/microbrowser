@@ -567,7 +567,7 @@ void DomBindings::InstallViewObservers() {
             const Value native =
                 call.interpreter.NewNativeValue(method_name, std::move(function));
             if (native.IsObject()) {
-              native.object->Set(kOwnerSlot, PointerValue(self));
+              native.object->Set(kOwnerSlot, OwnerValue(self));
               observer.object->Set(method_name, native);
             }
           };
@@ -700,7 +700,7 @@ void DomBindings::InstallViewObservers() {
           return observer;
         });
     if (constructor.IsObject()) {
-      constructor.object->Set(kOwnerSlot, PointerValue(this));
+      constructor.object->Set(kOwnerSlot, OwnerValue(this));
       interpreter_->Global()->Set(name, constructor);
       interpreter_->GlobalScope()->Declare(name, constructor, false);
     }

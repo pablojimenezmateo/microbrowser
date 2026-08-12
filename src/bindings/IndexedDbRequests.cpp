@@ -216,7 +216,7 @@ void DomBindings::InstallIndexedDbCursors() {
     const auto method = [this, &index_interface](const char* name, js::NativeFunction fn) {
       const Value native = interpreter_->NewNativeValue(name, std::move(fn));
       if (native.IsObject()) {
-        native.object->Set(kOwnerSlot, PointerValue(this));
+        native.object->Set(kOwnerSlot, OwnerValue(this));
         index_interface.object->Set(name, native);
       }
     };
@@ -280,7 +280,7 @@ void DomBindings::InstallIndexedDbCursors() {
           return request;
         });
     if (open_cursor.IsObject()) {
-      open_cursor.object->Set(kOwnerSlot, PointerValue(this));
+      open_cursor.object->Set(kOwnerSlot, OwnerValue(this));
       store_interface.object->Set("openCursor", open_cursor);
     }
   }
@@ -290,7 +290,7 @@ void DomBindings::InstallIndexedDbCursors() {
     const auto method = [this, &cursor_interface](const char* name, js::NativeFunction fn) {
       const Value native = interpreter_->NewNativeValue(name, std::move(fn));
       if (native.IsObject()) {
-        native.object->Set(kOwnerSlot, PointerValue(this));
+        native.object->Set(kOwnerSlot, OwnerValue(this));
         cursor_interface.object->Set(name, native);
       }
     };

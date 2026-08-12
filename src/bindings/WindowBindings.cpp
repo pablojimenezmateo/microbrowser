@@ -135,8 +135,8 @@ void DomBindings::SyncNamedAccess() {
           return Value::Undefined();
         });
     if (getter.IsObject() && setter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
-      setter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
+      setter.object->Set(kOwnerSlot, OwnerValue(this));
       global->DefineAccessor(name, getter.object, setter.object);
     }
   });
@@ -154,7 +154,12 @@ void DomBindings::InstallWindow() {
   // `frameElement` is null. youtube's player reads `window.top.location` (and
   // `window === window.top`) on every load; without these the access throws
   // and reporting / bevasr / deid probes abort into catch paths.
-  // Nested contexts are ADR 0027 — until they exist, every Window is top-level.
+  // **The default, not the answer.** `PublishFrameWindows` overwrites `top`,
+  // `parent` and the indexed `window[i]` once the engine knows the shape of the
+  // tree, which is after this runs -- a child realm exists only once its
+  // document has arrived. So what is written here is what a *top-level*
+  // document keeps: it is its own parent and its own top, which is what every
+  // `while (w !== w.parent)` walk terminates on. See BrowsingContexts.h.
   global->Set("top", window);
   global->Set("parent", window);
   global->Set("frames", window);
@@ -196,7 +201,7 @@ void DomBindings::InstallWindow() {
       return Value::String(href_of(call));
     });
     if (to_string.IsObject()) {
-      to_string.object->Set(kOwnerSlot, PointerValue(this));
+      to_string.object->Set(kOwnerSlot, OwnerValue(this));
       location_prototype.object->Set("toString", to_string);
     }
 
@@ -219,7 +224,7 @@ void DomBindings::InstallWindow() {
         return Value::Undefined();
       });
       if (method.IsObject()) {
-        method.object->Set(kOwnerSlot, PointerValue(this));
+        method.object->Set(kOwnerSlot, OwnerValue(this));
         location_prototype.object->Set(name, method);
       }
     };
@@ -237,7 +242,7 @@ void DomBindings::InstallWindow() {
       return Value::Undefined();
     });
     if (reload.IsObject()) {
-      reload.object->Set(kOwnerSlot, PointerValue(this));
+      reload.object->Set(kOwnerSlot, OwnerValue(this));
       location_prototype.object->Set("reload", reload);
     }
 
@@ -263,8 +268,8 @@ void DomBindings::InstallWindow() {
       return Value::Undefined();
     });
     if (href_get.IsObject() && href_set.IsObject()) {
-      href_get.object->Set(kOwnerSlot, PointerValue(this));
-      href_set.object->Set(kOwnerSlot, PointerValue(this));
+      href_get.object->Set(kOwnerSlot, OwnerValue(this));
+      href_set.object->Set(kOwnerSlot, OwnerValue(this));
       location_prototype.object->DefineAccessor("href", href_get.object, href_set.object);
     }
 
@@ -333,7 +338,7 @@ void DomBindings::InstallWindow() {
     return Value::Null();
   });
   if (open_window.IsObject()) {
-    open_window.object->Set(kOwnerSlot, PointerValue(this));
+    open_window.object->Set(kOwnerSlot, OwnerValue(this));
     global->Set("open", open_window);
     interpreter_->GlobalScope()->Declare("open", open_window, false);
   }
@@ -350,7 +355,7 @@ void DomBindings::InstallWindow() {
     return Value::Undefined();
   });
   if (post_message.IsObject()) {
-    post_message.object->Set(kOwnerSlot, PointerValue(this));
+    post_message.object->Set(kOwnerSlot, OwnerValue(this));
     global->Set("postMessage", post_message);
     interpreter_->GlobalScope()->Declare("postMessage", post_message, false);
   }

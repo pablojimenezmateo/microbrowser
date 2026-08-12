@@ -178,7 +178,7 @@ js::Value DomBindings::MakeStyle(dom::Element& element) {
   const auto method = [this, &target, &element](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       native.object->Set(kNodeSlot, PointerValue(&element));
       target.object->Set(name, native);
     }
@@ -222,7 +222,7 @@ js::Value DomBindings::MakeStyle(dom::Element& element) {
   const auto trap = [this, &handler](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       handler.object->Set(name, native);
     }
   };
@@ -321,7 +321,7 @@ js::Value DomBindings::MakeDataset(dom::Element& element) {
   const auto trap = [this, &handler](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       handler.object->Set(name, native);
     }
   };

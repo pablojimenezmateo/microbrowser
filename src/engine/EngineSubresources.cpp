@@ -37,6 +37,22 @@ using util::PerfCounterId;
 // Engine::ProcessDynamicFrames -- a handler that navigates its own frame is a loop a page writes.
 constexpr int kMaxFrameLoadPasses = 8;
 
+// The interpreter a page's script runs in, built if it has none yet. Asked of a *parent* when a
+// same-origin child needs a realm: a parent with no script of its own still has to supply the heap
+// its child's objects live in, because a child allocating from an interpreter nobody else held
+// would hand its parent pointers into a heap that dies with it.
+//
+// A free function over the page's public surface rather than a method on it, because everything it
+// needs -- the document and the address it was loaded from -- is already public, and Page.h is at
+// the module's line cap.
+js::Interpreter* EnsureInterpreterOf(Page& page) {
+  dom::Document* document = page.MutableDocument();
+  if (document == nullptr) {
+    return nullptr;  // a frame whose response has not arrived
+  }
+  return &page.ScriptHalf()->EnsureHostInterpreter(*document, page.Url(), NowMilliseconds());
+}
+
 }  // namespace
 
 std::optional<net::FetchOptions> Engine::OptionsForSubresource(
@@ -130,7 +146,7 @@ void Engine::StartSubresources() {
     ++load_.sheets_outstanding;
   }
 
-  const std::vector<SubresourceRequest>& scripts = page_.PendingScripts();
+  const std::vector<SubresourceRequest>& scripts = page_.ScriptHalf()->PendingUrls();
   for (std::size_t i = 0; i < scripts.size(); ++i) {
     const std::optional<net::FetchOptions> options = OptionsForSubresource(scripts[i]);
     if (!options.has_value()) {
@@ -139,7 +155,7 @@ void Engine::StartSubresources() {
     const Loader::RequestId id = loader_.StartSubresource(
         scripts[i].url, document, privacy::ResourceType::Script, NowSeconds(), *options);
     load_.resources[id] = PendingResource{ResourceKind::Script, i, {}};
-    ++(page_.PendingScriptIsAsync(i) ? load_.async_scripts_outstanding
+    ++(page_.ScriptHalf()->IsAsync(i) ? load_.async_scripts_outstanding
                                      : load_.scripts_outstanding);
   }
 
@@ -148,7 +164,7 @@ void Engine::StartSubresources() {
   StartFrameRequests();
   StartWorkerScriptRequests();
 
-  page_.MarkScriptsRequested();
+  page_.ScriptHalf()->MarkScriptsRequested();
   load_.total_resources = load_.resources.size();
 }
 
@@ -283,8 +299,8 @@ void Engine::StartPendingScriptRequests() {
     }
     document = &*parsed;
   }
-  const std::size_t first_index = page_.PendingScripts().size();
-  std::vector<SubresourceRequest> pending = page_.TakeUnrequestedScripts();
+  const std::size_t first_index = page_.ScriptHalf()->PendingUrls().size();
+  std::vector<SubresourceRequest> pending = page_.ScriptHalf()->TakeUnrequestedScripts();
   if (pending.empty()) {
     return;
   }
@@ -297,7 +313,7 @@ void Engine::StartPendingScriptRequests() {
       // URL). YouTube's player loader waits on `load` only — a silent skip
       // leaves At7 hanging forever (TD-0024). Fire `error` so the page can
       // fail closed rather than wait.
-      page_.NotifyScriptFetchFailed(index);
+      page_.ScriptHalf()->NotifyFetchFailed(index);
       AddPerformanceCounter(PerfCounterId::EngineScriptsFailed);
       continue;
     }
@@ -306,7 +322,7 @@ void Engine::StartPendingScriptRequests() {
     if (load_.active) {
       load_.resources[id] = PendingResource{ResourceKind::Script, index, {}};
       ++load_.total_resources;
-      ++(page_.PendingScriptIsAsync(index) ? load_.async_scripts_outstanding
+      ++(page_.ScriptHalf()->IsAsync(index) ? load_.async_scripts_outstanding
                                            : load_.scripts_outstanding);
     } else {
       post_load_.scripts[id] = index;
@@ -322,9 +338,9 @@ bool Engine::OnLateScript(Loader::Completion completion) {
   const std::size_t index = found->second;
   post_load_.scripts.erase(found);
   if (!completion.result.ok ||
-      !IntegrityHolds(page_.PendingScripts(), index, completion.result.body)) {
+      !IntegrityHolds(page_.ScriptHalf()->PendingUrls(), index, completion.result.body)) {
     AddPerformanceCounter(PerfCounterId::EngineScriptsFailed);
-    page_.NotifyScriptFetchFailed(index);
+    page_.ScriptHalf()->NotifyFetchFailed(index);
     return true;
   }
   page_.AddScript(index, std::move(completion.result.body));
@@ -479,7 +495,7 @@ bool Engine::ProcessDynamicFrames() {
     // what says they are finished. A page that reads `frame.contentWindow.result` from `onload` --
     // which is most of how the suite gets an answer out of a frame -- sees nothing at all if these
     // two are the other way round.
-    RunFrameScripts(page_);
+    RunFrameScripts(page_, /*run_scripts=*/true);
     // And the `load` events owed to frames whose documents have arrived. Dispatched here rather
     // than where the document was set, because this is a *task* boundary: `iframe.onload = f` runs
     // after `appendChild` in the source, and a synchronous dispatch inside the collection pass
@@ -493,8 +509,9 @@ bool Engine::ProcessDynamicFrames() {
   return dispatched;
 }
 
-bool Engine::RunFrameScripts(Page& parent) {
+bool Engine::RunFrameScripts(Page& parent, bool run_scripts, js::Object* top_window) {
   bool ran = false;
+  bool tree_changed = false;
   for (Frame& frame : parent.MutableFrames().MutableFrames()) {
     if (frame.page == nullptr || !frame.loaded) {
       continue;
@@ -508,7 +525,7 @@ bool Engine::RunFrameScripts(Page& parent) {
         // another is a use-after-free waiting for the first collection (ADR 0042 §3). A
         // cross-origin child falls through to the branch below and builds its own interpreter,
         // which *is* the isolation rather than a check on top of it.
-        js::Interpreter* host = parent.EnsureScriptInterpreter(NowMilliseconds());
+        js::Interpreter* host = EnsureInterpreterOf(parent);
         if (host == nullptr) {
           continue;
         }
@@ -519,15 +536,49 @@ bool Engine::RunFrameScripts(Page& parent) {
           // sixty-four scripted frames is outside everything in ADR 0007.
           continue;
         }
-        frame.page->AttachScriptRealm(*host, *realm);
+        frame.page->ScriptHalf()->AttachToRealm(*host, *realm);
       }
+    }
+    // **The relations before the script, and both before `RunScripts`.** A child's first line can
+    // read `parent` and `top`, so the answer has to be on its global before its interpreter has
+    // evaluated anything -- which is why `AttachScriptRealm` is not enough on its own and why
+    // `EnsureScriptInterpreter` on the child is called here rather than left to `RunScripts`.
+    js::Object* child_window = nullptr;
+    if (frame.same_origin) {
+      if (EnsureInterpreterOf(*frame.page) != nullptr) {
+        child_window = frame.page->ScriptHalf()->Global();
+      }
+    }
+    if (child_window != nullptr) {
+      js::Object* parent_window = parent.ScriptHalf()->Global();
+      // `top` for a child of the top-level document is its parent, which is why the caller passes
+      // null and this passes its own window down: the root of the tree is the first window in it,
+      // not the nearest one.
+      frame.page->ScriptHalf()->FrameWindows().SetEmbedder(
+          parent_window, top_window != nullptr ? top_window : parent_window);
+      parent.ScriptHalf()->FrameWindows().SetNested(frame.element, child_window);
+      tree_changed = true;
+    }
+    if (tree_changed) {
+      // Published before this child runs, so `window.length` is already right for it -- and
+      // republished after every child for the same reason, since a later frame is a later index
+      // and a script already running would otherwise see the list grow underneath it.
+      parent.ScriptHalf()->PublishFrameWindows();
+      frame.page->ScriptHalf()->PublishFrameWindows();
+    }
+    if (!run_scripts) {
+      continue;  // the window exists; its document's scripts run at the point below
     }
     frame.page->RunScripts(NowMilliseconds());
     ran = true;
     // A frame inside a frame, and it recurses rather than iterating a flat list because the realm
     // a grandchild borrows is *its* parent's -- which for a same-origin chain is the same
-    // interpreter all the way up, and for a chain with a cross-origin link in it is not.
-    ran = RunFrameScripts(*frame.page) || ran;
+    // interpreter all the way up, and for a chain with a cross-origin link in it is not. `top`
+    // travels down unchanged, because it is the root of the whole tree rather than of this level.
+    ran = RunFrameScripts(*frame.page, run_scripts,
+                          top_window != nullptr ? top_window
+                                                : parent.ScriptHalf()->Global()) ||
+          ran;
   }
   return ran;
 }
@@ -555,7 +606,7 @@ bool Engine::ProcessDynamicScripts() {
     }
     return changed;
   }
-  if (page_.RunPendingScripts()) {
+  if (page_.ScriptHalf()->RunPendingScripts()) {
     if (FollowScriptNavigation()) {
       return true;
     }

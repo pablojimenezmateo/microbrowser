@@ -212,7 +212,7 @@ void DomBindings::InstallMediaSource() {
       return Value::Undefined();
     });
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       native.object->SetHidden("#sb-method", Value::String(name));
       buffer_prototype.object->Set(name, native);
     }
@@ -234,7 +234,7 @@ void DomBindings::InstallMediaSource() {
     return owner->MakeTimeRanges(owner->media_->SourceBufferBuffered(id));
   });
   if (buffered.IsObject()) {
-    buffered.object->Set(kOwnerSlot, PointerValue(this));
+    buffered.object->Set(kOwnerSlot, OwnerValue(this));
     buffer_prototype.object->DefineAccessor("buffered", buffered.object, nullptr);
   }
 
@@ -251,7 +251,7 @@ void DomBindings::InstallMediaSource() {
                        owner->media_->SourceBufferUpdating(id));
   });
   if (updating.IsObject()) {
-    updating.object->Set(kOwnerSlot, PointerValue(this));
+    updating.object->Set(kOwnerSlot, OwnerValue(this));
     buffer_prototype.object->DefineAccessor("updating", updating.object, nullptr);
   }
 
@@ -274,8 +274,8 @@ void DomBindings::InstallMediaSource() {
         return Value::Undefined();
       });
   if (offset_get.IsObject() && offset_set.IsObject()) {
-    offset_get.object->Set(kOwnerSlot, PointerValue(this));
-    offset_set.object->Set(kOwnerSlot, PointerValue(this));
+    offset_get.object->Set(kOwnerSlot, OwnerValue(this));
+    offset_set.object->Set(kOwnerSlot, OwnerValue(this));
     buffer_prototype.object->DefineAccessor("timestampOffset", offset_get.object, offset_set.object);
   }
 
@@ -308,8 +308,8 @@ void DomBindings::InstallMediaSource() {
       return Value::Undefined();
     });
     if (get.IsObject() && set.IsObject()) {
-      get.object->Set(kOwnerSlot, PointerValue(this));
-      set.object->Set(kOwnerSlot, PointerValue(this));
+      get.object->Set(kOwnerSlot, OwnerValue(this));
+      set.object->Set(kOwnerSlot, OwnerValue(this));
       buffer_prototype.object->DefineAccessor(name, get.object, set.object);
     }
   };
@@ -364,7 +364,7 @@ void DomBindings::InstallMediaSource() {
         return wrapper;
       });
   if (add_buffer.IsObject()) {
-    add_buffer.object->Set(kOwnerSlot, PointerValue(this));
+    add_buffer.object->Set(kOwnerSlot, OwnerValue(this));
     source_prototype.object->Set("addSourceBuffer", add_buffer);
   }
 
@@ -384,7 +384,7 @@ void DomBindings::InstallMediaSource() {
         return Value::Undefined();
       });
   if (end_of_stream.IsObject()) {
-    end_of_stream.object->Set(kOwnerSlot, PointerValue(this));
+    end_of_stream.object->Set(kOwnerSlot, OwnerValue(this));
     source_prototype.object->Set("endOfStream", end_of_stream);
   }
 
@@ -406,7 +406,7 @@ void DomBindings::InstallMediaSource() {
     }
   });
   if (ready_state.IsObject()) {
-    ready_state.object->Set(kOwnerSlot, PointerValue(this));
+    ready_state.object->Set(kOwnerSlot, OwnerValue(this));
     source_prototype.object->DefineAccessor("readyState", ready_state.object, nullptr);
   }
 
@@ -427,8 +427,8 @@ void DomBindings::InstallMediaSource() {
     return Value::Undefined();
   });
   if (duration_get.IsObject() && duration_set.IsObject()) {
-    duration_get.object->Set(kOwnerSlot, PointerValue(this));
-    duration_set.object->Set(kOwnerSlot, PointerValue(this));
+    duration_get.object->Set(kOwnerSlot, OwnerValue(this));
+    duration_set.object->Set(kOwnerSlot, OwnerValue(this));
     source_prototype.object->DefineAccessor("duration", duration_get.object, duration_set.object);
   }
 
@@ -464,7 +464,7 @@ void DomBindings::InstallMediaSource() {
         return source;
       });
   if (constructor.IsObject()) {
-    constructor.object->Set(kOwnerSlot, PointerValue(this));
+    constructor.object->Set(kOwnerSlot, OwnerValue(this));
     // Without this, `MediaSource.prototype` is undefined while instances still carry the
     // methods via SetPrototype — feature detection that walks the constructor fails and
     // youtube's player takes a different path than the one that appends.
@@ -483,7 +483,7 @@ void DomBindings::InstallMediaSource() {
           return Value::Bool(error != MediaController::AddBufferError::NotSupported);
         });
     if (is_supported.IsObject()) {
-      is_supported.object->Set(kOwnerSlot, PointerValue(this));
+      is_supported.object->Set(kOwnerSlot, OwnerValue(this));
       constructor.object->Set("isTypeSupported", is_supported);
     }
     interpreter_->Global()->Set("MediaSource", constructor);
@@ -532,7 +532,7 @@ void DomBindings::InstallObjectUrls() {
     return Value::String(created);
   });
   if (create.IsObject()) {
-    create.object->Set(kOwnerSlot, PointerValue(this));
+    create.object->Set(kOwnerSlot, OwnerValue(this));
     url.object->Set("createObjectURL", create);
   }
   const Value revoke = interpreter_->NewNativeValue("revokeObjectURL", [](NativeCall& call) -> Value {
@@ -549,7 +549,7 @@ void DomBindings::InstallObjectUrls() {
     return Value::Undefined();
   });
   if (revoke.IsObject()) {
-    revoke.object->Set(kOwnerSlot, PointerValue(this));
+    revoke.object->Set(kOwnerSlot, OwnerValue(this));
     url.object->Set("revokeObjectURL", revoke);
   }
 }

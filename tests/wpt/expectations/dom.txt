@@ -307,7 +307,7 @@ FAIL=window.event for constructors from another global: EventTarget
 FAIL=window.event for constructors from another global: XMLHttpRequest
 FAIL=window.event should not be affected by nodes moving post-dispatch
 [dom/events/event-global-is-still-set-when-coercing-beforeunload-result.html]
-FAIL=window.event is still set when 'beforeunload' result is coerced to string
+harness=TIMEOUT
 [dom/events/event-global-is-still-set-when-reporting-exception-onerror.html]
 FAIL=window.onerror handler restores window.event after it reports an exception
 [dom/events/event-global-set-before-handleEvent-lookup.window.html]
@@ -450,8 +450,6 @@ harness=TIMEOUT
 FAIL=scrollTop and scrollLeft should fire scroll event.
 FAIL=scrollTop and scrollLeft when scrolling above maximum offset.
 [dom/events/scrolling/scroll-event-fired-to-iframe.html]
-FAIL=scrollX and scrollY being set with invalid scroll Scroll.
-FAIL=scrollX and scrollY being set with the same value.
 FAIL=scrollX and scrollY should fire scroll event.
 FAIL=scrollX and scrollY when scrolling above maximum Scroll.
 [dom/events/scrolling/scrollIntoView-in-onscroll-to-sticky.html]
@@ -587,8 +585,6 @@ FAIL=createDocument test: undefined,undefined,undefined,null
 FAIL=createHTMLDocument(): from a saved and detached implementation does not return null
 [dom/nodes/DOMImplementation-createHTMLDocument.html]
 FAIL=createHTMLDocument(): metadata
-[dom/nodes/Document-URL.html]
-FAIL=Document.URL with redirect
 [dom/nodes/Document-characterSet-normalization-1.html]
 FAIL=Name "IBM866" has label "866" (characterSet)
 FAIL=Name "IBM866" has label "866" (charset)
@@ -2697,7 +2693,7 @@ harness=TIMEOUT
 [dom/nodes/MutationObserver-callback-arguments.html]
 FAIL=Callback is invoked with |this| value of MutationObserver and two arguments
 [dom/nodes/MutationObserver-cross-realm-callback-report-exception.html]
-harness=TIMEOUT
+FAIL=MutationObserver reports the exception from its callback in the callback's global object
 [dom/nodes/MutationObserver-document.html]
 FAIL=parser insertion mutations
 FAIL=parser script insertion mutation
@@ -3429,7 +3425,7 @@ harness=TIMEOUT
 [dom/nodes/moveBefore/css-animation-commit-styles.html]
 harness=TIMEOUT
 [dom/nodes/moveBefore/css-transition-cross-document.html]
-harness=TIMEOUT
+FAIL=Moving a transition across documents should reset its state
 [dom/nodes/moveBefore/css-transition-cross-shadow.html]
 harness=TIMEOUT
 [dom/nodes/moveBefore/css-transition-to-disconnected-document.html]
@@ -3524,6 +3520,7 @@ FAIL=Document.createTextNode() creates a node in the target document's realm
 FAIL=Range.cloneContents() builds the fragment in the range's node document realm
 FAIL=cloneNode() clones into the node's node document realm
 FAIL=importNode() imports into the target document's realm
+FAIL=innerHTML parses Text and Comment nodes in the node document's realm after adoption
 [dom/nodes/node-realm-adoption-after-frame-removal.html]
 FAIL=Never-wrapped node keeps its creation realm: iframe removed before adoption (subtree not pre-detached)
 FAIL=Never-wrapped node keeps its creation realm: subtree detached, iframe removed, then adopted
@@ -3532,6 +3529,7 @@ FAIL=Node reached through the adopting document still reports its creation realm
 FAIL=Custom element parsed into an adopted container uses the node-document realm and registry
 FAIL=Element parsed into an adopted container takes the node-document realm, not the container's creation realm
 FAIL=Never-wrapped node keeps its creation realm across multiple adoptions
+FAIL=Text parsed into an adopted container takes the node-document realm, not the container's creation realm
 [dom/nodes/node-realm-preserved-across-adoption.html]
 FAIL=Built-in element keeps its creation realm after adoption
 FAIL=Comment node keeps its creation realm after adoption

@@ -266,7 +266,7 @@ void DomBindings::InstallMutationObserver() {
         const auto method = [&](const char* name, js::NativeFunction function) {
           const Value native = call.interpreter.NewNativeValue(name, std::move(function));
           if (native.IsObject()) {
-            native.object->Set(kOwnerSlot, PointerValue(self));
+            native.object->Set(kOwnerSlot, OwnerValue(self));
             observer.object->Set(name, native);
           }
         };
@@ -387,7 +387,7 @@ void DomBindings::InstallMutationObserver() {
         return observer;
       });
   if (constructor.IsObject()) {
-    constructor.object->Set(kOwnerSlot, PointerValue(this));
+    constructor.object->Set(kOwnerSlot, OwnerValue(this));
     interpreter_->Global()->Set("MutationObserver", constructor);
     interpreter_->GlobalScope()->Declare("MutationObserver", constructor, false);
   }

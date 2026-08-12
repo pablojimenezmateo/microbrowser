@@ -323,7 +323,7 @@ void DomBindings::EnsureInterfaces() {
           return list;
         });
     if (getter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
       prototype->object->DefineAccessor(entry.property, getter.object, nullptr);
     }
   }
@@ -362,7 +362,7 @@ void DomBindings::EnsureInterfaces() {
       return content == nullptr ? Value::Undefined() : owner->WrapperFor(content);
     });
     if (getter.IsObject() && template_interface->IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
       template_interface->object->DefineAccessor("content", getter.object, nullptr);
     }
     // The four `shadowroot*` content attributes, reflected.
@@ -424,7 +424,7 @@ void DomBindings::EnsureInterfaces() {
             return owner->WrapperFor(made);
           });
       split.IsObject() && text_interface.IsObject()) {
-    split.object->Set(kOwnerSlot, PointerValue(this));
+    split.object->Set(kOwnerSlot, OwnerValue(this));
     text_interface.object->Set("splitText", split);
   }
   // `wholeText`: this node's data plus that of every Text node **contiguous**
@@ -460,7 +460,7 @@ void DomBindings::EnsureInterfaces() {
             return Value::String(std::move(out));
           });
       whole.IsObject() && text_interface.IsObject()) {
-    whole.object->Set(kOwnerSlot, PointerValue(this));
+    whole.object->Set(kOwnerSlot, OwnerValue(this));
     text_interface.object->DefineAccessor("wholeText", whole.object, nullptr);
   }
   const Value comment_interface = MakeInterface("Comment", character_data);
@@ -489,7 +489,7 @@ void DomBindings::EnsureInterfaces() {
       return Value::String(static_cast<dom::ProcessingInstruction*>(self)->Target());
     });
     if (target.IsObject()) {
-      target.object->Set(kOwnerSlot, PointerValue(this));
+      target.object->Set(kOwnerSlot, OwnerValue(this));
       processing_instruction.object->DefineAccessor("target", target.object, nullptr);
     }
   }
@@ -510,7 +510,7 @@ void DomBindings::EnsureInterfaces() {
         return Value::String((static_cast<dom::DocumentType*>(self)->*read)());
       });
       if (getter.IsObject()) {
-        getter.object->Set(kOwnerSlot, PointerValue(this));
+        getter.object->Set(kOwnerSlot, OwnerValue(this));
         document_type.object->DefineAccessor(name, getter.object, nullptr);
       }
     };
@@ -543,7 +543,7 @@ void DomBindings::EnsureInterfaces() {
       }));
     });
     if (by_id.IsObject()) {
-      by_id.object->Set(kOwnerSlot, PointerValue(this));
+      by_id.object->Set(kOwnerSlot, OwnerValue(this));
       fragment.object->Set("getElementById", by_id);
     }
   }
@@ -572,7 +572,7 @@ void DomBindings::EnsureInterfaces() {
       return host_element == nullptr ? Value::Null() : WrapperFor(host_element);
     });
     if (host.IsObject()) {
-      host.object->Set(kOwnerSlot, PointerValue(this));
+      host.object->Set(kOwnerSlot, OwnerValue(this));
       shadow_root.object->DefineAccessor("host", host.object, nullptr);
     }
     // Open or closed, read from the host that owns this root. A fragment that
@@ -590,7 +590,7 @@ void DomBindings::EnsureInterfaces() {
       return Value::String(std::string(host_element->ShadowIsOpen() ? "open" : "closed"));
     });
     if (mode.IsObject()) {
-      mode.object->Set(kOwnerSlot, PointerValue(this));
+      mode.object->Set(kOwnerSlot, OwnerValue(this));
       shadow_root.object->DefineAccessor("mode", mode.object, nullptr);
     }
     // The three booleans `attachShadow` took and `<template shadowroot*>` set.
@@ -610,7 +610,7 @@ void DomBindings::EnsureInterfaces() {
         return Value::Bool(root.Host() != nullptr && Any(root.Flags() & flag));
       });
       if (getter.IsObject()) {
-        getter.object->Set(kOwnerSlot, PointerValue(this));
+        getter.object->Set(kOwnerSlot, OwnerValue(this));
         shadow_root.object->DefineAccessor(name, getter.object, nullptr);
       }
     };
@@ -628,7 +628,7 @@ void DomBindings::EnsureInterfaces() {
           return Value::String(manual ? "manual" : "named");
         });
     if (slot_assignment.IsObject()) {
-      slot_assignment.object->Set(kOwnerSlot, PointerValue(this));
+      slot_assignment.object->Set(kOwnerSlot, OwnerValue(this));
       shadow_root.object->DefineAccessor("slotAssignment", slot_assignment.object, nullptr);
     }
   }
@@ -697,7 +697,7 @@ void DomBindings::EnsureInterfaces() {
     if (!constructor.IsObject() || !prototype.IsObject()) {
       return;
     }
-    constructor.object->Set(kOwnerSlot, PointerValue(this));
+    constructor.object->Set(kOwnerSlot, OwnerValue(this));
     constructor.object->Set("prototype", prototype);
     prototype.object->Set("constructor", constructor);
     // A binding rather than an own property on the global, for the reason

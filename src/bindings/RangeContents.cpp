@@ -153,7 +153,7 @@ void DomBindings::InstallRangeContents(const js::Value& range_interface) {
   const auto method = [this, &range_interface](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       range_interface.object->Set(name, native);
     }
   };
@@ -564,14 +564,14 @@ void DomBindings::InstallRangeContents(const js::Value& range_interface) {
                                                    js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       selection_interface.object->Set(name, native);
     }
   };
   const auto sel_accessor = [this, &selection_interface](const char* name, js::NativeFunction get) {
     const Value native = interpreter_->NewNativeValue(name, std::move(get));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       selection_interface.object->DefineAccessor(name, native.object, nullptr);
     }
   };
@@ -694,7 +694,7 @@ void DomBindings::InstallRangeContents(const js::Value& range_interface) {
   if (!get_selection.IsObject()) {
     return;
   }
-  get_selection.object->Set(kOwnerSlot, PointerValue(this));
+  get_selection.object->Set(kOwnerSlot, OwnerValue(this));
   interpreter_->Global()->Set("getSelection", get_selection);
   interpreter_->GlobalScope()->Declare("getSelection", get_selection, false);
   // `document.getSelection()` is the same object as `window.getSelection()`,

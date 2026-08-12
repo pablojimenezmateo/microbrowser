@@ -64,7 +64,7 @@ void DomBindings::InstallHistory() {
     return Value::Number(static_cast<double>(history_->HistoryLength()));
   });
   if (length.IsObject()) {
-    length.object->Set(kOwnerSlot, PointerValue(this));
+    length.object->Set(kOwnerSlot, OwnerValue(this));
     history.object->DefineAccessor("length", length.object, nullptr);
   }
 
@@ -72,7 +72,7 @@ void DomBindings::InstallHistory() {
     return HistoryStateValue();
   });
   if (state.IsObject()) {
-    state.object->Set(kOwnerSlot, PointerValue(this));
+    state.object->Set(kOwnerSlot, OwnerValue(this));
     history.object->DefineAccessor("state", state.object, nullptr);
   }
 
@@ -139,7 +139,7 @@ void DomBindings::InstallHistory() {
           return Value::Undefined();
         });
     if (method.IsObject()) {
-      method.object->Set(kOwnerSlot, PointerValue(this));
+      method.object->Set(kOwnerSlot, OwnerValue(this));
       history.object->Set(name, method);
     }
   };
@@ -164,7 +164,7 @@ void DomBindings::InstallHistory() {
           return Value::Undefined();
         });
     if (method.IsObject()) {
-      method.object->Set(kOwnerSlot, PointerValue(this));
+      method.object->Set(kOwnerSlot, OwnerValue(this));
       history.object->Set(name, method);
     }
   };

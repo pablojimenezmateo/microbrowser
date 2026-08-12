@@ -381,6 +381,88 @@ void RegisterFrameTests(std::vector<TestCase>& tests) {
     // realms rather than repeating it.
     Expect(session.engine.ScriptErrors().empty(), "neither child's script threw");
   });
+
+  AddTest(tests, "Frames/ContentWindowIsTheChildsGlobal", [] {
+    // What `contentWindow` was before: a plain object with a `document` on it, made fresh on every
+    // read. So `f.contentWindow !== f.contentWindow`, `f.contentWindow.foo` never survived, and
+    // `f.contentDocument !== f.contentWindow.document` -- a page comparing the last pair would
+    // conclude it was looking at two different documents.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html",
+                   "<iframe id=f srcdoc=\"<script>window.answer = 42;</" "script>\"></iframe>"
+                   "<script>document.getElementById('f').onload = function () {"
+                   "  console.log('answer=' + this.contentWindow.answer +"
+                   "    ' same=' + (this.contentWindow === this.contentWindow) +"
+                   "    ' doc=' + (this.contentDocument === this.contentWindow.document));"
+                   "};</" "script>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://page.example/"});
+
+    ExpectEqString(Joined(session.engine.ConsoleOutput()), "answer=42 same=true doc=true",
+                   "contentWindow is the child's real global, and its document is contentDocument");
+  });
+
+  AddTest(tests, "Frames/AChildSeesItsParentAndTop", [] {
+    // The other direction, and the one that needed the realms: a child reaching *out*. `parent`
+    // and `top` were both the child's own window, so `while (w !== w.top)` terminated at once and
+    // every "am I framed?" check in the suite answered no.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html",
+                   "<iframe id=f srcdoc=\"<script>"
+                   "window.report = (parent !== window) + ',' + (parent === top) + ',' +"
+                   "  (parent.marker === 'embedder');"
+                   "</" "script>\"></iframe>"
+                   "<script>window.marker = 'embedder';"
+                   "document.getElementById('f').onload = function () {"
+                   "  console.log(this.contentWindow.report + ' len=' + window.length +"
+                   "    ' idx=' + (window[0] === this.contentWindow) +"
+                   "    ' selftop=' + (window.top === window));"
+                   "};</" "script>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://page.example/"});
+
+    ExpectEqString(Joined(session.engine.ConsoleOutput()),
+                   "true,true,true len=1 idx=true selftop=true",
+                   "a child's parent and top are the embedder; the embedder indexes its children");
+  });
+
+  AddTest(tests, "Frames/ACrossOriginChildHasNoWindow", [] {
+    // **The security property from the other side.** A cross-origin child gets an interpreter of
+    // its own rather than a realm, so there is nothing to put in the embedder's table -- and
+    // `contentWindow` answering null is therefore structural rather than a check somebody
+    // remembered to write. It must also be indistinguishable from a frame with no document at
+    // all, because "is there a document there" is information about another origin.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html",
+                   "<iframe id=f src='https://other.example/x.html'></iframe>"
+                   "<script>document.getElementById('f').onload = function () {"
+                   "  console.log('win=' + this.contentWindow + ' doc=' + this.contentDocument +"
+                   "    ' len=' + window.length);"
+                   "};</" "script>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "other.example", 443, true,
+        OkResponse("text/html", "<script>window.secret = 1;</" "script>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://page.example/"});
+
+    ExpectEqString(Joined(session.engine.ConsoleOutput()), "win=null doc=null len=0",
+                   "a cross-origin child is invisible to its embedder, window and all");
+  });
 }
 
 }  // namespace microbrowser::tests

@@ -109,7 +109,7 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
     return Value::Undefined();
   });
   if (replace_sync.IsObject()) {
-    replace_sync.object->Set(kOwnerSlot, PointerValue(this));
+    replace_sync.object->Set(kOwnerSlot, OwnerValue(this));
     prototype.object->Set("replaceSync", replace_sync);
   }
 
@@ -132,7 +132,7 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
     return promise;
   });
   if (replace.IsObject()) {
-    replace.object->Set(kOwnerSlot, PointerValue(this));
+    replace.object->Set(kOwnerSlot, OwnerValue(this));
     prototype.object->Set("replace", replace);
   }
 
@@ -157,7 +157,7 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
   if (constructor.IsObject()) {
     constructor.object->Set("prototype", prototype);
     prototype.object->Set("constructor", constructor);
-    constructor.object->Set(kOwnerSlot, PointerValue(this));
+    constructor.object->Set(kOwnerSlot, OwnerValue(this));
     interpreter_->Global()->Set("CSSStyleSheet", constructor);
     interpreter_->GlobalScope()->Declare("CSSStyleSheet", constructor, false);
   }
@@ -215,8 +215,8 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
       return Value::Undefined();
     });
     if (getter.IsObject() && setter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
-      setter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
+      setter.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->DefineAccessor("adoptedStyleSheets", getter.object, setter.object);
     }
   };

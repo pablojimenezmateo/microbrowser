@@ -13,6 +13,7 @@
 #include "bindings/Canvas.h"
 #include "bindings/Workers.h"
 #include "bindings/DomBindings.h"
+#include "bindings/BrowsingContexts.h"
 #include "bindings/Geometry.h"
 #include "bindings/History.h"
 #include "bindings/IndexedDb.h"
@@ -422,6 +423,25 @@ class PageScript {
     return interpreter_ != nullptr ? interpreter_ : host_interpreter_;
   }
   js::RealmId Realm() const { return realm_; }
+  // This document's global, or null before it has one. What an embedder puts in
+  // its own `FrameGlobals` so that `iframe.contentWindow` can answer with it.
+  js::Object* Global() const {
+    return interpreter_ == nullptr ? nullptr : interpreter_->GlobalOf(realm_);
+  }
+  // The windows around this one: which `<iframe>` holds which child context,
+  // and which context holds this one. Written by the engine, which is the only
+  // module that knows the shape of the tree, and read by the accessors
+  // `InstallFrameWindows` put on `HTMLIFrameElement` and on the global.
+  bindings::FrameGlobals& FrameWindows() { return frame_windows_; }
+  // Rewrites `parent`, `top`, `window[i]` and `window.length` from it. Called
+  // again whenever the tree moves rather than once at install, because a child
+  // realm exists only after its document arrives -- so at install time the
+  // answer is not yet known.
+  void PublishFrameWindows() {
+    if (interpreter_ != nullptr) {
+      bindings::PublishFrameWindows(*interpreter_, frame_windows_);
+    }
+  }
   // The interpreter, built if this page does not have one yet. What a parent is
   // asked for when a same-origin child needs a realm: a parent with no script of
   // its own still has to supply the heap its child's objects live in.
@@ -556,6 +576,11 @@ class PageScript {
   // on the new ones.
   bool inline_handlers_allowed_ = false;
   std::function<void()> trusted_insertion_flush_;
+  // The child contexts each `<iframe>` in this document holds, and the context
+  // this one is held by. ADR 0042 §5. Here rather than on `DomBindings` because
+  // that class is at 989 of its 990 permitted lines, which is the lint saying
+  // the next thing added to it should be a separate class -- and this is one.
+  bindings::FrameGlobals frame_windows_;
 
   // The only thing that may build one. See RealmBoundScript.
   friend class RealmBoundScript;

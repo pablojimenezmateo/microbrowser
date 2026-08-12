@@ -126,7 +126,7 @@ void DomBindings::InstallWebSocket() {
         // closes.
         const std::uint64_t id = owner->sockets_->OpenSocket(url);
         socket.object->Set(kSocketIdSlot, Value::Number(static_cast<double>(id)));
-        socket.object->Set(kOwnerSlot, PointerValue(owner));
+        socket.object->Set(kOwnerSlot, OwnerValue(owner));
         socket.object->Set("url", Value::String(url));
         socket.object->Set("readyState", Value::Number(id == 0 ? kClosed : kConnecting));
         socket.object->Set("bufferedAmount", Value::Number(0));
@@ -175,7 +175,7 @@ void DomBindings::InstallWebSocket() {
                 return Value::Undefined();
               });
           if (function.IsObject()) {
-            function.object->Set(kOwnerSlot, PointerValue(owner));
+            function.object->Set(kOwnerSlot, OwnerValue(owner));
             function.object->Set(kSocketIdSlot, Value::Number(static_cast<double>(id)));
             function.object->Set("#socket-method", Value::String(name));
           }
@@ -212,7 +212,7 @@ void DomBindings::InstallWebSocket() {
   if (!constructor.IsObject()) {
     return;
   }
-  constructor.object->Set(kOwnerSlot, PointerValue(this));
+  constructor.object->Set(kOwnerSlot, OwnerValue(this));
   // The four `readyState` constants, which real code compares against by name.
   constructor.object->Set("CONNECTING", Value::Number(kConnecting));
   constructor.object->Set("OPEN", Value::Number(kOpen));
@@ -334,7 +334,7 @@ void DomBindings::InstallEventSource() {
         }
         const std::uint64_t id = owner->sockets_->OpenEventSource(url);
         stream.object->Set(kSocketIdSlot, Value::Number(static_cast<double>(id)));
-        stream.object->Set(kOwnerSlot, PointerValue(owner));
+        stream.object->Set(kOwnerSlot, OwnerValue(owner));
         stream.object->Set("url", Value::String(url));
         stream.object->Set("readyState", Value::Number(id == 0 ? kClosed : kConnecting));
         stream.object->Set("onopen", Value::Null());
@@ -359,7 +359,7 @@ void DomBindings::InstallEventSource() {
           return Value::Undefined();
         });
         if (close.IsObject()) {
-          close.object->Set(kOwnerSlot, PointerValue(owner));
+          close.object->Set(kOwnerSlot, OwnerValue(owner));
           close.object->Set(kSocketIdSlot, Value::Number(static_cast<double>(id)));
         }
         stream.object->Set("close", close);
@@ -383,7 +383,7 @@ void DomBindings::InstallEventSource() {
   if (!constructor.IsObject()) {
     return;
   }
-  constructor.object->Set(kOwnerSlot, PointerValue(this));
+  constructor.object->Set(kOwnerSlot, OwnerValue(this));
   constructor.object->Set("CONNECTING", Value::Number(kConnecting));
   constructor.object->Set("OPEN", Value::Number(kOpen));
   constructor.object->Set("CLOSED", Value::Number(kClosed));

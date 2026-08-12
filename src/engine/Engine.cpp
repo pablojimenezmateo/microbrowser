@@ -298,7 +298,7 @@ std::string Engine::LoadingReason() const {
   note(!module_fetches_.empty(), "module_fetches");
   note(!font_fetches_.empty(), "font_fetches");
   note(page_.HasPendingModules(), "pending_modules");
-  note(page_.HasOutstandingScriptFetches(), "outstanding_scripts");
+  note(page_.ScriptHalf()->HasOutstandingScriptFetches(), "outstanding_scripts");
   return out.str();
 }
 
@@ -437,10 +437,10 @@ void Engine::OnCompletion(Loader::Completion completion) {
       // Which counter this came off decides whether the first paint was
       // waiting for it. `async` says the page is not, and honouring that is
       // the whole of what the attribute means.
-      const bool is_async = page_.PendingScriptIsAsync(resource.index);
+      const bool is_async = page_.ScriptHalf()->IsAsync(resource.index);
       --(is_async ? load_.async_scripts_outstanding : load_.scripts_outstanding);
       if (completion.result.ok &&
-          !IntegrityHolds(page_.PendingScripts(), resource.index, completion.result.body)) {
+          !IntegrityHolds(page_.ScriptHalf()->PendingUrls(), resource.index, completion.result.body)) {
         // Refused to execute. The slot stays empty and the scripts after it
         // still run, which is what a failed script load already did.
         AddPerformanceCounter(PerfCounterId::EngineScriptsFailed);
@@ -455,7 +455,7 @@ void Engine::OnCompletion(Loader::Completion completion) {
               return;
             }
           }
-        } else if (is_async && page_.RunReadyAsyncScripts()) {
+        } else if (is_async && page_.ScriptHalf()->RunReadyAsync()) {
           // It landed after the page was already up. Running it can have
           // changed the tree, so the page is laid out again -- which is what
           // an async script arriving late looks like in every browser.
@@ -618,6 +618,14 @@ void Engine::AdvanceLoad() {
       (void)page_.EvaluateScript(script_prelude_);
       script_prelude_.clear();
     }
+    // **Before the document's own scripts, and this is not the same call as the one in
+    // `ProcessDynamicFrames`.** An `<iframe>` with no `src` -- and one with `srcdoc` -- is handed
+    // its document synchronously during the subresource pass, so by the time the parser's scripts
+    // run it already exists and `iframe.contentWindow` has to answer with it. That is how most of
+    // the suite builds a second realm: `<iframe></iframe>` followed by an inline script that reads
+    // `contentWindow` on its first line. Without this the window is null there and the page fails
+    // at the *first* thing it does.
+    RunFrameScripts(page_, /*run_scripts=*/false);
     page_.RunScripts(NowMilliseconds());
     load_.scripts_ran = true;
     post_load_.document_interactive = true;

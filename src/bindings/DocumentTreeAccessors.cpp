@@ -160,8 +160,8 @@ void DocumentTree::Install(const js::Value& target) {
         return Value::Undefined();
       });
   if (body_get.IsObject() && body_set.IsObject()) {
-    body_get.object->Set(kOwnerSlot, PointerValue(owner));
-    body_set.object->Set(kOwnerSlot, PointerValue(owner));
+    body_get.object->Set(kOwnerSlot, OwnerValue(owner));
+    body_set.object->Set(kOwnerSlot, OwnerValue(owner));
     target.object->DefineAccessor("body", body_get.object, body_set.object);
   }
 
@@ -219,8 +219,8 @@ void DocumentTree::Install(const js::Value& target) {
         return Value::Undefined();
       });
   if (title_get.IsObject() && title_set.IsObject()) {
-    title_get.object->Set(kOwnerSlot, PointerValue(owner));
-    title_set.object->Set(kOwnerSlot, PointerValue(owner));
+    title_get.object->Set(kOwnerSlot, OwnerValue(owner));
+    title_set.object->Set(kOwnerSlot, OwnerValue(owner));
     target.object->DefineAccessor("title", title_get.object, title_set.object);
   }
 }
