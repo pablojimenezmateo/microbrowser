@@ -131,6 +131,13 @@
       "notes": "AbortSignal.any follows DOM 3.3 including the flattening: a signal composed from a composed signal links to the original sources, so abort events fire source-first then in creation order however deep the composition goes. Chaining instead fires them depth-first, which is a different order for the same tree. AbortSignal.timeout needed TimerQueue::QueueDelayedTask -- a deadline the browser owns, deliberately not the page's setTimeout."
     },
     {
+      "id": "C11", "milestone": "M-C", "title": "event handler content attributes", "area": "dom/events/",
+      "scope": "`<div onclick=\"...\">` and setAttribute(\"onclick\", ...) compile a handler. Lazily, at the point RunListenersOn already asks for the `on<type>` property and finds nothing -- HTML's internal raw uncompiled handler. Cache against the attribute's source text so a change recompiles and removeAttribute clears it.",
+      "check": "dom/events/Body-FrameSet-Event-Handlers.html goes from 0 to passing, and dom/nodes/remove-unscopable.html reaches 6 of 6.",
+      "depends": ["C6"], "target": "200 subtests", "status": "not_started", "agent": null, "adr": "0020",
+      "notes": "Measured 2026-08-12 and NOT started, because it has a security half. An inline event handler is what CSP 'unsafe-inline' governs, and src/bindings cannot see src/csp -- its allow: line is a security boundary (ADR 0008) and DocumentPolicy::AllowsInline lives in src/engine. So the gate is a flag the engine sets on the binding layer, the same inversion GeometrySource and NetworkSource use, and it is one boolean per document: nonces and hashes do not apply to handlers, only 'unsafe-inline' does (script-src-attr falling back to script-src). Landing the compilation without that flag opens a script-execution path CSP does not see."
+    },
+    {
       "id": "C8", "milestone": "M-C", "title": "shadow DOM and custom elements", "area": "shadow-dom/",
       "scope": "Reactions, adoptedCallback, :host/::slotted, slot assignment.",
       "check": "shadow-dom/ >= 75% and custom-elements/ >= 75%.", "depends": ["C4", "C6"], "target": "75%",

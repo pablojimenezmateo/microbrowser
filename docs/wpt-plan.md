@@ -292,6 +292,35 @@ Known causes already visible from 150 tests:
 | C8 | `shadow-dom/` + `custom-elements/` — reactions, `adoptedCallback`, `:host`/`::slotted`, slot assignment | C4, C6 | 75% |
 | C9 | `domparsing/` — `DOMParser`, `XMLSerializer`, `insertAdjacent*` | C1 | 80% |
 | C10 | `html/dom/` — reflection: every reflected IDL attribute, `Element` interface mixins | C3 | 70% |
+| C11 | event handler **content** attributes: `<div onclick="…">` and `setAttribute("onclick", …)` compile a handler | C6 | 200 subtests |
+
+**C11 is measured and specified but not started, and it has a security half that
+is the reason it is its own task.** Nothing in this browser compiles an `on*`
+*attribute* today: `RunListenersOn` reads the wrapper's `on<type>` **property**,
+so `el.onclick = fn` works and markup does not. That is 47 subtests in
+`dom/events/Body-FrameSet-Event-Handlers.html`, the tail of
+`dom/nodes/remove-unscopable.html`, and a share of the 121 in
+`Event-dispatch-single-activation-behavior.html`, which drives every activation
+through `oninput`/`onsubmit`/`onreset`/`ontoggle` written in markup.
+
+The shape is settled. HTML calls an unset one an *internal raw uncompiled
+handler*, so it compiles **lazily**: `RunListenersOn` already asks for
+`on<type>` and finds nothing, and that is the point at which to compile the
+attribute's text — no parser hook, and an element without the attribute pays a
+lookup it was already paying. Cache the compiled function against the
+attribute's *source text* so that changing the attribute recompiles and
+`removeAttribute` clears it.
+
+**The security half: an inline event handler is exactly what CSP
+`'unsafe-inline'` governs, and `src/bindings` cannot see `src/csp`** — its
+`allow:` line is a security boundary (ADR 0008), and `DocumentPolicy::
+AllowsInline` lives in `src/engine`. So the gate is a flag the engine sets on
+this layer, the same inversion `GeometrySource` and `NetworkSource` use. It is
+one boolean per document rather than a per-handler question: nonces and hashes
+do not apply to handlers, only `'unsafe-inline'` does (`script-src-attr`
+falling back to `script-src`). Landing the compilation without that flag would
+open a script-execution path CSP does not see, which is why this is a task and
+not a fix.
 
 C1 and C2 are the two that unblock the rest of the suite and should be done
 first, by one agent, in that order. C4–C10 are parallel after them.

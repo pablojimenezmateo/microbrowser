@@ -5038,3 +5038,23 @@ regression, and the next session pays for it. `--timeout-multiplier` is the miti
 `docs/wpt-baseline.md` is **not** regenerated here for the same reason, and because `--summary`
 rewrites it from a `--summary-state` file that lives in `/tmp` and described one area (task B6
 already names this).
+
+### The next block is `on*` content attributes, and it was measured rather than started
+
+`<div onclick="…">` compiles nothing here, and neither does
+`setAttribute("onclick", …)`. `RunListenersOn` reads the wrapper's `on<type>`
+**property**, so `el.onclick = fn` has always worked and markup never has. That is
+worth ~200 subtests and the implementation shape is settled — HTML calls an unset one an
+*internal raw uncompiled handler*, so it compiles **lazily** at the point that read already
+happens, with no parser hook and nothing to pay for an element that has no such attribute.
+
+It was not started because it has a security half that a session in a hurry would miss.
+**An inline event handler is exactly what CSP `'unsafe-inline'` governs**, and `src/bindings`
+cannot see `src/csp` — that `allow:` line is a security boundary (ADR 0008), and
+`DocumentPolicy::AllowsInline` lives in `src/engine`. So the gate has to be a flag the engine
+sets on this layer, the same inversion `GeometrySource` and `NetworkSource` use. The good news
+is that it is *one boolean per document*: nonces and hashes do not apply to handlers, only
+`'unsafe-inline'` does (`script-src-attr` falling back to `script-src`). Landing the compilation
+without that flag would open a script-execution path CSP cannot see, and the browser would still
+pass more tests — which is the shape of the mistake worth naming. It is task **C11** now, in
+`docs/wpt-plan.md` and the ledger.
