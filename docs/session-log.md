@@ -4996,6 +4996,21 @@ MutationObserver fires mid-parse), two need iframes (ADR 0027), and 40 are
 scripts — and wants the module loader first. The comment block at the head of the declarative
 section in `shadow-dom.txt` says the same thing where the next agent will trip over it.
 
+**Found — ASan is red, and not because of this.** `run-checks.sh asan` fails four of
+twenty-five shards. Every *direct* leak in the entire run has one allocation site:
+`ConstructableStylesheets.cpp:148`, where `new CSSStyleSheet()` does `storage.release()`
+into a hidden slot that nothing ever deletes. It reproduces on a single untouched test
+(93 bytes, 3 allocations, every run) and a page drives the count — `for(;;) new CSSStyleSheet()`
+leaks forever. That is **TD-0053**. What it cost *this* session is the thing worth noting: ASan
+being expected-red is why the real use-after-free below took a deliberate re-read to find rather
+than being obvious the first time the suite went red.
+
+ASan did earn its keep once: the first draft of the `</template>` handler flushed the declarative
+shadow — which destroys the parser-owned template, since `declarative_shadows_` is its only owner —
+*before* `PopUntil` read `TagName()` off the open-element stack. A use-after-free reachable from
+`<div><template shadowrootmode=open></template></div>`, i.e. from the feature's happy path, found by
+one of the eight new unit tests. Capture the pointer, pop, then flush.
+
 Also left: **TD-0052**, and the `DomBindings` split it forced a first step of. The class has been
 "the missing module" for five cap raises; this session moved the two installers that were never
 really members (`InstallTemplateShadowReflection`, `InstallElementInternals`) out to a private

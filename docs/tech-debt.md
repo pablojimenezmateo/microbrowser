@@ -2359,6 +2359,43 @@ against the widened list.
 
 ---
 
+## TD-0053 — every `new CSSStyleSheet()` leaks its storage, permanently
+
+**Opened** 2026-08-12, found by running ASan over the shadow-DOM tests while
+landing declarative shadow DOM. **Not caused by that work** — it reproduces on
+one untouched test.
+
+`src/bindings/ConstructableStylesheets.cpp:148` builds the sheet's text as
+`std::make_unique<SheetStorage>(...)` and then calls `storage.release()` so the
+raw pointer can go into a hidden slot on the JavaScript object. Nothing ever
+deletes it. The wrapper is collected; the `shared_ptr<std::string>` behind it is
+not, because the collector has no destructor to run and no other owner exists.
+
+**Measured.** `microbrowser_tests ShadowDom/AdoptedStyleSheetDoesNotLeakOutOfShadow`
+under ASan: `93 byte(s) leaked in 3 allocation(s)`, every time, from that one
+line. Four of the twenty-five `run-checks.sh asan` shards fail on it and nothing
+else — every *direct* leak in the whole run has the same allocation site.
+
+**Why it is worth an entry rather than a shrug.** 93 bytes is not the problem;
+**a page drives the count**. `for (;;) new CSSStyleSheet()` is a loop a page may
+write, every iteration is a permanent allocation, and constructable stylesheets
+are how component frameworks ship styles — a page that builds one per component
+instance leaks one per instance for the life of the process. It also keeps
+`run-checks.sh asan` red, which is the worse cost: a sanitizer that is expected
+to fail is a sanitizer nobody reads, and it is what stopped this run from being
+able to say "ASan is clean" about the shadow-DOM work.
+
+**Fix.** The wrapper cache already keeps JavaScript objects alive alongside C++
+state the collector cannot see; give the sheet storage the same owner. A vector
+of `unique_ptr<SheetStorage>` on `DomBindings`, beside `unattached_` and
+`detached_`, matches what that class already does for nodes and costs the same
+"freed with the document" bound. The hidden slot keeps pointing at it.
+
+**Close when.** `ShadowDom/AdoptedStyleSheetDoesNotLeakOutOfShadow` under ASan
+reports no leaks and all twenty-five `run-checks.sh asan` shards pass.
+
+---
+
 ## Closed
 
 - **TD-0051 — `Element.getClientRects` was absent** (2026-08-10). Installed
