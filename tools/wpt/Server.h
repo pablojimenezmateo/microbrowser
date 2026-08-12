@@ -3,6 +3,7 @@
 #include "wpt/Handlers.h"
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -99,6 +100,12 @@ class Server {
 
   const std::string& Error() const { return error_; }
 
+  // The ranked table of `.py` handlers that were requested and are not implemented. Written to
+  // stderr when the server stops under `MICROBROWSER_WPT_HANDLER_REPORT=1`, and it is how the next
+  // handler to write gets chosen -- see `unknown_handlers_` for why the obvious grep-based ranking
+  // is wrong. Public so a caller that stops the server itself can still ask for it.
+  void ReportUnknownHandlers() const;
+
   // The origin a test URL is built against: "http://<host>:<port>".
   std::string Origin(std::size_t port_index = 0) const;
 
@@ -118,6 +125,21 @@ class Server {
   // What `stash.py` and its relatives remember, for the life of one server. See wpt/Handlers.h --
   // a member rather than a global so that two servers in one process cannot see each other's.
   Stash stash_;
+  // Every `.py` handler that was *requested* and is not implemented, by file name, with how many
+  // times. Printed as a ranked table when the server stops, under
+  // `MICROBROWSER_WPT_HANDLER_REPORT=1`.
+  //
+  // **It exists because the obvious ranking is wrong, and cost a session to notice.** Handlers.h
+  // ranks the missing ones by how many test files *name* them, counted with grep -- and the top of
+  // that list is `gentest.py` at 3,766 files, `generate.py` at 2,085, and
+  // `build-compute-kind-widget-fallback-props.py` at 802. None of those is ever fetched: they are
+  // the generator scripts that *produced* the tests, named in a header comment in every file they
+  // generated. A reference is not a request, and no amount of grep refinement fixes that -- only
+  // the server knows what was asked for.
+  //
+  // Ordered rather than hashed so the report is stable between runs: a diff of two reports is how
+  // you see what a session's new handlers unblocked.
+  std::map<std::string, unsigned> unknown_handlers_;
   std::vector<int> listeners_;
   std::vector<std::uint16_t> listener_ports_;
   std::vector<std::uint16_t> bound_ports_;

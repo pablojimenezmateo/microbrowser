@@ -25,6 +25,24 @@
 namespace microbrowser::wpt {
 namespace {
 
+// Set by the SIGTERM handler, and *only* installed when the handler report is asked for.
+//
+// The runner ends a run by SIGTERM-ing the server, which by default kills it where it stands --
+// `Serve` never returns, so anything printed after its loop would never print. This makes the
+// signal break the loop instead, so the report can be written on the way out.
+//
+// Installed conditionally on purpose: an instrument must not change the thing it measures. With the
+// env var unset, the server's signal disposition is exactly what it always was.
+volatile sig_atomic_t g_stop_requested = 0;
+
+void RequestStop(int /*signal*/) { g_stop_requested = 1; }
+
+// Whether to print the ranked table of unimplemented handlers that were actually requested.
+bool HandlerReportWanted() {
+  const char* value = std::getenv("MICROBROWSER_WPT_HANDLER_REPORT");
+  return value != nullptr && value[0] == '1';
+}
+
 // Every header in a request head, in arrival order and with names exactly as sent. Ordered and
 // unfolded because `inspect-headers.py` reports the name the client wrote, so a case-folded map
 // would answer a different question from the one the test asks.
@@ -740,6 +758,11 @@ void Server::Respond(Connection& connection, std::string_view head, std::string_
         extra_headers.push_back(std::move(header));
       }
     } else {
+      // Recorded before the 501, so the report below names what was actually asked for rather than
+      // what the tree mentions. The file name only: the same handler is copied into a dozen
+      // `resources/` directories and they are one thing to implement.
+      const std::size_t slash = relative.find_last_of('/');
+      ++unknown_handlers_[slash == std::string::npos ? relative : relative.substr(slash + 1)];
       fail(501, "Python handlers are not implemented");
     }
   } else if (method != "GET" && method != "HEAD") {
@@ -870,6 +893,12 @@ void Server::Respond(Connection& connection, std::string_view head, std::string_
 void Server::Serve(int stop_after_idle_ms) {
   // A client that vanishes mid-response must not take the server with it.
   ::signal(SIGPIPE, SIG_IGN);
+  const bool report_handlers = HandlerReportWanted();
+  if (report_handlers) {
+    // Only then. See g_stop_requested: the default disposition has to stay untouched, because a
+    // server that shuts down differently under measurement is measuring a different server.
+    ::signal(SIGTERM, RequestStop);
+  }
   auto last_activity = std::chrono::steady_clock::now();
   std::vector<pollfd> descriptors;
   while (true) {
@@ -888,6 +917,11 @@ void Server::Serve(int stop_after_idle_ms) {
     const int ready = ::poll(descriptors.data(), descriptors.size(), timeout_ms);
     if (ready < 0) {
       if (errno == EINTR) {
+        // The one interruption that means "stop": the runner has finished the run. Every other
+        // EINTR is a signal the server has no opinion about and the poll is simply retried.
+        if (g_stop_requested != 0) {
+          break;
+        }
         continue;
       }
       break;
@@ -942,6 +976,42 @@ void Server::Serve(int stop_after_idle_ms) {
       }
       ++index;
     }
+  }
+
+  if (report_handlers) {
+    ReportUnknownHandlers();
+  }
+}
+
+void Server::ReportUnknownHandlers() const {
+  // Ranked by requests, which is the entire point -- Handlers.h ranks the missing ones by how many
+  // files *name* them, and the top three of that list (`gentest.py`, `generate.py`,
+  // `build-compute-kind-widget-fallback-props.py`, together 6,653 files) are the generator scripts
+  // that produced the tests and are never fetched at all. Only the server can tell a reference from
+  // a request.
+  std::vector<std::pair<unsigned, std::string_view>> ranked;
+  ranked.reserve(unknown_handlers_.size());
+  unsigned total = 0;
+  for (const auto& [name, count] : unknown_handlers_) {
+    ranked.emplace_back(count, name);
+    total += count;
+  }
+  // Descending by count, then by name, so two runs of the same set produce identical text and a
+  // diff of two reports shows only what changed.
+  std::sort(ranked.begin(), ranked.end(), [](const auto& a, const auto& b) {
+    return a.first != b.first ? a.first > b.first : a.second < b.second;
+  });
+  std::fprintf(stderr, "\n[wpt handlers] %zu unimplemented handlers were requested, %u times\n",
+               ranked.size(), total);
+  if (ranked.empty()) {
+    // Not the same as "nothing is missing": it means nothing in *this* selection of tests asked for
+    // one. Said out loud because an empty table otherwise reads as the stronger claim.
+    std::fprintf(stderr, "[wpt handlers] (none in the tests this run selected)\n");
+    return;
+  }
+  for (const auto& [count, name] : ranked) {
+    std::fprintf(stderr, "[wpt handlers] %6u  %.*s\n", count, static_cast<int>(name.size()),
+                 name.data());
   }
 }
 
