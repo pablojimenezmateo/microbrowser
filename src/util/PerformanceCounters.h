@@ -342,6 +342,15 @@ namespace microbrowser::util {
   /* non-zero `js.steps_exhausted` on youtube.com meant custom-element         */ \
   /* reactions nested under kevlar shared one 20M budget and aborted mid-      */ \
   /* stamp — browse `__data` arrived, `ytd-rich-grid-renderer` never did.     */ \
+  /* ADR 0042. One realm per same-origin scripted browsing context plus one for */ \
+  /* the page, so `js.realms_created` above 1 means an `<iframe>` ran script.   */ \
+  /* `js.realm_switches` against `js.steps_peak` is the only way to see whether */ \
+  /* the callee-guard on the dispatch path is working or being skipped, and     */ \
+  /* `js.realms_refused` above zero is a page with frames that never will --    */ \
+  /* the bound working, or the bound set too low, indistinguishable outside.    */ \
+  X(JsRealmsCreated, "js.realms_created")                                         \
+  X(JsRealmSwitches, "js.realm_switches")                                         \
+  X(JsRealmsRefused, "js.realms_refused")                                         \
   X(JsStepsPeak, "js.steps_peak")                                                 \
   X(JsStepsExhausted, "js.steps_exhausted")                                       \
   /* NestedHostBudget refreshes under live frames when the shared hang allotment*/ \

@@ -2604,7 +2604,20 @@ encoding worktree's version cannot pass the standard's setter vectors and the UR
 pass `encoding/legacy-mb-*`'s href cases. Neither branch's tests cover the other's case, so **the
 suite is green either way** — check both before believing a change here.
 
-## TD-0059 — `contentWindow` is not a window, because a browsing context is a realm and `src/js` has one
+## TD-0059 — `contentWindow` is not a window, because a browsing context is a realm and `src/js` has one — **the realm landed 2026-08-12; the binding half has not**
+
+**Status update.** ADR 0042 landed the concept: `js::Interpreter` now holds up to `kMaxRealms`
+realms, each with its own global, global scope and `js::Intrinsics`; a callable records its realm and
+the running realm follows the *callee*, so a builtin allocates from the realm its function came from.
+`tests/JsRealmTests.cpp` is the proof -- two globals that do not see each other's `var`, a function
+that gets its own `window` rather than its caller's, a cross-realm `map` whose array carries the
+child's `Array.prototype`, well-known symbols shared so a protocol crosses, and every realm walked by
+the collector. Cost recorded as TD-0060.
+
+**What is still true of everything below**: `src/bindings` installs one DOM surface, `FrameBindings.cpp`
+still returns the plain-object stub, and no child frame runs script yet. The remaining work is the
+binding and engine halves, not the language one.
+
 
 Landed 2026-08-12 with the rest of ADR 0027 §1's first half: a child browsing context now fetches
 its document, parses it, fires `load` at its element, re-navigates when a script assigns `src`, and
@@ -2653,3 +2666,64 @@ make `iframe.contentWindow.document === iframe.contentDocument` true and `frames
 true, and both are the observable that tells a page it is in one realm. The tests that would start
 passing are the ones that check the shallow answer; the pages that would break are the ones that
 feature-detect and take the native path.
+
+## TD-0060 — Reading an intrinsic costs one more load than it did, because it is behind a realm pointer
+
+ADR 0042 moved the intrinsics off `Interpreter` and into `js::Realm`, so every builtin that used to
+read `well_known_.array_prototype` -- a member access, `this + offset`, no load -- now reads
+`realm_->intrinsics.array_prototype`, which is one dependent load first. Same for `global_` and
+`global_scope_`, which are now `realm_->global` and `realm_->global_scope` and are read by
+`Op::LoadName`, `Op::StoreName` and `CurrentScope`. And `RunFrames` gained one load and one compare
+per instruction, to notice when the running callee changed.
+
+**Measured** (Release+LTO, `microbrowser_bench js`, the two binaries built from the same tree and run
+*alternately* six times each in one window -- interleaving is the method, because the same binary read
+3x slower here while something else was linking; min-of-six per row):
+
+| benchmark | before | after | delta |
+|---|--:|--:|--:|
+| js/array-index | 30.59 | 33.72 | **+10.2%** |
+| js/class-methods | 37.78 | 39.83 | +5.4% |
+| js/method-calls | 37.41 | 39.20 | +4.8% |
+| js/loop-arithmetic | 41.56 | 43.19 | +3.9% |
+| js/property-reads | 30.19 | 31.03 | +2.8% |
+| js/closures | 35.33 | 36.22 | +2.5% |
+| js/class-super | 25.89 | 26.32 | +1.7% |
+| js/name-4-reads-near | 36.98 | 37.44 | +1.3% |
+| js/fib | 30.28 | 30.53 | +0.8% |
+| js/string-build | 7.22 | 7.27 | +0.7% |
+| js/name-4-reads-far | 46.35 | 46.53 | +0.4% |
+| js/try-catch | 10.04 | 9.98 | -0.7% |
+| js/name-0-reads | 21.33 | 20.86 | -2.2% |
+| **total** | **390.94** | **402.10** | **+2.9%** |
+
+**This was accepted rather than missed, and the priority order is the argument.** Correctness and
+security come before speed here, and what the 2.9% bought is a browsing context that can run script
+in its own global -- 1,083 harness-silent tests, and the removal of a stub that handed a child
+frame's code the parent's `window`. It is also 2.9% of the wrong quantity: Hacker News spends 1.21s
+of a 1.41s load blocked on a socket against 58ms of scoped CPU, so a JS microbenchmark is not where
+a user's time goes on any page in ADR 0007.
+
+**What it is not**: it is not the two counters. `js.realm_switches` is near zero on a page with no
+frames, and the `frame->function` compare that guards it is the cheap half. The expensive half is the
+extra load on *every* intrinsic read, which happens whether or not a second realm exists -- so a page
+with no `<iframe>` pays this in full, which is the part that makes it debt rather than a cost of the
+feature.
+
+**The end state, and why neither fix was taken now.** Two candidates:
+
+1. **Denormalise the current realm's `Intrinsics` into the interpreter by value**, copied in and out
+   by `EnterRealm`. 13 pointers, 104 bytes, twice per switch -- and switches are rare and counted. It
+   restores the original zero-load access exactly. The cost is that there would then be two copies of
+   every prototype pointer with a flush/load pairing between them, which is precisely the drift the
+   `Roots()`-next-to-the-fields rule exists to prevent: a write that landed in the copy after the
+   flush would be a prototype the collector cannot see.
+2. **Hoist the per-instruction sync out of the dispatch loop**, keying on the frame pointer plus a
+   push/pop generation counter rather than on `frame->function`. Cheaper per instruction, and wrong
+   in one case that has to be handled explicitly rather than fallen into -- a pop followed by a push
+   in one turn, which is resuming a generator, leaves both the pointer and any naive counter equal.
+
+Neither is worth doing against a 2.9% microbenchmark delta before there is a page-level measurement
+that names it. `array-index` at +10.2% is the row to re-measure first if one ever does: it is the
+only one large enough to be a mechanism rather than noise, and no prototype lookup is on that path,
+so what it is actually measuring is not yet understood.

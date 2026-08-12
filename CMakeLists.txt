@@ -577,7 +577,8 @@ microbrowser_module(js
     src/js/Iteration.cpp
     src/js/JsonBuiltins.cpp
     src/js/NumberBuiltins.cpp
-    src/js/Promises.cpp
+    src/js/Realms.cpp
+  src/js/Promises.cpp
     src/js/RegExp.cpp
     src/js/RegExpBuiltins.cpp
     src/js/RegExpMatcher.cpp
@@ -749,6 +750,7 @@ add_executable(microbrowser_tests
   tests/JsLexerTests.cpp
   tests/JsRegExpTests.cpp
   tests/JsParserTests.cpp
+  tests/JsRealmTests.cpp
   tests/JsVmTests.cpp
   tests/DomBindingsTests.cpp
   tests/FlexLayoutTests.cpp

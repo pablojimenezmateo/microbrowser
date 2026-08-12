@@ -506,10 +506,10 @@ void Interpreter::InstallDate() {
   if (date == nullptr || date_prototype == nullptr) {
     return;
   }
-  date_prototype->SetPrototype(well_known_.object_prototype);
+  date_prototype->SetPrototype(intrinsics().object_prototype);
   date->Set("prototype", Value::Obj(date_prototype));
   date_prototype->SetHidden("constructor", Value::Obj(date));
-  global_scope_->Declare("Date", Value::Obj(date), false);
+  realm_->global_scope->Declare("Date", Value::Obj(date), false);
 
   InstallNative(date, "now",
                 [](NativeCall& call) { return Value::Number(call.interpreter.NowMilliseconds()); });
@@ -775,7 +775,7 @@ void Interpreter::InstallDate() {
   // under the default hint, which is why `date + 1` concatenates and
   // `date - 1` subtracts. Nothing else in the language does this, and it is
   // the reason Symbol.toPrimitive exists at all.
-  if (well_known_.symbol_to_primitive != nullptr) {
+  if (shared_.symbol_to_primitive != nullptr) {
     Object* to_primitive = NewNative("[Symbol.toPrimitive]", [](NativeCall& call) {
       const std::string hint = ToString(Argument(call.arguments, 0));
       const char* method = hint == "number" ? "valueOf" : "toString";
@@ -784,7 +784,7 @@ void Interpreter::InstallDate() {
       return out.IsAbrupt() ? call.ThrowValue(out.value) : out.value;
     });
     if (to_primitive != nullptr) {
-      date_prototype->Set(PropertyKey::Symbol(well_known_.symbol_to_primitive),
+      date_prototype->Set(PropertyKey::Symbol(shared_.symbol_to_primitive),
                           Value::Obj(to_primitive));
     }
   }

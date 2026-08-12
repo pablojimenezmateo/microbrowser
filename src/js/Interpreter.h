@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -14,6 +15,7 @@
 #include "js/Bytecode.h"
 #include "js/Heap.h"
 #include "js/Parser.h"
+#include "js/Realm.h"
 #include "js/RegExp.h"
 #include "js/Value.h"
 #include "util/PerformanceCounters.h"
@@ -125,8 +127,48 @@ class Interpreter {
   Result RunModule(std::string_view source, std::string_view specifier);
 
   Heap& GetHeap() { return heap_; }
-  Object* Global() { return global_; }
-  Environment* GlobalScope() { return global_scope_; }
+  Object* Global() { return realm_->global; }
+  Environment* GlobalScope() { return realm_->global_scope; }
+
+  // --- Realms -------------------------------------------------------------
+  //
+  // `js/Realm.h` is the model and ADR 0042 is the argument: what is per-realm,
+  // what is shared, and why cross-origin gets a separate interpreter instead.
+  //
+  // A second global object with its own intrinsics, in this heap -- what a
+  // same-origin `<iframe>` that runs script gets. Nullopt at `kMaxRealms`, which
+  // the caller reports by not running the frame's script.
+  std::optional<RealmId> CreateRealm();
+  // The realm of the innermost *callee*, not of whoever called it.
+  RealmId CurrentRealm() const { return current_realm_; }
+  std::size_t RealmCount() const { return realms_.size(); }
+  // Null for an id this interpreter never handed out, which is the only way a
+  // caller can get one wrong -- an id is not a pointer and cannot dangle.
+  Object* GlobalOf(RealmId realm);
+  Environment* GlobalScopeOf(RealmId realm);
+
+  // Runs a block of host code with `realm` current.
+  //
+  // The host needs this and the machine does not: a child document's script is
+  // *entered* in that document's realm, and there is no callee to derive it from
+  // at the moment `Run` is called. Restores on destruction including on the
+  // abrupt paths -- every way out of the interpreter is a `Result` rather than an
+  // exception, so a hand-written restore would be forgotten on one of them.
+  class RealmScope {
+   public:
+    RealmScope(Interpreter& owner, RealmId realm);
+    ~RealmScope();
+    RealmScope(const RealmScope&) = delete;
+    RealmScope& operator=(const RealmScope&) = delete;
+    RealmScope(RealmScope&&) = delete;
+    RealmScope& operator=(RealmScope&&) = delete;
+
+   private:
+    Interpreter& owner_;
+    RealmId previous_;
+    RealmId previous_host_;
+    Object* previous_synced_from_;
+  };
 
   // Calls a callable value. Public because the host needs it -- an event
   // handler is a JS function the browser calls, not the other way round.
@@ -541,11 +583,11 @@ class Interpreter {
 
   // The `Symbol.iterator` cell, so a caller can ask for the protocol hook
   // without going through the global object -- which a page can reassign.
-  Object* SymbolIterator() const { return well_known_.symbol_iterator; }
+  Object* SymbolIterator() const { return shared_.symbol_iterator; }
   // The same, for the two hooks a builtin rather than an operator consults:
   // `Object.prototype.toString` reads the tag, and `Array.prototype.concat`
   // will read the spread flag.
-  Object* SymbolToStringTag() const { return well_known_.symbol_to_string_tag; }
+  Object* SymbolToStringTag() const { return shared_.symbol_to_string_tag; }
   // The method a page's own object may supply to stand in for a pattern.
   //
   // `'abc'.replace(x, y)` asks `x` for `Symbol.replace` before doing anything
@@ -558,7 +600,7 @@ class Interpreter {
   // ordinary object. Looked up through the interpreter so a getter runs.
   Object* PatternProtocol(const Value& value, const char* which);
   // Where a buffer a typed array allocated for itself gets its methods.
-  Object* ArrayBufferPrototype() const { return well_known_.array_buffer_prototype; }
+  Object* ArrayBufferPrototype() const { return intrinsics().array_buffer_prototype; }
 
   // The compiled pattern behind a RegExp object, or null for anything else.
   // This is what "is a regular expression" means here, and it is a stronger
@@ -568,6 +610,37 @@ class Interpreter {
 
  private:
   friend struct NativeCall;
+
+  // The running realm's prototypes. Every builtin that allocates something with
+  // a prototype goes through this rather than through a member, which is what
+  // makes "a builtin allocates from the realm of the function" true by
+  // construction rather than by each of a hundred sites remembering it.
+  Intrinsics& intrinsics() { return realm_->intrinsics; }
+  const Intrinsics& intrinsics() const { return realm_->intrinsics; }
+
+  // Points `realm_` at the realm `callee` belongs to.
+  //
+  // Called from the machine's dispatch loop, so the common case -- the running
+  // function has not changed -- has to be one compare. See `realm_synced_from_`
+  // for why the guard is the callee rather than the frame depth.
+  void SyncRealm(Object* callee) {
+    if (callee == realm_synced_from_) {
+      return;
+    }
+    realm_synced_from_ = callee;
+    // A frame with no function object is the top-level program `RunCompiled`
+    // pushed, and it belongs to `host_realm_`. Reached both entering one and
+    // returning to one from a callee in another realm, which is why it restores
+    // rather than leaves the realm alone. See Realms.cpp.
+    EnterRealm(callee == nullptr ? host_realm_ : callee->RealmIndex());
+  }
+  // Unconditionally. Out of line of `SyncRealm` so that the hot path above is
+  // one compare and a call that does not happen.
+  void EnterRealm(RealmId realm);
+  // Installs a fresh set of intrinsics and a global into `realm`, which is what
+  // makes it usable. Runs with that realm current, so every native it creates
+  // records it -- which is the whole reason `InstallGlobals` needs no parameter.
+  bool PopulateRealm(RealmId realm);
 
   Result EvaluateStatement(const Node& node, Environment& scope);
   Result EvaluateBlock(const Node& node, Environment& scope);
@@ -581,11 +654,11 @@ class Interpreter {
   // doing anything with what it was handed, and the link the parser marked as
   // the chain's root turns it into undefined.
   bool IsChainSignal(const Value& value) const {
-    return value.IsObject() && value.object == well_known_.chain_signal;
+    return value.IsObject() && value.object == shared_.chain_signal;
   }
   Value ChainSignal() const {
-    return well_known_.chain_signal == nullptr ? Value::Undefined()
-                                               : Value::Obj(well_known_.chain_signal);
+    return shared_.chain_signal == nullptr ? Value::Undefined()
+                                               : Value::Obj(shared_.chain_signal);
   }
   Result EvaluateForIn(const Node& node, Environment& scope);
   // Where an update's new value goes. Lifted out because a bigint increments
@@ -985,98 +1058,6 @@ class Interpreter {
 
   // The values the language requires to exist, allocated once and handed out.
   //
-  // One member rather than seven, and one list rather than two. Every one of
-  // these is also a GC root, and the old shape had the fields here and the
-  // roots enumerated in MaybeCollect -- so adding one and forgetting the other
-  // was a use-after-free that nothing would catch until a page allocated
-  // enough. `Roots()` is now the only list, and it cannot disagree with
-  // itself.
-  struct WellKnown {
-    Object* object_prototype = nullptr;
-    Object* array_prototype = nullptr;
-    Object* function_prototype = nullptr;
-    // Where a string's methods live, so that `"a".trim` and
-    // `String.prototype.trim` are the same function object. A string is a
-    // primitive here rather than a boxed object, so GetProperty consults this
-    // directly instead of walking a chain from a wrapper.
-    Object* string_prototype = nullptr;
-    Object* regexp_prototype = nullptr;
-    Object* promise_prototype = nullptr;
-    // Where a number's methods live. A number is a primitive here, like a
-    // string, so GetProperty consults this directly rather than boxing.
-    Object* number_prototype = nullptr;
-    // And a boolean's, on exactly the same terms. Two methods live on it and
-    // both matter more than their size suggests: `true.toString()` is what
-    // ToPrimitive reaches for, so without this a boolean in a string context
-    // is a TypeError rather than "true".
-    Object* boolean_prototype = nullptr;
-    // Where a bigint's methods live. A bigint is a primitive here, like a
-    // number, so GetProperty consults this directly rather than boxing.
-    Object* bigint_prototype = nullptr;
-    // The two the typed arrays need to find again: a typed array made without
-    // a buffer allocates one and has to give it the right prototype, and the
-    // nine constructors share one prototype between them.
-    Object* array_buffer_prototype = nullptr;
-    Object* typed_array_prototype = nullptr;
-    // Where `next`, `throw` and `return` live, and the `Symbol.iterator` that
-    // returns the generator itself. One object shared by every generator
-    // rather than one per generator function -- so `Object.getPrototypeOf(g())`
-    // is this rather than `gen.prototype`, which is the one place a page could
-    // tell and is not a place any page looks.
-    Object* generator_prototype = nullptr;
-    // The prototype of the value a forced return travels as.
-    //
-    // Making a generator return means running every `finally` between the
-    // `yield` it stopped at and the end of its body, and the only run-time path
-    // that does that is the one a throw takes. So a forced return *is* a throw,
-    // of a value nothing else can produce -- this is the marker that says so,
-    // and the unwinder reads it to know that no `catch` may see it.
-    //
-    // A page cannot reach this object: it is never a property of anything it
-    // can name, and the only values carrying it are handed to finalizers,
-    // which do not receive them.
-    Object* return_signal = nullptr;
-    // The same for an async generator, and a separate object rather than the
-    // one above because every method on it differs: `next` hands back a
-    // promise of `{value, done}` rather than the pair itself, and the hook it
-    // answers to is `Symbol.asyncIterator`.
-    Object* async_generator_prototype = nullptr;
-    // Not a prototype, but the same category: the cell every iteration goes
-    // through. Held here rather than looked up through the global `Symbol`,
-    // which a page can reassign -- the protocol has to keep working when it
-    // does.
-    Object* symbol_iterator = nullptr;
-    // What `for await` resolves against, held for the reason above.
-    Object* symbol_async_iterator = nullptr;
-    // What a short-circuited optional chain travels as, in the tree-walker.
-    //
-    // `a?.b.c` with a nullish `a` is undefined for the whole expression, so
-    // the innermost link has to tell the ones outside it to give up too --
-    // and a tree-walker's links are C++ frames, which can only say so with a
-    // value. One shared object rather than one per short-circuit, compared by
-    // identity; the parser marks where the chain ends, and that mark is where
-    // it turns back into undefined.
-    //
-    // A page cannot reach it: it is never a property of anything nameable,
-    // and every path that could return it converts it first.
-    Object* chain_signal = nullptr;
-    // The three hooks an *operator* consults, held for the reason the two
-    // above are: `+`, `instanceof` and `Object.prototype.toString` have to
-    // find them whatever a page did to the global `Symbol`.
-    Object* symbol_to_primitive = nullptr;
-    Object* symbol_has_instance = nullptr;
-    Object* symbol_to_string_tag = nullptr;
-
-    std::vector<Object*> Roots() const {
-      return {object_prototype,    array_prototype,   function_prototype,  string_prototype,
-              regexp_prototype,    promise_prototype, symbol_iterator,     number_prototype,
-              generator_prototype, symbol_async_iterator, async_generator_prototype,
-              return_signal,       symbol_to_primitive, symbol_has_instance,
-              symbol_to_string_tag, boolean_prototype,  chain_signal,
-              array_buffer_prototype, typed_array_prototype, bigint_prototype};
-    }
-  };
-
   // Everything the machine holds while it runs, grouped.
   //
   // One member rather than five, for the reason WellKnown is one member rather
@@ -1161,9 +1142,39 @@ class Interpreter {
   Heap heap_;
   VmState vm_;
   Suspensions suspensions_;
-  Object* global_ = nullptr;
-  Environment* global_scope_ = nullptr;
-  WellKnown well_known_;
+  // Every realm this interpreter has handed out, index 0 first. ADR 0042.
+  //
+  // `unique_ptr` rather than the values, because `realm_` below points into this
+  // and a page appending an `<iframe>` grows it -- a `Realm*` into a vector's
+  // storage is dangling as soon as the next frame is created. Bounded at
+  // `kMaxRealms`, because the count is page-controlled.
+  std::vector<std::unique_ptr<Realm>> realms_;
+  // The realm whose intrinsics a builtin allocating right now should use.
+  //
+  // Follows the *callee* rather than the caller, which is the rule the language
+  // needs: `frames[0].Array.prototype.map.call(x, f)` must answer an array
+  // carrying the child's `Array.prototype`, because that is the realm `map` came
+  // from. Re-derived at each place the running function can change -- see
+  // `SyncRealm` and `RealmGuard`.
+  Realm* realm_ = nullptr;
+  // The same thing as an id, kept because `CurrentRealm` is asked for it on
+  // every wrapper the binding layer makes and subtracting two pointers to
+  // recover an index is worse than a field.
+  RealmId current_realm_ = kMainRealm;
+  // The realm a frame with no function object belongs to -- a top-level program.
+  // Tracked separately from `current_realm_` because that one follows the callee
+  // and this one must not: the program frame a callee returns to is still the
+  // host's, and the machine has nothing else to derive that from. Written only by
+  // `RealmScope`, which is the one thing that means "the host entered a realm".
+  RealmId host_realm_ = kMainRealm;
+  // The callee `realm_` was last derived from, so the machine's dispatch loop
+  // pays one compare per instruction rather than three loads. Deliberately keyed
+  // on the *function* and not on the frame count: a pop followed by a push in
+  // one turn -- a generator resume -- leaves the count equal and the callee
+  // different, and keying on the count would run a function in its caller's
+  // realm.
+  Object* realm_synced_from_ = nullptr;
+  SharedCells shared_;
   // Pending jobs, oldest first. A GC root while queued.
   std::vector<Microtask> microtasks_;
   // Every program this interpreter has run. Kept because a function object

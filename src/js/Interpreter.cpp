@@ -177,25 +177,25 @@ Interpreter::Interpreter() {
   // one of them, so a fixed capacity makes that safe by construction; see the
   // note at the top of Vm.cpp.
   vm_.stack.reserve(kValueStackCapacity);
-  global_ = heap_.AllocateObject(Object::Kind::Plain);
-  global_scope_ = heap_.AllocateEnvironment(nullptr);
-  well_known_.object_prototype = heap_.AllocateObject(Object::Kind::Plain);
-  well_known_.array_prototype = heap_.AllocateObject(Object::Kind::Plain);
-  well_known_.function_prototype = heap_.AllocateObject(Object::Kind::Plain);
-  well_known_.string_prototype = heap_.AllocateObject(Object::Kind::Plain);
-  well_known_.regexp_prototype = heap_.AllocateObject(Object::Kind::Plain);
-  well_known_.promise_prototype = heap_.AllocateObject(Object::Kind::Plain);
-  well_known_.generator_prototype = heap_.AllocateObject(Object::Kind::Plain);
-  well_known_.async_generator_prototype = heap_.AllocateObject(Object::Kind::Plain);
-  well_known_.return_signal = heap_.AllocateObject(Object::Kind::Plain);
+  shared_.return_signal = heap_.AllocateObject(Object::Kind::Plain);
   // One object, compared by identity. What a short-circuited optional chain
   // travels as in the tree-walker, where a link is a C++ frame and can only
   // tell the ones outside it to give up with a value.
-  well_known_.chain_signal = heap_.AllocateObject(Object::Kind::Plain);
-  InstallGlobals();
+  shared_.chain_signal = heap_.AllocateObject(Object::Kind::Plain);
+  // Realm 0, the page's own, built by exactly the path a child frame's realm is
+  // built by. One path rather than two: the constructor used to inline it, and a
+  // second realm built by a different function is how the two drift until an
+  // `<iframe>` is missing whichever intrinsic the copy forgot.
+  //
+  // The one thing that cannot be recovered from is failing here, because there is
+  // no realm to throw *in*. An interpreter with no realm 0 would fault on the
+  // first property access, so this leaves `realm_` null and every entry point
+  // checks -- see `Run`.
+  (void)CreateRealm();
 }
 
 Interpreter::~Interpreter() = default;
+
 
 double Interpreter::NowMilliseconds() const {
   // Millisecond resolution, deliberately. A finer clock is what every timing
@@ -210,7 +210,7 @@ Object* Interpreter::NewObject() {
   if (object == nullptr) {
     return nullptr;  // the heap is full; the caller turns this into a RangeError
   }
-  object->SetPrototype(well_known_.object_prototype);
+  object->SetPrototype(intrinsics().object_prototype);
   return object;
 }
 
@@ -233,7 +233,7 @@ Object* Interpreter::NewArray(std::vector<Value> elements, std::vector<bool> pre
   if (array == nullptr) {
     return nullptr;
   }
-  array->SetPrototype(well_known_.array_prototype);
+  array->SetPrototype(intrinsics().array_prototype);
   array->SetElements(std::move(elements), std::move(present));
   return array;
 }
@@ -265,7 +265,7 @@ Value Interpreter::NewRegExpValue(RegExp pattern) {
   if (object == nullptr) {
     return Value::Undefined();
   }
-  object->SetPrototype(well_known_.regexp_prototype);
+  object->SetPrototype(intrinsics().regexp_prototype);
   // Writable, and read back before every global match: a page advances a
   // stateful regex by assigning to it.
   object->Set("lastIndex", Value::Number(0.0));
@@ -311,8 +311,8 @@ Value Interpreter::MakeError(std::string_view kind, std::string message) {
   // page's `catch (e) { if (e instanceof TypeError) }` is true of an error the
   // *engine* threw and not only of one the page made. Falls back to the plain
   // object prototype during startup, before the constructors exist.
-  Object* prototype = well_known_.object_prototype;
-  if (Value* constructor = global_scope_->Lookup(std::string(kind))) {
+  Object* prototype = intrinsics().object_prototype;
+  if (Value* constructor = realm_->global_scope->Lookup(std::string(kind))) {
     if (constructor->IsObject()) {
       if (const Value* declared = constructor->object->GetOwn("prototype")) {
         if (declared->IsObject()) {
@@ -395,8 +395,15 @@ void Interpreter::MaybeCollect() {
   if (heap_.AllocationsSinceCollection() < CollectionThreshold(cells) || call_depth_ != 0) {
     return;
   }
-  std::vector<Object*> object_roots = well_known_.Roots();
-  object_roots.push_back(global_);
+  std::vector<Object*> object_roots = shared_.Roots();
+  // Every realm, not just the running one. ADR 0042: a missed realm is a
+  // use-after-free on a live page -- the parent is running, the child's global
+  // holds every object its script made, and nothing else in this walk reaches it.
+  // `Realm::Roots` is one function next to the fields for that reason.
+  for (const std::unique_ptr<Realm>& realm : realms_) {
+    const std::vector<Object*> realm_roots = realm->Roots();
+    object_roots.insert(object_roots.end(), realm_roots.begin(), realm_roots.end());
+  }
   object_roots.insert(object_roots.end(), active_objects_.begin(), active_objects_.end());
   // A queued job is the only thing keeping its handler and its result alive.
   for (const Microtask& task : microtasks_) {
@@ -422,7 +429,11 @@ void Interpreter::MaybeCollect() {
       object_roots.push_back(module->error.object);
     }
   }
-  std::vector<Environment*> environment_roots{global_scope_};
+  std::vector<Environment*> environment_roots;
+  environment_roots.reserve(realms_.size() + active_scopes_.size());
+  for (const std::unique_ptr<Realm>& realm : realms_) {
+    environment_roots.push_back(realm->global_scope);
+  }
   environment_roots.insert(environment_roots.end(), active_scopes_.begin(), active_scopes_.end());
   for (const auto& [specifier, module] : modules_) {
     if (module != nullptr && module->scope != nullptr) {
@@ -463,7 +474,7 @@ Value Interpreter::NewFunction(const Node& node, Environment& scope, bool arrow)
   if (function == nullptr) {
     return Value::Undefined();
   }
-  function->SetPrototype(well_known_.function_prototype);
+  function->SetPrototype(intrinsics().function_prototype);
   function->MakeFunction(node.Child(0), node.Child(1), &scope, arrow);
   function->SetHidden("name", Value::String(node.string));
   function->Set("length", Value::Number(DeclaredArity(node.Child(0))));
@@ -485,7 +496,7 @@ Value Interpreter::NewCompiledFunction(const CompiledFunction& code, Environment
   if (function == nullptr) {
     return Value::Undefined();
   }
-  function->SetPrototype(well_known_.function_prototype);
+  function->SetPrototype(intrinsics().function_prototype);
   function->MakeCompiled(&code, &scope, arrow);
   function->SetHidden("name", Value::String(code.name));
   function->Set("length", Value::Number(static_cast<double>(code.parameter_count)));
@@ -510,7 +521,7 @@ Object* Interpreter::PatternProtocol(const Value& value, const char* which) {
   if (value.IsObject() && value.object->GetKind() == Object::Kind::RegExp) {
     return nullptr;
   }
-  Value* symbol_object = global_scope_->Lookup("Symbol");
+  Value* symbol_object = realm_->global_scope->Lookup("Symbol");
   if (symbol_object == nullptr || !symbol_object->IsObject()) {
     return nullptr;
   }
@@ -640,25 +651,25 @@ Value Interpreter::GetProperty(const Value& base, const PropertyKey& key, Result
     // some invented receiver -- boxing is what would make it callable, and it
     // is not worth building for a case no real page has.
     const Object::Property* method =
-        well_known_.string_prototype == nullptr ? nullptr : well_known_.string_prototype->GetProperty(key);
+        intrinsics().string_prototype == nullptr ? nullptr : intrinsics().string_prototype->GetProperty(key);
     return method == nullptr || method->IsAccessor() ? Value::Undefined() : method->value;
   }
   if (base.IsNumber()) {
     // Read straight off the shared prototype, the same way a string's methods
     // are: a number is a primitive here, so there is nothing to box.
     const Object::Property* method =
-        well_known_.number_prototype == nullptr
+        intrinsics().number_prototype == nullptr
             ? nullptr
-            : well_known_.number_prototype->GetProperty(key);
+            : intrinsics().number_prototype->GetProperty(key);
     return method == nullptr || method->IsAccessor() ? Value::Undefined() : method->value;
   }
   if (base.IsBigInt()) {
     // A primitive, like a number: its two methods come off the shared
     // prototype rather than off a wrapper.
     const Object::Property* method =
-        well_known_.bigint_prototype == nullptr
+        intrinsics().bigint_prototype == nullptr
             ? nullptr
-            : well_known_.bigint_prototype->GetProperty(key);
+            : intrinsics().bigint_prototype->GetProperty(key);
     return method == nullptr || method->IsAccessor() ? Value::Undefined() : method->value;
   }
   if (base.type == ValueType::Boolean) {
@@ -666,9 +677,9 @@ Value Interpreter::GetProperty(const Value& base, const PropertyKey& key, Result
     // shared prototype rather than off a wrapper. Small, and load-bearing:
     // ToPrimitive calls `toString` on whatever it is handed.
     const Object::Property* method =
-        well_known_.boolean_prototype == nullptr
+        intrinsics().boolean_prototype == nullptr
             ? nullptr
-            : well_known_.boolean_prototype->GetProperty(key);
+            : intrinsics().boolean_prototype->GetProperty(key);
     return method == nullptr || method->IsAccessor() ? Value::Undefined() : method->value;
   }
   if (base.IsSymbol()) {
@@ -700,12 +711,12 @@ Value Interpreter::GetProperty(const Value& base, const PropertyKey& key, Result
       return object->GetElement(*index);
     }
   }
-  if (object == global_ && named && object->GetOwnProperty(key) == nullptr) {
+  if (object == realm_->global && named && object->GetOwnProperty(key) == nullptr) {
     // `globalThis.Math`. The builtins are bindings in the global *scope*
     // rather than properties of the global *object*, because that is where a
     // name lookup finds them -- so reading one off `globalThis` has to reach
     // the same place. One namespace with two spellings, not two that overlap.
-    if (Value* binding = global_scope_->Lookup(key.Text())) {
+    if (Value* binding = realm_->global_scope->Lookup(key.Text())) {
       return *binding;
     }
   }
@@ -734,13 +745,13 @@ Value Interpreter::GetProperty(const Value& base, const PropertyKey& key, Result
 }
 
 Result Interpreter::SetProperty(const Value& base, const PropertyKey& key, const Value& value) {
-  if (base.IsObject() && base.object == global_ && !key.IsSymbol() &&
+  if (base.IsObject() && base.object == realm_->global && !key.IsSymbol() &&
       base.object->GetOwnProperty(key) == nullptr) {
     // The other direction of the same rule: `globalThis.Math = x` has to be
     // the assignment `Math = x`, or the two spellings would disagree from the
     // next read on.
-    if (global_scope_->HasOwn(key.Text())) {
-      if (global_scope_->Assign(key.Text(), value) == Environment::AssignResult::Constant) {
+    if (realm_->global_scope->HasOwn(key.Text())) {
+      if (realm_->global_scope->Assign(key.Text(), value) == Environment::AssignResult::Constant) {
         return Throw("TypeError", "assignment to constant variable '" + key.Text() + "'");
       }
       return Result::Normal(value);
@@ -910,7 +921,7 @@ Result Interpreter::Construct(const Value& callee, const std::vector<Value>& arg
   if (instance == nullptr) {
     return Throw("RangeError", "out of memory");
   }
-  instance->SetPrototype(well_known_.object_prototype);
+  instance->SetPrototype(intrinsics().object_prototype);
   const Value* prototype = callee.object->Get("prototype");
   if (prototype != nullptr && prototype->IsObject()) {
     instance->SetPrototype(prototype->object);
@@ -1004,6 +1015,11 @@ Result Interpreter::CallFunction(const Value& callee, const Value& self,
   }
 
   Object* function = callee.object;
+  // Entering from C++, where there is no frame to derive the realm from. Covers
+  // all three paths below -- a compiled body, a native, and a tree-walker
+  // function -- because all three must run in the realm the *function* came from
+  // and not the one whose script happened to reach this call. ADR 0042 §2.
+  const RealmScope realm_scope(*this, function->RealmIndex());
   if (function->Code() != nullptr) {
     // A compiled body, entered from C++ -- a native calling a callback, the
     // host dispatching an event, or a custom-element reaction. Do *not* raise
@@ -1044,7 +1060,7 @@ Result Interpreter::CallFunction(const Value& callee, const Value& self,
     // MICROBROWSER_JS_TREEWALK is a known approximation.
     const bool strict = function->Code() != nullptr && function->Code()->is_strict;
     if (!strict && (this_value.IsUndefined() || this_value.IsNull())) {
-      this_value = Value::Obj(global_);
+      this_value = Value::Obj(realm_->global);
     }
   }
   scope->Declare("this", function->IsArrow() ? function->BoundThis() : this_value, true);
@@ -1171,7 +1187,7 @@ Result Interpreter::RunCompiled(const CompiledFunction& program, Environment* sc
   vm_.stack.push_back(Value::Undefined());
   Frame frame;
   frame.code = &program;
-  frame.scope = scope == nullptr ? global_scope_ : scope;
+  frame.scope = scope == nullptr ? realm_->global_scope : scope;
   frame.stack_base = callee_slot;
   frame.argument_base = callee_slot + 2;
   frame.scope_base = vm_.scopes.size();
@@ -1201,16 +1217,16 @@ Result Interpreter::RunCompiled(const CompiledFunction& program, Environment* sc
 
 Result Interpreter::RunProgram(const Node& program) {
   BeginHostTurn();
-  HoistDeclarations(program, *global_scope_);
+  HoistDeclarations(program, *realm_->global_scope);
   // A script's top level is a function scope for `var`'s purposes.
-  HoistVars(program, *global_scope_);
+  HoistVars(program, *realm_->global_scope);
   Value last;
   std::optional<ValueRoot> rooted_last;
   for (const NodePtr& statement : program.children) {
     if (statement == nullptr) {
       continue;
     }
-    Result result = EvaluateStatement(*statement, *global_scope_);
+    Result result = EvaluateStatement(*statement, *realm_->global_scope);
     if (result.IsAbrupt()) {
       // The queue is drained even when the script threw. A promise settled
       // before the throw still has handlers owed to it, and dropping them

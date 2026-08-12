@@ -78,7 +78,22 @@ void Interpreter::InstallIteration() {
   // The well-known symbols. Each is one cell, allocated once, and its identity
   // is what makes it well-known -- a page can read `Symbol.iterator` and hang
   // a method on it, and cannot construct another one that compares equal.
+  // One cell per name for the whole *interpreter*, not per realm: a second realm
+  // installs the cells realm 0 allocated onto its own `Symbol` (ADR 0042 §1). Two
+  // cells would break every protocol that crosses a realm -- spreading a
+  // cross-origin... a cross-*realm* array would find no `Symbol.iterator` and
+  // silently produce nothing.
+  //
+  // The prototype a re-used cell carries is realm 0's `Symbol.prototype`, which
+  // is a deliberate approximation: a symbol is a primitive and nothing reads that
+  // pointer except method lookup on a boxed symbol, so the cost is
+  // `Object.getPrototypeOf(frames[0].Symbol.iterator)` naming the parent's
+  // prototype. Per-realm cells would cost every iteration protocol instead.
   const auto well_known = [this, constructor, symbol_prototype](const char* name) -> Object* {
+    if (const auto found = shared_.symbols.find(name); found != shared_.symbols.end()) {
+      constructor->Set(name, Value::Sym(found->second));
+      return found->second;
+    }
     Object* cell = heap_.AllocateObject(Object::Kind::Symbol);
     if (cell == nullptr) {
       return nullptr;
@@ -86,20 +101,21 @@ void Interpreter::InstallIteration() {
     cell->SetPrototype(symbol_prototype);
     cell->Set("description", Value::String(std::string("Symbol.") + name));
     constructor->Set(name, Value::Sym(cell));
+    shared_.symbols.emplace(name, cell);
     return cell;
   };
-  well_known_.symbol_iterator = well_known("iterator");
+  shared_.symbol_iterator = well_known("iterator");
   // Held for the reason `Symbol.iterator` is: `for await` resolves against it,
   // and a page can reassign the global `Symbol` but cannot make another cell
   // that compares equal to this one.
-  well_known_.symbol_async_iterator = well_known("asyncIterator");
+  shared_.symbol_async_iterator = well_known("asyncIterator");
   // The three an operator consults. Held for the reason the two above are:
   // `+` looks for `Symbol.toPrimitive`, `instanceof` for `Symbol.hasInstance`
   // and `Object.prototype.toString` for `Symbol.toStringTag`, and none of
   // those may stop working because a page assigned to the global `Symbol`.
-  well_known_.symbol_has_instance = well_known("hasInstance");
-  well_known_.symbol_to_primitive = well_known("toPrimitive");
-  well_known_.symbol_to_string_tag = well_known("toStringTag");
+  shared_.symbol_has_instance = well_known("hasInstance");
+  shared_.symbol_to_primitive = well_known("toPrimitive");
+  shared_.symbol_to_string_tag = well_known("toStringTag");
   // The pattern-protocol symbols. Nothing consults them yet -- the String
   // methods still test for a RegExp object rather than for these -- but a page
   // that reads one must get the same cell every time, and `Symbol.species`
@@ -163,12 +179,12 @@ void Interpreter::InstallIteration() {
     const Value* key = symbol.object->GetOwn("#registered");
     return key == nullptr ? Value::Undefined() : *key;
   });
-  global_scope_->Declare("Symbol", Value::Obj(constructor), false);
+  realm_->global_scope->Declare("Symbol", Value::Obj(constructor), false);
 
-  if (well_known_.symbol_iterator == nullptr) {
+  if (shared_.symbol_iterator == nullptr) {
     return;
   }
-  const PropertyKey iterator_key = PropertyKey::Symbol(well_known_.symbol_iterator);
+  const PropertyKey iterator_key = PropertyKey::Symbol(shared_.symbol_iterator);
 
   // An iterator over something indexable. The array and string iterators
   // differ only in what they read out of the target, so they share this.
@@ -237,8 +253,8 @@ void Interpreter::InstallIteration() {
       target->Set(iterator_key, Value::Obj(hook));
     }
   };
-  install_iterator_hook(well_known_.array_prototype, false);
-  install_iterator_hook(well_known_.string_prototype, true);
+  install_iterator_hook(intrinsics().array_prototype, false);
+  install_iterator_hook(intrinsics().string_prototype, true);
 
   // `keys`, `values` and `entries` on an array are the same walk yielding a
   // different part of each step, and `values` is the same function the
@@ -246,7 +262,7 @@ void Interpreter::InstallIteration() {
   // cannot disagree about what iterating an array means.
   enum class ArrayYield { Keys, Values, Entries };
   const auto array_iterator = [this](const char* name, ArrayYield yield) {
-    InstallNative(well_known_.array_prototype, name, [yield](NativeCall& call) {
+    InstallNative(intrinsics().array_prototype, name, [yield](NativeCall& call) {
       Value iterator = call.interpreter.NewObjectValue();
       if (!iterator.IsObject()) {
         return iterator;
@@ -291,8 +307,8 @@ void Interpreter::InstallIteration() {
   };
   array_iterator("keys", ArrayYield::Keys);
   array_iterator("entries", ArrayYield::Entries);
-  if (const Value* hook = well_known_.array_prototype->GetOwn(iterator_key)) {
-    well_known_.array_prototype->Set("values", *hook);
+  if (const Value* hook = intrinsics().array_prototype->GetOwn(iterator_key)) {
+    intrinsics().array_prototype->Set("values", *hook);
   }
 }
 
@@ -303,10 +319,10 @@ Result Interpreter::OpenIteration(const Value& iterable, Iteration& state) {
   if (iterable.IsNullish()) {
     return Throw("TypeError", ToString(iterable) + " is not iterable");
   }
-  if (well_known_.symbol_iterator == nullptr) {
+  if (shared_.symbol_iterator == nullptr) {
     return Throw("TypeError", "the iteration protocol is unavailable");
   }
-  const PropertyKey iterator_key = PropertyKey::Symbol(well_known_.symbol_iterator);
+  const PropertyKey iterator_key = PropertyKey::Symbol(shared_.symbol_iterator);
 
   // The fast path, taken only when the object's hook is still the built-in
   // one. A page that replaces `Array.prototype[Symbol.iterator]` gets the
@@ -314,7 +330,7 @@ Result Interpreter::OpenIteration(const Value& iterable, Iteration& state) {
   if (iterable.IsObject() && iterable.object->GetKind() == Object::Kind::Array) {
     const Object::Property* found = iterable.object->GetProperty(iterator_key);
     const Object::Property* builtin =
-        well_known_.array_prototype == nullptr ? nullptr : well_known_.array_prototype->GetOwnProperty(iterator_key);
+        intrinsics().array_prototype == nullptr ? nullptr : intrinsics().array_prototype->GetOwnProperty(iterator_key);
     if (found != nullptr && builtin != nullptr && !found->IsAccessor() &&
         !builtin->IsAccessor() && StrictEquals(found->value, builtin->value)) {
       state.array = iterable.object;
@@ -369,9 +385,9 @@ Result Interpreter::OpenAsyncIteration(const Value& iterable, Iteration& state) 
   // That fallback is the spec's own and is the reason `for await` over an
   // array of promises works: each value is awaited by the loop rather than by
   // the iterator.
-  if (well_known_.symbol_async_iterator != nullptr && iterable.IsObject()) {
+  if (shared_.symbol_async_iterator != nullptr && iterable.IsObject()) {
     const Value hook =
-        GetProperty(iterable, PropertyKey::Symbol(well_known_.symbol_async_iterator));
+        GetProperty(iterable, PropertyKey::Symbol(shared_.symbol_async_iterator));
     if (hook.IsObject() && hook.object->IsCallable()) {
       const Result opened = CallFunction(hook, iterable, {});
       if (opened.IsAbrupt()) {

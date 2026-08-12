@@ -148,7 +148,7 @@ bool MergeSort(NativeCall& call, std::vector<Value>& items, const Value& compara
 }  // namespace
 
 void Interpreter::InstallArrayPrototype() {
-  Object* prototype = well_known_.array_prototype;
+  Object* prototype = intrinsics().array_prototype;
   const auto method = [this, prototype](const char* name, NativeFunction function) {
     InstallNative(prototype, name, std::move(function));
   };
@@ -844,7 +844,7 @@ void Interpreter::InstallArrayPrototype() {
   // subclass rather than a plain object with array methods on it -- which is
   // an object whose `length` is undefined and whose `push` writes nowhere.
   MarksConstructedKind(constructor, Object::Kind::Array);
-  global_scope_->Declare("Array", Value::Obj(constructor), false);
+  realm_->global_scope->Declare("Array", Value::Obj(constructor), false);
 
   InstallNative(constructor, "isArray", [](NativeCall& call) {
     const Value value = Argument(call.arguments, 0);

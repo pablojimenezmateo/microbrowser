@@ -23,7 +23,7 @@ namespace microbrowser::js {
 
 Environment* Interpreter::CurrentScope() {
   if (vm_.frames.empty()) {
-    return global_scope_;
+    return realm_->global_scope;
   }
   const Frame& frame = vm_.frames.back();
   return vm_.scopes.size() > frame.scope_base ? vm_.scopes.back() : frame.scope;
@@ -158,7 +158,13 @@ Result Interpreter::PushFrame(Object* function, std::size_t callee_slot,
   // `this` gets the global object. youtube's player begins
   // `(function(g){var window=this;...})(_yt_player)` and needs that.
   if (!function->IsArrow() && !code->is_strict && (self.IsUndefined() || self.IsNull())) {
-    self = Value::Obj(global_);
+    // The *callee's* global, not the running one. This is reached from the Call
+    // opcode, where `realm_` is still the caller's -- the dispatch loop syncs on
+    // the frame after it is pushed -- so reading the member here would hand a
+    // child frame's function the parent's `window` as its `this`, which is a
+    // same-origin escape rather than a wrong answer. ADR 0042 §2.
+    Object* const callee_global = GlobalOf(function->RealmIndex());
+    self = callee_global == nullptr ? Value::Undefined() : Value::Obj(callee_global);
   }
   const auto declare = [&](std::uint32_t index, const char* name, Value value, bool is_const) {
     if (code->frame_locals) {
@@ -236,14 +242,14 @@ Value Interpreter::NewReturnSignal(const Value& value) {
   }
   // Identified by its prototype rather than by a property, because a property
   // is something a finalizer could delete if it ever got hold of one.
-  signal->SetPrototype(well_known_.return_signal);
+  signal->SetPrototype(shared_.return_signal);
   signal->Set("value", value);
   return Value::Obj(signal);
 }
 
 bool Interpreter::IsReturnSignal(const Value& thrown) const {
-  return thrown.IsObject() && well_known_.return_signal != nullptr &&
-         thrown.object->Prototype() == well_known_.return_signal;
+  return thrown.IsObject() && shared_.return_signal != nullptr &&
+         thrown.object->Prototype() == shared_.return_signal;
 }
 
 bool Interpreter::UnwindToHandler(const Value& thrown, std::size_t entry_depth) {

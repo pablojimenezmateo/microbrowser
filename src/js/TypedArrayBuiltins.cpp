@@ -125,12 +125,12 @@ void Interpreter::InstallTypedArrays() {
   if (buffer_prototype == nullptr || buffer_constructor == nullptr) {
     return;
   }
-  buffer_prototype->SetPrototype(well_known_.object_prototype);
+  buffer_prototype->SetPrototype(intrinsics().object_prototype);
   buffer_constructor->Set("prototype", Value::Obj(buffer_prototype));
   buffer_prototype->SetHidden("constructor", Value::Obj(buffer_constructor));
   MarksConstructedKind(buffer_constructor, Object::Kind::ArrayBuffer);
-  global_scope_->Declare("ArrayBuffer", Value::Obj(buffer_constructor), false);
-  well_known_.array_buffer_prototype = buffer_prototype;
+  realm_->global_scope->Declare("ArrayBuffer", Value::Obj(buffer_constructor), false);
+  intrinsics().array_buffer_prototype = buffer_prototype;
 
   if (Object* byte_length = NewNative("byteLength", [](NativeCall& call) {
         const BufferView* view = ViewOf(call.self);
@@ -182,21 +182,21 @@ void Interpreter::InstallTypedArrays() {
   if (typed_prototype == nullptr) {
     return;
   }
-  typed_prototype->SetPrototype(well_known_.object_prototype);
-  well_known_.typed_array_prototype = typed_prototype;
+  typed_prototype->SetPrototype(intrinsics().object_prototype);
+  intrinsics().typed_array_prototype = typed_prototype;
 
   // The generic methods, taken from Array.prototype rather than written again.
   // They are the same functions: each reads through ElementCount and
   // GetElement, and a typed array answers both.
   for (const char* name : kSharedArrayMethods) {
-    if (const Value* method = well_known_.array_prototype->GetOwn(name)) {
+    if (const Value* method = intrinsics().array_prototype->GetOwn(name)) {
       typed_prototype->Set(name, *method);
     }
   }
-  if (well_known_.symbol_iterator != nullptr) {
-    if (const Object::Property* iterator = well_known_.array_prototype->GetOwnProperty(
-            PropertyKey::Symbol(well_known_.symbol_iterator))) {
-      typed_prototype->Set(PropertyKey::Symbol(well_known_.symbol_iterator), iterator->value);
+  if (shared_.symbol_iterator != nullptr) {
+    if (const Object::Property* iterator = intrinsics().array_prototype->GetOwnProperty(
+            PropertyKey::Symbol(shared_.symbol_iterator))) {
+      typed_prototype->Set(PropertyKey::Symbol(shared_.symbol_iterator), iterator->value);
     }
   }
 
@@ -456,7 +456,7 @@ void Interpreter::InstallTypedArrays() {
       const Result made = call.interpreter.ConstructValue(call.self, {list});
       return made.IsAbrupt() ? call.ThrowValue(made.value) : made.value;
     });
-    global_scope_->Declare(typed.name, Value::Obj(constructor), false);
+    realm_->global_scope->Declare(typed.name, Value::Obj(constructor), false);
   }
 
   // --- DataView -------------------------------------------------------------
@@ -519,11 +519,11 @@ void Interpreter::InstallTypedArrays() {
   if (view_prototype == nullptr || view_constructor == nullptr) {
     return;
   }
-  view_prototype->SetPrototype(well_known_.object_prototype);
+  view_prototype->SetPrototype(intrinsics().object_prototype);
   view_constructor->Set("prototype", Value::Obj(view_prototype));
   view_prototype->SetHidden("constructor", Value::Obj(view_constructor));
   MarksConstructedKind(view_constructor, Object::Kind::DataView);
-  global_scope_->Declare("DataView", Value::Obj(view_constructor), false);
+  realm_->global_scope->Declare("DataView", Value::Obj(view_constructor), false);
 
   for (const char* name : {"byteLength", "byteOffset"}) {
     const bool is_length = std::string_view(name) == "byteLength";

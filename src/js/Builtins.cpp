@@ -133,7 +133,7 @@ double ParseIntPrefix(std::string_view text, int radix) {
 
 Object* Interpreter::NewNative(const char* name, NativeFunction function) {
   Object* object = heap_.AllocateObject(Object::Kind::Native);
-  object->SetPrototype(well_known_.function_prototype);
+  object->SetPrototype(intrinsics().function_prototype);
   object->MakeNative(std::move(function));
   // Non-enumerable, which is what the specification says a function's `name` is -- and it matters
   // beyond tidiness. Anything that walks an object's own enumerable keys (`Object.keys`, a spread,
@@ -160,18 +160,18 @@ void Interpreter::InstallGlobals() {
   // than at each allocation because forgetting one is invisible until a page
   // calls the one method that lives up the chain.
   for (Object* prototype :
-       {well_known_.array_prototype, well_known_.function_prototype,
-        well_known_.string_prototype, well_known_.regexp_prototype,
-        well_known_.promise_prototype}) {
+       {intrinsics().array_prototype, intrinsics().function_prototype,
+        intrinsics().string_prototype, intrinsics().regexp_prototype,
+        intrinsics().promise_prototype}) {
     if (prototype != nullptr) {
-      prototype->SetPrototype(well_known_.object_prototype);
+      prototype->SetPrototype(intrinsics().object_prototype);
     }
   }
 
   // First, because every native installed after this one inherits from it.
   InstallFunctionPrototype();
 
-  global_scope_->Declare("globalThis", Value::Obj(global_), false);
+  realm_->global_scope->Declare("globalThis", Value::Obj(realm_->global), false);
   // At the top level of a *script* `this` is the global object, and it stays
   // the global object under `"use strict"` -- strict mode changes what `this`
   // is inside a function, not what it is at the top of a program. A module is
@@ -181,10 +181,10 @@ void Interpreter::InstallGlobals() {
   // namespace, and `(function (global) { ... })(this)` is how a library found
   // the global object for twenty years. Both read undefined without it, and
   // youtube.com's application bundle fails on its first statement.
-  global_scope_->Declare("this", Value::Obj(global_), true);
-  global_scope_->Declare("undefined", Value::Undefined(), true);
-  global_scope_->Declare("NaN", Value::Number(std::nan("")), true);
-  global_scope_->Declare("Infinity", Value::Number(HUGE_VAL), true);
+  realm_->global_scope->Declare("this", Value::Obj(realm_->global), true);
+  realm_->global_scope->Declare("undefined", Value::Undefined(), true);
+  realm_->global_scope->Declare("NaN", Value::Number(std::nan("")), true);
+  realm_->global_scope->Declare("Infinity", Value::Number(HUGE_VAL), true);
 
   InstallConsole();
 
@@ -238,7 +238,7 @@ void Interpreter::InstallGlobals() {
     }
     return Value::Number(best);
   });
-  global_scope_->Declare("Math", Value::Obj(math), false);
+  realm_->global_scope->Declare("Math", Value::Obj(math), false);
   // Deferred: it reads `Number`, `parseInt` and `parseFloat` back out of the
   // global scope, and none of them is declared yet at this point.
   const auto install_numbers = [this, math] {
@@ -252,7 +252,7 @@ void Interpreter::InstallGlobals() {
   // --- JSON -----------------------------------------------------------------
   Object* json = NewObject();
   InstallJsonAndUri(json);
-  global_scope_->Declare("JSON", Value::Obj(json), false);
+  realm_->global_scope->Declare("JSON", Value::Obj(json), false);
 
   // --- Object ---------------------------------------------------------------
   Object* object_constructor = native("Object", [](NativeCall& call) {
@@ -740,13 +740,13 @@ void Interpreter::InstallGlobals() {
   // `Object.prototype` had nothing on it, so `({}).hasOwnProperty` was
   // undefined -- and that method is how a great deal of code asks whether a
   // key is its own rather than inherited.
-  object_constructor->Set("prototype", Value::Obj(well_known_.object_prototype));
-  well_known_.object_prototype->SetHidden("constructor", Value::Obj(object_constructor));
-  install(well_known_.object_prototype, "hasOwnProperty", [](NativeCall& call) {
+  object_constructor->Set("prototype", Value::Obj(intrinsics().object_prototype));
+  intrinsics().object_prototype->SetHidden("constructor", Value::Obj(object_constructor));
+  install(intrinsics().object_prototype, "hasOwnProperty", [](NativeCall& call) {
     return Value::Bool(call.self.IsObject() &&
                        call.self.object->HasOwn(KeyFrom(Argument(call.arguments, 0))));
   });
-  install(well_known_.object_prototype, "isPrototypeOf", [](NativeCall& call) {
+  install(intrinsics().object_prototype, "isPrototypeOf", [](NativeCall& call) {
     const Value value = Argument(call.arguments, 0);
     if (!value.IsObject() || !call.self.IsObject()) {
       return Value::Bool(false);
@@ -761,15 +761,15 @@ void Interpreter::InstallGlobals() {
     }
     return Value::Bool(false);
   });
-  install(well_known_.object_prototype, "propertyIsEnumerable", [](NativeCall& call) {
+  install(intrinsics().object_prototype, "propertyIsEnumerable", [](NativeCall& call) {
     // Every own property is enumerable here: the object model has no
     // attributes to say otherwise, so this is `hasOwnProperty` under another
     // name rather than a second answer.
     return Value::Bool(call.self.IsObject() &&
                        call.self.object->HasOwn(KeyFrom(Argument(call.arguments, 0))));
   });
-  install(well_known_.object_prototype, "valueOf", [](NativeCall& call) { return call.self; });
-  install(well_known_.object_prototype, "toLocaleString", [](NativeCall& call) {
+  install(intrinsics().object_prototype, "valueOf", [](NativeCall& call) { return call.self; });
+  install(intrinsics().object_prototype, "toLocaleString", [](NativeCall& call) {
     // Whatever `toString` says. No locale data here, and inventing one is a
     // lie a page cannot detect.
     const Value method = call.interpreter.GetPropertyValue(call.self, "toString");
@@ -793,9 +793,9 @@ void Interpreter::InstallGlobals() {
       }
       return Value::Undefined();
     });
-    well_known_.object_prototype->DefineAccessor("__proto__", proto_get, proto_set);
+    intrinsics().object_prototype->DefineAccessor("__proto__", proto_get, proto_set);
   }
-  install(well_known_.object_prototype, "toString", [](NativeCall& call) {
+  install(intrinsics().object_prototype, "toString", [](NativeCall& call) {
     // The `[object Kind]` form, which is what a page uses to tell an array
     // from a plain object without trusting `instanceof` across realms.
     //
@@ -868,7 +868,7 @@ void Interpreter::InstallGlobals() {
   //
   // A trap the handler does not define falls through to the target rather than
   // failing, which is what makes `new Proxy(o, {})` behave exactly like `o`.
-  global_scope_->Declare(
+  realm_->global_scope->Declare(
       "Proxy",
       NewNativeValue(
           "Proxy",
@@ -983,10 +983,10 @@ void Interpreter::InstallGlobals() {
         reflect->Set(name, *existing);
       }
     }
-    global_scope_->Declare("Reflect", Value::Obj(reflect), false);
+    realm_->global_scope->Declare("Reflect", Value::Obj(reflect), false);
   }
 
-  global_scope_->Declare("Object", Value::Obj(object_constructor), false);
+  realm_->global_scope->Declare("Object", Value::Obj(object_constructor), false);
 
   // Array.prototype and the Array constructor, in their own translation unit
   // for the reason String.prototype has one: it is the second-largest group of
@@ -1031,8 +1031,8 @@ void Interpreter::InstallGlobals() {
   // After InstallIteration: %GeneratorPrototype% carries a `Symbol.iterator`,
   // and the cell it is keyed on is made there.
   InstallGeneratorPrototype();
-  global_scope_->Declare("String", Value::Obj(string_constructor), false);
-  global_scope_->Declare(
+  realm_->global_scope->Declare("String", Value::Obj(string_constructor), false);
+  realm_->global_scope->Declare(
       "Number", Value::Obj(native("Number", [](NativeCall& call) {
         // `Number()` with no argument is 0, not NaN. Through the interpreter's
         // conversion for the reason `String` is: an object with a `valueOf`
@@ -1053,20 +1053,20 @@ void Interpreter::InstallGlobals() {
     // Two methods, and both are reached by conversion far more often than by
     // a page writing them: `true.toString()` is what ToPrimitive calls, and
     // without it a boolean in a string context is a TypeError.
-    well_known_.boolean_prototype = NewObject();
-    if (well_known_.boolean_prototype != nullptr) {
-      well_known_.boolean_prototype->SetPrototype(well_known_.object_prototype);
-      install(well_known_.boolean_prototype, "toString", [](NativeCall& call) {
+    intrinsics().boolean_prototype = NewObject();
+    if (intrinsics().boolean_prototype != nullptr) {
+      intrinsics().boolean_prototype->SetPrototype(intrinsics().object_prototype);
+      install(intrinsics().boolean_prototype, "toString", [](NativeCall& call) {
         return Value::String(std::string(ToBoolean(call.self) ? "true" : "false"));
       });
-      install(well_known_.boolean_prototype, "valueOf",
+      install(intrinsics().boolean_prototype, "valueOf",
               [](NativeCall& call) { return Value::Bool(ToBoolean(call.self)); });
-      boolean_constructor->Set("prototype", Value::Obj(well_known_.boolean_prototype));
-      well_known_.boolean_prototype->SetHidden("constructor", Value::Obj(boolean_constructor));
+      boolean_constructor->Set("prototype", Value::Obj(intrinsics().boolean_prototype));
+      intrinsics().boolean_prototype->SetHidden("constructor", Value::Obj(boolean_constructor));
     }
-    global_scope_->Declare("Boolean", Value::Obj(boolean_constructor), false);
+    realm_->global_scope->Declare("Boolean", Value::Obj(boolean_constructor), false);
   }
-  global_scope_->Declare(
+  realm_->global_scope->Declare(
       "parseInt", Value::Obj(native("parseInt", [](NativeCall& call) {
         // Unlike Number(), parseInt stops at the first character it cannot use
         // -- which is why parseInt('12px') is 12 and Number('12px') is NaN.
@@ -1076,13 +1076,13 @@ void Interpreter::InstallGlobals() {
         return Value::Number(ParseIntPrefix(text, radix));
       })),
       false);
-  global_scope_->Declare(
+  realm_->global_scope->Declare(
       "parseFloat", Value::Obj(native("parseFloat", [](NativeCall& call) {
         const std::string text = ToString(Argument(call.arguments, 0));
         return Value::Number(ParseFloatPrefix(text));
       })),
       false);
-  global_scope_->Declare(
+  realm_->global_scope->Declare(
       "isNaN", Value::Obj(native("isNaN", [](NativeCall& call) {
         return Value::Bool(std::isnan(ToNumber(Argument(call.arguments, 0))));
       })),
@@ -1090,7 +1090,7 @@ void Interpreter::InstallGlobals() {
   // The global one converts, unlike `Number.isFinite`: `isFinite('1')` is true
   // and `Number.isFinite('1')` is false, because the string is not a number
   // rather than being one that is infinite.
-  global_scope_->Declare(
+  realm_->global_scope->Declare(
       "isFinite", Value::Obj(native("isFinite", [](NativeCall& call) {
         return Value::Bool(std::isfinite(ToNumber(Argument(call.arguments, 0))));
       })),
@@ -1104,14 +1104,14 @@ void Interpreter::InstallGlobals() {
   // method should construct. Every built-in answers with itself, which is the
   // default the spec gives them and the answer a subclass overrides.
   if (Object* species_cell = nullptr; true) {
-    Value* symbol_object = global_scope_->Lookup("Symbol");
+    Value* symbol_object = realm_->global_scope->Lookup("Symbol");
     if (symbol_object != nullptr && symbol_object->IsObject()) {
       const Value* cell = symbol_object->object->GetOwn("species");
       species_cell = cell != nullptr && cell->IsSymbol() ? cell->object : nullptr;
     }
     if (species_cell != nullptr) {
       for (const char* name : {"Array", "Map", "Set", "RegExp", "Promise", "ArrayBuffer"}) {
-        Value* declared = global_scope_->Lookup(name);
+        Value* declared = realm_->global_scope->Lookup(name);
         if (declared != nullptr && declared->IsObject()) {
           declared->object->SetHidden(PropertyKey::Symbol(species_cell), *declared);
         }
@@ -1124,7 +1124,7 @@ void Interpreter::InstallGlobals() {
   // a ReferenceError in the middle of a page that would otherwise work.
   for (const bool encoding : {true, false}) {
     const char* name = encoding ? "escape" : "unescape";
-    global_scope_->Declare(
+    realm_->global_scope->Declare(
         name, NewNativeValue(name, [encoding](NativeCall& call) {
           std::string text;
           const Result converted =
@@ -1230,7 +1230,7 @@ void Interpreter::InstallGlobals() {
       "FinalizationRegistry",
   };
   for (const char* name : kBuiltinNames) {
-    Value* declared = global_scope_->Lookup(name);
+    Value* declared = realm_->global_scope->Lookup(name);
     if (declared == nullptr || !declared->IsObject()) {
       continue;
     }
@@ -1244,12 +1244,12 @@ void Interpreter::InstallGlobals() {
   // The prototypes nothing names: a generator's, an async generator's, and the
   // one the nine typed arrays share.
   for (Object* prototype :
-       {well_known_.object_prototype, well_known_.array_prototype,
-        well_known_.function_prototype, well_known_.string_prototype,
-        well_known_.number_prototype, well_known_.boolean_prototype,
-        well_known_.regexp_prototype, well_known_.promise_prototype,
-        well_known_.generator_prototype, well_known_.async_generator_prototype,
-        well_known_.typed_array_prototype, well_known_.array_buffer_prototype}) {
+       {intrinsics().object_prototype, intrinsics().array_prototype,
+        intrinsics().function_prototype, intrinsics().string_prototype,
+        intrinsics().number_prototype, intrinsics().boolean_prototype,
+        intrinsics().regexp_prototype, intrinsics().promise_prototype,
+        intrinsics().generator_prototype, intrinsics().async_generator_prototype,
+        intrinsics().typed_array_prototype, intrinsics().array_buffer_prototype}) {
     if (prototype != nullptr) {
       prototype->HideProperties();
     }

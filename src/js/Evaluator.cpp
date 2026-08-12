@@ -56,7 +56,7 @@ Result Interpreter::BindPattern(const Node& target, const Value& value, Environm
           // An assignment to an undeclared name creates a global. Sloppy mode,
           // and the web depends on it. On the global *object*, so that
           // `globalThis.x` and `x` name the same thing.
-          global_->Set(target.string, value);
+          realm_->global->Set(target.string, value);
           break;
       }
       return Result::Normal(value);

@@ -93,7 +93,7 @@ void Interpreter::InstallFunctionPrototype() {
     const Result ran = call.interpreter.Run(argument.AsString());
     return ran.IsAbrupt() ? call.ThrowValue(ran.value) : ran.value;
   });
-  global_scope_->Declare("eval", Value::Obj(eval_fn), false);
+  realm_->global_scope->Declare("eval", Value::Obj(eval_fn), false);
 
   Object* constructor = NewNative("Function", [](NativeCall& call) {
     if (call.interpreter.eval_forbidden_ != nullptr &&
@@ -118,11 +118,11 @@ void Interpreter::InstallFunctionPrototype() {
     const Result ran = call.interpreter.Run(source);
     return ran.IsAbrupt() ? call.ThrowValue(ran.value) : ran.value;
   });
-  constructor->Set("prototype", Value::Obj(well_known_.function_prototype));
-  well_known_.function_prototype->SetHidden("constructor", Value::Obj(constructor));
-  global_scope_->Declare("Function", Value::Obj(constructor), false);
+  constructor->Set("prototype", Value::Obj(intrinsics().function_prototype));
+  intrinsics().function_prototype->SetHidden("constructor", Value::Obj(constructor));
+  realm_->global_scope->Declare("Function", Value::Obj(constructor), false);
 
-  InstallNative(well_known_.function_prototype, "toString", [](NativeCall& call) {
+  InstallNative(intrinsics().function_prototype, "toString", [](NativeCall& call) {
     // The source text is not kept -- a function object points at its AST or at
     // a chunk, and neither carries the span it came from -- so this is the
     // form the spec allows for anything whose source is unavailable. Pages use
@@ -139,7 +139,7 @@ void Interpreter::InstallFunctionPrototype() {
     return Value::String("function " + text + "() { [source unavailable] }");
   });
 
-  InstallNative(well_known_.function_prototype, "call", [](NativeCall& call) {
+  InstallNative(intrinsics().function_prototype, "call", [](NativeCall& call) {
     Object* target = CallableSelf(call, "call");
     if (target == nullptr) {
       return Value::Undefined();
@@ -151,7 +151,7 @@ void Interpreter::InstallFunctionPrototype() {
                                                        Argument(call.arguments, 0), arguments));
   });
 
-  InstallNative(well_known_.function_prototype, "apply", [](NativeCall& call) {
+  InstallNative(intrinsics().function_prototype, "apply", [](NativeCall& call) {
     Object* target = CallableSelf(call, "apply");
     if (target == nullptr) {
       return Value::Undefined();
@@ -161,7 +161,7 @@ void Interpreter::InstallFunctionPrototype() {
                                                        ArrayElements(Argument(call.arguments, 1))));
   });
 
-  InstallNative(well_known_.function_prototype, "bind", [](NativeCall& call) {
+  InstallNative(intrinsics().function_prototype, "bind", [](NativeCall& call) {
     Object* target = CallableSelf(call, "bind");
     if (target == nullptr) {
       return Value::Undefined();

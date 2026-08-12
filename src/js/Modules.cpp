@@ -134,7 +134,7 @@ Result Interpreter::LoadModule(const std::string& specifier, const std::string& 
   programs_.push_back(std::move(parsed.program));
   record->program = programs_.back().get();
   record->source_length = source.size();
-  record->scope = heap_.AllocateEnvironment(global_scope_);
+  record->scope = heap_.AllocateEnvironment(realm_->global_scope);
   record->exports = NewObject();
   if (record->scope == nullptr || record->exports == nullptr) {
     return Throw("RangeError", "out of memory");
@@ -148,8 +148,8 @@ Result Interpreter::LoadModule(const std::string& specifier, const std::string& 
   // A namespace object has no prototype: `ns.toString` must be the module's
   // export of that name or undefined, never Object.prototype's method.
   record->exports->SetPrototype(nullptr);
-  if (well_known_.symbol_to_string_tag != nullptr) {
-    record->exports->SetHidden(PropertyKey::Symbol(well_known_.symbol_to_string_tag),
+  if (shared_.symbol_to_string_tag != nullptr) {
+    record->exports->SetHidden(PropertyKey::Symbol(shared_.symbol_to_string_tag),
                                Value::String(std::string("Module")));
   }
   Module* record_ptr = record.get();
@@ -395,14 +395,14 @@ void Interpreter::SettleDynamicImport(Object* promise, std::string_view specifie
 // raw `Object*`, which is worse than invisible: it survives the collection that
 // freed what it points at.
 Object* Interpreter::PendingImports() {
-  if (const Value* existing = global_->GetOwn("#pending-imports")) {
+  if (const Value* existing = realm_->global->GetOwn("#pending-imports")) {
     if (existing->IsObject()) {
       return existing->object;
     }
   }
   const Value list = NewArrayValue({});
   if (list.IsObject()) {
-    global_->SetHidden("#pending-imports", list);
+    realm_->global->SetHidden("#pending-imports", list);
   }
   return list.IsObject() ? list.object : nullptr;
 }
@@ -569,7 +569,7 @@ Result Interpreter::RunModule(std::string_view source, std::string_view specifie
   record->specifier = name;
   record->program = programs_.back().get();
   record->source_length = source.size();
-  record->scope = heap_.AllocateEnvironment(global_scope_);
+  record->scope = heap_.AllocateEnvironment(realm_->global_scope);
   record->exports = NewObject();
   if (record->scope == nullptr || record->exports == nullptr) {
     return Throw("RangeError", "out of memory");

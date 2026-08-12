@@ -120,7 +120,7 @@ void Interpreter::InstallErrors() {
       constructor->SetPrototype(error_constructor);
     }
     MarksConstructedKind(constructor, Object::Kind::Error);
-    global_scope_->Declare(name, Value::Obj(constructor), false);
+    realm_->global_scope->Declare(name, Value::Obj(constructor), false);
   };
   if (error_prototype != nullptr) {
     error_prototype->SetHidden("message", Value::String(""));

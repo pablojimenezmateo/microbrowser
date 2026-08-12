@@ -254,7 +254,15 @@ budget: MatchOp             header_lines=60 public_methods=0  members=0
 # constructor runs, so a native error constructor has no other way to say what it built. Without it
 # `new DOMException(...)` from script printed as "[object Object]" everywhere -- `String(e)`, every
 # console line, every uncaught-script report -- while one built in C++ printed properly.
-budget: Object      header_lines=334 public_methods=63 members=20
+# +19 lines, +2 methods and +1 member for `realm_` (ADR 0042). A callable has to
+# record which realm it came from, because the rule the language needs is that a
+# builtin allocates from the realm of the *function*: `frames[0].Array.prototype
+# .map.call(x, f)` answers an array carrying the child's `Array.prototype`. The
+# member is free in space -- a `std::uint16_t` in the padding `arrow_` and
+# `serializable_` already left, deliberately an index rather than a `Realm*` so it
+# is 2 bytes rather than 8 on each of a hundred thousand objects and so it survives
+# the realm list growing when a page appends an `<iframe>`.
+budget: Object      header_lines=353 public_methods=65 members=21
 # Grew by one kind (`HTMLAllCollection`) and `IsHTMLDDA()` for `document.all`:
 # polymer resin's `Z !== document.all` must see a real exotic, or undefined
 # sinks become `"zClosurez"` and boolean IDL like `hidden` sticks on.
@@ -302,7 +310,13 @@ budget: MapIndex    header_lines=20 public_methods=0  members=2
 # without another shape change. The previous flat 500k sat equal to
 # youtube.com's live set and threw eight OOMs; 2M is the unblock, not the
 # design. See docs/adr/0034-javascript-heap-bounds.md and TD-0012.
-budget: Heap        header_lines=160 public_methods=26 members=11
+# Grew by one for `realm_`, which is the realm `AllocateObject` stamps on what it
+# hands out (ADR 0042 §2). Here rather than an argument at a thousand allocation
+# sites, and stamped by the allocator rather than at the six places a callable is
+# made, because a function carrying the wrong realm is not a wrong answer -- it is
+# a child frame's code running against the parent's global, which is a same-origin
+# escape. Six sites that each have to remember is six chances at that.
+budget: Heap        header_lines=169 public_methods=27 members=12
 # The tree-walking interpreter.
 #
 # The member count went *down* at the commit that raised these numbers, from
@@ -348,7 +362,25 @@ budget: Heap        header_lines=160 public_methods=26 members=11
 # And by two for the typed arrays: a typed array made without a buffer
 # allocates one and has to give it the right prototype, and the nine
 # constructors share the one prototype the generic methods live on.
-budget: WellKnown   header_lines=145 public_methods=2  members=20
+# And then it split in two, and both halves moved to js/Realm.h -- ADR 0042. The
+# whole reason `WellKnown` was one member with its `Roots()` next to the fields
+# survives into both, because it was never about the grouping: every field is a GC
+# root, and a root list maintained apart from the fields is a use-after-free
+# waiting for a page to allocate enough.
+#
+# `Intrinsics` is the per-realm half -- the prototypes -- and there is one set per
+# global, because `frames[0].Array === Array` answering false is the observable
+# that tells a page it is looking at a second realm. `SharedCells` is the rest, and
+# what makes it the rest is that duplicating it would break something: the
+# well-known symbols are shared by the specification and every protocol that
+# crosses a realm depends on it, and the two internal signals are compared by
+# identity by the engine and are unreachable from a page.
+budget: Intrinsics  header_lines=100 public_methods=1  members=13
+budget: SharedCells header_lines=90  public_methods=1  members=8
+# One global, the scope its declarations live in, and its intrinsics. Three
+# members, and the test for a fourth is whether a *second* same-origin document
+# would need its own copy of it -- which is what a realm means here.
+budget: Realm       header_lines=25  public_methods=1  members=3
 # Grew by one member for the machine: VmState groups the value stack, the frame
 # stack, the block scopes, the open iteration cursors and the compiled programs.
 # One member rather than five, for the reason WellKnown above is one rather than
@@ -441,7 +473,22 @@ budget: WellKnown   header_lines=145 public_methods=2  members=20
 # private on purpose (inside an evaluation, propagating is not optional). This
 # is the door for callers outside one; it costs a method rather than making
 # that one public.
-budget: Interpreter header_lines=1335 public_methods=71 members=29
+# +5 methods and +1 member, net, for realms (ADR 0042). The public surface is
+# `CreateRealm`, `CurrentRealm`, `RealmCount`, `GlobalOf`, `GlobalScopeOf` and the
+# nested `RealmScope`; the members are `realms_`, `realm_`, `current_realm_` and
+# `realm_synced_from_` where `global_`, `global_scope_` and `well_known_` were
+# three. The header did *not* grow to pay for it: `WellKnown` became `js::Intrinsics`
+# and `Interpreter::Shared` became `js::SharedCells`, both in `js/Realm.h`, because
+# "what is per realm" is only readable beside "what is not" and half of that line
+# living in another header is how it stops being readable.
+# And by one more for `host_realm_`, which is *not* the same fact as
+# `current_realm_`: that one follows the callee and this one must not, because the
+# top-level program frame a callee returns to is still the host's and the machine
+# has nothing else to derive that from. Collapsing the two was a null dereference
+# entering a program frame and a program silently continuing in its callee's realm
+# leaving one -- and it reproduced only in Release, which is why Realms.cpp says so
+# where the next person will be tempted to merge them again.
+budget: Interpreter header_lines=1355 public_methods=76 members=31
 # One module, as the engine sees it: what it is called, its tree, its own
 # top-level scope, what it publishes, what it asked for, and how far it has
 # got. Six fields and a status, and every one of them is something the

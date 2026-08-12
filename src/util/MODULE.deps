@@ -41,7 +41,21 @@ public: AesCtr.h Base64.h BlobUrlRegistry.h Brotli.h Hmac.h HttpDate.h Sha1.h Sh
 # is deliberately not linked because a browser has no reason to compress.
 extern: brotli
 
-max_tu_lines: 800
+# 850 rather than 800, and PerformanceCounters.h is the only file near it. That file
+# is a *registry*: one `X(...)` line per counter, each with the comment that says
+# what a non-zero reading means, and the usual remedy for a file over its cap --
+# find the module hiding in it -- is the wrong move here. The value of the table is
+# that there is exactly one of it: `MICROBROWSER_PERF_COUNTERS=1` dumps every
+# non-zero counter in one pass, the ids are one enum, and splitting it by subject
+# would mean two enums, two dumps, and a counter whose home is arguable.
+#
+# The thing worth guarding here is not the line count -- it is that every counter
+# carries the sentence saying how to read it, which is the lesson
+# `font.lookup_hits` cost 227 seconds to learn: a counter on the cheap half of an
+# operation is worse than no counter, because it reads as evidence the operation is
+# fine. Those comments are why the file is long, and they are the part that must not
+# be trimmed to fit a number. Raised by ADR 0042's three realm counters.
+max_tu_lines: 850
 
 budget: TraceChannel     header_lines=170 public_methods=20 members=10
 budget: TraceScope       header_lines=30  public_methods=4  members=7

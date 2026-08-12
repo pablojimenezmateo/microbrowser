@@ -135,9 +135,9 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       // by its bare name: `innerWidth` threw a ReferenceError while
       // `window.innerWidth` answered 1280. Found by ADR 0029's answer table,
       // which adds three more such globals.
-      if (global_->HasOwn(node.string)) {
+      if (realm_->global->HasOwn(node.string)) {
         Result abrupt = Result::Normal(Value::Undefined());
-        const Value value = GetProperty(Value::Obj(global_), node.string, &abrupt);
+        const Value value = GetProperty(Value::Obj(realm_->global), node.string, &abrupt);
         if (abrupt.completion == Completion::Throw) {
           return abrupt;
         }
@@ -334,7 +334,7 @@ Result Interpreter::Evaluate(const Node& node, Environment& scope) {
       }
       if (node.string == "typeof" && operand->kind == NodeKind::Identifier &&
           scope.Lookup(operand->string) == nullptr &&
-          global_->GetOwn(operand->string) == nullptr) {
+          realm_->global->GetOwn(operand->string) == nullptr) {
         // `typeof undeclared` is "undefined" rather than a ReferenceError. The
         // one place the language lets a name be read without being declared,
         // and the reason feature detection works.
