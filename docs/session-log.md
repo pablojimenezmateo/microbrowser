@@ -5002,3 +5002,19 @@ surrogates rather than one code point (so it compared unequal to the identical `
 and encoded as six bytes where every engine writes four); a function's `name` was an **enumerable**
 own property on every function and interface object in the browser; and `new Response(body,
 {headers})` dropped the headers, so a response a page built itself arrived with no type.
+
+**Two things about the checks themselves, found while verifying the above.**
+
+**`tools/run-checks.sh` writes to a fixed `/tmp/microbrowser-<target>.log`, and worktrees share
+`/tmp`.** A concurrent agent in `.claude/worktrees/wpt-declarative-shadow-dom` was running its own
+`asan` at the same time, and its three `heap-use-after-free` reports (in
+`TreeBuilder::FlushDeclarativeShadow`, code that does not exist in this worktree) landed in the log
+this session was reading. **Check the paths in an ASan report before believing it is yours** — the
+file names in the stack are the giveaway. The durable fix is a per-worktree log path; until then,
+run the sanitizer binary directly (`./build/microbrowser-asan/microbrowser/microbrowser_tests`)
+rather than through the wrapper when another worktree is active.
+
+**The `ubsan` preset had not compiled since `c52dfbf`** and nothing had noticed, because only that
+preset carries `-Werror`. Four `-Wsign-conversion` errors in two copies of the same UTF-8 decoder.
+Fixed in its own commit. Under it: 2097/2097 and zero runtime errors, which is the first time the
+undefined-behaviour checker has said anything about this tree in a while.
