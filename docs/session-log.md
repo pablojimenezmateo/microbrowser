@@ -4927,8 +4927,7 @@ leaving them where they are rather than chasing a percentage into them.
 
 ## 2026-08-12 — C10: reflected IDL attributes, as a table and twelve algorithms
 
-**Status:** `html/dom/` **35.8% → 95.5%** (21,450 of 59,930 → 57,411 of 60,139 subtests),
-**0 unexpected results**.
+**Status:** `html/dom/` **35.8% → 95.9%** (21,450 of 59,930 → 57,694 of 60,138 subtests).
 `html/dom/reflection-*.html` is **56,660 of 56,660**, from 35,560 recorded failures to none.
 **35,847 expectation lines deleted.**
 
@@ -4978,20 +4977,53 @@ stylesheet may say `script[nonce^=a] { background: url(…) }` — an attribute 
 through the DOM is a nonce an injected stylesheet exfiltrates one character at a time. The suite
 asserts the attribute does not move.
 
+### The remaining gap in `html/dom/`, ranked, because "95.9%" is not a plan
+
+Two thirds of what is left is one file, and it is a file this browser should not pass:
+
+| subtests | file | what it needs |
+|---:|---|---|
+| 1,160 | `aria-attribute-reflection-enumerated.tentative.html` | **nothing — a refusal** |
+| 505 | `the-innertext-and-outertext-properties/*` | `innerText`, which is a layout-dependent serialisation |
+| 181 | `partial-updates/tentative/*` | a proposal no browser ships |
+| 26 | `aria-element-reflection.html` | element *references* + named access on `window` |
+| ~90 | `dom-tree-accessors/{title,body,getElementsByName,nameditem}*` | four separate accessors |
+| 26 | `global-attributes/dir-*` | `dir=auto` directionality, which is a bidi question |
+
+**The 1,160 are a deliberate refusal and the reasoning is now in the expectation file**, where the
+README asks for it. That file is w3c/aria PR 2484 — a proposal to convert twenty `aria-*`
+attributes from `DOMString?` to enumerated — and it **contradicts the shipped specification rather
+than extending it**: with `aria-busy` absent the proposal wants `"false"` and
+`aria-attribute-reflection.html` wants `null`. Passing one means failing the other. The stable
+behaviour is what landed: every `aria-*` and `role` is a nullable string on `Element`, which took
+`aria-attribute-reflection.html` and its `.tentative` sibling from 3 of 44 to **44 of 44** and is
+worth 282 subtests across the area. Chasing the other 1,160 would be ADR 0012's stub rule pointed
+at a percentage.
+
+**`html/dom/render-blocking/` is flaky by construction and it is not this change.** Two *identical*
+runs of the same binary against the same expectations reported **0 unexpected and then 2**. Those
+tests measure "did rendering block" with timers, and this browser paints a page when it is finished
+rather than as it arrives (ADR 0030), so they race the runner. Re-recording the area does not
+settle it. The residual unexpected results in any `html/dom/` run are confined to that directory
+and to `partial-updates/tentative/`; nothing else in the area moves between runs.
+
 ### What was checked, and what was not
 
 `ctest` **2,099 tests, 0 failed** (two new: one for the twelve algorithms, one for URL
 resolution). ASan: 2,099 tests, no memory errors — the one LeakSanitizer report is
 `ConstructableStylesheets.cpp` and is **byte-for-byte identical with these changes stashed**
 (368 bytes in 12 allocations, before and after), so it is pre-existing and now TD-worthy on its own.
-`html/dom/` re-measured and re-verified at **0 unexpected results**.
+`html/dom/` re-measured with **0 subtests going PASS → FAIL**.
 
 **What was compared against the pre-change binary**, which is the only way to tell a regression from
 an expectation file that was already stale: `dom/`, `custom-elements/`, `shadow-dom/`,
 `domparsing/`, `content-security-policy/` and `html/canvas/element/canvas-host/`. The only
 difference anywhere is **45 new subtests** in `shadow-dom/reference-target/tentative/` that exist
-only because `label.htmlFor` exists now, and all 45 die on `setHTMLUnsafe`, which this browser does
-not have. Four `dom/` timeouts and two in `html/dom/render-blocking/` are load flakes — each passes
+only because `label.htmlFor` exists now (813 subtests in that area became 858), and all 45 die on
+the test's own cleanup line, `host_container.setHTMLUnsafe("")`, which this browser does not
+implement. The area scores **0.0% in both directions**, so those are not reference-target failures
+yet; they are recorded with a `#` naming the cause. Every one of the 90 PASS → FAIL lines a full
+sweep reports sits in those three files and nowhere else. Four `dom/` timeouts and two in `html/dom/render-blocking/` are load flakes — each passes
 run alone, and the pre-change binary times out on the same two.
 
 **Two areas were deliberately not re-measured, and both are the next agent's inheritance.**
@@ -5022,3 +5054,12 @@ session to pay for it.
   parse.
 - **`Document`'s five colour reflections and `document.dir` resolve against the binding layer's
   one document URL**, like every other URL answer here.
+- **ARIA *element* reflection is absent** (`ariaActiveDescendantElement`,
+  `ariaLabelledByElements`): 26 subtests, and it is a different mechanism -- an IDL attribute
+  holding an explicitly-set *element* that survives the target's id changing, plus a FrozenArray
+  form. Those tests also want named access on `window` (`ReferenceError: input1 is not defined`),
+  which is its own feature and is what half of `dom-tree-accessors` measures too.
+- **`usvstring-reflection.https.html` is not a reflection problem.** Its 19 failures are unpaired
+  surrogates surviving where the Web IDL USVString conversion should replace them with U+FFFD, and
+  they are spread across `location`, `window.open`, `EventSource` and `sendBeacon` -- a string-layer
+  question, not a table one.

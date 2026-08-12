@@ -33,6 +33,12 @@ enum class Reflect : std::uint8_t {
   // HTML puts on the colour and margin attributes so that `body.bgColor = null`
   // clears the colour instead of asking for one named "null".
   TextNullToEmpty,
+  // A `DOMString?`: the attribute when it is there and `null` when it is not,
+  // and assigning null or undefined *removes* it. Every `aria-*` attribute is
+  // one of these, and the three states matter to the thing reading them --
+  // `aria-checked` absent is "this is not a checkbox", `aria-checked=""` is a
+  // checkbox in no state, and they are not the same answer.
+  TextNullable,
   // A URL: absent is "", present is the attribute resolved against the
   // document's address, and an attribute that does not parse is returned as it
   // was written. Setting stores the string verbatim -- the resolution is a

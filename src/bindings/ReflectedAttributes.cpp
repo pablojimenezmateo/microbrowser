@@ -424,6 +424,9 @@ js::Value Reflector::Get(const Reflection& entry, dom::Element& element,
       }
       return Value::String(attribute == nullptr ? std::string() : *attribute);
     }
+    case Reflect::TextNullable:
+      // Three states, and the absent one is not the empty one.
+      return attribute == nullptr ? Value::Null() : Value::String(*attribute);
     case Reflect::Boolean:
       return Value::Bool(attribute != nullptr);
     case Reflect::Enumerated:
@@ -517,11 +520,16 @@ js::Value Reflector::Set(const Reflection& entry, dom::Element& element,
         bindings_.RemoveElementAttribute(element, entry.attribute);
       }
       return Value::Undefined();
+    case Reflect::TextNullable:
     case Reflect::Enumerated:
-      // A nullable enumerated attribute assigned null is the attribute going
-      // away -- `img.crossOrigin = null` is how a page opts back out of CORS,
-      // and writing the string "null" would opt it into a mode named for one.
-      if (entry.nullable && (assigned.IsNull() || assigned.IsUndefined())) {
+      // A nullable attribute assigned null is the attribute going *away* --
+      // `img.crossOrigin = null` is how a page opts back out of CORS, and
+      // `el.ariaChecked = null` is how it says "not a checkbox". Writing the
+      // string "null" would say something else in both cases. `undefined` takes
+      // the same path, which is Web IDL's conversion to a nullable type rather
+      // than a kindness.
+      if ((entry.kind == Reflect::TextNullable || entry.nullable) &&
+          (assigned.IsNull() || assigned.IsUndefined())) {
         bindings_.RemoveElementAttribute(element, entry.attribute);
         return Value::Undefined();
       }

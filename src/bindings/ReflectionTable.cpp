@@ -78,6 +78,70 @@ constexpr Reflection kReflections[] = {
     {"Element", "className", "class", Reflect::Text},
     {"Element", "slot", "slot", Reflect::Text},
 
+
+    // -- ARIA, on Element ----------------------------------------------------
+    // Every `aria-*` attribute reflects as a nullable string, which is three
+    // states rather than two and all three are load-bearing: `aria-checked`
+    // absent means "not a checkbox", `aria-checked=""` means "a checkbox in no
+    // state", and a getter that folded the first into "" would tell an assistive
+    // technology the second.
+    //
+    // On `Element` rather than `HTMLElement`, which is where ARIA puts them --
+    // an `<svg>` element carries a role too.
+    //
+    // Deliberately *not* the enumerated form that
+    // `aria-attribute-reflection-enumerated.tentative.html` tests. That file is
+    // w3c/aria PR 2484, a proposal, and it contradicts the stable test rather
+    // than extending it: with `aria-busy` absent the proposal wants "false" and
+    // `aria-attribute-reflection.html` wants null. Implementing the proposal
+    // means failing the shipped specification, which is ADR 0012's rule about
+    // stubs pointed at a percentage.
+
+    {"Element", "role", "role", Reflect::TextNullable},
+    {"Element", "ariaAtomic", "aria-atomic", Reflect::TextNullable},
+    {"Element", "ariaAutoComplete", "aria-autocomplete", Reflect::TextNullable},
+    {"Element", "ariaBrailleLabel", "aria-braillelabel", Reflect::TextNullable},
+    {"Element", "ariaBrailleRoleDescription", "aria-brailleroledescription", Reflect::TextNullable},
+    {"Element", "ariaBusy", "aria-busy", Reflect::TextNullable},
+    {"Element", "ariaChecked", "aria-checked", Reflect::TextNullable},
+    {"Element", "ariaColCount", "aria-colcount", Reflect::TextNullable},
+    {"Element", "ariaColIndex", "aria-colindex", Reflect::TextNullable},
+    {"Element", "ariaColIndexText", "aria-colindextext", Reflect::TextNullable},
+    {"Element", "ariaColSpan", "aria-colspan", Reflect::TextNullable},
+    {"Element", "ariaCurrent", "aria-current", Reflect::TextNullable},
+    {"Element", "ariaDescription", "aria-description", Reflect::TextNullable},
+    {"Element", "ariaDisabled", "aria-disabled", Reflect::TextNullable},
+    {"Element", "ariaExpanded", "aria-expanded", Reflect::TextNullable},
+    {"Element", "ariaHasPopup", "aria-haspopup", Reflect::TextNullable},
+    {"Element", "ariaHidden", "aria-hidden", Reflect::TextNullable},
+    {"Element", "ariaInvalid", "aria-invalid", Reflect::TextNullable},
+    {"Element", "ariaKeyShortcuts", "aria-keyshortcuts", Reflect::TextNullable},
+    {"Element", "ariaLabel", "aria-label", Reflect::TextNullable},
+    {"Element", "ariaLevel", "aria-level", Reflect::TextNullable},
+    {"Element", "ariaLive", "aria-live", Reflect::TextNullable},
+    {"Element", "ariaModal", "aria-modal", Reflect::TextNullable},
+    {"Element", "ariaMultiLine", "aria-multiline", Reflect::TextNullable},
+    {"Element", "ariaMultiSelectable", "aria-multiselectable", Reflect::TextNullable},
+    {"Element", "ariaOrientation", "aria-orientation", Reflect::TextNullable},
+    {"Element", "ariaPlaceholder", "aria-placeholder", Reflect::TextNullable},
+    {"Element", "ariaPosInSet", "aria-posinset", Reflect::TextNullable},
+    {"Element", "ariaPressed", "aria-pressed", Reflect::TextNullable},
+    {"Element", "ariaReadOnly", "aria-readonly", Reflect::TextNullable},
+    {"Element", "ariaRelevant", "aria-relevant", Reflect::TextNullable},
+    {"Element", "ariaRequired", "aria-required", Reflect::TextNullable},
+    {"Element", "ariaRoleDescription", "aria-roledescription", Reflect::TextNullable},
+    {"Element", "ariaRowCount", "aria-rowcount", Reflect::TextNullable},
+    {"Element", "ariaRowIndex", "aria-rowindex", Reflect::TextNullable},
+    {"Element", "ariaRowIndexText", "aria-rowindextext", Reflect::TextNullable},
+    {"Element", "ariaRowSpan", "aria-rowspan", Reflect::TextNullable},
+    {"Element", "ariaSelected", "aria-selected", Reflect::TextNullable},
+    {"Element", "ariaSetSize", "aria-setsize", Reflect::TextNullable},
+    {"Element", "ariaSort", "aria-sort", Reflect::TextNullable},
+    {"Element", "ariaValueMax", "aria-valuemax", Reflect::TextNullable},
+    {"Element", "ariaValueMin", "aria-valuemin", Reflect::TextNullable},
+    {"Element", "ariaValueNow", "aria-valuenow", Reflect::TextNullable},
+    {"Element", "ariaValueText", "aria-valuetext", Reflect::TextNullable},
+
     // -- HTMLElement --------------------------------------------------------
     // The global attributes, which every element in the suite is tested for.
     {"HTMLElement", "title", "title", Reflect::Text},

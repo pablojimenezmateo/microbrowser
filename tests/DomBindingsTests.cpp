@@ -1215,6 +1215,26 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "document.documentElement.getAttribute('dir') + '/' + document.dir",
                  "RTL/rtl");
 
+    // A nullable string is three states, and every `aria-*` attribute is one.
+    // Absent is `null` rather than "": `aria-checked` absent means "not a
+    // checkbox" and `aria-checked=""` means "a checkbox in no state", and a
+    // getter that folded the first into the second would tell an assistive
+    // technology something the author did not write.
+    ExpectScript(kPage,
+                 "const d = document.createElement('div');"
+                 "const absent = d.ariaChecked; d.setAttribute('aria-checked', '');"
+                 "absent + '/[' + d.ariaChecked + ']'",
+                 "null/[]");
+    // Assigning null removes the attribute rather than writing "null"; so does
+    // undefined, which is Web IDL's conversion to a nullable type.
+    ExpectScript(kPage,
+                 "const d = document.createElement('div'); d.ariaLabel = 'Close';"
+                 "const set = d.getAttribute('aria-label'); d.ariaLabel = null;"
+                 "const gone = d.hasAttribute('aria-label'); d.role = 'button';"
+                 "d.role = undefined;"
+                 "set + '/' + gone + '/' + d.ariaLabel + '/' + d.hasAttribute('role')",
+                 "Close/false/null/false");
+
     // `nonce` reflects one way only: the content attribute feeds the internal
     // slot and the IDL setter does not feed it back, because an attribute a
     // page can read through the DOM is a nonce an injected stylesheet can
