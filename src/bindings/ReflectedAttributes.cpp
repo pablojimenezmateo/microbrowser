@@ -296,6 +296,76 @@ void DomBindings::InstallReflections() {
     prototype->object->DefineAccessor(entry.property, get.object, set.object);
   }
   InstallHyperlinkElementUtils();
+  InstallFrameElement();
+}
+
+void DomBindings::InstallFrameElement() {
+  // `HTMLIFrameElement.contentDocument` and `.contentWindow` -- ADR 0027 §1.
+  //
+  // **The origin check is not here and cannot be.** This module may not see `src/url`, so it has no
+  // way to compare two origins; `src/engine` attaches the child's document to the `<iframe>`
+  // element only when the two are same-origin, so a cross-origin frame simply has nothing here to
+  // return. That is the check being *structural* rather than a test a future caller could forget,
+  // which is what ADR 0027 §2 asks for and what ADR 0008's allow-list exists to make possible.
+  const Value* prototype = interfaces_.IsObject() ? interfaces_.object->GetOwn("HTMLIFrameElement")
+                                                  : nullptr;
+  if (prototype == nullptr || !prototype->IsObject() || interpreter_ == nullptr) {
+    return;
+  }
+
+  const auto nested = [](NativeCall& call) -> dom::Document* {
+    dom::Element* element = ElementOf(call.self);
+    return element == nullptr ? nullptr : element->NestedDocument();
+  };
+
+  const Value content_document =
+      interpreter_->NewNativeValue("contentDocument", [nested](NativeCall& call) {
+        DomBindings* owner = OwnerOf(call);
+        dom::Document* document = nested(call);
+        if (owner == nullptr || document == nullptr) {
+          // Null rather than undefined, and for both reasons at once: it is what the DOM answers
+          // for an absent node, and it is what a cross-origin frame answers. A page cannot tell the
+          // two apart, which is correct -- "is there a document there" is itself information about
+          // another origin.
+          return Value::Null();
+        }
+        return owner->WrapperFor(document);
+      });
+  if (content_document.IsObject()) {
+    content_document.object->Set(kOwnerSlot, PointerValue(this));
+    prototype->object->DefineAccessor("contentDocument", content_document.object, nullptr);
+  }
+
+  // `contentWindow` is deliberately **not** the child's global object.
+  //
+  // It cannot be: each browsing context has its own `js::Interpreter` and therefore its own heap,
+  // which is what makes ADR 0027 §5's process split an extraction rather than a rewrite -- and an
+  // object from one heap handed to another is a use-after-free waiting for the first collection.
+  // What a same-origin page actually uses `contentWindow` for is `.document`, and that is answered
+  // here; the full same-origin window -- a page reaching a global its own frame's script set --
+  // needs a realm concept in `src/js`, which is written up in the session log as the next cost of
+  // this ADR.
+  //
+  // Absent entirely for a cross-origin frame rather than a `WindowProxy`, which is a **known
+  // deviation from ADR 0027 §2** and the reason `postMessage` across frames is not here yet.
+  const Value content_window =
+      interpreter_->NewNativeValue("contentWindow", [nested](NativeCall& call) {
+        DomBindings* owner = OwnerOf(call);
+        dom::Document* document = nested(call);
+        if (owner == nullptr || document == nullptr) {
+          return Value::Null();
+        }
+        const Value window = call.interpreter.NewObjectValue();
+        if (!window.IsObject()) {
+          return Value::Null();
+        }
+        window.object->Set("document", owner->WrapperFor(document));
+        return window;
+      });
+  if (content_window.IsObject()) {
+    content_window.object->Set(kOwnerSlot, PointerValue(this));
+    prototype->object->DefineAccessor("contentWindow", content_window.object, nullptr);
+  }
 }
 
 void DomBindings::InstallHyperlinkElementUtils() {

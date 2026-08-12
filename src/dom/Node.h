@@ -334,6 +334,25 @@ class Element : public Node {
   // shadow root, and layout and the cascade have to walk it either way.
   DocumentFragment* ShadowRoot() const { return shadow_.get(); }
   bool ShadowIsOpen() const { return shadow_open_; }
+
+  // --- nested browsing contexts, ADR 0027 -----------------------------------
+
+  // The document inside an `<iframe>`, and null on every other element -- and
+  // **null on an `<iframe>` whose document is cross-origin**, which is the
+  // whole of the origin check as far as anything above this module can tell.
+  //
+  // That is deliberate and it is where the check belongs. `src/bindings` may
+  // not see `src/url`, so it cannot compare two origins; `src/engine` can, and
+  // it is the only thing that calls the setter. A cross-origin frame therefore
+  // has *nothing here to leak* rather than something guarded by a test some
+  // future caller could forget. ADR 0027 §2, ADR 0008.
+  //
+  // **Not owned**, unlike template contents and a shadow root, and that is the
+  // one dangerous thing about it: the document belongs to the child browsing
+  // context, which outlives nothing. `src/engine` clears this before it tears a
+  // child context down, and the comment in src/engine/Frames.h says where.
+  Document* NestedDocument() const { return nested_document_; }
+  void SetNestedDocument(Document* document) { nested_document_ = document; }
   // Attaches one, or returns the existing one -- a second `attachShadow` on the
   // same element is an error the caller reports, and returning the first is what
   // makes that reportable rather than a silent replacement of a subtree a page is
@@ -388,6 +407,9 @@ class Element : public Node {
   // bindings both make elements by tag name and neither has anywhere to put a
   // second type.
   std::unique_ptr<DocumentFragment> shadow_;
+  // Borrowed, not owned -- see NestedDocument() above, and note that it is the
+  // only borrowed pointer on a node in this module.
+  Document* nested_document_ = nullptr;
   // The four small fields are together at the end deliberately: they pack into
   // the padding the two pointers above already leave, so an element that
   // remembers its namespace and its prefix is the same size as one that did

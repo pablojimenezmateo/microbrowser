@@ -211,7 +211,12 @@ budget: Result header_lines=35 public_methods=0 members=12
 # `performance.timing` is the one interface whose fields are Unix timestamps by
 # definition. Recording both at the start of the navigation is what keeps the two
 # epochs from being derived from each other, which cannot be done correctly.
-budget: PendingLoad header_lines=115 public_methods=8 members=20
+# +1 member for ADR 0027 §1's child documents in flight. Counted apart from
+# every other kind because a frame holds a different event: it does not block
+# the first paint -- an empty box where an embed will be is what every browser
+# shows -- but it does block `load`, which is what makes `iframe.contentDocument`
+# readable from a `body onload` handler.
+budget: PendingLoad header_lines=125 public_methods=8 members=21
 
 # 185 lines and 38 methods for the form lifecycle: taking the submission a
 # script asked for, firing `load`, and the private SubmitForm every route to a
@@ -305,6 +310,12 @@ budget: PendingLoad header_lines=115 public_methods=8 members=20
 # `<meta charset>` changes what leaves the browser.
 budget: Page   header_lines=990 public_methods=189 members=26
 budget: LayoutState header_lines=40 public_methods=0 members=8
+# ADR 0027 §1's child browsing context. Five members and each is a distinct
+# question: which element holds it, what context is behind it, what URL it was
+# told to load, whether that has arrived, and whether it is same-origin. The
+# last is recorded rather than recomputed so that one frame cannot be
+# same-origin to one caller and not to another.
+budget: Frame header_lines=40 public_methods=0 members=6
 # ADR 0031's decoder child and the surface registry it feeds. Two members: the playback coordinator and
 # the last composited generation per surface id, which is how a playing video damages the screen when
 # the display list is byte-identical.

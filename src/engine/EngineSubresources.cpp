@@ -141,10 +141,99 @@ void Engine::StartSubresources() {
 
   StartImageRequests();
   StartFontRequests();
+  StartFrameRequests();
   StartWorkerScriptRequests();
 
   page_.MarkScriptsRequested();
   load_.total_resources = load_.resources.size();
+}
+
+void Engine::StartFrameRequests() {
+  // ADR 0027 §1. A frame is fetched like any other subresource -- through the privacy verdict and
+  // the request queue, bounded per partition key -- and the key is ADR 0005's, whose *top-level
+  // site is the embedder's*. That is what makes a third-party frame unable to see the cookies its
+  // own site set elsewhere, and it costs nothing here because `StartSubresource` already keys by
+  // the page's partition. ADR 0027 §4 says plainly that this will look like a bug and is not.
+  std::optional<url::Url> parsed;
+  const url::Url* document = load_.active && load_.base.has_value() ? &*load_.base : nullptr;
+  if (document == nullptr) {
+    parsed = page_.BaseUrl();
+    if (!parsed.has_value()) {
+      parsed = url::Url::Parse(page_.Url());
+    }
+    if (!parsed.has_value()) {
+      return;
+    }
+    document = &*parsed;
+  }
+  std::vector<Frame>& frames = page_.MutableFrames();
+  for (std::size_t index = 0; index < frames.size(); ++index) {
+    Frame& frame = frames[index];
+    if (frame.loaded || frame.requested || frame.element == nullptr) {
+      continue;
+    }
+    const std::string* src = frame.element->GetAttribute("src");
+    if (src == nullptr || src->empty()) {
+      // No `src` is `about:blank`, and **an `about:blank` frame inherits its embedder's origin** --
+      // the one place a document's origin is not derived from its URL. ADR 0027's consequences list
+      // names it as the source of a recurring vulnerability class, so it is decided here once
+      // rather than derived at each caller: same-origin by construction, and no request.
+      frame.requested = true;
+      frame.url = "about:blank";
+      page_.SetFrameDocument(index, std::string_view(), frame.url, csp::PolicyList{},
+                             std::string_view(), true);
+      continue;
+    }
+    // `frame-src` decides before the request rather than after the response, which is where every
+    // other CSP enforcement point in this engine sits (ADR 0020 §3). A refused frame is an empty
+    // frame rather than an error page -- the same answer ADR 0027 §4 gives for a blocked one.
+    if (!page_.Policy().AllowsUrl(csp::Directive::Frame, *src)) {
+      frame.requested = true;
+      frame.loaded = true;  // it will never arrive, and `load` must not wait for it
+      continue;
+    }
+    SubresourceRequest request;
+    request.url = *src;
+    const std::optional<net::FetchOptions> options = OptionsForSubresource(request);
+    if (!options.has_value()) {
+      frame.requested = true;
+      frame.loaded = true;
+      continue;
+    }
+    const Loader::RequestId id = loader_.StartSubresource(
+        *src, *document, privacy::ResourceType::Subdocument, NowSeconds(), *options);
+    frame.requested = true;
+    load_.resources[id] = PendingResource{ResourceKind::Frame, index, *src};
+    ++load_.frames_outstanding;
+  }
+}
+
+bool Engine::OnFrameFetch(Loader::Completion completion, const PendingResource& resource) {
+  if (load_.frames_outstanding > 0) {
+    --load_.frames_outstanding;
+  }
+  std::vector<Frame>& frames = page_.MutableFrames();
+  if (resource.index >= frames.size()) {
+    return false;
+  }
+  if (!completion.result.ok) {
+    // A frame that does not load is an empty frame. It is not a navigation failure, for the reason
+    // a stylesheet that does not load is not one.
+    frames[resource.index].loaded = true;
+    return false;
+  }
+  // **The origin check, and it happens here because this is the module that understands URLs.**
+  // `src/bindings` may not see `src/url` and `engine::Page` does not compare origins either; what
+  // `Page` is told is a decision rather than a pair of URLs. A cross-origin child gets its document
+  // loaded and laid out and never attached to its element, so `iframe.contentDocument` has nothing
+  // to return rather than something a future caller has to remember to guard. ADR 0027 §2.
+  const std::string final_url =
+      completion.result.final_url.empty() ? resource.src : completion.result.final_url;
+  const std::optional<url::Url> child = url::Url::Parse(final_url);
+  const bool same_origin = child.has_value() && page_.Policy().IsSameOrigin(*child);
+  page_.SetFrameDocument(resource.index, completion.result.body, final_url, csp::PolicyList{},
+                         completion.result.content_type, same_origin);
+  return true;
 }
 
 void Engine::StartPendingScriptRequests() {

@@ -190,6 +190,10 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
   // document would leave that reference dangling for exactly as long as it took
   // the next page's first script to read the tree.
   script_.Detach();
+  // Before the document goes, for the reason the line above is: every frame's element lives in the
+  // document that is about to be replaced, and the borrowed pointer each one holds has to be
+  // cleared while that element is still there to clear it on. ADR 0027 §1, and see Frames.h.
+  ClearFrames();
   // A fresh resolver per document. Author sheets belong to the document that
   // carried them, and keeping the old one would let the previous page's CSS
   // style this one.
@@ -244,6 +248,10 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
   ApplyDocumentHeadPolicy();
 
   CollectStyleSheets();
+  // The child browsing contexts, collected where the stylesheets are and for the same reason: a
+  // frame is a subresource this document named, and what a URL turns into is the loader's problem
+  // rather than this one's. The loader asks `CollectFrames` for what to fetch.
+  CollectFrames();
   // `:target` comes from the address rather than from the markup, so it is set
   // where the address arrives. ADR 0016 §2 -- one copy, and it cannot disagree
   // with what the URL bar says.

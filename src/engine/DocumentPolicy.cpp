@@ -27,6 +27,8 @@ std::string_view NameOf(csp::Directive directive) {
       return "form-action";
     case csp::Directive::BaseUri:
       return "base-uri";
+    case csp::Directive::Frame:
+      return "frame-src";
   }
   return "?";
 }

@@ -42,9 +42,11 @@ namespace microbrowser::csp {
 //     own policy by sending a second, weaker one.
 
 // The directives this browser enforces, and each has an enforcement point. A
-// directive with none is deliberately absent: `frame-src` and `frame-ancestors`
-// are not here because there are no nested browsing contexts to apply them to,
-// and a directive that parsed but decided nothing would read as enforcement.
+// directive with none is deliberately absent, because a directive that parsed
+// but decided nothing would read as enforcement. `frame-ancestors` is still in
+// that category: it is a protection for *other* sites against being framed by
+// ours, so its enforcement point is on the response of a frame load rather than
+// on the request, and it lands with the cross-origin half of ADR 0027 §3.
 enum class Directive : std::uint8_t {
   // The fallback. Never asked about directly.
   Default,
@@ -54,6 +56,11 @@ enum class Directive : std::uint8_t {
   Connect,
   FormAction,
   BaseUri,
+  // `frame-src`. Absent until nested browsing contexts existed, and deliberately
+  // so: the note in src/csp/MODULE.deps said a directive that decides nothing
+  // reads as enforcement. It decides something now (ADR 0027 §3), and it falls
+  // back to `default-src` like every directive except the two above.
+  Frame,
 };
 
 // One source expression. Public because `Policy` stores them by value and a
@@ -132,7 +139,7 @@ class Policy {
   // the set is closed, and a lookup that can miss is a lookup that can silently
   // allow. An empty entry means the directive was absent; `'none'` is a
   // one-element entry that matches nothing.
-  std::array<std::vector<Source>, 7> lists_;
+  std::array<std::vector<Source>, 8> lists_;
   bool script_strict_dynamic_ = false;
 };
 

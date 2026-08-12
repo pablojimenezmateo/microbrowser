@@ -441,6 +441,7 @@ microbrowser_module(engine
     src/engine/PageMedia.cpp
     src/engine/PageMediaSource.cpp
     src/engine/PageModules.cpp
+    src/engine/Frames.cpp
     src/engine/PageResources.cpp
     src/engine/PageImages.cpp
     src/engine/PageScrolling.cpp

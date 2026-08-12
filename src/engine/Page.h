@@ -19,6 +19,7 @@
 #include "bindings/Waapi.h"
 #include "engine/DocumentPolicy.h"
 #include "engine/DocumentResources.h"
+#include "engine/Frames.h"
 #include "engine/PageTextContext.h"
 #include "bindings/Canvas.h"
 #include "engine/Animations.h"
@@ -154,6 +155,19 @@ class Page : private layout::ImageProvider,
   const std::vector<SubresourceRequest>& PendingStyleSheets() const {
     return resources_.pending_sheets;
   }
+
+  // The child browsing contexts, one per `<iframe>` (ADR 0027 §1). The reasoning
+  // for every one of these is in Frames.h and PageResources.cpp; what matters at
+  // this seam is that `SetFrameDocument` is *told* whether the child is
+  // same-origin rather than deciding, because this class cannot see `src/url`.
+  const std::vector<Frame>& Frames() const { return frames_; }
+  std::vector<Frame>& MutableFrames() { return frames_; }
+  std::vector<std::size_t> CollectFrames();
+  void SetFrameDocument(std::size_t index, std::string_view html, std::string url,
+                        csp::PolicyList header_policy, std::string_view content_type,
+                        bool same_origin);
+  bool FramesLoaded() const;
+  void ClearFrames();
 
   // The external scripts this document referenced, in document order. Fetched
   // by the caller for the same reason a stylesheet is: a fetch needs a privacy
@@ -948,6 +962,11 @@ class Page : private layout::ImageProvider,
   // and the release hit — not at a re-hit-test that can see through a dialog
   // the press itself just dismissed.
   dom::Element* pointer_down_target_ = nullptr;
+  // The child browsing contexts, one per `<iframe>`. ADR 0027 §1. Last member
+  // and it matters: a `Frame` owns a `Page`, so this is what makes the class
+  // recursive, and destruction runs bottom-up -- children before the document
+  // whose elements hold borrowed pointers to their documents.
+  std::vector<Frame> frames_;
 };
 
 }  // namespace microbrowser::engine
