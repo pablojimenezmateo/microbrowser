@@ -70,6 +70,13 @@ std::optional<Directive> DirectiveNamed(std::string_view name) {
   if (name == "base-uri") {
     return Directive::BaseUri;
   }
+  if (name == "frame-src" || name == "child-src") {
+    // `child-src` is the older spelling and the specification still makes it
+    // `frame-src`'s fallback. One entry rather than two, because a page that
+    // sets only `child-src` means it about frames -- workers went their own way
+    // and this browser does not load one from a URL a policy could name.
+    return Directive::Frame;
+  }
   return std::nullopt;
 }
 

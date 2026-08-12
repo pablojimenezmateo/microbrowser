@@ -114,6 +114,12 @@ extern:
 # traded two method declarations for two `friend`s. The union is 990 lines. The next declaration
 # added here does not get a raise -- it gets the cut this note has been describing for six of
 # them, and `UrlObject.cpp`'s nine methods are still where it should start.
+#
+# A fourth branch arrived with `InstallFrameElement` (ADR 0027's `contentDocument`/`contentWindow`)
+# and asked for a raise of its own. It did not get one: a browsing-context binding is exactly the
+# kind of thing that should never have landed on this class, and it touches nothing private, so it
+# is a free function in FrameBindings.h beside ShadowDom.h. That is the third member the cut has
+# taken back, and this note is no longer only asking.
 max_tu_lines: 990
 
 # A wrapper is a JavaScript object holding a raw `dom::Node*`, which is only
@@ -250,7 +256,14 @@ budget: StorageSource header_lines=50 public_methods=11 members=0
 # ADR 0022 §1's worker seam. Three methods and it stays three: what crosses is an id and a byte buffer,
 # because a message crossing by *value* is the whole of what makes a worker tractable here.
 budget: WorkerHost      header_lines=45 public_methods=5 members=0
-budget: NetworkSource   header_lines=40 public_methods=6  members=0
+# Raised by one method and ten lines for `ResolveDocumentUrl`: HTML's
+# "encoding-parse a URL", which differs from `ResolveUrl` in the two ways a
+# *document's* URL differs from any other -- `<base href>` is its base, and its
+# query is encoded in the document's character set rather than in UTF-8. Two
+# methods rather than a flag, because one method that guessed which rule applied
+# would guess wrong for `new URL(...)`, which is defined to be UTF-8 whatever
+# page called it.
+budget: NetworkSource   header_lines=55 public_methods=7  members=0
 # ADR 0005's cookie seam. Two methods and the partition key stays on the engine side.
 budget: CookieSource    header_lines=35 public_methods=6  members=0
 # ADR 0029 §2's canvas seam. **One command type rather than forty virtuals**: a command is data, so it

@@ -2,11 +2,33 @@ purpose: HTML tokenizing, tree construction, and element semantics.
 
 allow: util url dom
 
-public: Focus.h FormControl.h Token.h Tokenizer.h TreeBuilder.h Encoding.h
+public: Focus.h FormControl.h Token.h Tokenizer.h TreeBuilder.h Encoding.h UrlEncoding.h
 
 extern:
 
 max_tu_lines: 1400
+
+# The Encoding Standard's set, as an enum. The scanner counts an `enum class` as
+# a class and that is useful here for the reason it is useful for
+# TokenizerState: this list *is* the coverage claim, and every encoding added to
+# it should be visible in a diff. Sixteen entries and every one of them earns
+# its place by usage (ADR 0025 §2) -- the lines are the comments saying why,
+# because `Gbk` beside `Gb18030` and `Latin1` beside `Windows1252` are each two
+# names for one decoder and two different encoders, which is exactly the kind of
+# thing a reader has to be told rather than shown.
+budget: Encoding header_lines=45 public_methods=0 members=0
+# The encoder, and the two members are the whole design: which encoding, and
+# ISO-2022-JP's shift state. The state is *on the object* rather than a static
+# because two encodings running at once -- a form's fields and a URL's query --
+# must not share one, and a shared shift state is a form field that decodes as
+# kanji.
+budget: Encoder  header_lines=35 public_methods=4 members=2
+# The `url::QueryEncoder` this module implements. One member -- the encoding --
+# and one method, because the encoding and the percent-encoding have to happen
+# in one call: the standard's error escape is appended already percent-encoded
+# whatever the percent-encode set says, and a caller that could compose the two
+# halves could compose them in the wrong order.
+budget: DocumentQueryEncoder header_lines=30 public_methods=5 members=1
 
 # The scanner counts an `enum class` as a class, and here that is useful rather
 # than a false positive: this enum is the spec's state list, it is currently a

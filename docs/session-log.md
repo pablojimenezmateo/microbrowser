@@ -4951,7 +4951,7 @@ and an href is not a scalar string".
   ADR 0022 §2 rather than a gap: the file says "no fetch, no DOM, no storage" on purpose.
 - **1** is JavaScript conformance rather than URL: assigning to a getter-only accessor must throw
   in strict mode, and `Interpreter.cpp` treats the whole engine as sloppy and says so in a comment.
-  Nothing anywhere records strictness. TD-0052.
+  Nothing anywhere records strictness. TD-0056.
 - **1** is `idlharness`, which wants the whole IDL surface introspectable.
 
 **Found:**
@@ -5060,7 +5060,7 @@ this work rather than broken by it, and all three are recorded as failures now:
   DOM, no root was ever attached and a chunk of the reflection matrix agreed with the expected
   answer by coincidence. They now reach their actual subject, which is unimplemented.
 - **2** in `dom/ranges/Range-in-shadow-after-the-shadow-removed.html`, and this one is a **harness**
-  bug: **TD-0052**, the runner does not expand `<meta name="variant">` for a plain `.html` test.
+  bug: **TD-0054**, the runner does not expand `<meta name="variant">` for a plain `.html` test.
   The file declares `?mode=open` and `?mode=closed`, runs bare, reads `null` out of an empty query
   and calls `attachShadow({mode: null})` — which a correct engine throws on. It passed until now
   only because `attachShadow` treated everything that was not `"closed"` as `"open"`. **A variant
@@ -5111,7 +5111,7 @@ twenty-five shards. Every *direct* leak in the entire run has one allocation sit
 `ConstructableStylesheets.cpp:148`, where `new CSSStyleSheet()` does `storage.release()`
 into a hidden slot that nothing ever deletes. It reproduces on a single untouched test
 (93 bytes, 3 allocations, every run) and a page drives the count — `for(;;) new CSSStyleSheet()`
-leaks forever. That is **TD-0053**. What it cost *this* session is the thing worth noting: ASan
+leaks forever. That is **TD-0055**. What it cost *this* session is the thing worth noting: ASan
 being expected-red is why the real use-after-free below took a deliberate re-read to find rather
 than being obvious the first time the suite went red.
 
@@ -5121,7 +5121,7 @@ shadow — which destroys the parser-owned template, since `declarative_shadows_
 `<div><template shadowrootmode=open></template></div>`, i.e. from the feature's happy path, found by
 one of the eight new unit tests. Capture the pointer, pop, then flush.
 
-Also left: **TD-0052**, and the `DomBindings` split it forced a first step of. The class has been
+Also left: **TD-0054**, and the `DomBindings` split it forced a first step of. The class has been
 "the missing module" for five cap raises; this session moved the two installers that were never
 really members (`InstallTemplateShadowReflection`, `InstallElementInternals`) out to a private
 `ShadowDom.h`, the standing `LiveRanges.h` already has. A *member* cannot leave a class's header, so
@@ -5528,3 +5528,168 @@ that wants the reflected-attribute table, which is task C10.
 **Merge note (2026-08-12):** C10 landed in the same merge as this entry, so the reflected-attribute
 table now exists and the IDL half of C11 is unblocked -- nobody has written it, and `el.onclick`
 still answers undefined on an element that carries only the markup.
+
+## 2026-08-12 — the legacy multi-byte encoders, and the two bugs that were hiding them
+
+**Status:** `encoding/legacy-mb-*` — every file that does not need an `<iframe>` now passes.
+21 of 105 files, **31,932 subtests** that were failing, plus the 8 files whose harness never
+reported at all. The other 84 files are blocked on ADR 0027 and nothing in this session moves them;
+the arithmetic is at the end.
+
+**Check:** `microbrowser_wpt encoding/legacy-mb-` — 0 subtest failures anywhere, and
+`microbrowser_tests` 2100/2100 with three new cases in `tests/EncodingTests.cpp`.
+
+### The feature: an encoder is not a decoder read backwards
+
+`src/html` had five legacy decoders and no encoder at all, so `<a href="?q=日本">` on a Shift_JIS
+page sent UTF-8, and a form on one sent UTF-8 too. Both are wrong in the way that matters: the
+server on the other end reads those bytes back in the encoding *it* served, so the bytes decide
+what the user searched for.
+
+**Every one of the standard's `index pointer for code point` operations has its own exclusion and
+its own tie-break, and each exists because the index maps two pointers to one code point.**
+Shift_JIS drops pointers 8272-8835 *before* taking the first match; Big5 drops the Hong Kong
+supplement and takes the **last** match for six code points; GB18030 carries a side table of
+eighteen private-use code points that do not encode where its own index says. Inverting a decode
+table without those rules produces bytes that decode back to the right character and are still not
+the bytes any other browser sends — a wrong answer no round-trip test can see. The rules live in
+`tools/unicode/generate_encodings.py`, where the tables are built, and the tables are generated for
+that reason.
+
+ISO-2022-JP arrived with them, decoder and encoder, and it is the first stateful encoding here: an
+escape sequence decides whether `3C` is a `<`. That is a security property before it is a rendering
+one — a sanitiser that scanned the bytes scanned the wrong thing — so it is implemented with the
+standard's pushback rather than approximated. `Gbk` is now an encoding rather than a label for
+`Gb18030`: they share a decoder and **not** an encoder, and a page labelled `gbk` whose form sent
+four-byte sequences would be sending bytes its own server has no decoder for.
+
+Also landed because the same tests need them: EUC-JP's JIS X 0212 index (decode only — no encoder
+in the standard produces a `0x8F` sequence) and GB18030's four-byte form, which is what makes it
+the one legacy encoding that can say anything Unicode can.
+
+### Two bugs that had nothing to do with encoding, and one that was in the harness
+
+**The WPT server was sending `charset=utf-8` on every document.** One header, and it silently
+disabled the whole of the Encoding Standard for the whole of the suite: a `charset` in
+`Content-Type` outranks a `<meta charset>` in the bytes, so all 105 files under `legacy-mb-*` were
+decoded as UTF-8 and tested nothing they meant to. wptserve sends `text/html` with no charset and
+lets a `.headers` sidecar ask for one; 25 files under `encoding/` do exactly that.
+`gbk-encoder.html` carries the comment *"if the server overrides this, it is stupid"*, which is
+this bug written down by an author who had met it before. **A harness that answers the wrong
+question is worse than a missing test**, and this is the second time in three sessions that the
+first thing a new area found was in `tools/wpt/`.
+
+**The JavaScript collector was quadratic in the size of the live set.** `kCollectionThreshold` was
+a flat 4096 allocations, and a mark-sweep pass costs what is *live* — so a program that grows to N
+live cells and keeps allocating pays O(N) every 4096 allocations. Measured on
+`eucjp-encode-href-errors-han.html`, which builds 21,269 testharness subtests and holds every one
+of them: batches of 2,000 took 1.8s, 3.2s, 4.1s, 4.6s — a straight line in the size of the heap —
+and the page never finished. The threshold is now `max(4096, live/2)`, the conventional
+grow-by-half rule, and that file finishes in **19 seconds**. It is the whole reason the eight
+`-errors-han` / `-errors-hangul` / `-encode-href` files stopped timing out; no encoding change
+would have touched them.
+
+Nothing could see it, which is the part worth keeping. `js.heap_live_peak` is one number at one
+moment and cannot tell a collector that runs twice from one that runs ten thousand times over the
+same heap. **`js.collections` and `js.cells_traced` are the replacement**, and they are a pair on
+purpose: `cells_traced / collections` is the average live set a pass costs, and `cells_traced`
+against the clock is what says whether a slow script is running or collecting.
+
+**`"💩"` was two characters.** The lexer decoded each `\uXXXX` into its own three-byte
+sequence and never paired them, so an astral character spelled with two escapes — which is how
+source code spells one — had `codePointAt(0)` answer 55357 and came out as two replacement
+characters wherever it was later encoded. Found by `gbk-encoder.html`, which spells U+1F4A9 that
+way; the language has no way to say those two strings are different.
+
+### What is left, and why no amount of encoding work reaches it
+
+84 of the 105 files are `<iframe>`-driven, and they split cleanly:
+
+- **38 decode files** load `<iframe src="…_chars.html">` and read `iframe.contentDocument`.
+- **46 encode-form files** create iframes, submit a form into one with `target`, wait for
+  `iframe.onload`, and read `iframe.contentWindow.location.search`.
+
+Neither needs script *inside* the frame and neither needs the frame painted, but both need a second
+document the parent can reach — **ADR 0027, which the 2026-08-11 entry above already named as the
+blocker for 90% of `dom/` and as "a large one"**. The same seven-line summary applies here: this is
+now the second area whose remaining gap is one feature, and the two gaps are the same feature.
+
+The encoder half is complete and independent of it. `EncodeWithNumericEscapes` and
+`html::DocumentQueryEncoder` are already wired into both places that will need them — a link's
+query (`Engine::ResolveDocumentUrl`) and a form's data set (`BuildFormSubmission`, including
+`accept-charset`) — so when frames land the form tests should pass without further encoding work.
+
+**Two things a next session should know.** `url::QueryEncoder` is an interface `src/url` *declares*
+and `src/html` implements, joined in `src/engine`: `src/url` may see only `util`, which is what
+keeps the bottom of the web stack at the bottom, and a dependency on the encoding tables would put
+a character-set question underneath every origin check. And the document's encoding lives on
+`DocumentPolicy` beside the base URL rather than on `Page`, because HTML's "encoding-parse a URL"
+takes both and nothing else — holding them apart is how a `<base href>` and a `<meta charset>` end
+up describing different documents.
+
+## 2026-08-12 — ADR 0027, first increment: a browsing context is a tree
+
+**Status:** in_progress. The context tree, frame loading, `contentDocument` and `frame-src` are in
+and green (`microbrowser_tests` 2100/2100, `encoding/legacy-mb-` 0 unexpected). Nested layout,
+nested display lists, hit-test descent and the cross-origin half are not. **No test moved**, and
+the reason is in "what is next" below — it is not this commit's shape, it is a missing feature two
+layers away.
+
+### What landed
+
+`engine::Page` owns `Frame`s and a `Frame` owns a `Page`. That shape was chosen because `Page`'s
+own header already called it "the unit that a second tab duplicates" — the child needs a document,
+a style resolver, a box tree, a script interpreter and a loader state, which is exactly what `Page`
+is. Nothing in it holds a pointer into its parent, which is ADR 0027 §5's first constraint.
+
+**The origin check is the absence of a pointer, and that is the part to preserve.**
+`dom::Element` gained a borrowed `Document*` that only `src/engine` writes and only for a
+same-origin child. `src/bindings` cannot compare origins — it may not see `src/url` — and now it
+does not have to: a cross-origin frame has *nothing there to return*. Every alternative shape
+(a flag on the binding, a check in `contentDocument`) is one forgotten test away from a universal
+cross-origin read, and this one cannot be.
+
+### What is next, in the order it blocks things
+
+1. **Event handler content attributes.** `<body onload="showNodes()">` never fires. This engine
+   implements `el.onload = fn` as a JavaScript property and has **no path at all from an `on…`
+   *content attribute* to a function** — `<div onclick="…">` is inert on every page this browser
+   has ever rendered, and nothing had noticed because the target sites all use
+   `addEventListener`. All 38 `encoding/legacy-mb-*` decode files are started from
+   `<body onload>`, so they cannot pass until it exists.
+
+   It is not a small change and the reason is worth knowing before starting: an event handler
+   content attribute is *compiling source at runtime*, and `src/js` deliberately has no `eval` and
+   no `Function(source)` — there is a test that says so. What is needed is a C++-only
+   `Interpreter` entry point for compiling a function body, reachable from `src/bindings` and
+   nowhere else, gated on CSP's `AllowsInline(Script, …)` exactly as an inline `<script>` is.
+   That gate is not optional: `<img onerror=…>` is the most common XSS payload on the web, and an
+   engine that compiles one without asking the page's policy is a worse browser than one that
+   compiles none.
+
+2. **Nested layout and nested display lists** (ADR 0027 §6 step 1's other half). `layout_.box_by_element`
+   already gives the iframe element's box, and `PushTransformCommand` + `PushClipCommand` already
+   exist — so a child's list splices under a transform and a clip, which is the same thing a child
+   in another process would deliver. Until this lands a frame loads and is readable and paints
+   nothing, which is a hole ADR 0012 would call a stub if it were left standing.
+
+3. **Hit-test descent**, then the cross-origin half of §2: `WindowProxy`, `postMessage`,
+   `X-Frame-Options`, `frame-ancestors`.
+
+4. **`contentWindow` is not the child's global**, and cannot be as things stand. Each context has
+   its own `js::Interpreter` and therefore its own heap — which is what makes ADR 0027 §5's process
+   split an extraction — and an object from one heap handed to another is a use-after-free waiting
+   for the first collection. What is installed today answers `.document` and nothing else.
+   **A same-origin page reaching a global its own frame's script set needs a realm concept in
+   `src/js`: one interpreter per *site*, with one global per browsing context.** That is the
+   correct end state (ADR 0004's "a process hosts one site" says same-site contexts share a
+   process, so they may share a heap) and it is a change to the JavaScript engine rather than to
+   the engine layer. It was not visible from the ADR and it is the largest single cost left in it.
+
+### One thing found on the way that has nothing to do with frames
+
+`privacy::ResourceType::Document` on a *subresource* request is refused by the blocking engine, and
+silently: the request never reaches the network and nothing anywhere says why. A frame started with
+it looked exactly like a frame whose URL did not parse. `Subdocument` is the right type and is what
+every blocklist means by a frame load, but the silence is worth a look — it is the second
+"refused with no way to see it" in this area in two sessions.

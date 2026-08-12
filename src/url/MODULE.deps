@@ -29,11 +29,26 @@ budget: Host         header_lines=45 public_methods=14 members=3
 # and `<a href>` and `location` disagreed with the parser for every input the cut did not consider.
 # The members did not move, which is the number to watch: this is not the class taking on state, it
 # is the standard's own vocabulary arriving at the only place that can answer it.
-budget: Url          header_lines=140 public_methods=50 members=11
+#
+# Two more methods for the encoding-aware parse, from the branch that landed beside it. They are
+# the same two overloads with a `QueryEncoder*` on the end, and the reason they are overloads
+# rather than a defaulted argument is that a default would let a caller get the document's encoding
+# by accident -- `new URL(...)` is UTF-8 whatever page called it, and every URL this browser builds
+# for itself is too. `QueryEncoder` is an interface this module *declares* and `src/html`
+# implements: the allow: line above is what keeps the bottom of the web stack at the bottom, and a
+# dependency on the encoding tables would put a character-set question underneath every origin
+# check. The members did not move for this one either.
+budget: Url          header_lines=155 public_methods=52 members=11
+budget: QueryEncoder header_lines=15 public_methods=3  members=0
 # The basic URL parser (§4.4). Its `State` enum is public because the setters are defined in terms
 # of it -- "basic URL parse with hostname state as state override" is the standard's own wording --
 # so the states are this module's vocabulary rather than one file's detail.
-budget: UrlParser    header_lines=60 public_methods=6 members=8
+#
+# It grew the query encoder and the buffer that goes with it: the query is percent-encoded once, at
+# the end, rather than byte by byte as it arrives, because an encoding is a function of a *string*
+# -- ISO-2022-JP writes an escape when it changes character set, so a per-byte loop would write one
+# escape per character and none of the closing ones.
+budget: UrlParser    header_lines=75 public_methods=6 members=10
 budget: Origin       header_lines=45 public_methods=14 members=5
 budget: Site         header_lines=35 public_methods=12 members=4
 budget: ContainerId  header_lines=30 public_methods=10 members=2

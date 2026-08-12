@@ -115,6 +115,17 @@ class NetworkSource {
   // gets a TypeError from `new URL(href)` has taken the branch that assumes it works.
   virtual std::string ResolveUrl(std::string_view relative, std::string_view base) const = 0;
 
+  // HTML's "encoding-parse a URL": the same parser, against the *document's* base URL -- which is
+  // what `<base href>` moves -- and in the document's character encoding.
+  //
+  // It is a second method rather than a default for the first because the two differ in a way no
+  // caller should have to remember. `new URL(…)` is defined to parse as UTF-8 whatever page it was
+  // called from; an `<a href>` is not. A Shift_JIS document's link carries Shift_JIS bytes in its
+  // query, because the server on the other end reads them back that way, and that is the only place
+  // in this browser where a document's `<meta charset>` changes bytes that go *out*. One method
+  // that guessed which rule applied would guess wrong for one of the two.
+  virtual std::string ResolveDocumentUrl(std::string_view relative) const = 0;
+
   // `URL.createObjectURL(new Blob(...))`. Per-document; revoked with navigation.
   virtual std::string RegisterBlobUrl(std::string body, std::string mime_type) = 0;
   virtual void RevokeBlobUrl(const std::string& url) = 0;

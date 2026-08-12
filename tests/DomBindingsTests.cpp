@@ -1265,6 +1265,9 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
         out.append(relative);
         return out;
       }
+      std::string ResolveDocumentUrl(std::string_view relative) const override {
+        return ResolveUrl(relative, "https://example.org/a/b");
+      }
       std::string RegisterBlobUrl(std::string, std::string) override { return {}; }
       void RevokeBlobUrl(const std::string&) override {}
     } network;
@@ -1809,6 +1812,9 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
       }
       out.append(relative);
       return out;
+    }
+    std::string ResolveDocumentUrl(std::string_view relative) const override {
+      return ResolveUrl(relative, "https://example.com");
     }
     std::string RegisterBlobUrl(std::string body, std::string) override {
       registered = std::move(body);

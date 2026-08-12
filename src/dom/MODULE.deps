@@ -27,7 +27,14 @@ extern:
 # 841 after `shadowrootadoptedstylesheets`: three accessors and the paragraph
 # saying why the specifiers are kept as text and *not* resolved -- which is the
 # obligation the next session inherits, so it is the wrong comment to shorten.
-max_tu_lines: 845
+# 863 after two worktrees met in a merge: declarative shadow DOM's
+# `AttachShadow(ShadowFlags)` and ADR 0027's `NestedDocument` landed against the
+# same base, and both are on `Element`. Neither can be split out the way an
+# installer can -- a *member* cannot leave a class's header -- and the second is
+# the one to watch: a raw `Document*` this module does not own, whose whole
+# safety argument is the paragraph above it. Shortening that paragraph to save
+# two lines would be deleting the reason the pointer is allowed to exist.
+max_tu_lines: 865
 
 # Twenty-one, for `IsDocumentFragment`. It sits beside IsElement and IsText
 # for the same reason those do: the kind is a switch a caller would
@@ -77,7 +84,14 @@ budget: Node     header_lines=185 public_methods=25 members=4
 # namespace is the same size as one that did not. The pair is what lets `tagName`, `localName`, `prefix` and
 # `namespaceURI` be four different answers instead of two guesses at one
 # field.
-budget: Element      header_lines=175 public_methods=28 members=9
+# +1 member for ADR 0027's nested browsing contexts: the document inside an
+# `<iframe>`. It is a *borrowed* pointer -- the only one on a node in this
+# module -- and the two rules that make it safe are written at the member: it is
+# set only by `src/engine`, and only when the child is same-origin, so the
+# origin check is the pointer's absence rather than a test somebody has to
+# remember. `src/engine`'s Page::ClearFrames is the one place it is cleared, and
+# it clears before dropping the document it points at.
+budget: Element      header_lines=200 public_methods=30 members=10
 # +1 AttrVersion / attr_version_: style-cache provenance so an attribute write
 # on one host does not flush every other element's cascade (TD-0021).
 # The namespace an element or attribute is in, as a counted handle rather than

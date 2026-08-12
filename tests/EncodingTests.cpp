@@ -228,13 +228,13 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
     // The confusion in miniature: a page that declares an encoding and is decoded as UTF-8 is a page
     // whose bytes are reinterpreted. An unrecognised label must take the *next* step of the algorithm.
     //
-    // `shift_jis` and `gb18030` were the examples here until session 32 built them, so the examples
-    // are now labels this browser still lacks -- ISO-2022-JP, which is stateful, and the standard's
-    // own `replacement` encoding. **The two changed assertions are the session's own change**, and
-    // they are the whole reason the test still means something: an example that has become supported
-    // proves nothing about the fall-through.
-    Expect(!EncodingFromLabel("iso-2022-jp").has_value(), "an encoding this browser lacks is nothing");
-    Expect(!EncodingFromLabel("hz-gb-2312").has_value(), "and so is another");
+    // `shift_jis` and `gb18030` were the examples here until session 32 built them, and
+    // `iso-2022-jp` was one until this session did. **The changed assertion is each session's own
+    // change**, and that is the whole reason the test still means something: an example that has
+    // become supported proves nothing about the fall-through. What is left in the category is the
+    // standard's `replacement` encoding and the EBCDIC labels.
+    Expect(!EncodingFromLabel("hz-gb-2312").has_value(), "an encoding this browser lacks is nothing");
+    Expect(!EncodingFromLabel("ibm866").has_value(), "and so is another");
     Expect(!EncodingFromLabel("").has_value(), "and an empty label");
     // With an unknown header, the meta still gets its turn.
     Expect(SniffEncoding("<meta charset=utf-8>", "text/html; charset=x-nonesuch") == Encoding::Utf8,
@@ -267,10 +267,16 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
     Expect(EncodingFromLabel("euc-kr") == Encoding::EucKr, "euc-kr");
     Expect(EncodingFromLabel("ks_c_5601-1987") == Encoding::EucKr, "and its Korean alias");
     Expect(EncodingFromLabel("big5") == Encoding::Big5, "big5");
-    // GBK and GB2312 decode *as* GB18030, which is what the standard says: it is a superset, so a GBK
-    // document decoded with it produces the same characters rather than an approximation.
-    Expect(EncodingFromLabel("gbk") == Encoding::Gb18030, "gbk is gb18030");
-    Expect(EncodingFromLabel("gb2312") == Encoding::Gb18030, "and so is gb2312");
+    Expect(EncodingFromLabel("ISO-2022-JP") == Encoding::Iso2022Jp, "iso-2022-jp");
+    Expect(EncodingFromLabel("csiso2022jp") == Encoding::Iso2022Jp, "and its alias");
+    // **GBK is its own encoding here and `gb18030` is the only label for the other one.** They share
+    // a decoder -- GB18030 is a superset, so a GBK document decoded with it produces the same
+    // characters -- and they do not share an *encoder*: GBK refuses everything the two-byte form
+    // cannot reach where GB18030 emits four bytes. A page labelled `gbk` whose form sent four-byte
+    // sequences would be sending bytes its own server has no decoder for.
+    Expect(EncodingFromLabel("gbk") == Encoding::Gbk, "gbk is gbk");
+    Expect(EncodingFromLabel("gb2312") == Encoding::Gbk, "and so is gb2312");
+    Expect(EncodingFromLabel("gb18030") == Encoding::Gb18030, "and gb18030 is not");
   });
 
   AddTest(tests, "Encoding/TheMultiByteDecodersProduceRealText", [] {
@@ -307,17 +313,108 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
                    "EUC-JP's trail range excludes ASCII entirely");
     ExpectEqString(Decode("\x81\x40\x3C", Encoding::EucKr), kReplacement + "@<",
                    "an unassigned EUC-KR lead pair");
-    // The 0x8E prefix with a byte that is not katakana, and 0x8F -- JIS X 0212, which this browser has
-    // no index for and therefore refuses. Both consume one byte, not two or three.
+    // The 0x8E prefix with a byte that is not katakana, and a 0x8F -- JIS X 0212 -- whose trail bytes
+    // are not trail bytes. Both consume one byte, not two or three.
     ExpectEqString(Decode("\x8E\x41", Encoding::EucJp), kReplacement + "A", "0x8E then ASCII");
     ExpectEqString(Decode("\x8F\x3C\x3C", Encoding::EucJp), kReplacement + "<<",
                    "0x8F whose trail bytes are not trail bytes keeps both");
-    // GB18030's four-byte form, refused -- and the *shape* is checked before four bytes are consumed.
-    // `81 30 3C 3C` is not a four-byte sequence, so only the 0x81 is eaten.
+    // GB18030's four-byte form: the *shape* is checked before four bytes are consumed, so
+    // `81 30 3C 3C` costs only the 0x81 and the `<<` after it is text.
     ExpectEqString(Decode("\x81\x30\x3C\x3C", Encoding::Gb18030), kReplacement + "0<<",
                    "a malformed four-byte sequence does not eat the text after it");
-    ExpectEqString(Decode("\x81\x30\x81\x30", Encoding::Gb18030), kReplacement,
-                   "a well-formed one is one refusal rather than four characters");
+  });
+
+  AddTest(tests, "Encoding/TheDecodeOnlyIndexesAndTheFourByteForm", [] {
+    // Two things a decoder has and no encoder produces, both added in the ISO-2022-JP session.
+    //
+    // JIS X 0212 is EUC-JP's second index, reached through a 0x8F prefix. The standard's own encoder
+    // never emits one, so a document containing one was written by something older than the web --
+    // which is exactly why refusing it is not an option: those documents are the reason EUC-JP is
+    // still decoded at all.
+    ExpectEqString(Decode("\x8F\xB0\xA1", Encoding::EucJp), "丂",
+                   "JIS X 0212's first ideograph, through 0x8F");
+    // GB18030's four-byte form, which is what makes it the one legacy encoding that can say anything
+    // Unicode can -- including above the BMP.
+    ExpectEqString(Decode("\x81\x30\x81\x30", Encoding::Gb18030), "\xC2\x80",
+                   "the four-byte form's first pointer is U+0080");
+    ExpectEqString(Decode("\x94\x39\xDA\x33", Encoding::Gb18030), "💩",
+                   "and it reaches above the BMP");
+    // The GB18030-2005 revision's one inline exception, which is a pointer the range table cannot
+    // express and which every implementation has to write out.
+    ExpectEqString(Decode("\x81\x35\xF4\x37", Encoding::Gb18030), "\xEE\x9F\x87",
+                   "pointer 7457 is U+E7C7 and nothing else");
+  });
+
+  AddTest(tests, "Encoding/Iso2022JpIsStatefulAndSaysSo", [] {
+    // The escape sequence decides what every byte after it means, which is why this encoding is a
+    // security question before it is a rendering one: a sanitiser that scanned the bytes for `<`
+    // scanned the wrong thing if an escape it did not model came earlier.
+    ExpectEqString(Decode("\x1B$B" "F|K\\" "\x1B(B", Encoding::Iso2022Jp), "日本",
+                   "an escape into jis0208 and back");
+    ExpectEqString(Decode("\x1B(J" "\x5C\x7E" "\x1B(B", Encoding::Iso2022Jp), "¥‾",
+                   "Roman's two exceptions are the yen sign and the overline");
+    // The katakana set is *halfwidth* -- `0xFF61 - 0x21 + byte` -- which is the one place this
+    // decoder's arithmetic looks like a typo and is not.
+    ExpectEqString(Decode("\x1B(I" "\x21", Encoding::Iso2022Jp), "｡",
+                   "and the katakana set, which is the halfwidth one");
+    // A partial escape sequence is *restored* to the input and decoded as text rather than swallowed.
+    // Swallowing it is how a decoder deletes the character a filter was looking for.
+    ExpectEqString(Decode("\x1B(X<", Encoding::Iso2022Jp), kReplacement + "(X<",
+                   "an escape that is not one gives back both its bytes");
+    // An escape to the state already in force is an error rather than a no-op, which is the
+    // standard's `ISO-2022-JP output` flag. A document that writes one is hiding something in what
+    // looks like redundancy.
+    ExpectEqString(Decode("\x1B(B\x1B(B" "A", Encoding::Iso2022Jp), kReplacement + "A",
+                   "a redundant escape is an error");
+  });
+
+  AddTest(tests, "Encoding/TheEncodersAreNotTheDecodersBackwards", [] {
+    // Every one of these is a rule the standard states separately for one encoding, and every one of
+    // them produces *plausible wrong bytes* if it is left out -- bytes that decode back to the right
+    // character and are still not what any other browser sends.
+    const auto encode = [](std::string_view text, Encoding encoding) {
+      return EncodeWithNumericEscapes(text, encoding);
+    };
+    // Shift_JIS drops index pointers 8272-8835 before taking the first match, so a code point the
+    // index lists twice encodes to the later of the two.
+    ExpectEqString(encode("日本語", Encoding::ShiftJis), "\x93\xFA\x96\x7B\x8C\xEA", "Shift_JIS");
+    ExpectEqString(encode("¥", Encoding::ShiftJis), "\x5C",
+                   "and the yen sign is a backslash, which is why it cannot round-trip");
+    ExpectEqString(encode("日本語", Encoding::EucJp), "\xC6\xFC\xCB\xDC\xB8\xEC", "EUC-JP");
+    ExpectEqString(encode("한국말", Encoding::EucKr), "\xC7\xD1\xB1\xB9\xB8\xBB", "EUC-KR");
+    // Big5 drops the Hong Kong supplement so it is never produced literally, and takes the *last*
+    // pointer for six code points rather than the first.
+    ExpectEqString(encode("正體字", Encoding::Big5), "\xA5\xBF\xC5\xE9\xA6\x72", "Big5");
+    ExpectEqString(encode("十", Encoding::Big5), "\xA4\x51", "Big5's last-pointer exception");
+    ExpectEqString(encode("中文", Encoding::Gb18030), "\xD6\xD0\xCE\xC4", "GB18030");
+    // The difference between the two Chinese encoders, in one character: GBK has no four-byte form,
+    // so a character outside its two-byte space is an error where GB18030 has bytes for it.
+    ExpectEqString(encode("💩", Encoding::Gb18030), "\x94\x39\xDA\x33", "GB18030 reaches U+1F4A9");
+    ExpectEqString(encode("💩", Encoding::Gbk), "&#128169;", "GBK does not, and says so");
+    // The GB18030-2022 side table: eighteen private-use code points that do not encode where the
+    // index says, so that bytes in deployed documents keep meaning what they used to.
+    ExpectEqString(encode("\xEE\x9E\x8D", Encoding::Gbk), "\xA6\xD9", "U+E78D through the side table");
+    // ISO-2022-JP writes an escape when it changes character set and another at the end of the
+    // stream. A stream that ended in the jis0208 state would decode wrong the moment anything was
+    // concatenated after it.
+    ExpectEqString(encode("日本", Encoding::Iso2022Jp), "\x1B$B" "F|K\\" "\x1B(B",
+                   "an escape in, and one back out at the end");
+    ExpectEqString(encode("A日B", Encoding::Iso2022Jp), "A\x1B$B" "F|" "\x1B(B" "B",
+                   "and one each way around a kanji run");
+    // The escape back to ASCII comes *before* the numeric escape, not after: nine ASCII bytes inside
+    // a jis0208 run would be read back as kanji.
+    // Ж would not do here: JIS X 0208 has the Cyrillic alphabet in it, which is the kind of thing
+    // that makes a hand-written expectation wrong in a way only the index can settle.
+    ExpectEqString(encode("日한", Encoding::Iso2022Jp), "\x1B$B" "F|" "\x1B(B" "&#54620;",
+                   "an unencodable character leaves the shift state first");
+    // A code point no encoding here has is the same escape everywhere, and it is the caller's
+    // spelling rather than the encoder's -- see Encoding.h.
+    ExpectEqString(encode("한", Encoding::ShiftJis), "&#54620;", "an unencodable code point");
+    // A lone surrogate is not a character. U+FFFD is what the conversion to a scalar value string
+    // produces, and `&#55357;` -- a reference to something that cannot exist -- is what writing the
+    // surrogate through would produce instead.
+    ExpectEqString(encode("\xED\xA0\xBD", Encoding::EucJp), "&#65533;",
+                   "a lone surrogate is U+FFFD before the encoder sees it");
   });
 
   AddTest(tests, "Encoding/TheAwkwardCornersOfTheLegacyIndexes", [] {

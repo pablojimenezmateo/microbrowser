@@ -2366,7 +2366,7 @@ binding layer writes. The second is the smaller change and the one that keeps `s
 
 ---
 
-## TD-0052 — the WPT runner ignores `<meta name="variant">` in HTML tests
+## TD-0054 — the WPT runner ignores `<meta name="variant">` in HTML tests
 
 **Opened** 2026-08-12, found while landing declarative shadow DOM.
 
@@ -2407,7 +2407,7 @@ against the widened list.
 
 ---
 
-## TD-0053 — every `new CSSStyleSheet()` leaks its storage, permanently
+## TD-0055 — every `new CSSStyleSheet()` leaks its storage, permanently
 
 **Opened** 2026-08-12, found by running ASan over the shadow-DOM tests while
 landing declarative shadow DOM. **Not caused by that work** — it reproduces on
@@ -2516,7 +2516,7 @@ reports no leaks and all twenty-five `run-checks.sh asan` shards pass.
 
 ---
 
-## TD-0052 — Assignment ignores strict mode, so a read-only accessor is a silent no-op
+## TD-0056 — Assignment ignores strict mode, so a read-only accessor is a silent no-op
 
 `Interpreter::AssignToProperty` ends a getter-only property with `return Result::Normal(value)`
 and a comment saying so: *"Assigning is a silent no-op outside strict mode, which is the mode this
@@ -2543,7 +2543,7 @@ functions in one file differ.
 
 ---
 
-## TD-0053 — `url/`'s last 188 subtests are an iframe, and its last 24 test files are a worker
+## TD-0057 — `url/`'s last 188 subtests are an iframe, and its last 24 test files are a worker
 
 `url/` is 9,696 of 9,909 subtests (2026-08-12). Everything a URL parser can be asked, it answers:
 the WHATWG's own vectors are 891/891 parses, 278/278 setters, 87/87 `toascii` and 2,670/2,671
@@ -2570,3 +2570,36 @@ worker's relationship to the network rather than a missing binding.
 Neither is a stub away. A `contentWindow` that was a plain object, or an `importScripts` that
 resolved nothing, is exactly what ADR 0012 forbids: the test would still fail and a real page
 would fail later and further away.
+
+## TD-0058 — `<a href>` reflection resolves its query as UTF-8, and two base URLs disagree
+
+**Created by a merge, not by a session**, which is why it is worth writing down: two worktrees
+implemented HTMLHyperlinkElementUtils against the same base and each got a different half right.
+
+The URL worktree rewrote `a.href`/`a.pathname`/`a.search` over the real parser
+(`src/bindings/UrlObject.cpp`), resolving against `DomBindings::DocumentBaseUrl`, which **re-reads
+`<base href>` out of the tree on every call**. That is what the URL Standard's own setter page
+needs — it sets `<base>` before each of nine hundred link resolutions — and it is most of why
+`url/` reads 97.9%.
+
+The encoding worktree rewrote the same accessors over `NetworkSource::ResolveDocumentUrl`, which is
+HTML's "encoding-parse a URL": the query is percent-encoded in the **document's** character set, so
+`<a href="?q=日本">` on a Shift_JIS page reports `%93%FA%96%7B` — the bytes a click would actually
+send.
+
+The merge kept the first. So today:
+
+- `a.href` on a Shift_JIS page reports a UTF-8 query where a browser reports Shift_JIS. Only a
+  legacy multi-byte document can see it; form submission is unaffected, because that goes through
+  `src/html`'s `UrlEncoding` and does have the encoder.
+- There are **two answers to "what is this document's base URL"**: `DomBindings::DocumentBaseUrl`
+  reads the tree, and `DocumentPolicy::Base()` is computed once in `Page::CollectStyleSheets` and
+  does not move when a script appends a `<base>`. `Engine::ResolveDocumentUrl` uses the second.
+  Two answers to that question is the same shape of bug the deleted `HrefParts.cpp` was.
+
+**The fix is one thing, not two**: give `DocumentPolicy` a live base — or have `ResolveDocumentUrl`
+read the tree the way `DocumentBaseUrl` does — and then point `url_of` in `UrlObject.cpp` at
+`ResolveDocumentUrl`. Doing it in the other order regresses `url/`, which is how it was found: the
+encoding worktree's version cannot pass the standard's setter vectors and the URL worktree's cannot
+pass `encoding/legacy-mb-*`'s href cases. Neither branch's tests cover the other's case, so **the
+suite is green either way** — check both before believing a change here.

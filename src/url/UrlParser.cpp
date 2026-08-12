@@ -72,8 +72,8 @@ bool SchemeIsSpecial(std::string_view scheme) {
 }
 
 UrlParser::UrlParser(std::string_view input, const Url* base, Url& url,
-                     std::optional<State> state_override)
-    : base_(base), url_(url), state_override_(state_override) {
+                     std::optional<State> state_override, const QueryEncoder* query_encoder)
+    : base_(base), url_(url), state_override_(state_override), query_encoder_(query_encoder) {
   // Leading and trailing C0 controls and spaces are stripped -- but only when
   // this is a fresh parse. A setter hands the parser a fragment of a URL that
   // already exists, and trimming there would silently accept a value the
@@ -126,6 +126,39 @@ bool UrlParser::StartsWithWindowsDriveLetter(std::size_t pointer) const {
     return false;
   }
   return rest.size() == 2 || rest[2] == '/' || rest[2] == '\\' || rest[2] == '?' || rest[2] == '#';
+}
+
+void UrlParser::FlushQuery() {
+  if (!url_.query_.has_value() || query_buffer_.empty()) {
+    query_buffer_.clear();
+    return;
+  }
+  const bool special = SchemeIsSpecial(url_.scheme_);
+  const util::PercentEncodeSet set =
+      special ? util::PercentEncodeSet::SpecialQuery : util::PercentEncodeSet::Query;
+  // The standard forces UTF-8 back for a non-special scheme and for ws/wss --
+  // see the comment on `url::QueryEncoder`. `ftp:` and `file:` are special and
+  // do take the document's encoding, which looks odd and is what it says.
+  const bool honour_encoding =
+      query_encoder_ != nullptr && special && url_.scheme_ != "ws" && url_.scheme_ != "wss";
+  if (!honour_encoding) {
+    util::PercentEncodeInto(query_buffer_, set, *url_.query_);
+  } else if (set == util::PercentEncodeSet::SpecialQuery) {
+    query_encoder_->EncodeQuery(
+        query_buffer_,
+        [](unsigned char byte) {
+          return util::ShouldPercentEncode(byte, util::PercentEncodeSet::SpecialQuery);
+        },
+        *url_.query_);
+  } else {
+    query_encoder_->EncodeQuery(
+        query_buffer_,
+        [](unsigned char byte) {
+          return util::ShouldPercentEncode(byte, util::PercentEncodeSet::Query);
+        },
+        *url_.query_);
+  }
+  query_buffer_.clear();
 }
 
 bool UrlParser::Run() {
@@ -577,15 +610,17 @@ bool UrlParser::Run() {
         break;
 
       case State::Query:
+        // Buffered rather than encoded as it arrives, because the document's
+        // character set may be one whose bytes for a character depend on the
+        // characters before it. See FlushQuery.
         if (!state_override_.has_value() && c == '#') {
+          FlushQuery();
           url_.fragment_ = std::string();
           state = State::Fragment;
         } else if (c >= 0) {
-          const std::string_view piece(&input_[pointer], 1);
-          util::PercentEncodeInto(piece,
-                                  url_is_special() ? util::PercentEncodeSet::SpecialQuery
-                                                   : util::PercentEncodeSet::Query,
-                                  *url_.query_);
+          query_buffer_.push_back(input_[pointer]);
+        } else {
+          FlushQuery();
         }
         break;
 

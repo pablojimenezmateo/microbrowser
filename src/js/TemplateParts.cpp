@@ -216,6 +216,9 @@ bool DecodeEscape(std::string_view source, std::size_t& at, std::string& out, st
         // `"\u{1F4A9}"`, encodes as six bytes where every other engine writes four, and reaches
         // `encodeURIComponent` as a pair of lone surrogates. Only a real pair combines; a lone
         // high surrogate stays lone, which is what a page that built one on purpose expects.
+        // Two worktrees found this independently in one week, from opposite directions: a lone
+        // surrogate reaching `encodeURIComponent`, and `encoding/legacy-mb-schinese/gbk`, which
+        // spells U+1F4A9 as two escapes and expects four bytes out of the encoder.
         if (codepoint >= 0xD800 && codepoint <= 0xDBFF && at + 5 < source.size() &&
             source[at] == '\\' && source[at + 1] == 'u' && IsHexDigit(source[at + 2]) &&
             IsHexDigit(source[at + 3]) && IsHexDigit(source[at + 4]) &&

@@ -141,10 +141,16 @@ std::string Url::OriginString() const {
   return out;
 }
 
-std::optional<Url> Url::Parse(std::string_view input) {
+std::optional<Url> Url::Parse(std::string_view input) { return Parse(input, nullptr); }
+
+std::optional<Url> Url::Parse(std::string_view input, const Url& base) {
+  return Parse(input, base, nullptr);
+}
+
+std::optional<Url> Url::Parse(std::string_view input, const QueryEncoder* encoder) {
   AddPerformanceCounter(PerfCounterId::UrlParses);
   Url url;
-  UrlParser parser(input, nullptr, url, std::nullopt);
+  UrlParser parser(input, nullptr, url, std::nullopt, encoder);
   if (!parser.Run()) {
     AddPerformanceCounter(PerfCounterId::UrlParseFailures);
     return std::nullopt;
@@ -152,10 +158,11 @@ std::optional<Url> Url::Parse(std::string_view input) {
   return url;
 }
 
-std::optional<Url> Url::Parse(std::string_view input, const Url& base) {
+std::optional<Url> Url::Parse(std::string_view input, const Url& base,
+                              const QueryEncoder* encoder) {
   AddPerformanceCounter(PerfCounterId::UrlParses);
   Url url;
-  UrlParser parser(input, &base, url, std::nullopt);
+  UrlParser parser(input, &base, url, std::nullopt, encoder);
   if (!parser.Run()) {
     AddPerformanceCounter(PerfCounterId::UrlParseFailures);
     return std::nullopt;

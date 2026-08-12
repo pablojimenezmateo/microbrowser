@@ -18,6 +18,10 @@ enum class ResourceKind {
   StyleSheet,
   Script,
   Image,
+  // A child browsing context's document (ADR 0027 §1). Its `index` is the index
+  // into the page's frame list rather than a pending-URL list, because a frame
+  // is an *object* the page already made and not a slot waiting to be filled.
+  Frame,
 };
 
 struct PendingResource {
@@ -78,6 +82,12 @@ struct PendingLoad {
   // the page is laid out again.
   std::size_t async_scripts_outstanding = 0;
   std::size_t images_outstanding = 0;
+  // Child documents still in flight. Counted apart from every other kind
+  // because they hold a different event: a frame does not block the first paint
+  // -- an empty box where an embed will be is what every browser shows -- but
+  // it does block `load`, which is what makes `iframe.contentDocument` readable
+  // from a `body onload` handler. ADR 0027 §1.
+  std::size_t frames_outstanding = 0;
   std::size_t total_resources = 0;
   std::size_t finished_resources = 0;
   bool scripts_ran = false;
@@ -127,7 +137,7 @@ struct PendingLoad {
   // while one is in flight would drop the response on the floor.
   bool IsFinished() const {
     return painted && async_scripts_outstanding == 0 && scripts_outstanding == 0 &&
-           modules_outstanding == 0 && images_outstanding == 0;
+           modules_outstanding == 0 && images_outstanding == 0 && frames_outstanding == 0;
   }
 
   // How far along, for the progress the UI shows. Never reaches 1.0: that is

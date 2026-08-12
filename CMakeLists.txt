@@ -291,6 +291,7 @@ microbrowser_module(html
     src/html/FormControl.cpp
     src/html/Encoding.cpp
     src/html/MultiByteEncodings.cpp
+    src/html/UrlEncoding.cpp
     src/html/Tokenizer.cpp
     src/html/TreeBuilder.cpp
     src/html/TreeBuilderTable.cpp
@@ -444,6 +445,7 @@ microbrowser_module(engine
     src/engine/PageMedia.cpp
     src/engine/PageMediaSource.cpp
     src/engine/PageModules.cpp
+    src/engine/Frames.cpp
     src/engine/PageResources.cpp
     src/engine/PageImages.cpp
     src/engine/PageScrolling.cpp
@@ -485,6 +487,7 @@ microbrowser_module(bindings
     src/bindings/EncodingBindings.cpp
     src/bindings/DomBindings.cpp
     src/bindings/DomExceptions.cpp
+    src/bindings/FrameBindings.cpp
     src/bindings/WebIdl.cpp
     src/bindings/ElementQueries.cpp
     src/bindings/FetchBindings.cpp

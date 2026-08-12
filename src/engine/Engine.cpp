@@ -525,6 +525,12 @@ void Engine::OnCompletion(Loader::Completion completion) {
         AddPerformanceCounter(PerfCounterId::EngineImagesFailed);
       }
       break;
+    case ResourceKind::Frame:
+      // The child document goes straight into its context, which parses it, collects *its*
+      // subresources and -- because a frame may hold a frame -- collects its own frames too. The
+      // decrement is inside OnFrameFetch so that every exit from it agrees about the count.
+      OnFrameFetch(std::move(completion), resource);
+      break;
   }
 
   if (load_.total_resources > 0) {
@@ -544,6 +550,9 @@ void Engine::RecordResourceTiming(const PendingResource& resource,
       break;
     case ResourceKind::Image:
       initiator = "img";
+      break;
+    case ResourceKind::Frame:
+      initiator = "iframe";
       break;
   }
   const double start = 0.0;

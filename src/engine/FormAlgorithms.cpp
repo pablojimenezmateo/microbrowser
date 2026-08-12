@@ -92,34 +92,78 @@ void ForEachSuccessfulFormValue(const dom::Document& document,
 
 std::string UrlEncodedFormData(const dom::Document& document,
                                const dom::Element& form,
-                               const dom::Element* submitter) {
+                               const dom::Element* submitter,
+                               html::Encoding encoding) {
   std::string out;
-  ForEachSuccessfulFormValue(document, form, submitter,
-                             [&](std::string_view name, std::string_view value) {
-                               // The urlencoded serializer, shared with
-                               // URLSearchParams. This used to be
-                               // `PercentEncodeSet::Component`, which keeps
-                               // `!'()~` -- close enough to look right, and
-                               // wrong enough that a field with an apostrophe
-                               // in it reached the server differently from
-                               // every other browser.
-                               util::AppendUrlEncodedPair(name, value, out);
-                             });
+  ForEachSuccessfulFormValue(
+      document, form, submitter, [&](std::string_view name, std::string_view value) {
+        // Two steps, in this order, and the order is the specification's: the text becomes *bytes*
+        // in the form's encoding first -- with anything that encoding cannot hold spelled `&#1234;`
+        // -- and the urlencoded serializer then percent-encodes those bytes. Doing it the other way
+        // round would percent-encode UTF-8 and hand the server the wrong bytes under the right
+        // syntax, which is the failure no test of the syntax can see.
+        //
+        // The `&`, `#` and `;` of an escape are all outside the serializer's keep-set, so they come
+        // out as `%26%23...%3B` without this having to spell them -- which is why this step can be a
+        // plain string and the URL query's cannot.
+        //
+        // The serializer itself is not a percent-encode set from the URL standard: it keeps ASCII
+        // alphanumerics and `*-._` and nothing else. This used to be `PercentEncodeSet::Component`,
+        // which keeps `!'()~` -- close enough to look right, and wrong enough that a field with an
+        // apostrophe in it reached the server differently from every other browser.
+        util::AppendUrlEncodedPair(html::EncodeWithNumericEscapes(name, encoding),
+                                   html::EncodeWithNumericEscapes(value, encoding), out);
+      });
   return out;
 }
 
 std::string TextPlainFormData(const dom::Document& document,
                               const dom::Element& form,
-                              const dom::Element* submitter) {
+                              const dom::Element* submitter,
+                              html::Encoding encoding) {
   std::string out;
   ForEachSuccessfulFormValue(document, form, submitter,
                              [&](std::string_view name, std::string_view value) {
-                               out += name;
+                               out += html::EncodeWithNumericEscapes(name, encoding);
                                out.push_back('=');
-                               out += value;
+                               out += html::EncodeWithNumericEscapes(value, encoding);
                                out += "\r\n";
                              });
   return out;
+}
+
+// HTML's "select an encoding" for a form: the first label in `accept-charset` this browser has an
+// encoding for, and the document's own otherwise.
+//
+// UTF-16 is replaced by UTF-8 -- the standard's rule, and there is a reason beyond tidiness: there
+// is no UTF-16 encoder in the Encoding Standard at all, and a form body full of NUL bytes is one
+// nothing between here and the server survives.
+html::Encoding FormEncodingCharset(const dom::Element& form, html::Encoding document_encoding) {
+  html::Encoding chosen = document_encoding;
+  if (const std::string* accept = form.GetAttribute("accept-charset")) {
+    // A space-separated list, and the first *supported* label wins rather than the first label --
+    // a page that writes `accept-charset="x-made-up utf-8"` means UTF-8.
+    chosen = html::Encoding::Utf8;
+    std::size_t at = 0;
+    while (at < accept->size()) {
+      const std::size_t end = accept->find_first_of(" \t\n\f\r", at);
+      const std::string_view label =
+          std::string_view(*accept).substr(at, end == std::string::npos ? end : end - at);
+      if (!label.empty()) {
+        if (const std::optional<html::Encoding> found = html::EncodingFromLabel(label)) {
+          chosen = *found;
+          break;
+        }
+      }
+      if (end == std::string::npos) {
+        break;
+      }
+      at = end + 1;
+    }
+  }
+  return chosen == html::Encoding::Utf16Le || chosen == html::Encoding::Utf16Be
+             ? html::Encoding::Utf8
+             : chosen;
 }
 
 std::string WithoutQueryOrFragment(std::string_view url) {
@@ -196,7 +240,8 @@ std::size_t TextControlValueLimitBytes(const dom::Element& element) {
 std::optional<FormSubmission> BuildFormSubmission(const dom::Element& form,
                                                   const dom::Element* submitter,
                                                   const dom::Document& document,
-                                                  std::string_view document_url) {
+                                                  std::string_view document_url,
+                                                  html::Encoding document_encoding) {
   const std::string* action =
       submitter != nullptr && submitter->HasAttribute("formaction")
           ? submitter->GetAttribute("formaction")
@@ -204,6 +249,7 @@ std::optional<FormSubmission> BuildFormSubmission(const dom::Element& form,
   const std::string action_url =
       action == nullptr || action->empty() ? std::string(document_url) : *action;
   const FormEncoding encoding = FormEncodingFor(form, submitter);
+  const html::Encoding charset = FormEncodingCharset(form, document_encoding);
   FormSubmission submission;
   submission.method = FormMethod(form, submitter);
   if (submission.method == "POST") {
@@ -212,14 +258,17 @@ std::optional<FormSubmission> BuildFormSubmission(const dom::Element& form,
     }
     submission.url = WithoutFragment(action_url);
     if (encoding == FormEncoding::TextPlain) {
-      submission.body = TextPlainFormData(document, form, submitter);
+      submission.body = TextPlainFormData(document, form, submitter, charset);
       submission.content_type = std::string(kTextPlainFormContentType);
     } else {
-      submission.body = UrlEncodedFormData(document, form, submitter);
+      submission.body = UrlEncodedFormData(document, form, submitter, charset);
       submission.content_type = std::string(kUrlEncodedFormContentType);
     }
+    // **No `charset` parameter, deliberately.** HTML gives these two MIME types literally, and no
+    // browser adds one: a server reads a form body in the encoding the *page* declared, which it
+    // served. Adding one here would be this browser telling servers something none of them expect.
   } else {
-    const std::string query = UrlEncodedFormData(document, form, submitter);
+    const std::string query = UrlEncodedFormData(document, form, submitter, charset);
     submission.url = WithoutQueryOrFragment(action_url);
     if (!query.empty()) {
       submission.url += '?';

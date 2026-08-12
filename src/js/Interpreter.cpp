@@ -1,5 +1,6 @@
 #include "js/Interpreter.h"
 
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -17,10 +18,33 @@ namespace microbrowser::js {
 
 namespace {
 
-// After this many allocations, tracing is cheaper than the memory it would
-// reclaim. A number rather than a heuristic because the alternative is a
-// heuristic nobody has measured.
-constexpr std::size_t kCollectionThreshold = 4096;
+// The floor on how many allocations buy a collection. Below this, tracing costs
+// more than the memory it would reclaim.
+constexpr std::size_t kMinCollectionThreshold = 4096;
+
+// And the whole of the rule: a collection is worth running once the program has
+// allocated a *fraction of what is already live*, not once it has allocated a
+// fixed number of cells.
+//
+// This was a flat 4096 and it made the collector quadratic in the size of the
+// live set, which is the shape that matters -- a mark-sweep pass costs what is
+// live, so a program that grows to N live cells and keeps allocating pays
+// O(N) every 4096 allocations, which is O(N²/4096) over the run. It is exactly
+// the failure a growing program cannot see coming: nothing is leaking, every
+// individual collection is correct, and each one reclaims almost nothing
+// because almost everything is still reachable.
+//
+// Measured on `encoding/legacy-mb-japanese/euc-jp/eucjp-encode-href-errors-han.html`,
+// which builds 21,269 testharness subtests and holds every one of them live.
+// Batches of 2,000 took 1.8s, 3.2s, 4.1s, 4.6s -- a straight line in the size
+// of the heap -- and the page never finished. With the ratio it is flat.
+//
+// A half is the conventional number: the collector runs when the heap has grown
+// by 50%, so total tracing over a run is proportional to total allocation and
+// the amortised cost per allocation is constant.
+std::size_t CollectionThreshold(std::size_t live_cells) {
+  return std::max(kMinCollectionThreshold, live_cells / 2);
+}
 
 }  // namespace
 
@@ -363,7 +387,12 @@ Value NativeCall::ThrowValue(Value value) {
 }
 
 void Interpreter::MaybeCollect() {
-  if (heap_.AllocationsSinceCollection() < kCollectionThreshold || call_depth_ != 0) {
+  // The live count is read *before* the collection rather than remembered from
+  // after the last one, which overstates it by whatever garbage has piled up
+  // since -- and that is the safe direction: it can only make the next
+  // collection later, never sooner, so it cannot reintroduce the quadratic.
+  const std::size_t cells = heap_.ObjectCount() + heap_.EnvironmentCount();
+  if (heap_.AllocationsSinceCollection() < CollectionThreshold(cells) || call_depth_ != 0) {
     return;
   }
   std::vector<Object*> object_roots = well_known_.Roots();

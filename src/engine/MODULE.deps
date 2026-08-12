@@ -26,7 +26,13 @@ extern:
 # already hosts GeometrySource and MediaController — one Page, one clock.
 # Raised for click press-target + image recollect (TD-0022/0023): two more
 # members and declarations on the Page seam, not a missing module.
-max_tu_lines: 980
+# Raised to 990 where three worktrees met in a merge. Page.h took ADR 0027's
+# browsing-context tree and the document's encoding; Engine.cpp took the routing
+# for both plus the activation a scripted `click()` hands back. Both files are
+# the same shape they have always been -- declared seams and the routing between
+# them -- and `Frames.cpp`/`PageActivation.cpp` are where the *bodies* went,
+# which is the split working rather than one that is owed.
+max_tu_lines: 990
 
 # Engine is the class most at risk of becoming "the browser". Document,
 # navigation history, network, and script each get their own type; Engine stays
@@ -211,7 +217,12 @@ budget: Result header_lines=35 public_methods=0 members=12
 # `performance.timing` is the one interface whose fields are Unix timestamps by
 # definition. Recording both at the start of the navigation is what keeps the two
 # epochs from being derived from each other, which cannot be done correctly.
-budget: PendingLoad header_lines=115 public_methods=8 members=20
+# +1 member for ADR 0027 §1's child documents in flight. Counted apart from
+# every other kind because a frame holds a different event: it does not block
+# the first paint -- an empty box where an embed will be is what every browser
+# shows -- but it does block `load`, which is what makes `iframe.contentDocument`
+# readable from a `body onload` handler.
+budget: PendingLoad header_lines=125 public_methods=8 members=21
 
 # 185 lines and 38 methods for the form lifecycle: taking the submission a
 # script asked for, firing `load`, and the private SubmitForm every route to a
@@ -296,8 +307,21 @@ budget: PendingLoad header_lines=115 public_methods=8 members=20
 # +1 member: pointer_down_target_ (UI Events click retarget; youtube Accept).
 # +1 public method: ResolveClickActivation.
 # +1 public method: RecollectDocumentImages (IO-assigned img.src).
-budget: Page   header_lines=990 public_methods=188 members=25
+# +1 member and +1 method: the encoding this document's bytes were decoded from.
+# It is state rather than a question because the sniff happens once, where the
+# bytes became text, and a second sniff of the same bytes later could disagree
+# with the tree that was already built from the first. Everything that *writes*
+# bytes out reads it -- a link's query and a form's body are both in the
+# document's character set (ADR 0025 §2), which is the only place a
+# `<meta charset>` changes what leaves the browser.
+budget: Page   header_lines=990 public_methods=189 members=26
 budget: LayoutState header_lines=40 public_methods=0 members=8
+# ADR 0027 §1's child browsing context. Five members and each is a distinct
+# question: which element holds it, what context is behind it, what URL it was
+# told to load, whether that has arrived, and whether it is same-origin. The
+# last is recorded rather than recomputed so that one frame cannot be
+# same-origin to one caller and not to another.
+budget: Frame header_lines=40 public_methods=0 members=6
 # ADR 0031's decoder child and the surface registry it feeds. Two members: the playback coordinator and
 # the last composited generation per surface id, which is how a playing video damages the screen when
 # the display list is byte-identical.
@@ -394,7 +418,11 @@ budget: PageScript header_lines=500 public_methods=69 members=32
 # the binding layer has to know the answer to. It cannot ask -- `src/bindings`
 # may not see `src/csp`, and that allow: line is a security boundary (ADR 0008)
 # -- so the answer crosses as a flag, once per document.
-budget: DocumentPolicy header_lines=127 public_methods=19 members=5
+# +1 member for the document's encoding, which is the other half of
+# "encoding-parse a URL" and belongs beside the base for that reason -- holding
+# the two apart is how a `<base href>` and a `<meta charset>` end up describing
+# different documents. See the note on the member itself.
+budget: DocumentPolicy header_lines=145 public_methods=20 members=6
 # Back and forward, for one tab, where the documents are. Three members: the
 # entries, the cursor, and the generation counter `history.state`'s memo is keyed
 # on. ADR 0026 §1 moved it out of `src/ui` because a `pushState` entry is a URL

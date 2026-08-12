@@ -231,6 +231,15 @@ class Engine : private bindings::NetworkSource,
   // Called from the subresource pass and again whenever a stylesheet lands, since
   // a face is declared *in* a sheet and the sheet arrives after the document.
   void StartFontRequests();
+  // Fetches the document for every child browsing context that has none yet.
+  // ADR 0027 §1. Called from the subresource pass, and again whenever the
+  // frames are re-collected -- a script that appends an `<iframe>` creates a
+  // context the same way the parser does.
+  void StartFrameRequests();
+  // One child document's bytes, into the frame that asked for them. Decides
+  // *here* whether the child is same-origin, because this is the module that
+  // understands URLs -- see Page::SetFrameDocument and ADR 0027 §2.
+  bool OnFrameFetch(Loader::Completion completion, const PendingResource& resource);
   void StartWorkerScriptRequests();
   bool OnWorkerScriptFetch(Loader::Completion completion);
   // One face's bytes. True when the provider took them and the page therefore
@@ -393,6 +402,7 @@ class Engine : private bindings::NetworkSource,
   void AbortFetch(std::uint64_t id) override;
   // `new URL(...)`'s resolve, through the one parser in `src/url`. See bindings/Network.h.
   std::string ResolveUrl(std::string_view relative, std::string_view base) const override;
+  std::string ResolveDocumentUrl(std::string_view relative) const override;
   std::string RegisterBlobUrl(std::string body, std::string mime_type) override;
   void RevokeBlobUrl(const std::string& url) override;
   // One response for a request a script made. True when the page's script ran,

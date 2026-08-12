@@ -575,4 +575,94 @@ void Page::AddStyleSheet(std::size_t pending_index, std::string_view css) {
   RebuildAuthorStyleSheets();
 }
 
+
+// --- nested browsing contexts, ADR 0027 §1 -----------------------------------
+
+std::vector<std::size_t> Page::CollectFrames() {
+  std::vector<std::size_t> wanted;
+  if (document_ == nullptr) {
+    ClearFrames();
+    return wanted;
+  }
+  const std::vector<dom::Element*> elements = CollectFrameElements(*document_);
+
+  // **A surviving element keeps its context.** Rebuilding the list from scratch on every collection
+  // would reload every frame on the page each time a script appended a `<div>` -- and a frame that
+  // reloads on an unrelated mutation is a page that never settles, plus a request per mutation
+  // going out to whoever the frame points at.
+  std::vector<Frame> kept;
+  kept.reserve(elements.size());
+  for (dom::Element* element : elements) {
+    auto existing = std::find_if(frames_.begin(), frames_.end(),
+                                 [&](const Frame& frame) { return frame.element == element; });
+    if (existing != frames_.end()) {
+      kept.push_back(std::move(*existing));
+      // Moved out, so the loop below does not clear the element's pointer for a frame that is
+      // still alive. `element` is nulled rather than the whole entry erased because erasing from
+      // the middle of a vector being iterated is the other way to get this wrong.
+      existing->element = nullptr;
+      existing->page.reset();
+      continue;
+    }
+    Frame frame;
+    frame.element = element;
+    frame.page = std::make_unique<Page>(text_ctx_.Text().Fonts());
+    kept.push_back(std::move(frame));
+  }
+  // Whatever is left in `frames_` is a frame whose element is gone from the document. It ends here,
+  // and it ends through the same clear-then-drop the destructor path uses.
+  ClearFrames();
+  frames_ = std::move(kept);
+
+  for (std::size_t index = 0; index < frames_.size(); ++index) {
+    if (!frames_[index].loaded) {
+      wanted.push_back(index);
+    }
+  }
+  return wanted;
+}
+
+void Page::SetFrameDocument(std::size_t index, std::string_view html, std::string url,
+                            csp::PolicyList header_policy, std::string_view content_type,
+                            bool same_origin) {
+  if (index >= frames_.size() || frames_[index].page == nullptr) {
+    return;
+  }
+  Frame& frame = frames_[index];
+  frame.url = url;
+  frame.same_origin = same_origin;
+  frame.page->Load(html, std::move(url), std::move(header_policy), content_type);
+  frame.loaded = true;
+  // The origin check, and it is the whole of it: a cross-origin child has no document on its
+  // element, so `iframe.contentDocument` has nothing to return. Nothing above this module has to
+  // remember to ask. ADR 0027 §2.
+  if (frame.element != nullptr) {
+    frame.element->SetNestedDocument(same_origin ? frame.page->MutableDocument() : nullptr);
+  }
+}
+
+bool Page::FramesLoaded() const {
+  for (const Frame& frame : frames_) {
+    if (!frame.loaded) {
+      return false;
+    }
+    if (frame.page != nullptr && !frame.page->FramesLoaded()) {
+      return false;  // a frame inside a frame; the load event waits for the whole subtree
+    }
+  }
+  return true;
+}
+
+void Page::ClearFrames() {
+  // The borrowed pointer goes *before* the page that owns the document it points at. Both halves
+  // are here rather than at any caller, because a second place that dropped a frame would be a
+  // use-after-free a page could drive with `iframe.remove()`. See Frames.h.
+  for (Frame& frame : frames_) {
+    if (frame.element != nullptr) {
+      frame.element->SetNestedDocument(nullptr);
+    }
+  }
+  frames_.clear();
+}
+
 }  // namespace microbrowser::engine

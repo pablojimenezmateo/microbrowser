@@ -50,8 +50,12 @@ class UrlParser {
     Fragment,
   };
 
+  // `query_encoder` is the document's character set for the query, and null is
+  // UTF-8 -- which is what every caller that is not a document wants. See the
+  // comment on `url::QueryEncoder`; the query is the one part of a URL whose
+  // bytes depend on the page the link was written on.
   UrlParser(std::string_view input, const Url* base, Url& url,
-            std::optional<State> state_override);
+            std::optional<State> state_override, const QueryEncoder* query_encoder = nullptr);
 
   // False is the standard's "return failure". With a state override, a failure
   // means the caller's URL must be left alone — which is why Url's setters
@@ -62,11 +66,20 @@ class UrlParser {
   bool SchemeOverrideRefuses(const std::string& buffer) const;
   void ShortenPath();
   bool StartsWithWindowsDriveLetter(std::size_t pointer) const;
+  // The standard's "percent-encode after encoding", run over the whole query
+  // at once rather than byte by byte as it arrives. It has to be the whole
+  // query: an encoding is a function of a *string*, not of a byte --
+  // ISO-2022-JP writes an escape sequence when it changes character set, so
+  // the bytes for a character depend on the ones before it, and a per-byte
+  // loop would write one escape per character and none of the closing ones.
+  void FlushQuery();
 
   std::string input_;
   const Url* base_;
   Url& url_;
   std::optional<State> state_override_;
+  const QueryEncoder* query_encoder_;
+  std::string query_buffer_;
   std::string buffer_;
   bool at_sign_seen_ = false;
   bool inside_brackets_ = false;

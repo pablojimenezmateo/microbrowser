@@ -756,6 +756,12 @@ std::size_t Heap::Collect(const std::vector<Object*>& object_roots,
 
   const std::size_t before = objects_.size() + environments_.size();
   util::MaxPerformanceCounter(util::PerfCounterId::JsHeapLivePeak, before);
+  // What this pass cost, rather than what it left behind. `heap_live_peak` is one
+  // number at one moment and cannot tell a collector that runs twice from one
+  // that runs ten thousand times over the same heap -- which is the difference
+  // between a program that is slow and a collector that is.
+  util::AddPerformanceCounter(util::PerfCounterId::JsCollections);
+  util::AddPerformanceCounter(util::PerfCounterId::JsCellsTraced, before);
   // Before the objects go, so the side table never holds a key that has been
   // freed -- a stale entry would be handed out as a compiled pattern the next
   // time an object happened to be allocated at the same address.

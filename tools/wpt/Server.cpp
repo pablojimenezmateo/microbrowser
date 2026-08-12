@@ -44,16 +44,29 @@ std::string ReadWholeFile(const std::filesystem::path& path, bool* found) {
   return buffer.str();
 }
 
+// **No `charset` on anything, which is wptserve's table and was this server's bug.**
+//
+// It used to send `text/html; charset=utf-8` for every document. That is one header, and it
+// silently disabled the whole of the Encoding Standard for the whole of the suite: a `charset` in
+// `Content-Type` outranks a `<meta charset>` in the bytes, so every test that declares an encoding
+// in its markup -- which is how the 105 files under `encoding/legacy-mb-*` say what they are -- was
+// decoded as UTF-8 and tested nothing it meant to test. `gbk-encoder.html` carries the comment
+// "if the server overrides this, it is stupid", which is the bug written down by an author who had
+// met it before.
+//
+// A test that needs a charset asks for one with a `.headers` sidecar, and 25 files under
+// `encoding/` do exactly that. Matching wptserve's `content_types` table is what makes those the
+// only ones that get it.
 std::string_view MimeTypeFor(std::string_view path) {
   const std::size_t dot = path.rfind('.');
   const std::string_view extension = dot == std::string_view::npos ? "" : path.substr(dot);
   static const std::unordered_map<std::string_view, std::string_view> kTypes = {
-      {".html", "text/html; charset=utf-8"},   {".htm", "text/html; charset=utf-8"},
+      {".html", "text/html"},                  {".htm", "text/html"},
       {".xhtml", "application/xhtml+xml"},     {".xht", "application/xhtml+xml"},
-      {".xml", "text/xml"},                    {".js", "text/javascript; charset=utf-8"},
-      {".mjs", "text/javascript; charset=utf-8"},
-      {".json", "application/json"},           {".css", "text/css; charset=utf-8"},
-      {".txt", "text/plain; charset=utf-8"},   {".png", "image/png"},
+      {".xml", "text/xml"},                    {".js", "text/javascript"},
+      {".mjs", "text/javascript"},
+      {".json", "application/json"},           {".css", "text/css"},
+      {".txt", "text/plain"},                  {".png", "image/png"},
       {".jpg", "image/jpeg"},                  {".jpeg", "image/jpeg"},
       {".gif", "image/gif"},                   {".webp", "image/webp"},
       {".svg", "image/svg+xml"},               {".ico", "image/x-icon"},
