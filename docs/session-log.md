@@ -5860,3 +5860,95 @@ where they used to cost none, which is the honest price of the 26 that started r
   timer queue — which is a real change to its loop and wants deciding rather than sneaking in.
 - Nothing here touched the `.asis` files or the `.sub.py` variants, both of which appear in the
   same directories and neither of which is handled.
+
+## 2026-08-12 — An interpreter holds many globals now (ADR 0042, TD-0059's language half)
+
+**The item was picked by counting rather than by reading a roadmap.** Of the 8,417 harness-silent
+tests, 1,083 use an `<iframe>` — second to workers by count, and unlike workers not duplicate
+coverage, because a `.any.worker.html` is the same assertions as an `.any.html` twin that mostly
+passes while an iframe test is the only place its behaviour is tested at all. `url/` reached the same
+conclusion from its last 188 subtests (TD-0057) and `dom/` from ~4,176 behind seven `Range-*.html`
+files. Three areas, one missing concept: `js::Interpreter` had one global object and one set of
+intrinsics, so a second document with its own `window` had nowhere to be.
+
+### The split was decided by asking what breaks if a cell is duplicated
+
+That question, not tidiness, is what put the line where it is. `js::Intrinsics` — the prototypes — is
+per realm because `frames[0].Array === Array` answering **false** is the observable that tells a page
+it is looking at a second global, and it is what every library uses to decide whether a value came
+from somewhere else. `js::SharedCells` is the well-known symbols and the two internal signals, and
+they are shared because duplicating them breaks something silently: a `for...of` compiled in one realm
+has to find the *same* `Symbol.iterator` cell as an array made in another, and with two cells,
+spreading a cross-realm array produces an empty array and throws nothing. Both structs are in
+`js/Realm.h` together, because "what is per realm" is only readable next to "what is not".
+
+### Two implementation decisions are load-bearing and neither is obvious
+
+**The realm follows the callee, and the guard is the callee.** `RunFrames` re-derives the realm when
+`frame->function` changes rather than when the frame *depth* changes — a pop followed by a push inside
+one turn is a generator resuming, which leaves the depth equal and the callee different, so a
+depth-keyed guard would run a function in its caller's realm.
+
+**The realm is stamped by `Heap::AllocateObject`, not at the six places a callable is made.** A
+function carrying the wrong realm is not a wrong answer; it is a child frame's code running against
+the parent's global. Six sites that each have to remember is six chances at that, and the allocator
+cannot forget. It costs one store per allocation and `Object` grew a `std::uint16_t` that fits in
+padding two bools already left — 2 bytes rather than 8, deliberately an index rather than a `Realm*`,
+so it also survives the realm list growing when a page appends a frame.
+
+### The bug worth keeping: it reproduced only in Release
+
+A top-level program frame has no function object, so the sync dereferenced null on the way *into* one
+— and on the way *out* of a callee in another realm it would have left the program running in its
+callee's realm. One bug, two symptoms, and they need two fields: `current_realm_` follows calls and
+`host_realm_` must not.
+
+**2126 Debug tests passed straight over it and `microbrowser_bench js` segfaulted.** The reason is
+worth remembering: the tests reached that line with the sync guard already null and took the early
+return, while the benchmark reached it with a real function cached. A guard whose *own* initial state
+hides the case it guards is invisible to any test that starts fresh — so the Debug suite was not a
+weaker check here, it was checking a different state. Realms.cpp says this where the next person will
+be tempted to merge the two fields back together.
+
+### The cost was measured by interleaving, and accepted
+
++2.9% total on the machine benchmarks, worst row `js/array-index` at +10.2%, recorded as **TD-0060**
+with both candidate fixes and the reason neither was taken. The method matters more than the number:
+two binaries built from one tree and run **alternately** six times each, min-of-six per row. A
+sequential before-then-after would have been worthless — the first run of one binary read 82ms against
+a steady-state 30ms while a link was still finishing, and the baseline's own four runs spread
+`name-0-reads` over 105 to 305 ns.
+
+Accepted because correctness and security come before speed here, and because it is 2.9% of the wrong
+quantity: Hacker News spends 1.21s of a 1.41s load blocked on a socket against 58ms of scoped CPU.
+The part that makes it *debt* rather than a cost of the feature is that a page with no `<iframe>` pays
+it in full — the extra load is on every intrinsic read, not on the realm switch.
+
+### Verified against the correctness signal, and one pre-existing red test found
+
+`dom/nodes/` re-run: 330 tests, 13,060 subtests, 10,177 passed, **0 unexpected results attributable to
+this change**. Two showed up and both were checked against a *genuine* pre-realm build rather than
+assumed — `Document-createElement-namespace.html` is a load-order flake (it passes run alone), and
+`dom/nodes/remove-from-shadow-host-and-adopt-into-iframe.html` fails identically on master.
+
+That second one is worth flagging: **it is red while the expectation file claims it passes**, and what
+it needs is `iframe.contentWindow.document.body.appendChild(...)` — which makes it the smallest
+end-to-end check for the half that has not landed.
+
+The tree-walker differential is unchanged at 54 failures, measured against master rather than assumed.
+Worth noting separately: the list at the top of `tests/JsVmTests.cpp` documents ~40, so **14
+differences on master are undocumented** — "anything else appearing in that list is a difference nobody
+decided on", by that file's own rule.
+
+### Left, and read ADR 0042 §5 before starting it
+
+The host half. `PageScript` owns an interpreter per `Page`, a same-origin child must borrow its
+parent's, and every one of ~40 host entry points must then run in the child's realm. **A missed one is
+a same-origin escape rather than a bug** — the child's script would see the embedder's `window`, which
+is worse than the stub it replaces. §5 argues for a realm-bound handle whose `operator->` carries the
+guard for the full expression, rather than `RealmScope` at 40 call sites, which would be correct the
+day it was written and silently wrong at the first new entry point.
+
+Also unlanded and named in §5: `DomBindings` caches a wrapper per node, so two of them over one heap
+gives a node two wrappers, and `parent.document.body === parent.document.body` from a child has to
+stay true. Decide whether the cache is shared or realm-keyed before writing either.

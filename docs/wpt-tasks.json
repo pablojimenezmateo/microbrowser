@@ -21,599 +21,1443 @@
   "source": "docs/wpt-plan.md",
   "updated": "2026-08-12",
   "milestones": [
-    { "id": "M-A", "title": "the instrument", "status": "done" },
-    { "id": "M-B", "title": "the baseline", "status": "done" },
-    { "id": "M-C", "title": "the DOM and its bindings", "status": "not_started" },
-    { "id": "M-D", "title": "CSS: cascade, values, object model", "status": "not_started" },
-    { "id": "M-E", "title": "layout", "status": "not_started" },
-    { "id": "M-F", "title": "paint, colour and graphics", "status": "not_started" },
-    { "id": "M-G", "title": "script, the event loop, and timing", "status": "not_started" },
-    { "id": "M-H", "title": "the network and the security around it", "status": "not_started" },
-    { "id": "M-I", "title": "storage", "status": "not_started" },
-    { "id": "M-J", "title": "navigation, browsing contexts, the process split", "status": "not_started" },
-    { "id": "M-K", "title": "text and internationalisation", "status": "not_started" },
-    { "id": "M-L", "title": "media", "status": "not_started" },
-    { "id": "M-M", "title": "speed, memory, idle CPU", "status": "not_started" },
-    { "id": "M-N", "title": "the acceptance sites", "status": "not_started" }
+    {
+      "id": "M-A",
+      "title": "the instrument",
+      "status": "done"
+    },
+    {
+      "id": "M-B",
+      "title": "the baseline",
+      "status": "done"
+    },
+    {
+      "id": "M-C",
+      "title": "the DOM and its bindings",
+      "status": "not_started"
+    },
+    {
+      "id": "M-D",
+      "title": "CSS: cascade, values, object model",
+      "status": "not_started"
+    },
+    {
+      "id": "M-E",
+      "title": "layout",
+      "status": "not_started"
+    },
+    {
+      "id": "M-F",
+      "title": "paint, colour and graphics",
+      "status": "not_started"
+    },
+    {
+      "id": "M-G",
+      "title": "script, the event loop, and timing",
+      "status": "not_started"
+    },
+    {
+      "id": "M-H",
+      "title": "the network and the security around it",
+      "status": "not_started"
+    },
+    {
+      "id": "M-I",
+      "title": "storage",
+      "status": "not_started"
+    },
+    {
+      "id": "M-J",
+      "title": "navigation, browsing contexts, the process split",
+      "status": "not_started"
+    },
+    {
+      "id": "M-K",
+      "title": "text and internationalisation",
+      "status": "not_started"
+    },
+    {
+      "id": "M-L",
+      "title": "media",
+      "status": "not_started"
+    },
+    {
+      "id": "M-M",
+      "title": "speed, memory, idle CPU",
+      "status": "not_started"
+    },
+    {
+      "id": "M-N",
+      "title": "the acceptance sites",
+      "status": "not_started"
+    }
   ],
   "tasks": [
     {
-      "id": "A2", "milestone": "M-A", "title": "the server's built-in handlers", "area": "",
+      "id": "A2",
+      "milestone": "M-A",
+      "title": "the server's built-in handlers",
+      "area": "",
       "scope": "WPT's `.py` handlers, as a table of native handlers in tools/wpt/Server.cpp. Not a Python interpreter -- ADR 0040 rules that out and is right. The head of the distribution is short and mechanical: slow.py, stash.py, redirect.py, serve-custom-response.py, report.py, content.py, serve-with-content-type.py, message.py, inspect-headers.py, cors-makeheader.py, status.py, echo-headers.py. POST is also refused outright today -- Server.cpp answers 501 for any method that is not GET or HEAD -- which blocks every xhr/ and fetch/ test that sends one, whatever the handler.",
       "check": "xhr/ and fetch/api/ re-measured, with the `Python handlers are not implemented` cause gone from the ranked-cause table in docs/wpt-baseline.md.",
-      "depends": [], "target": "", "status": "in_progress", "agent": "wpt-handlers", "adr": "0040",
+      "depends": [],
+      "target": "",
+      "status": "in_progress",
+      "agent": "wpt-handlers",
+      "adr": "0040",
       "notes": "**Measured 2026-08-12, and unclaimed until then: 2,214 in-scope test files reference a `.py` handler** -- 976 css/, 434 html/, 203 xhr/, 171 fetch/, 88 content-security-policy/, 57 eventsource/, 57 referrer-policy/. 308 distinct handlers, but the head is short (slow.py 216 references, stash.py 199, redirect.py 182). This is the only large blocker in the tree that is **entirely our own code** and needs no browser feature at all, which probably makes it the cheapest points available. Found by re-running a 599-test sample of the harness-failure bucket against the current tree: 26 of them reported `Error: Python handlers are not implemented`.\n\n**2026-08-12, first 21 handlers landed**, plus POST (the server framed a request at the blank line and read the entity as the next request line, so it could not have answered one). xhr 135 -> 120 harness failures, cors 7 -> 8, fetch 204 -> 192; 672 recorded subtest failures became passes. The handlers immediately found a *browser* bug: a response to HEAD carries no body whatever its Content-Length says (RFC 9110 s6.4.1), and `net::ResponseParser` waited for one -- every HEAD request hung the browser forever. Still to do: `slow.py`, `delay.py` and `trickle.py` answer immediately, because the server is single-threaded and sleeping in it stops the whole run; a real delay wants a timer queue rather than a sleep. And 287 handlers remain unwritten -- the ranked-cause table in docs/wpt-baseline.md is how the next one gets chosen, which is why an unknown handler is still an honest 501."
     },
     {
-      "id": "B1", "milestone": "M-B", "title": "full baseline run", "area": "",
+      "id": "B1",
+      "milestone": "M-B",
+      "title": "full baseline run",
+      "area": "",
       "scope": "Run every checked-out area, commit the expectation files it produces.",
       "check": "tests/wpt/expectations/ has a file per top-level area and `microbrowser_wpt` exits 0 against it.",
-      "depends": [], "target": "", "status": "done", "agent": "wpt-baseline", "adr": "0040", "notes": ""
+      "depends": [],
+      "target": "",
+      "status": "done",
+      "agent": "wpt-baseline",
+      "adr": "0040",
+      "notes": ""
     },
     {
-      "id": "B2", "milestone": "M-B", "title": "triage the baseline by cause", "area": "",
+      "id": "B2",
+      "milestone": "M-B",
+      "title": "triage the baseline by cause",
+      "area": "",
       "scope": "Group failures by message and by cause, rank by tests-unblocked-per-fix, write docs/wpt-baseline.md.",
       "check": "docs/wpt-baseline.md ranks at least the top 25 causes with the subtest count behind each.",
-      "depends": ["B1"], "target": "", "status": "done", "agent": "wpt-baseline", "adr": "0040", "notes": "The first 150 dom/ tests showed four messages behind most failures. This is what turns 20,000 failures into 40 sessions."
+      "depends": [
+        "B1"
+      ],
+      "target": "",
+      "status": "done",
+      "agent": "wpt-baseline",
+      "adr": "0040",
+      "notes": "The first 150 dom/ tests showed four messages behind most failures. This is what turns 20,000 failures into 40 sessions."
     },
     {
-      "id": "B3", "milestone": "M-B", "title": "harness gaps", "area": "",
+      "id": "B3",
+      "milestone": "M-B",
+      "title": "harness gaps",
+      "area": "",
       "scope": "Which areas are unrunnable and why: .py handlers, testdriver.js, https origins.",
       "check": "ADR 0040 amended with the list and a decision for each.",
-      "depends": ["B1"], "target": "", "status": "done", "agent": "wpt-baseline", "adr": "0040", "notes": ""
+      "depends": [
+        "B1"
+      ],
+      "target": "",
+      "status": "done",
+      "agent": "wpt-baseline",
+      "adr": "0040",
+      "notes": ""
     },
     {
-      "id": "B4", "milestone": "M-B", "title": "per-area pass-rate table", "area": "",
+      "id": "B4",
+      "milestone": "M-B",
+      "title": "per-area pass-rate table",
+      "area": "",
       "scope": "A committed, regenerable table of pass rate per area.",
       "check": "microbrowser_wpt --summary docs/wpt-baseline.md regenerates the table from a run.",
-      "depends": ["B1"], "target": "", "status": "done", "agent": "wpt-baseline", "adr": "0040", "notes": ""
+      "depends": [
+        "B1"
+      ],
+      "target": "",
+      "status": "done",
+      "agent": "wpt-baseline",
+      "adr": "0040",
+      "notes": ""
     },
-
     {
-      "id": "B5", "milestone": "M-B", "title": "testdriver.js: how a test synthesises input", "area": "",
+      "id": "B5",
+      "milestone": "M-B",
+      "title": "testdriver.js: how a test synthesises input",
+      "area": "",
       "scope": "1,158 in-scope tests load testdriver.js and get `not implemented by testdriver-vendor.js`. This browser has an input path -- microbrowser_snapshot -click already drives it -- and no way for a page to reach it. Decide the seam, as ADR 0040 s3 decided the one for results.",
       "check": "ADR 0040 says what testdriver.js resolves to, and dom/events/ no longer reports action_sequence() as its top cause.",
-      "depends": ["B3"], "target": "", "status": "not_started", "agent": null, "adr": "0040",
+      "depends": [
+        "B3"
+      ],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0040",
       "notes": "Found by B3. Not a browser bug: the seam exists, nothing exposes it. The answer wants the same shape as the report seam -- a harness-only global reached through EvaluateScript, absent from a normal process."
     },
-
     {
-      "id": "B6", "milestone": "M-B", "title": "a summary state file that covers every area", "area": "",
+      "id": "B6",
+      "milestone": "M-B",
+      "title": "a summary state file that covers every area",
+      "area": "",
       "scope": "One full --testharness-only run writing --summary-state into the repository, so a per-area re-measurement can regenerate docs/wpt-baseline.md instead of hand-merging its rows into it.",
       "check": "tests/wpt/summary-state.tsv is committed, describes every area in tests/wpt/areas.txt, and `microbrowser_wpt --summary docs/wpt-baseline.md --summary-state tests/wpt/summary-state.tsv <one area>` regenerates the document with every row intact.",
-      "depends": ["B1"], "target": "", "status": "not_started", "agent": null, "adr": "0040",
+      "depends": [
+        "B1"
+      ],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0040",
       "notes": "Found by C4, the third session in a row to trip over it. --summary writes the document from the state alone, the state file lived in /tmp, and the one left there covered 38 areas -- so regenerating after a seven-area run produced a complete-looking document with 61 rows instead of 297. SummaryAccumulator::Write now refuses to write fewer rows than the document already has, which turns the silent truncation into a message; this task is what makes the refusal unnecessary. It is one long machine run, not a design."
     },
     {
-      "id": "C1", "milestone": "M-C", "title": "DOMException is a real type", "area": "dom/",
+      "id": "C1",
+      "milestone": "M-C",
+      "title": "DOMException is a real type",
+      "area": "dom/",
       "scope": "DOMException with name/code/message, thrown by every binding the spec says throws one; audit every throw in src/bindings.",
       "check": "assert_throws_dom passes in dom/nodes/Node-appendChild.html. Run 2026-08-10: 0 unexpected, 7 of 11 subtests, from 5.",
-      "depends": [], "target": "", "status": "done", "agent": "wpt-c1-c2", "adr": "0012", "notes": "Done. The type is src/bindings/DomExceptions.cpp with WebIDL's error-names table; name/message/code are own non-enumerable data properties rather than prototype accessors, argued in the file -- js::ToString is a pure function and cannot call a getter, so accessors made every uncaught DOMException log as [object Object]. The audit found the real bug: fourteen sites threw a plain Error with the DOM name in the *message*, and two threw a TypeError with the right name only in a comment. All of them raise through one ThrowDom now. The DOM's ensure-pre-insertion-validity landed with it. The two subtests still failing in the check need frames[0].document (J1) and document.doctype as a node (C10). 'did not throw' -- 88 tests suite-wide -- is a missing check rather than a missing type and stays with C3/C4."
+      "depends": [],
+      "target": "",
+      "status": "done",
+      "agent": "wpt-c1-c2",
+      "adr": "0012",
+      "notes": "Done. The type is src/bindings/DomExceptions.cpp with WebIDL's error-names table; name/message/code are own non-enumerable data properties rather than prototype accessors, argued in the file -- js::ToString is a pure function and cannot call a getter, so accessors made every uncaught DOMException log as [object Object]. The audit found the real bug: fourteen sites threw a plain Error with the DOM name in the *message*, and two threw a TypeError with the right name only in a comment. All of them raise through one ThrowDom now. The DOM's ensure-pre-insertion-validity landed with it. The two subtests still failing in the check need frames[0].document (J1) and document.doctype as a node (C10). 'did not throw' -- 88 tests suite-wide -- is a missing check rather than a missing type and stays with C3/C4."
     },
     {
-      "id": "C2", "milestone": "M-C", "title": "native errors from bindings are the page's own", "area": "dom/",
+      "id": "C2",
+      "milestone": "M-C",
+      "title": "native errors from bindings are the page's own",
+      "area": "dom/",
       "scope": "A TypeError thrown by a binding must be an instance of the page's TypeError and of Error.",
       "check": "assert_throws_js passes in dom/nodes/Node-appendChild.html. Run 2026-08-10: 'WebIDL tests' and the three 'Appending null to a ...' subtests, all failing before.",
-      "depends": [], "target": "", "status": "done", "agent": "wpt-c1-c2", "adr": "0008", "notes": "Done, and it was one line: assert_throws_js walks Object.getPrototypeOf up from the *constructor* looking for a function named Error, and the NativeError constructors inherited from Function.prototype rather than from Error (ECMA-262 20.5.6.1). 117 tests and 2,014 subtests suite-wide. Error instances' own properties are non-enumerable now and Error.prototype.toString reads this.name/this.message rather than the receiver's heap kind. src/js/ErrorBuiltins.cpp. The observed message was 'function TypeError() { [native code] } is not an Error subtype'."
+      "depends": [],
+      "target": "",
+      "status": "done",
+      "agent": "wpt-c1-c2",
+      "adr": "0008",
+      "notes": "Done, and it was one line: assert_throws_js walks Object.getPrototypeOf up from the *constructor* looking for a function named Error, and the NativeError constructors inherited from Function.prototype rather than from Error (ECMA-262 20.5.6.1). 117 tests and 2,014 subtests suite-wide. Error instances' own properties are non-enumerable now and Error.prototype.toString reads this.name/this.message rather than the receiver's heap kind. src/js/ErrorBuiltins.cpp. The observed message was 'function TypeError() { [native code] } is not an Error subtype'."
     },
     {
-      "id": "C3", "milestone": "M-C", "title": "WebIDL argument conversion", "area": "dom/",
+      "id": "C3",
+      "milestone": "M-C",
+      "title": "WebIDL argument conversion",
+      "area": "dom/",
       "scope": "undefined/null/missing/extra arguments, per-type coercion, [EnforceRange].",
       "check": "dom/ subtest pass rate up 10 points against the C2 baseline. Run 2026-08-10: 23.5% -> 44.0% (1539 of 6543 -> 2893 of 6570 subtests), 0 unexpected results; a re-validation run under load reported 44.2% and two timing flakes, which is the documented TIMEOUT class rather than a regression.",
-      "depends": ["C1", "C2"], "target": "", "status": "done", "agent": "wpt-c3", "adr": "0012",
+      "depends": [
+        "C1",
+        "C2"
+      ],
+      "target": "",
+      "status": "done",
+      "agent": "wpt-c3",
+      "adr": "0012",
       "notes": "Done, +20.6 points. The conversion layer is src/bindings/WebIdl.h/.cpp -- arity, DOMString through ToStringOf (which can run a page's own toString and therefore can throw), nullable DOMString, `unsigned long` with the Modulo/Enforce/Clamp rules applied in double before any cast, the DOM's name productions, and DOMString offsets in UTF-16 code units (js/StringUnits.h is public for that: a DOMString *is* code units, and a second copy of that indexing is a second answer to 'what is position 3'). **The layer was not where the subtests were.** Four things it made possible were: DOMTokenList as a real type (+885 in one file), CharacterData's five mutation operations, which did not exist at all (+112), document.createEvent over the legacy alias table (+159), and element/attribute name validation plus document.defaultView (+160). insertAdjacentElement and insertAdjacentText landed with them -- the second is the four-line method whose absence broke testharness.js's own reporting (ADR 0040). Deliberate deviations, recorded as expectations: createEvent throws NotSupportedError for BeforeUnloadEvent, CompositionEvent, DeviceMotionEvent, DeviceOrientationEvent, StorageEvent and TextEvent, because this browser has no interface behind any of them and a table row mapping them to Event is ADR 0012's stub -- and for the two sensor events it is an ADR 0029 fingerprinting surface opened by a table row. createElementNS validates the namespace and then stores the *qualified* name, which makes tagName right and localName wrong: dom::Element has one name field, so the choice is between those two, and getElementsByTagName('x:b') needs the qualified one. Elements carrying a namespace is C4."
     },
     {
-      "id": "C4", "milestone": "M-C", "title": "dom/nodes", "area": "dom/nodes/",
+      "id": "C4",
+      "milestone": "M-C",
+      "title": "dom/nodes",
+      "area": "dom/nodes/",
       "scope": "Mutation algorithms, node comparison, adoption, ownerDocument.",
       "check": "dom/nodes/ >= 85%. Run 2026-08-11 (mutation algorithms): 3389 of 5451 subtests (62.2%) -> 3567 of 5529 (64.5%), dom/ as a whole 3850 of 7098 (54.2%) -> 4025 of 7176 (56.1%), 0 regressions across dom/, shadow-dom/, custom-elements/, domparsing/ and html/dom/. Not yet 85%, and the remainder is measured -- see notes.",
-      "depends": ["C1"], "target": "85%",
-      "status": "in_progress", "agent": "wpt-c4", "adr": "",
+      "depends": [
+        "C1"
+      ],
+      "target": "85%",
+      "status": "in_progress",
+      "agent": "wpt-c4",
+      "adr": "",
       "notes": "**Third pass landed 2026-08-11: the mutation algorithms and the records they queue.** `dom/nodes` 62.2% -> **64.5%**, `dom/` 54.2% -> **56.1%**, 0 regressions.\n\n**The finding is a hang reachable from any page.** `el.append(el)` built a *cycle* in the tree, so every walk from the root looped forever -- three files in dom/nodes ran the runner to its wall-clock budget and reported no subtest at all, which is why ranking an area by failing subtests never showed them. `append`, `prepend`, `replaceChildren`, `before`, `after` and `replaceWith` inserted their arguments one at a time and validated nothing, while appendChild/insertBefore/replaceChild had been validated since C1. All six now begin with the DOM's \"converting nodes into a node\" (S4.2.6) and end in a pre-insertion, which is also what makes them atomic: `doc.append(a, b)` on a document that already has an element throws and changes nothing. src/bindings/NodeMixins.cpp (new) is the six of them, split out because TreeMutation.cpp went past the module's line cap and because they are one specification section rather than six methods; PreInsertionError moved to BindingSupport.h so both translation units can ask it.\n\n**MutationObserver was failing on a field it never wrote, and that hid six whole files.** Every MutationObserver test in dom/nodes runs through mutationobservers.js, which compares all eight record fields against a default of null; records carried no previousSibling, nextSibling or attributeNamespace, so each file failed on \"previousSibling didn't match\" before reaching its subject and then hung to the harness timeout waiting on an async_test that could no longer finish. 42 subtests in MutationObserver-attributes alone, 0 passing. The two siblings are computed inside RecordMutation rather than passed in, because every caller is already standing at the one moment they are true: an insertion records after the nodes are in, a removal before they leave. Landing with them: a replacement is now **one** record carrying addedNodes and removedNodes (the DOM's \"suppress observers\" flag, threaded as a bool parameter through the four insertion primitives, which is how the specification threads it); observe() does its four TypeErrors and the implied-option rules, on *presence* rather than truth, so {attributeOldValue: false} still watches attributes; removeAttribute of an absent attribute is no longer a mutation; inserting a fragment queues the record its own observers are owed for being emptied. Node.normalize() did not exist at all and now does -- iterative with an explicit stack, because the depth is a page's tree depth.\n\n**The ordering inside a replacement is observable, and WPT is where it was pinned down.** The incoming node leaves its old parent *before* the outgoing child is removed, and that removal keeps its own record. `parent.replaceChild(parent.lastChild, parent.firstChild)` must report the last child leaving while the first is still beside it, and `parent.replaceChild(x, x)` must report a removal and then an insertion rather than one record replacing x with itself; the spec's note \"the above can only be false if child is node\" only parses under that order.\n\n**The instrument grew: --verbose now prints the subtests behind a non-OK harness.** The expectation format still records one line for a timeout -- what is behind one is not yet a fact -- but a session diagnosing 85 of them could read \"23 of 38 passed\" in the summary and nothing about the fifteen. Every cause above came off that list. Same argument the harness-message line won a session ago.\n\n**What is left, measured.** (1) `Attr` as a real node -- and part of it landed straight after, which is what says what the rest costs. attributes.js's `attributes_are`, the helper a third of attributes.html runs through, checks `attr.textContent` and `attr.ownerElement` on every attribute, and the record this browser handed back had neither; twenty lines added `textContent` and made `ownerElement` an *accessor* that re-asks the element whether it still carries the attribute, which is **+24 subtests in dom/nodes** and a green Attr-prefix.html. What is left of it is the design rather than the addition: identity (`el.attributes[0] === el.getAttributeNode('x')` is false here and true everywhere else), a `value` that writes through, and setAttributeNode / removeAttributeNode / createAttribute with InUseAttributeError. All three want one thing -- a table of materialised Attrs on the element's wrapper plus a detach at every attribute removal and replacement -- and that table wants two or three new members on DomBindings, which has no header lines left. It is the first work the class split is blocking rather than merely embarrassing. (2) The Range mutation methods (insertNode, deleteContents, extractContents, surroundContents) are seven of the eleven remaining failures in MutationObserver-childList, and they are **C5**, not C4. (3) innerHTML/outerHTML still queue two records where the DOM queues one (MutationObserver-inner-outer.html names all three subtests); the fix is the same \"replace all\" this session built for replaceChildren and textContent, but InsertParsedHtml makes its fragment internally so the caller cannot see the added nodes, and DomBindings.h had no line left to widen it with -- it is a one-parameter change on the far side of the class split that header has now deferred five times.\n\n**The 85% target is not reachable without J1 and should be revised with that reason.** 390 of Document-createElementNS.html's 400 subtests, all 98 of Document-createElement.html's, the 654 across the two Document-characterSet-normalization files and roughly twenty-five .xhtml/.svg files run inside an <iframe> or in an XML document. processing-instruction-attributes.html's 136 are a WICG proposal and are not a gap in this browser either. What is left that C4 itself owns is (1) above."
     },
     {
-      "id": "J1", "milestone": "M-J", "title": "nested browsing contexts", "area": "",
+      "id": "J1",
+      "milestone": "M-J",
+      "title": "nested browsing contexts",
+      "area": "",
       "scope": "ADR 0027: a browsing-context tree, contentDocument/contentWindow for a same-origin child, frames/parent/top, iframe loading, and the cross-origin WindowProxy -- from the first commit, not as a later hardening pass.",
       "check": "dom/ >= 90%, and the seven iframe-driven dom/ranges files report instead of timing out.",
-      "depends": [], "target": "90%", "status": "in_progress", "agent": "iframe-lifecycle", "adr": "0027",
-      "notes": "**Measured 2026-08-11, and it is the only route to dom/ at 90%.** dom/ is at 83.1% (35,899 of 43,207). 2,280 subtests are visibly failing and fixing *every one of them* reaches 88.4%; the other ~5,028 are behind 208 tests whose harness never reported. **~4,176 of those are seven files** -- Range-{cloneContents,deleteContents,extractContents,insertNode,surroundContents,set,compareBoundaryPoints}.html -- each driven entirely by iframe.onload over two <iframe>s, with every assertion inside an async_test that never starts. Another 498 are Document-createElement{,NS}.html, also iframes and also XML documents (src/xml landed with C9, so the parser exists). A stub does not pay here: those tests mutate iframe.contentDocument and call iframe.contentWindow.run(), so they need a fully scriptable same-origin child. The hard part is not rendering -- src/engine's Page is 16,000 lines that all assume there is exactly one document, which is what ADR 0027 s1 means by making Page a tree.\n\n**2026-08-12, first half landed.** The frame *lifecycle* is in: a script-appended `<iframe>` loads, `iframe.src = other` re-navigates, `srcdoc` parses inline, a 404 still fires `load`, and `load` fires from a *task* rather than from where the document was set -- which is the ordering the whole feature turns on, see docs/session-log.md. **31 `dom/` tests went TIMEOUT -> OK.** What is left is TD-0059 and it is the larger half: `js::Interpreter` has one global and one set of intrinsics, so `contentWindow` is a plain object with a `.document`, the child\u0027s scripts never run, and `parent`/`top`/`postMessage` are absent. The seven `Range-*.html` files this check names call `iframe.contentWindow.run()`, so they need the realm rather than more lifecycle."
+      "depends": [],
+      "target": "90%",
+      "status": "in_progress",
+      "agent": "iframe-lifecycle",
+      "adr": "0027",
+      "notes": "**Measured 2026-08-11, and it is the only route to dom/ at 90%.** dom/ is at 83.1% (35,899 of 43,207). 2,280 subtests are visibly failing and fixing *every one of them* reaches 88.4%; the other ~5,028 are behind 208 tests whose harness never reported. **~4,176 of those are seven files** -- Range-{cloneContents,deleteContents,extractContents,insertNode,surroundContents,set,compareBoundaryPoints}.html -- each driven entirely by iframe.onload over two <iframe>s, with every assertion inside an async_test that never starts. Another 498 are Document-createElement{,NS}.html, also iframes and also XML documents (src/xml landed with C9, so the parser exists). A stub does not pay here: those tests mutate iframe.contentDocument and call iframe.contentWindow.run(), so they need a fully scriptable same-origin child. The hard part is not rendering -- src/engine's Page is 16,000 lines that all assume there is exactly one document, which is what ADR 0027 s1 means by making Page a tree.\n\n**2026-08-12, first half landed.** The frame *lifecycle* is in: a script-appended `<iframe>` loads, `iframe.src = other` re-navigates, `srcdoc` parses inline, a 404 still fires `load`, and `load` fires from a *task* rather than from where the document was set -- which is the ordering the whole feature turns on, see docs/session-log.md. **31 `dom/` tests went TIMEOUT -> OK.** What is left is TD-0059 and it is the larger half: `js::Interpreter` has one global and one set of intrinsics, so `contentWindow` is a plain object with a `.document`, the child's scripts never run, and `parent`/`top`/`postMessage` are absent. The seven `Range-*.html` files this check names call `iframe.contentWindow.run()`, so they need the realm rather than more lifecycle.\n\n**2026-08-12, the realm landed (ADR 0042).** `js::Interpreter` now holds up to 64 realms, each with its own global, global scope and `js::Intrinsics`; a callable records its realm and the running realm follows the *callee*, so a builtin allocates from the realm its function came from. Nine tests in `tests/JsRealmTests.cpp`, +2.9% on the JS microbenchmarks recorded as TD-0060, and zero WPT regressions (dom/nodes/ re-run against a genuine pre-realm build). **What is left is the host half, and ADR 0042 §5 is the design plus the one hazard that dominates it**: `PageScript` owns an interpreter per `Page`, a same-origin child must borrow its parent's, and every one of ~40 host entry points must then run in the child's realm -- a missed one is a same-origin escape, not a bug, because the child's script would see the embedder's `window`. §5 says to build a realm-bound handle whose `operator->` carries the guard rather than to add `RealmScope` at 40 sites, and why. Do not start this without reading it."
     },
     {
-      "id": "C5", "milestone": "M-C", "title": "traversal and ranges", "area": "dom/ranges/",
+      "id": "C5",
+      "milestone": "M-C",
+      "title": "traversal and ranges",
+      "area": "dom/ranges/",
       "scope": "The content-mutation half of Range, which ADR 0012 lists as absent.",
       "check": "dom/ranges/ + dom/traversal/ >= 80%. Run 2026-08-11: dom/ranges 8.1% (259 subtests, a fake denominator -- 24 of 57 files were harness=ERROR on common.js) -> 80.4% of 30,519; dom/traversal 53.6% -> 92.3%; combined 81.0%. 0 unexpected.",
-      "status": "not_started", "agent": null, "adr": "0012", "notes": ""
+      "status": "not_started",
+      "agent": null,
+      "adr": "0012",
+      "notes": ""
     },
     {
-      "id": "C6", "milestone": "M-C", "title": "dom/events", "area": "dom/events/",
+      "id": "C6",
+      "milestone": "M-C",
+      "title": "dom/events",
+      "area": "dom/events/",
       "scope": "Full dispatch, composedPath, retargeting, passive/once/capture, Event constructors.",
       "check": "dom/events/ >= 85%. Run 2026-08-11: dom/events + uievents 257 of 832 (30.9%) -> 298 of 832 (35.8%), 0 unexpected. Not yet 85%: 121 subtests are activation behaviour, 48 are window-reflected handlers, and 123 tests time out on testdriver (B5).",
-      "status": "not_started", "agent": null, "adr": "0017", "notes": ""
+      "status": "not_started",
+      "agent": null,
+      "adr": "0017",
+      "notes": ""
     },
     {
-      "id": "C7", "milestone": "M-C", "title": "abort and observable triage", "area": "dom/abort/",
+      "id": "C7",
+      "milestone": "M-C",
+      "title": "abort and observable triage",
+      "area": "dom/abort/",
       "scope": "Implement or refuse with an ADR line.",
       "check": "Every test in dom/abort/ and dom/observable/ is either passing or has an expectation naming an ADR. Run 2026-08-12: dom/abort 10 of 37 subtests -> 35 of 37. The two left are iframe-driven (ADR 0027) and the four .any.worker.html variants are ADR 0022; both now carry a comment. dom/observable is refused in one block naming ADR 0012 -- a tentative proposal no engine ships.",
-      "depends": ["C1"], "target": "", "status": "done", "agent": null, "adr": "0012",
+      "depends": [
+        "C1"
+      ],
+      "target": "",
+      "status": "done",
+      "agent": null,
+      "adr": "0012",
       "notes": "AbortSignal.any follows DOM 3.3 including the flattening: a signal composed from a composed signal links to the original sources, so abort events fire source-first then in creation order however deep the composition goes. Chaining instead fires them depth-first, which is a different order for the same tree. AbortSignal.timeout needed TimerQueue::QueueDelayedTask -- a deadline the browser owns, deliberately not the page's setTimeout."
     },
     {
-      "id": "C11", "milestone": "M-C", "title": "event handler content attributes", "area": "dom/events/",
+      "id": "C11",
+      "milestone": "M-C",
+      "title": "event handler content attributes",
+      "area": "dom/events/",
       "scope": "`<div onclick=\"...\">` and setAttribute(\"onclick\", ...) compile a handler. Lazily, at the point RunListenersOn already asks for the `on<type>` property and finds nothing -- HTML's internal raw uncompiled handler. Cache against the attribute's source text so a change recompiles and removeAttribute clears it.",
       "check": "dom/nodes/remove-unscopable.html reaches 6 of 6. Run 2026-08-12: 0 -> 6 of 6, and 505 tests across dom/events/ and dom/nodes/ re-run with two improvements and no regressions. Not complete: the IDL half (el.onclick reading back the compiled attribute) is C10's reflected-attribute table.",
-      "depends": ["C6"], "target": "200 subtests", "status": "done", "agent": null, "adr": "0020",
+      "depends": [
+        "C6"
+      ],
+      "target": "200 subtests",
+      "status": "done",
+      "agent": null,
+      "adr": "0020",
       "notes": "Compiles lazily where RunListenersOn already asks for the on<type> property -- HTML's internal raw uncompiled handler -- so there is no parser hook. Two things a next session must not undo. (1) csp::Policy::AllowsInlineHandler is its own function, not AllowsInline with two empty strings: the nonce-cancels-unsafe-inline rule is about <script> ELEMENTS, which can carry a nonce, and an attribute cannot -- so `script-src 'unsafe-inline' 'nonce-abc'` permits a handler while refusing an un-nonced inline script. (2) The compile is CAPPED at 10,000 per document, because Interpreter::Run calls BeginHostTurn (resetting the step budget) and retains the AST: a loop that rewrites the attribute and dispatches would refresh the budget metering it, which is a hang a page can drive. The gate crosses into src/bindings as a flag and defaults to deny. An inline event handler is what CSP 'unsafe-inline' governs, and src/bindings cannot see src/csp -- its allow: line is a security boundary (ADR 0008) and DocumentPolicy::AllowsInline lives in src/engine. So the gate is a flag the engine sets on the binding layer, the same inversion GeometrySource and NetworkSource use, and it is one boolean per document: nonces and hashes do not apply to handlers, only 'unsafe-inline' does (script-src-attr falling back to script-src). Landing the compilation without that flag opens a script-execution path CSP does not see."
     },
     {
-      "id": "C8", "milestone": "M-C", "title": "shadow DOM and custom elements", "area": "shadow-dom/",
+      "id": "C8",
+      "milestone": "M-C",
+      "title": "shadow DOM and custom elements",
+      "area": "shadow-dom/",
       "scope": "Reactions, adoptedCallback, :host/::slotted, slot assignment.",
-      "check": "shadow-dom/ >= 75% and custom-elements/ >= 75%.", "depends": ["C4", "C6"], "target": "75%",
-      "status": "not_started", "agent": null, "adr": "0019", "notes": ""
+      "check": "shadow-dom/ >= 75% and custom-elements/ >= 75%.",
+      "depends": [
+        "C4",
+        "C6"
+      ],
+      "target": "75%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0019",
+      "notes": ""
     },
     {
-      "id": "C9", "milestone": "M-C", "title": "domparsing", "area": "domparsing/",
+      "id": "C9",
+      "milestone": "M-C",
+      "title": "domparsing",
+      "area": "domparsing/",
       "scope": "DOMParser, XMLSerializer, insertAdjacentHTML/Text/Element.",
       "check": "domparsing/ >= 80%. Run 2026-08-11: 77 of 426 (18.1%) -> 245 of 440 (55.7%) excluding tentative/. 0 unexpected. 80% is not reachable: 181 of the 440 are DOMParser-parseFromString-url*, and 136 of those go through frames[0] (ADR 0027).",
-      "status": "not_started", "agent": null, "adr": "0020", "notes": "insertAdjacentText and insertAdjacentElement landed with C3 (src/bindings/HtmlParsing.cpp). They are the DOM's 'insert adjacent', which is a different algorithm from insertAdjacentHTML's: a beforebegin/afterend insertion on a parentless element answers null rather than throwing NoModificationAllowedError. DOMParser and XMLSerializer are what is left."
+      "status": "not_started",
+      "agent": null,
+      "adr": "0020",
+      "notes": "insertAdjacentText and insertAdjacentElement landed with C3 (src/bindings/HtmlParsing.cpp). They are the DOM's 'insert adjacent', which is a different algorithm from insertAdjacentHTML's: a beforebegin/afterend insertion on a parentless element answers null rather than throwing NoModificationAllowedError. DOMParser and XMLSerializer are what is left."
     },
     {
-      "id": "C10", "milestone": "M-C", "title": "reflected IDL attributes", "area": "html/dom/",
+      "id": "C10",
+      "milestone": "M-C",
+      "title": "reflected IDL attributes",
+      "area": "html/dom/",
       "scope": "Every reflected attribute, Element interface mixins.",
-      "check": "html/dom/ >= 70%. Run 2026-08-12: 21450 of 59930 (35.8%) -> 57694 of 60138 (95.9%), 0 subtests going PASS -> FAIL, 35847 expectation lines deleted. html/dom/reflection-*.html is 56660 of 56660 (100%), from 35560 recorded failures; aria-attribute-reflection{,.tentative}.html is 44 of 44, from 3.", "depends": ["C3"], "target": "70%",
-      "status": "done", "agent": "wpt-c10", "adr": "0012",
+      "check": "html/dom/ >= 70%. Run 2026-08-12: 21450 of 59930 (35.8%) -> 57694 of 60138 (95.9%), 0 subtests going PASS -> FAIL, 35847 expectation lines deleted. html/dom/reflection-*.html is 56660 of 56660 (100%), from 35560 recorded failures; aria-attribute-reflection{,.tentative}.html is 44 of 44, from 3.",
+      "depends": [
+        "C3"
+      ],
+      "target": "70%",
+      "status": "done",
+      "agent": "wpt-c10",
+      "adr": "0012",
       "notes": "Done, +59.7 points. **The shape is the finding.** HTML states a dozen reflection *algorithms* and then applies them a few hundred times; this browser had ~50 hand-written accessor pairs, which is the shape that guarantees `td.colSpan` clamps and `col.span` does not from the same paragraph. Now: src/bindings/Reflection.h is the vocabulary, ReflectionTable.cpp is ~430 rows of data, ReflectedAttributes.cpp is each algorithm once. The integer and float parsers are transcriptions of HTML's own rules and deliberately NOT util::ParseInt -- that one rejects trailing garbage and these must stop at it, and a vertical tab is whitespace to C and is not to HTML. **Three things it uncovered that reflection-*.html does not test**: `<canvas>` width/height were a resize only `canvas.width =` reached (setAttribute did not resize, and `width=\"50px\"` was a zero-width canvas), so they are ordinary reflected unsigned longs now with the resize on the attribute write -- html/canvas/element/canvas-host/ 24.2% -> 50.0%; `<a href>` did not resolve, so `a.pathname` was not a path; and `nonce` reflects one way only, which is CSP nonce-hiding rather than a quirk. **ARIA reflection landed too**: every `aria-*` and `role` is a nullable DOMString on Element, which is three states rather than two -- `aria-checked` absent means \"not a checkbox\" and `aria-checked=\"\"` means \"a checkbox in no state\". **`aria-attribute-reflection-enumerated.tentative.html` (1160 subtests) is a deliberate refusal, measured rather than argued**: it is w3c/aria PR 2484, a proposal that contradicts the shipped spec -- with `aria-busy` absent it wants \"false\" where `aria-attribute-reflection.html` wants null. The proposal was implemented, both files measured, and reverted: DOMString? (ours) scores 41/41 and 562/1722; enumerated scores 28/41 and 1696/1722. So the trade is +1134 subtests there for -13 here, and it is still refused -- those 13 are the shipped behaviour of every browser, so taking the trade buys a pass rate by giving pages an answer no other engine gives. Correctness before pass rate; revisit when the proposal ships. **Not done**: img/video width/height return the attribute rather than the rendered size (the suite marks them customGetter and does not test the getter), ARIA *element* reflection (26 subtests, wants element references plus named access on window), and html/browsers/ was not re-measured -- 751 navigation tests, almost all 20-second timeouts, four hours to learn nothing about reflection. **html/dom/render-blocking/ is flaky by construction** -- two identical runs reported 0 unexpected and then 2 -- so a small unexpected count there is not a regression."
     },
-
     {
-      "id": "D1", "milestone": "M-D", "title": "min(), max(), clamp()", "area": "css/css-values/",
+      "id": "D1",
+      "milestone": "M-D",
+      "title": "min(), max(), clamp()",
+      "area": "css/css-values/",
       "scope": "The rest of the math functions; calc() with more than one relative term.",
       "check": "css/css-values/ up 15 points; wikipedia's nine failing calc declarations drop to one.",
-      "depends": [], "target": "", "status": "not_started", "agent": null, "adr": "0014", "notes": "Eight of wikipedia's nine calc failures need max()."
+      "depends": [],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0014",
+      "notes": "Eight of wikipedia's nine calc failures need max()."
     },
     {
-      "id": "D2", "milestone": "M-D", "title": "viewport units", "area": "css/css-values/",
+      "id": "D2",
+      "milestone": "M-D",
+      "title": "viewport units",
+      "area": "css/css-values/",
       "scope": "vw/vh/vmin/vmax and the dynamic variants. Needs a viewport size in the cascade, which is a css<->layout seam decision.",
-      "check": "css/css-values/ up 10 further points.", "depends": ["D1"], "target": "",
-      "status": "not_started", "agent": null, "adr": "0014", "notes": ""
+      "check": "css/css-values/ up 10 further points.",
+      "depends": [
+        "D1"
+      ],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0014",
+      "notes": ""
     },
     {
-      "id": "D3", "milestone": "M-D", "title": "CSSOM", "area": "css/cssom/",
+      "id": "D3",
+      "milestone": "M-D",
+      "title": "CSSOM",
+      "area": "css/cssom/",
       "scope": "CSSStyleSheet, CSSRuleList, cssText round-trip, insertRule/deleteRule, document.styleSheets.",
-      "check": "css/cssom/ >= 70%.", "depends": ["C1"], "target": "70%",
-      "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "check": "css/cssom/ >= 70%.",
+      "depends": [
+        "C1"
+      ],
+      "target": "70%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": ""
     },
     {
-      "id": "D4", "milestone": "M-D", "title": "CSSOM-View", "area": "css/cssom-view/",
+      "id": "D4",
+      "milestone": "M-D",
+      "title": "CSSOM-View",
+      "area": "css/cssom-view/",
       "scope": "scroll*, client*, getClientRects, elementFromPoint, matchMedia completeness.",
-      "check": "css/cssom-view/ >= 70%.", "depends": ["D3"], "target": "70%",
-      "status": "not_started", "agent": null, "adr": "0018", "notes": ""
+      "check": "css/cssom-view/ >= 70%.",
+      "depends": [
+        "D3"
+      ],
+      "target": "70%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0018",
+      "notes": ""
     },
     {
-      "id": "D5", "milestone": "M-D", "title": ":has() and the rest of selectors", "area": "css/selectors/",
+      "id": "D5",
+      "milestone": "M-D",
+      "title": ":has() and the rest of selectors",
+      "area": "css/selectors/",
       "scope": ":has(), An+B of S, :dir(), :lang(), and the specificity consequences.",
       "check": "css/selectors/ >= 55%. Run 2026-08-11: 453 of 1895 (23.9%) -> 601 of 1895 (31.7%), 0 unexpected. 716 of the 1,294 still failing are CSSOM (style.sheet / cssRules / selectorText) in src/bindings, which is D3, not this task.",
-      "status": "not_started", "agent": null, "adr": "0016", "notes": "ADR 0016 priced :has() behind a measurement nobody has taken. Take it. Baseline 2026-08-10: 24.4%."
+      "status": "not_started",
+      "agent": null,
+      "adr": "0016",
+      "notes": "ADR 0016 priced :has() behind a measurement nobody has taken. Take it. Baseline 2026-08-10: 24.4%."
     },
     {
-      "id": "D6", "milestone": "M-D", "title": "@media at cascade time", "area": "css/css-conditional/",
+      "id": "D6",
+      "milestone": "M-D",
+      "title": "@media at cascade time",
+      "area": "css/css-conditional/",
       "scope": "Keep the condition on the rule and ask during the cascade rather than at parse time; @supports nesting; @layer.",
       "check": "css/css-conditional/ >= 70% and a viewport resize does not re-parse the author sheets.",
-      "depends": [], "target": "90%", "status": "not_started", "agent": null, "adr": "0014",
+      "depends": [],
+      "target": "90%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0014",
       "notes": "Ledger session 49 left the design half done on purpose. Baseline 2026-08-10: already 88.2%, the best CSS area in the suite. The 184 harness ERRORs are container queries, which is what is left."
     },
     {
-      "id": "D7", "milestone": "M-D", "title": "value serialization", "area": "css/cssom/",
+      "id": "D7",
+      "milestone": "M-D",
+      "title": "value serialization",
+      "area": "css/cssom/",
       "scope": "The exact string form of every computed and specified value. Dull, mechanical, enormous.",
-      "check": "css/cssom/ up 10 further points.", "depends": ["D3"], "target": "",
-      "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "check": "css/cssom/ up 10 further points.",
+      "depends": [
+        "D3"
+      ],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": ""
     },
     {
-      "id": "D8", "milestone": "M-D", "title": "css-syntax", "area": "css/css-syntax/",
+      "id": "D8",
+      "milestone": "M-D",
+      "title": "css-syntax",
+      "area": "css/css-syntax/",
       "scope": "Error recovery to the letter, nested rules, custom property grammar.",
-      "check": "css/css-syntax/ >= 85%.", "depends": [], "target": "85%",
-      "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "check": "css/css-syntax/ >= 85%.",
+      "depends": [],
+      "target": "85%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": ""
     },
-
     {
-      "id": "E1", "milestone": "M-E", "title": "CSS2 normative layout", "area": "css/CSS2/",
+      "id": "E1",
+      "milestone": "M-E",
+      "title": "CSS2 normative layout",
+      "area": "css/CSS2/",
       "scope": "The block and inline model. Split by subdirectory across agents: normal-flow, floats, positioning, tables.",
-      "check": "css/CSS2/ >= 60%.", "depends": ["F2"], "target": "60%",
-      "status": "not_started", "agent": null, "adr": "", "notes": "Largest reftest area in the suite."
+      "check": "css/CSS2/ >= 60%.",
+      "depends": [
+        "F2"
+      ],
+      "target": "60%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": "Largest reftest area in the suite."
     },
     {
-      "id": "E2", "milestone": "M-E", "title": "finish flexbox", "area": "css/css-flexbox/",
+      "id": "E2",
+      "milestone": "M-E",
+      "title": "finish flexbox",
+      "area": "css/css-flexbox/",
       "scope": "align-content, baseline alignment, min-content sizing of items, nested flex.",
-      "check": "css/css-flexbox/ >= 80%.", "depends": ["F2"], "target": "50%",
-      "status": "not_started", "agent": null, "adr": "", "notes": "Baseline 2026-08-10: 15.1%, and 183 of 369 tests TIME OUT. Find out why before writing any flexbox code."
+      "check": "css/css-flexbox/ >= 80%.",
+      "depends": [
+        "F2"
+      ],
+      "target": "50%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": "Baseline 2026-08-10: 15.1%, and 183 of 369 tests TIME OUT. Find out why before writing any flexbox code."
     },
     {
-      "id": "E3", "milestone": "M-E", "title": "grid", "area": "css/css-grid/",
+      "id": "E3",
+      "milestone": "M-E",
+      "title": "grid",
+      "area": "css/css-grid/",
       "scope": "Roadmap session 39, finished against the suite rather than against a page.",
-      "check": "css/css-grid/ >= 60%.", "depends": ["F2"], "target": "60%",
-      "status": "not_started", "agent": null, "adr": "", "notes": "roadmap-sessions.json session 39 is in_progress."
+      "check": "css/css-grid/ >= 60%.",
+      "depends": [
+        "F2"
+      ],
+      "target": "60%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": "roadmap-sessions.json session 39 is in_progress."
     },
     {
-      "id": "E4", "milestone": "M-E", "title": "intrinsic sizing", "area": "css/css-sizing/",
+      "id": "E4",
+      "milestone": "M-E",
+      "title": "intrinsic sizing",
+      "area": "css/css-sizing/",
       "scope": "min-content/max-content/fit-content and aspect-ratio interactions.",
-      "check": "css/css-sizing/ >= 75%.", "depends": [], "target": "75%",
-      "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "check": "css/css-sizing/ >= 75%.",
+      "depends": [],
+      "target": "75%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": ""
     },
     {
-      "id": "E5", "milestone": "M-E", "title": "positioning", "area": "css/css-position/",
+      "id": "E5",
+      "milestone": "M-E",
+      "title": "positioning",
+      "area": "css/css-position/",
       "scope": "sticky against a real scrollport, inset shorthand, abspos containing-block edge cases.",
-      "check": "css/css-position/ >= 75%.", "depends": ["F2"], "target": "75%",
-      "status": "not_started", "agent": null, "adr": "", "notes": "old.reddit's #header-bottom-right landing 7px below its containing block is in this area."
+      "check": "css/css-position/ >= 75%.",
+      "depends": [
+        "F2"
+      ],
+      "target": "75%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": "old.reddit's #header-bottom-right landing 7px below its containing block is in this area."
     },
     {
-      "id": "E6", "milestone": "M-E", "title": "overflow and scrollports", "area": "css/css-overflow/",
+      "id": "E6",
+      "milestone": "M-E",
+      "title": "overflow and scrollports",
+      "area": "css/css-overflow/",
       "scope": "Scrollports, overflow: clip, text-overflow, scrollbar gutters.",
-      "check": "css/css-overflow/ >= 70%.", "depends": ["E5"], "target": "70%",
-      "status": "not_started", "agent": null, "adr": "0018", "notes": ""
+      "check": "css/css-overflow/ >= 70%.",
+      "depends": [
+        "E5"
+      ],
+      "target": "70%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0018",
+      "notes": ""
     },
     {
-      "id": "E7", "milestone": "M-E", "title": "vertical-align", "area": "css/CSS2/",
+      "id": "E7",
+      "milestone": "M-E",
+      "title": "vertical-align",
+      "area": "css/CSS2/",
       "scope": "The property does not exist at all today. Inline layout's baseline table plus the property.",
-      "check": "css/CSS2/vertical-align/ >= 70%.", "depends": ["E1"], "target": "70%",
-      "status": "not_started", "agent": null, "adr": "", "notes": "old.reddit's flair sits on the baseline because of this."
+      "check": "css/CSS2/vertical-align/ >= 70%.",
+      "depends": [
+        "E1"
+      ],
+      "target": "70%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": "old.reddit's flair sits on the baseline because of this."
     },
     {
-      "id": "E8", "milestone": "M-E", "title": "css-text", "area": "css/css-text/",
+      "id": "E8",
+      "milestone": "M-E",
+      "title": "css-text",
+      "area": "css/css-text/",
       "scope": "White-space processing, word-break, overflow-wrap, text-indent, tab-size.",
-      "check": "css/css-text/ >= 65%.", "depends": [], "target": "65%",
-      "status": "not_started", "agent": null, "adr": "0025", "notes": ""
+      "check": "css/css-text/ >= 65%.",
+      "depends": [],
+      "target": "65%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0025",
+      "notes": ""
     },
     {
-      "id": "E9", "milestone": "M-E", "title": "writing modes", "area": "css/css-writing-modes/",
+      "id": "E9",
+      "milestone": "M-E",
+      "title": "writing modes",
+      "area": "css/css-writing-modes/",
       "scope": "Vertical writing modes are a coordinate system this browser does not have. Scope it, ADR it, then do it.",
-      "check": "An ADR exists and css/css-writing-modes/ >= 40%.", "depends": ["E1"], "target": "40%",
-      "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "check": "An ADR exists and css/css-writing-modes/ >= 40%.",
+      "depends": [
+        "E1"
+      ],
+      "target": "40%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": ""
     },
     {
-      "id": "E10", "milestone": "M-E", "title": "tables", "area": "css/css-tables/",
+      "id": "E10",
+      "milestone": "M-E",
+      "title": "tables",
+      "area": "css/css-tables/",
       "scope": "border-spacing, border-collapse, column sizing.",
-      "check": "css/css-tables/ >= 60%.", "depends": [], "target": "60%",
-      "status": "not_started", "agent": null, "adr": "", "notes": "cellspacing is unmapped on Hacker News because there is no border-spacing."
+      "check": "css/css-tables/ >= 60%.",
+      "depends": [],
+      "target": "60%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": "cellspacing is unmapped on Hacker News because there is no border-spacing."
     },
     {
-      "id": "E11", "milestone": "M-E", "title": "display, box, multicol", "area": "css/css-display/",
+      "id": "E11",
+      "milestone": "M-E",
+      "title": "display, box, multicol",
+      "area": "css/css-display/",
       "scope": "display: contents / flow-root, box model edge cases, multi-column.",
       "check": "css/css-display/ >= 60%, css/css-box/ >= 70%, css/css-multicol/ >= 30%.",
-      "depends": [], "target": "60%", "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "depends": [],
+      "target": "60%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": ""
     },
-
     {
-      "id": "F1", "milestone": "M-F", "title": "backgrounds", "area": "css/css-backgrounds/",
+      "id": "F1",
+      "milestone": "M-F",
+      "title": "backgrounds",
+      "area": "css/css-backgrounds/",
       "scope": "background on inline boxes (absent today), background-clip/origin/repeat in full.",
-      "check": "css/css-backgrounds/ >= 70%.", "depends": [], "target": "70%",
-      "status": "not_started", "agent": null, "adr": "", "notes": "A spoiler span on old.reddit is invisible text on white because of this."
+      "check": "css/css-backgrounds/ >= 70%.",
+      "depends": [],
+      "target": "70%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": "A spoiler span on old.reddit is invisible text on white because of this."
     },
     {
-      "id": "F2", "milestone": "M-F", "title": "fuzzy reftests", "area": "",
+      "id": "F2",
+      "milestone": "M-F",
+      "title": "fuzzy reftests",
+      "area": "",
       "scope": "<meta name=fuzzy> support, and a reftest failure that writes test/ref/diff PPMs beside each other.",
       "check": "A reftest with a fuzzy annotation passes within its tolerance and a failing one leaves three files.",
-      "depends": [], "target": "", "status": "not_started", "agent": null, "adr": "0040",
+      "depends": [],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0040",
       "notes": "Blocks every reftest-heavy layout task -- without it M-E's numbers are noise."
     },
     {
-      "id": "F3", "milestone": "M-F", "title": "modern colour", "area": "css/css-color/",
+      "id": "F3",
+      "milestone": "M-F",
+      "title": "modern colour",
+      "area": "css/css-color/",
       "scope": "color(), lab()/lch()/oklab(), color-mix(), and the serialization rules.",
-      "check": "css/css-color/ >= 60%.", "depends": [], "target": "60%",
-      "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "check": "css/css-color/ >= 60%.",
+      "depends": [],
+      "target": "60%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": ""
     },
     {
-      "id": "F4", "milestone": "M-F", "title": "gradients", "area": "css/css-images/",
+      "id": "F4",
+      "milestone": "M-F",
+      "title": "gradients",
+      "area": "css/css-images/",
       "scope": "linear-gradient interpolation, repeating variants, conic-gradient.",
-      "check": "css/css-images/ >= 60%.", "depends": ["F2"], "target": "60%",
-      "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "check": "css/css-images/ >= 60%.",
+      "depends": [
+        "F2"
+      ],
+      "target": "60%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": ""
     },
     {
-      "id": "F5", "milestone": "M-F", "title": "3D transforms", "area": "css/css-transforms/",
+      "id": "F5",
+      "milestone": "M-F",
+      "title": "3D transforms",
+      "area": "css/css-transforms/",
       "scope": "3D transforms, perspective, transform-style, and stacking context interaction.",
-      "check": "css/css-transforms/ >= 60%.", "depends": ["F2"], "target": "60%",
-      "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "check": "css/css-transforms/ >= 60%.",
+      "depends": [
+        "F2"
+      ],
+      "target": "60%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": ""
     },
     {
-      "id": "F6", "milestone": "M-F", "title": "canvas 2D against the suite", "area": "html/canvas/",
+      "id": "F6",
+      "milestone": "M-F",
+      "title": "canvas 2D against the suite",
+      "area": "html/canvas/",
       "scope": "The 2D context measured by WPT rather than by hand-written tests.",
-      "check": "html/canvas/ >= 60%.", "depends": [], "target": "35%",
-      "status": "not_started", "agent": null, "adr": "0029", "notes": "Baseline 2026-08-10: 12.2%. OffscreenCanvas is not defined, which is 889 tests on its own."
+      "check": "html/canvas/ >= 60%.",
+      "depends": [],
+      "target": "35%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0029",
+      "notes": "Baseline 2026-08-10: 12.2%. OffscreenCanvas is not defined, which is 889 tests on its own."
     },
     {
-      "id": "F7", "milestone": "M-F", "title": "SVG scope decision", "area": "svg/",
+      "id": "F7",
+      "milestone": "M-F",
+      "title": "SVG scope decision",
+      "area": "svg/",
       "scope": "This browser renders SVG as an image; the suite tests it as a document. Decide the scope in an ADR first.",
-      "check": "An ADR exists and svg/ has a target in this file.", "depends": [], "target": "",
-      "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "check": "An ADR exists and svg/ has a target in this file.",
+      "depends": [],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": ""
     },
     {
-      "id": "F8", "milestone": "M-F", "title": "WebP and AVIF", "area": "png/",
+      "id": "F8",
+      "milestone": "M-F",
+      "title": "WebP and AVIF",
+      "area": "png/",
       "scope": "The two image formats ADR 0023 counted and this browser does not decode, each with a fuzz target on the same commit.",
-      "check": "png/ >= 80% and both decoders have a fuzz target.", "depends": [], "target": "80%",
-      "status": "not_started", "agent": null, "adr": "0023", "notes": ""
+      "check": "png/ >= 80% and both decoders have a fuzz target.",
+      "depends": [],
+      "target": "80%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0023",
+      "notes": ""
     },
-
     {
-      "id": "G1", "milestone": "M-G", "title": "the event loop to the letter", "area": "html/webappapis/",
+      "id": "G1",
+      "milestone": "M-G",
+      "title": "the event loop to the letter",
+      "area": "html/webappapis/",
       "scope": "Task sources, microtask checkpoints, queueMicrotask, rendering opportunities.",
-      "check": "html/webappapis/ up 15 points.", "depends": [], "target": "",
-      "status": "not_started", "agent": null, "adr": "0011", "notes": ""
+      "check": "html/webappapis/ up 15 points.",
+      "depends": [],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0011",
+      "notes": ""
     },
     {
-      "id": "G2", "milestone": "M-G", "title": "script time-slicing", "area": "",
+      "id": "G2",
+      "milestone": "M-G",
+      "title": "script time-slicing",
+      "area": "",
       "scope": "ADR 0036 exists; TD-0007 is the 'app is not responding' the user reported. A 9.7-second uninterruptible call is a correctness bug about the event loop.",
       "check": "TD-0007 closed with a measurement; youtube's bundle no longer blocks the loop for seconds at a time.",
-      "depends": ["G1"], "target": "", "status": "not_started", "agent": null, "adr": "0036", "notes": ""
+      "depends": [
+        "G1"
+      ],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0036",
+      "notes": ""
     },
     {
-      "id": "G3", "milestone": "M-G", "title": "streams", "area": "streams/",
+      "id": "G3",
+      "milestone": "M-G",
+      "title": "streams",
+      "area": "streams/",
       "scope": "ReadableStream and friends. Large, self-contained, and what response.body is absent for.",
-      "check": "streams/ >= 60%.", "depends": [], "target": "60%",
-      "status": "not_started", "agent": null, "adr": "0020", "notes": ""
+      "check": "streams/ >= 60%.",
+      "depends": [],
+      "target": "60%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0020",
+      "notes": ""
     },
     {
-      "id": "G4", "milestone": "M-G", "title": "web animations API", "area": "web-animations/",
+      "id": "G4",
+      "milestone": "M-G",
+      "title": "web animations API",
+      "area": "web-animations/",
       "scope": "The API surface over the animations that exist.",
-      "check": "web-animations/ >= 55%.", "depends": [], "target": "55%",
-      "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "check": "web-animations/ >= 55%.",
+      "depends": [],
+      "target": "55%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": ""
     },
     {
-      "id": "G5", "milestone": "M-G", "title": "workers", "area": "workers/",
+      "id": "G5",
+      "milestone": "M-G",
+      "title": "workers",
+      "area": "workers/",
       "scope": "Module workers, SharedWorker (ADR or implement), worker fetch, importScripts edge cases.",
-      "check": "workers/ >= 60%.", "depends": [], "target": "40%",
-      "status": "not_started", "agent": null, "adr": "0022", "notes": "Baseline 2026-08-10: 1.8%. importScripts is not defined; 200 of 284 tests time out on it, and it is 1,380 timeouts suite-wide."
+      "check": "workers/ >= 60%.",
+      "depends": [],
+      "target": "40%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0022",
+      "notes": "Baseline 2026-08-10: 1.8%. importScripts is not defined; 200 of 284 tests time out on it, and it is 1,380 timeouts suite-wide."
     },
     {
-      "id": "G6", "milestone": "M-G", "title": "webmessaging", "area": "webmessaging/",
+      "id": "G6",
+      "milestone": "M-G",
+      "title": "webmessaging",
+      "area": "webmessaging/",
       "scope": "postMessage across every context, ports, structured clone completeness.",
-      "check": "webmessaging/ >= 70%.", "depends": ["J1"], "target": "70%",
-      "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "check": "webmessaging/ >= 70%.",
+      "depends": [
+        "J1"
+      ],
+      "target": "70%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": ""
     },
     {
-      "id": "G7", "milestone": "M-G", "title": "the timing APIs", "area": "performance-timeline/",
+      "id": "G7",
+      "milestone": "M-G",
+      "title": "the timing APIs",
+      "area": "performance-timeline/",
       "scope": "PerformanceResourceTiming, PerformanceNavigationTiming, PerformanceObserver buffering.",
       "check": "performance-timeline/ + resource-timing/ + navigation-timing/ >= 65%, hr-time/ >= 90%.",
-      "depends": [], "target": "65%", "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "depends": [],
+      "target": "65%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": ""
     },
     {
-      "id": "G8", "milestone": "M-G", "title": "console", "area": "console/",
+      "id": "G8",
+      "milestone": "M-G",
+      "title": "console",
+      "area": "console/",
       "scope": "The whole surface. One file, cheap, and every page uses it.",
-      "check": "console/ >= 90%.", "depends": [], "target": "90%",
-      "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "check": "console/ >= 90%.",
+      "depends": [],
+      "target": "90%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": ""
     },
-
     {
-      "id": "H1", "milestone": "M-H", "title": "the .py handler decision", "area": "fetch/",
+      "id": "H1",
+      "milestone": "M-H",
+      "title": "the .py handler decision",
+      "area": "fetch/",
       "scope": "Implement the most-used handlers natively, shell out to a real wpt serve when Python is present, or declare the area out of scope. Decide and amend ADR 0040.",
       "check": "ADR 0040 amended; the count of tests unblocked by the chosen option is in the amendment.",
-      "depends": [], "target": "", "status": "not_started", "agent": null, "adr": "0040",
+      "depends": [],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0040",
       "notes": "Blocks most of fetch/ and nearly all of cors/."
     },
     {
-      "id": "H2", "milestone": "M-H", "title": "the URL suite", "area": "url/",
+      "id": "H2",
+      "milestone": "M-H",
+      "title": "the URL suite",
+      "area": "url/",
       "scope": "urltestdata.json needs no server at all. Run it, fix it, and it should reach very high.",
-      "check": "url/ >= 95%.", "depends": [], "target": "95%",
-      "status": "not_started", "agent": null, "adr": "", "notes": "Cheapest high-value area in the suite."
+      "check": "url/ >= 95%.",
+      "depends": [],
+      "target": "95%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": "Cheapest high-value area in the suite."
     },
     {
-      "id": "H3", "milestone": "M-H", "title": "MIME sniffing", "area": "mimesniff/",
+      "id": "H3",
+      "milestone": "M-H",
+      "title": "MIME sniffing",
+      "area": "mimesniff/",
       "scope": "The sniffing rules, which this browser does by magic number ad hoc.",
-      "check": "mimesniff/ >= 80%.", "depends": [], "target": "80%",
-      "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "check": "mimesniff/ >= 80%.",
+      "depends": [],
+      "target": "80%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": ""
     },
     {
-      "id": "H4", "milestone": "M-H", "title": "the fetch API surface", "area": "fetch/api/",
+      "id": "H4",
+      "milestone": "M-H",
+      "title": "the fetch API surface",
+      "area": "fetch/api/",
       "scope": "Request/Response objects, header guards, the body mixin. formData() needs FormData, deliberately absent today.",
-      "check": "fetch/api/ >= 60%.", "depends": ["H1"], "target": "35%",
-      "status": "not_started", "agent": null, "adr": "0020", "notes": "Baseline 2026-08-10: 7.4%. But fetch/corb is 86.8%, so the .py gap is not uniform and there is real code to write here."
+      "check": "fetch/api/ >= 60%.",
+      "depends": [
+        "H1"
+      ],
+      "target": "35%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0020",
+      "notes": "Baseline 2026-08-10: 7.4%. But fetch/corb is 86.8%, so the .py gap is not uniform and there is real code to write here."
     },
     {
-      "id": "H5", "milestone": "M-H", "title": "XHR", "area": "xhr/",
+      "id": "H5",
+      "milestone": "M-H",
+      "title": "XHR",
+      "area": "xhr/",
       "scope": "timeout, upload, overrideMimeType and the binary response types are all deliberately absent. Revisit each with an ADR line.",
-      "check": "xhr/ >= 60%.", "depends": ["H1"], "target": "60%",
-      "status": "not_started", "agent": null, "adr": "0020", "notes": ""
+      "check": "xhr/ >= 60%.",
+      "depends": [
+        "H1"
+      ],
+      "target": "60%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0020",
+      "notes": ""
     },
     {
-      "id": "H6", "milestone": "M-H", "title": "CSP and SRI", "area": "content-security-policy/",
+      "id": "H6",
+      "milestone": "M-H",
+      "title": "CSP and SRI",
+      "area": "content-security-policy/",
       "scope": "The enforcement points exist; the suite will find the ones enforced in the wrong place.",
       "check": "content-security-policy/ >= 60% and subresource-integrity/ >= 70%.",
-      "depends": ["H1"], "target": "60%", "status": "not_started", "agent": null, "adr": "0020", "notes": ""
+      "depends": [
+        "H1"
+      ],
+      "target": "60%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0020",
+      "notes": ""
     },
     {
-      "id": "H7", "milestone": "M-H", "title": "cookies", "area": "cookies/",
+      "id": "H7",
+      "milestone": "M-H",
+      "title": "cookies",
+      "area": "cookies/",
       "scope": "Attribute parsing, SameSite, and the partitioning this browser does by default.",
-      "check": "cookies/ >= 70%.", "depends": [], "target": "70%",
-      "status": "not_started", "agent": null, "adr": "0005", "notes": ""
+      "check": "cookies/ >= 70%.",
+      "depends": [],
+      "target": "70%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0005",
+      "notes": ""
     },
     {
-      "id": "H8", "milestone": "M-H", "title": "record the privacy deviations", "area": "referrer-policy/",
+      "id": "H8",
+      "milestone": "M-H",
+      "title": "record the privacy deviations",
+      "area": "referrer-policy/",
       "scope": "Where this browser deliberately deviates for privacy, the expectation line names the ADR.",
       "check": "Every failing test in referrer-policy/ and upgrade-insecure-requests/ has an expectation naming an ADR.",
-      "depends": [], "target": "", "status": "not_started", "agent": null, "adr": "0033", "notes": ""
+      "depends": [],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0033",
+      "notes": ""
     },
     {
-      "id": "H9", "milestone": "M-H", "title": "an https origin in the harness", "area": "",
+      "id": "H9",
+      "milestone": "M-H",
+      "title": "an https origin in the harness",
+      "area": "",
       "scope": "A self-signed certificate trusted only by the runner, so the .https.html half of the suite runs at all.",
-      "check": "A .https.html test runs and reports.", "depends": ["H1"], "target": "",
-      "status": "not_started", "agent": null, "adr": "0040", "notes": "A large fraction of html/ and fetch/ is .https. only."
+      "check": "A .https.html test runs and reports.",
+      "depends": [
+        "H1"
+      ],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0040",
+      "notes": "A large fraction of html/ and fetch/ is .https. only."
     },
     {
-      "id": "H10", "milestone": "M-H", "title": "websockets and eventsource", "area": "websockets/",
+      "id": "H10",
+      "milestone": "M-H",
+      "title": "websockets and eventsource",
+      "area": "websockets/",
       "scope": "Both need server support beyond static files.",
-      "check": "A target for each exists in this file.", "depends": ["H1", "H9"], "target": "",
-      "status": "not_started", "agent": null, "adr": "0020", "notes": ""
+      "check": "A target for each exists in this file.",
+      "depends": [
+        "H1",
+        "H9"
+      ],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0020",
+      "notes": ""
     },
-
     {
-      "id": "I1", "milestone": "M-I", "title": "webstorage", "area": "webstorage/",
+      "id": "I1",
+      "milestone": "M-I",
+      "title": "webstorage",
+      "area": "webstorage/",
       "scope": "Quota, events, partitioning.",
-      "check": "webstorage/ >= 80%.", "depends": [], "target": "80%",
-      "status": "not_started", "agent": null, "adr": "0021", "notes": ""
+      "check": "webstorage/ >= 80%.",
+      "depends": [],
+      "target": "80%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0021",
+      "notes": ""
     },
     {
-      "id": "I2", "milestone": "M-I", "title": "IndexedDB", "area": "IndexedDB/",
+      "id": "I2",
+      "milestone": "M-I",
+      "title": "IndexedDB",
+      "area": "IndexedDB/",
       "scope": "The largest single-API suite in WPT. Split by subdirectory: keys and ordering, transactions, cursors, indexes.",
-      "check": "IndexedDB/ >= 55%.", "depends": ["C1"], "target": "25%",
-      "status": "not_started", "agent": null, "adr": "0038", "notes": "Baseline 2026-08-10: 4.2%. 200,592 NOTRUN subtests sit behind a first failure, so the number moves in steps rather than smoothly."
+      "check": "IndexedDB/ >= 55%.",
+      "depends": [
+        "C1"
+      ],
+      "target": "25%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0038",
+      "notes": "Baseline 2026-08-10: 4.2%. 200,592 NOTRUN subtests sit behind a first failure, so the number moves in steps rather than smoothly."
     },
     {
-      "id": "I3", "milestone": "M-I", "title": "FileAPI", "area": "FileAPI/",
+      "id": "I3",
+      "milestone": "M-I",
+      "title": "FileAPI",
+      "area": "FileAPI/",
       "scope": "Blob, File, FileReader, URL.createObjectURL.",
-      "check": "FileAPI/ >= 70%.", "depends": ["C1"], "target": "70%",
-      "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "check": "FileAPI/ >= 70%.",
+      "depends": [
+        "C1"
+      ],
+      "target": "70%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": ""
     },
     {
-      "id": "I4", "milestone": "M-I", "title": "the storage manager", "area": "storage/",
+      "id": "I4",
+      "milestone": "M-I",
+      "title": "the storage manager",
+      "area": "storage/",
       "scope": "navigator.storage, quota estimation, and what this browser refuses to persist.",
-      "check": "Every failing test either passes or names ADR 0021.", "depends": ["I1"], "target": "",
-      "status": "not_started", "agent": null, "adr": "0021", "notes": ""
+      "check": "Every failing test either passes or names ADR 0021.",
+      "depends": [
+        "I1"
+      ],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0021",
+      "notes": ""
     },
-
     {
-      "id": "J1b", "milestone": "M-J", "title": "same-origin iframes", "area": "html/browsers/",
+      "id": "J1b",
+      "milestone": "M-J",
+      "title": "same-origin iframes",
+      "area": "html/browsers/",
       "scope": "Roadmap session 40. The binding layer is already receiver-based for document, which was the hard part.",
-      "check": "html/browsers/the-window-object/ >= 60%.", "depends": [], "target": "60%",
-      "status": "not_started", "agent": null, "adr": "0027", "notes": "Blocks J2, J3, G6, and three acceptance sites. Renumbered from a duplicate `J1` that arrived in the 2026-08-12 five-worktree merge: two tasks answered to one id, which is how two agents come to claim one piece of work. This is the `html/browsers/` half; J1 is the `dom/` half and lands first."
+      "check": "html/browsers/the-window-object/ >= 60%.",
+      "depends": [],
+      "target": "60%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0027",
+      "notes": "Blocks J2, J3, G6, and three acceptance sites. Renumbered from a duplicate `J1` that arrived in the 2026-08-12 five-worktree merge: two tasks answered to one id, which is how two agents come to claim one piece of work. This is the `html/browsers/` half; J1 is the `dom/` half and lands first.\n\n**2026-08-12**: the language-level realm it needs is done (ADR 0042). This task is now the host half only, and ADR 0042 §5 is its plan in five ordered steps. The smallest end-to-end check is `dom/nodes/remove-from-shadow-host-and-adopt-into-iframe.html`, which is red on master while the expectation file claims it passes."
     },
     {
-      "id": "J2", "milestone": "M-J", "title": "cross-origin iframes and the Window proxy", "area": "html/browsers/",
+      "id": "J2",
+      "milestone": "M-J",
+      "title": "cross-origin iframes and the Window proxy",
+      "area": "html/browsers/",
       "scope": "Roadmap session 41.",
-      "check": "The cross-origin subset of html/browsers/ >= 50%.", "depends": ["J1", "J1b"], "target": "50%",
-      "status": "not_started", "agent": null, "adr": "0027", "notes": ""
+      "check": "The cross-origin subset of html/browsers/ >= 50%.",
+      "depends": [
+        "J1",
+        "J1b"
+      ],
+      "target": "50%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0027",
+      "notes": ""
     },
     {
-      "id": "J3", "milestone": "M-J", "title": "the process split and the sandbox", "area": "",
+      "id": "J3",
+      "milestone": "M-J",
+      "title": "the process split and the sandbox",
+      "area": "",
       "scope": "Roadmap session 42, ADR 0004. The engine has no platform on its allow: line precisely so this is a scheduling decision.",
       "check": "One renderer process per site, and the suite still passes at the same rate.",
-      "depends": ["J2"], "target": "", "status": "not_started", "agent": null, "adr": "0004", "notes": ""
+      "depends": [
+        "J2"
+      ],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0004",
+      "notes": ""
     },
     {
-      "id": "J4", "milestone": "M-J", "title": "session history", "area": "html/browsers/history/",
+      "id": "J4",
+      "milestone": "M-J",
+      "title": "session history",
+      "area": "html/browsers/history/",
       "scope": "history.state, traversal, popstate/hashchange ordering, beforeunload.",
-      "check": "html/browsers/history/ >= 65%.", "depends": [], "target": "65%",
-      "status": "not_started", "agent": null, "adr": "0026", "notes": ""
+      "check": "html/browsers/history/ >= 65%.",
+      "depends": [],
+      "target": "65%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0026",
+      "notes": ""
     },
     {
-      "id": "J5", "milestone": "M-J", "title": "navigation", "area": "html/browsers/browsing-the-web/",
+      "id": "J5",
+      "milestone": "M-J",
+      "title": "navigation",
+      "area": "html/browsers/browsing-the-web/",
       "scope": "Form submission methods, target, redirects, fragment navigation, <base>.",
-      "check": "html/browsers/browsing-the-web/ >= 65%.", "depends": ["J4"], "target": "65%",
-      "status": "not_started", "agent": null, "adr": "0026", "notes": ""
+      "check": "html/browsers/browsing-the-web/ >= 65%.",
+      "depends": [
+        "J4"
+      ],
+      "target": "65%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0026",
+      "notes": ""
     },
     {
-      "id": "J6", "milestone": "M-J", "title": "window.open and named contexts", "area": "html/browsers/windows/",
+      "id": "J6",
+      "milestone": "M-J",
+      "title": "window.open and named contexts",
+      "area": "html/browsers/windows/",
       "scope": "window.open, named contexts, opener, and what this browser refuses to open.",
-      "check": "Every failing test either passes or names an ADR.", "depends": ["J1"], "target": "",
-      "status": "not_started", "agent": null, "adr": "0027", "notes": ""
+      "check": "Every failing test either passes or names an ADR.",
+      "depends": [
+        "J1"
+      ],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0027",
+      "notes": ""
     },
-
     {
-      "id": "K1", "milestone": "M-K", "title": "the encoding suite", "area": "encoding/",
+      "id": "K1",
+      "milestone": "M-K",
+      "title": "the encoding suite",
+      "area": "encoding/",
       "scope": "The legacy decoders exist; the suite tests every index table exhaustively and will find the gaps.",
-      "check": "encoding/ >= 85%.", "depends": [], "target": "85%",
-      "status": "not_started", "agent": null, "adr": "0025", "notes": ""
+      "check": "encoding/ >= 85%.",
+      "depends": [],
+      "target": "85%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0025",
+      "notes": ""
     },
     {
-      "id": "K2", "milestone": "M-K", "title": "TextEncoder and TextDecoder", "area": "encoding/",
+      "id": "K2",
+      "milestone": "M-K",
+      "title": "TextEncoder and TextDecoder",
+      "area": "encoding/",
       "scope": "Streaming, encodeInto, every label alias.",
-      "check": "The TextDecoder/TextEncoder subset of encoding/ >= 90%.", "depends": ["K1"], "target": "90%",
-      "status": "not_started", "agent": null, "adr": "0025", "notes": ""
+      "check": "The TextDecoder/TextEncoder subset of encoding/ >= 90%.",
+      "depends": [
+        "K1"
+      ],
+      "target": "90%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0025",
+      "notes": ""
     },
     {
-      "id": "K3", "milestone": "M-K", "title": "font features", "area": "css/css-fonts/",
+      "id": "K3",
+      "milestone": "M-K",
+      "title": "font features",
+      "area": "css/css-fonts/",
       "scope": "font-feature-settings, font-variant, @font-face descriptors, unicode-range.",
-      "check": "css/css-fonts/ >= 60%.", "depends": [], "target": "60%",
-      "status": "not_started", "agent": null, "adr": "0024", "notes": ""
+      "check": "css/css-fonts/ >= 60%.",
+      "depends": [],
+      "target": "60%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0024",
+      "notes": ""
     },
     {
-      "id": "K4", "milestone": "M-K", "title": "Unicode data currency", "area": "",
+      "id": "K4",
+      "milestone": "M-K",
+      "title": "Unicode data currency",
+      "area": "",
       "scope": "normalize(), the rest of \\p{...}, and the generator that produces the tables.",
       "check": "The Unicode tests in the js conformance suite pass and tools/unicode/generate.py reproduces the tables.",
-      "depends": [], "target": "", "status": "not_started", "agent": null, "adr": "0025", "notes": ""
+      "depends": [],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0025",
+      "notes": ""
     },
-
     {
-      "id": "L1", "milestone": "M-L", "title": "the media element state machine", "area": "html/semantics/embedded-content/media-elements/",
+      "id": "L1",
+      "milestone": "M-L",
+      "title": "the media element state machine",
+      "area": "html/semantics/embedded-content/media-elements/",
       "scope": "readyState, networkState, the event order, seek, play()'s promise.",
-      "check": "media-elements/ >= 55%.", "depends": [], "target": "55%",
-      "status": "not_started", "agent": null, "adr": "0028", "notes": ""
+      "check": "media-elements/ >= 55%.",
+      "depends": [],
+      "target": "55%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0028",
+      "notes": ""
     },
     {
-      "id": "L2", "milestone": "M-L", "title": "MSE", "area": "media-source/",
+      "id": "L2",
+      "milestone": "M-L",
+      "title": "MSE",
+      "area": "media-source/",
       "scope": "SourceBuffer append/remove, buffered ranges, MediaSource lifecycle.",
-      "check": "media-source/ >= 50%.", "depends": ["L1"], "target": "50%",
-      "status": "not_started", "agent": null, "adr": "0028", "notes": ""
+      "check": "media-source/ >= 50%.",
+      "depends": [
+        "L1"
+      ],
+      "target": "50%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0028",
+      "notes": ""
     },
     {
-      "id": "L3", "milestone": "M-L", "title": "tracks", "area": "html/semantics/embedded-content/media-elements/",
+      "id": "L3",
+      "milestone": "M-L",
+      "title": "tracks",
+      "area": "html/semantics/embedded-content/media-elements/",
       "scope": "<track>, TextTrack, <source> selection.",
-      "check": "The track subset >= 50%.", "depends": ["L1"], "target": "50%",
-      "status": "not_started", "agent": null, "adr": "0028", "notes": ""
+      "check": "The track subset >= 50%.",
+      "depends": [
+        "L1"
+      ],
+      "target": "50%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0028",
+      "notes": ""
     },
     {
-      "id": "L4", "milestone": "M-L", "title": "finish the codec decision", "area": "",
+      "id": "L4",
+      "milestone": "M-L",
+      "title": "finish the codec decision",
+      "area": "",
       "scope": "roadmap-sessions.json session 27 is still in_progress.",
-      "check": "Session 27's check passes.", "depends": [], "target": "",
-      "status": "not_started", "agent": null, "adr": "0031", "notes": ""
+      "check": "Session 27's check passes.",
+      "depends": [],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0031",
+      "notes": ""
     },
-
     {
-      "id": "M1", "milestone": "M-M", "title": "incremental parsing and first paint", "area": "",
+      "id": "M1",
+      "milestone": "M-M",
+      "title": "incremental parsing and first paint",
+      "area": "",
       "scope": "Roadmap session 46, ADR 0030. A page appears when it is finished, which is the largest perceived-latency defect left.",
       "check": "A first paint happens before the load finishes on all three currently-rendering pages.",
-      "depends": [], "target": "", "status": "not_started", "agent": null, "adr": "0030", "notes": ""
+      "depends": [],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0030",
+      "notes": ""
     },
     {
-      "id": "M2", "milestone": "M-M", "title": "TD-0005: the second cascade", "area": "",
+      "id": "M2",
+      "milestone": "M-M",
+      "title": "TD-0005: the second cascade",
+      "area": "",
       "scope": "engine::CollectImages resolves the whole cascade a second time. 1.58s on wikipedia, larger than laying the page out.",
-      "check": "TD-0005 closed with a before/after on the perf preset.", "depends": [], "target": "",
-      "status": "not_started", "agent": null, "adr": "", "notes": "Largest non-JavaScript item in docs/tech-debt.md."
+      "check": "TD-0005 closed with a before/after on the perf preset.",
+      "depends": [],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": "Largest non-JavaScript item in docs/tech-debt.md."
     },
     {
-      "id": "M3", "milestone": "M-M", "title": "TD-0003: AST allocation", "area": "",
+      "id": "M3",
+      "milestone": "M-M",
+      "title": "TD-0003: AST allocation",
+      "area": "",
       "scope": "1.33M individually allocated AST nodes, three quarters of the parse.",
-      "check": "TD-0003 closed with a bench/JsBenchmarks.cpp number.", "depends": [], "target": "",
-      "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "check": "TD-0003 closed with a bench/JsBenchmarks.cpp number.",
+      "depends": [],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": ""
     },
     {
-      "id": "M4", "milestone": "M-M", "title": "TD-0010: requests are not connections", "area": "",
+      "id": "M4",
+      "milestone": "M-M",
+      "title": "TD-0010: requests are not connections",
+      "area": "",
       "scope": "kMaxConnectionsPerPartition bounds requests rather than connections, and six was the HTTP/1.1 number.",
-      "check": "TD-0010 closed; old.reddit's 91 deferrals for 53 fetches drops.", "depends": [], "target": "",
-      "status": "not_started", "agent": null, "adr": "0035", "notes": ""
+      "check": "TD-0010 closed; old.reddit's 91 deferrals for 53 fetches drops.",
+      "depends": [],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0035",
+      "notes": ""
     },
     {
-      "id": "M5", "milestone": "M-M", "title": "a memory number", "area": "",
+      "id": "M5",
+      "milestone": "M-M",
+      "title": "a memory number",
+      "area": "",
       "scope": "Peak RSS on each acceptance page, tracked like the pass rates.",
-      "check": "docs/performance/ has a per-page RSS table produced by a script.", "depends": [], "target": "",
-      "status": "not_started", "agent": null, "adr": "", "notes": "Memory is a core principle with no measurement today."
+      "check": "docs/performance/ has a per-page RSS table produced by a script.",
+      "depends": [],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": "Memory is a core principle with no measurement today."
     },
     {
-      "id": "M6", "milestone": "M-M", "title": "assert idle CPU", "area": "",
+      "id": "M6",
+      "milestone": "M-M",
+      "title": "assert idle CPU",
+      "area": "",
       "scope": "A settled page must cost zero wakeups. Assert it in ctest, per page.",
-      "check": "A test fails when a page leaves a timer armed after settling.", "depends": [], "target": "",
-      "status": "not_started", "agent": null, "adr": "", "notes": "The invariant is claimed everywhere and asserted nowhere."
+      "check": "A test fails when a page leaves a timer armed after settling.",
+      "depends": [],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": "The invariant is claimed everywhere and asserted nowhere."
     },
     {
-      "id": "M7", "milestone": "M-M", "title": "layout and DOM benchmarks", "area": "",
+      "id": "M7",
+      "milestone": "M-M",
+      "title": "layout and DOM benchmarks",
+      "area": "",
       "scope": "bench/ files for layout and the DOM, because timing a page load on a shared machine is worthless.",
-      "check": "Two new files in bench/ and a number in docs/performance/.", "depends": [], "target": "",
-      "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "check": "Two new files in bench/ and a number in docs/performance/.",
+      "depends": [],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": ""
     },
-
     {
-      "id": "N1", "milestone": "M-N", "title": "WebGL scope decision", "area": "",
+      "id": "N1",
+      "milestone": "M-N",
+      "title": "WebGL scope decision",
+      "area": "",
       "scope": "maps.google.com and most itch.io games need it. ADR 0029 discusses the fingerprinting surface and stops short. The ADR may be a refusal with a fallback.",
-      "check": "An ADR exists with a decision.", "depends": [], "target": "",
-      "status": "not_started", "agent": null, "adr": "0029", "notes": ""
+      "check": "An ADR exists with a decision.",
+      "depends": [],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0029",
+      "notes": ""
     },
     {
-      "id": "N2", "milestone": "M-N", "title": "service worker scope decision", "area": "",
+      "id": "N2",
+      "milestone": "M-N",
+      "title": "service worker scope decision",
+      "area": "",
       "scope": "ADR 0022 refuses background work; linkedin and gmail both register one. Decide what a refusal costs and whether a foreground-only shim is honest or is the stub ADR 0012 forbids.",
-      "check": "An ADR exists with a decision.", "depends": [], "target": "",
-      "status": "not_started", "agent": null, "adr": "0022", "notes": ""
+      "check": "An ADR exists with a decision.",
+      "depends": [],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0022",
+      "notes": ""
     },
     {
-      "id": "N3", "milestone": "M-N", "title": "delete the site-specific settling heuristics", "area": "",
+      "id": "N3",
+      "milestone": "M-N",
+      "title": "delete the site-specific settling heuristics",
+      "area": "",
       "scope": "tools/snapshot/main.cpp has ~400 lines deciding when reddit and youtube have finished changing. Every one is a bet on a page.",
-      "check": "tools/snapshot/main.cpp contains no site name.", "depends": [], "target": "",
-      "status": "not_started", "agent": null, "adr": "0040", "notes": "The clearest single signal that the instrument has been replaced."
+      "check": "tools/snapshot/main.cpp contains no site name.",
+      "depends": [],
+      "target": "",
+      "status": "not_started",
+      "agent": null,
+      "adr": "0040",
+      "notes": "The clearest single signal that the instrument has been replaced."
     }
   ]
 }

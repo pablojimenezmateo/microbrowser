@@ -123,6 +123,65 @@ already far outside anything in ADR 0007's targets. A bound that is never reache
 is cheap to reach by a hostile one is the right shape; the alternative — one intrinsics set per
 frame, unbounded — is a memory-exhaustion vector reachable from three lines of script.
 
+### 5. The host half, which is where this gets dangerous
+
+The language half landed on 2026-08-12 and is described above. The half that makes an `<iframe>` run
+script is in `src/engine` and `src/bindings`, and it has one hazard that dominates the design.
+
+**The hazard.** `engine::PageScript` owns `std::unique_ptr<js::Interpreter>` — one per `Page`, and a
+child frame is a `Page`. For a same-origin child to share its parent's heap (§3), the child's
+`PageScript` has to *borrow* the parent's interpreter and hold a `RealmId` alongside it. Every host
+entry into that interpreter must then run in that realm: not only `Run`, but a timer firing, an event
+dispatching, a fetch response arriving, a custom-element reaction, a microtask drain, an animation
+frame. There are ~40 such uses across `PageScript.cpp` and `PageModules.cpp`.
+
+**A missed one is not a bug, it is a same-origin escape**: the child's script would run with the
+parent's global current, so `globalThis` in the frame would be the embedder's `window`. That is
+strictly worse than today's stub, which merely returns too little.
+
+**So the mechanism must make it impossible to forget rather than merely possible to get right.** The
+shape to build is a realm-bound handle in `src/js` whose `operator->` returns a temporary proxy
+holding a `RealmScope`:
+
+```
+class RealmHandle {                     // interpreter + realm, one value
+  Access operator->();                  // Access holds a RealmScope for the full expression
+};
+// script_->interpreter()->Run(src)  enters the realm and leaves it, with nothing to remember
+```
+
+C++ gives this for free: the temporary returned by `operator->` lives until the end of the full
+expression, which is exactly the extent a call needs. `PageScript` then holds a `RealmHandle` instead
+of a pointer, and the ~40 sites that say `interpreter_->X` keep saying it. The handful that pass
+`*interpreter_` as a `js::Interpreter&` to an installer are the ones to convert deliberately, because
+those are the sites where a guard genuinely has to be written by hand — and after the conversion they
+are the *only* ones, which is a list short enough to audit.
+
+**Do not do this by adding `RealmScope` at 40 call sites.** It would work on the day it was written
+and would be wrong at the first new entry point, and the failure is silent.
+
+The rest of the host half, in the order it has to happen:
+
+1. `PageScript` borrows an interpreter and a realm rather than owning one, behind `RealmHandle`.
+2. `FrameTree::SetDocument` asks the parent's interpreter for a realm when the child is same-origin,
+   and does not when it is not — the same structural check ADR 0027 §2 already makes there, so
+   `CreateRealm` returning nullopt and a cross-origin child take the same path.
+3. `src/bindings` installs a second DOM surface into the child realm. The surface is already
+   receiver-based (`Document.prototype` resolves against its receiver), which was the hard part and
+   is done. What is not: `DomBindings` caches a wrapper per node, so two of them over one heap means
+   a node reachable from both documents has two wrappers. `parent.document.body === parent.document.body`
+   from the child must stay true, so the cache has to be shared or keyed by realm — decide which
+   before writing either.
+4. `contentWindow` returns the child realm's global, and the plain-object stub in
+   `FrameBindings.cpp` is deleted.
+5. `parent`, `top`, `frames`, `window.length`, `defaultView`, and `postMessage` between same-origin
+   realms.
+
+`dom/nodes/remove-from-shadow-host-and-adopt-into-iframe.html` is the smallest end-to-end check for
+steps 3–4: it does `iframe.contentWindow.document.body.appendChild(adopted)` and then compares
+pixels. It is **red on master today while the expectation file claims it passes**, which is worth
+knowing before trusting that file about this area.
+
 ## Consequences
 
 - **`contentWindow` becomes a real global object** for a same-origin frame, and the plain-object stub
