@@ -347,11 +347,21 @@ not all ids followed by all names.
 It was set aside because it cost `Document-getElementsByTagName.html` eight
 subtests with a symptom nobody should ship without understanding: for a
 non-HTML-namespace or non-ASCII element, `assert_array_equals` reported
-`coll.length` as correct and `0 in coll` as **false** — the `has` trap and the
-`length` getter disagreeing while reading the same cache slot through the same
-target. A probe reproducing the same query in isolation passes, so the
-disagreement needs the shared `Document-Element-getElementsByTagName.js` driver
-to appear. Find that before rebuilding the rest.
+`coll.length` as correct and `0 in coll` as **false**.
+
+**The isolated case is not the bug — that was checked.** A probe that appends
+`createElementNS("test", "st")` to a div and then asks both
+`document.getElementsByTagName("st")` and `element.getElementsByTagName("st")`
+reports `length=1 0in=true idx0=true item0=true keys=["0"]` for both. So the
+disagreement only appears with the ten earlier tests in
+`Document-Element-getElementsByTagName.js` having run first, and it is
+therefore **state leaking between collections or into the target**, not a
+matching bug. Two candidates worth checking first, in order: the `set` trap
+(the third test does `l[5] = "foopy"` on a collection and the fourth reads it
+back), and whether `Object.getOwnPropertyNames` on a Proxy in this engine
+re-validates each reported key through `getOwnPropertyDescriptor` -- the
+seventh test calls it and asserts the descriptors. Start there rather than at
+the matcher.
 
 **The next block after C11 is `Body-FrameSet-Event-Handlers.html`, 48 subtests,
 and it is worth writing down because it is not what its name suggests.** The six
