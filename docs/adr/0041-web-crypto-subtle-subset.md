@@ -1,4 +1,4 @@
-# ADR 0037 — Web Crypto subset for `crypto.subtle`
+# ADR 0041 — Web Crypto subset for `crypto.subtle`
 
 **Status:** accepted · **Date:** 2026-08-09
 

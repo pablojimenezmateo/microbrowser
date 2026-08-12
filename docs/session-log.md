@@ -3819,7 +3819,7 @@ IndexedDB + `BroadcastChannel` (Woffle `g.D8` / `plI`); page sends
 
 ---
 
-## 2026-08-09 — `crypto.subtle` subset (ADR 0037)
+## 2026-08-09 — `crypto.subtle` subset (ADR 0041)
 
 **Status:** landed; `au()` sees subtle; PES still undefined; facade open
 

@@ -1130,7 +1130,7 @@ on that click — consent dialog first.
 | progressive `streamingData.formats` | **[]** (adaptive-only / SABR) |
 | click → `Page::Play` | still works (`paused=false`, `currentTime≈2`) |
 | `AudioContext` | absent (ADR 0028 §4 — deliberate; not this error code) |
-| `crypto.subtle` | **present** (importKey / encrypt AES-CTR / sign HMAC-SHA-256; ADR 0037) |
+| `crypto.subtle` | **present** (importKey / encrypt AES-CTR / sign HMAC-SHA-256; ADR 0041) |
 | `indexedDB` / `BroadcastChannel` | **absent** (Woffle offline store `g.D8` / `plI`; importKey never reached) |
 
 So the facade is not a single missing binding: it is youtube's player stuck in
@@ -1145,7 +1145,7 @@ encoder cannot import AES-CTR keys, and without IndexedDB/BroadcastChannel the
 offline store never opens — both still open platform gaps (survey: 2 and 7 uses).
 
 **Update** (2026-08-09, late). `TextEncoder`/`TextDecoder` and `crypto.subtle`
-(ADR 0037) landed. Watch still reports `Woffle: PES is undefined` and
+(ADR 0041) landed. Watch still reports `Woffle: PES is undefined` and
 `fmt.unplayable`. Diagnosis of the Woffle half:
 
 | piece | role | status |
