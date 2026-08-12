@@ -18,8 +18,8 @@
 // answer -- the handler table, the finalizers emitted at each exit, and the
 // safepoints that let a collection happen half way through a loop.
 //
-// Under MICROBROWSER_JS_TREEWALK=1 fifty-four tests are expected to fail, in
-// seven groups, and the list is worth keeping known:
+// Under MICROBROWSER_JS_TREEWALK=1 fifty tests are expected to fail, in
+// six groups, and the list is worth keeping known:
 //
 //   the stacks being data --
 //   JsInterpreter/AScriptThatRecursesWhileAllocatingIsCollectedThrough
@@ -84,13 +84,21 @@
 // (JsInterpreter/AsyncIsAKeywordOnlyWhereItModifiesAFunction is deliberately
 // not in the list: it is about the parser, which is the same either way.)
 //
-// Four more groups, found on 2026-08-12 by diffing this list against a run
+// Three more groups, found on 2026-08-12 by diffing this list against a run
 // rather than by reading it: the three above named forty tests and the run
-// produced fifty-four. None of the fourteen was a surprise -- every one is the
-// tree-walker being the deliberately lesser engine -- but all fourteen were
-// undocumented, which made the rule below false. Fourteen known-noise lines in a
-// differential is worse than none, because a *new* difference no longer stands
-// out from them.
+// produced fifty-four. Thirteen of the fourteen were the tree-walker being the
+// deliberately lesser engine, and undocumented -- which made the rule below false,
+// because thirteen known-noise lines mean a *new* difference no longer stands out
+// from them.
+//
+// **The fourteenth was a real gap and is now fixed**: `super(...xs)` reached
+// `case NodeKind::Spread` and threw "SyntaxError: unsupported expression" from the
+// middle of a constructor, for syntax that had parsed. That is the shape Lit and
+// every transpiler emits, so a custom element written that way threw on upgrade
+// here -- and since the machine always compiled it, spread-`super` had no
+// differential at all. Four tests came back: JsInterpreter/SuperCallAcceptsSpread-
+// Arguments and the three ShadowDom super-upgrade ones. It is the argument for
+// diffing this list against a run rather than reading it, in one bug.
 //
 //   strict-mode `this` --
 //   JsConformance/TopLevelThisIsTheGlobalInAScriptAndNotInAModule
@@ -100,19 +108,6 @@
 // Interpreter::CallFunction: a tree-walker body carries no `is_strict`, so
 // OrdinaryCallBindThis cannot tell, and the differential path is not where a real
 // page runs. It belongs in this list rather than only in that comment.
-//
-//   `super` in a form the tree-walker's evaluator does not accept --
-//   JsInterpreter/SuperCallAcceptsSpreadArguments
-//   ShadowDom/SemicolonSuperRunsPostSuperAssignmentsOnUpgrade
-//   ShadowDom/CommaSuperSkipsPostSuperAssignmentsOnUpgrade
-//   ShadowDom/LitLikeSuperSpreadAndRenderOptionsSurviveUpgrade
-//
-// All four report `SyntaxError: unsupported expression` -- `super(...xs)`, and
-// `super()` inside a sequence expression, which is the shape Lit and every
-// transpiler emits. This is the one group here that is a *gap* rather than a
-// decision, and it is the group to fix if the tree-walker is ever asked to run a
-// real page again. It is not urgent: the machine takes every program the parser
-// accepts, so nothing reaches this except the differential switch itself.
 //
 //   things only a compiled program has --
 //   JsInterpreter/ABlockThatDeclaresNothingAllocatesNoScope
