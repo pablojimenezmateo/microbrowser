@@ -488,7 +488,11 @@ budget: Realm       header_lines=25  public_methods=1  members=3
 # entering a program frame and a program silently continuing in its callee's realm
 # leaving one -- and it reproduced only in Release, which is why Realms.cpp says so
 # where the next person will be tempted to merge them again.
-budget: Interpreter header_lines=1355 public_methods=76 members=31
+# +1 method and +1 member for `RetireRealm` and its free list (ADR 0042 §5). The bound in
+# js/Realm.h is on realms that exist *at once*, and without this it was a bound on realms
+# ever made: `url/failure.html` appends, reads and removes one `<iframe>` 188 times, and past
+# the 64th every one of them silently ran no script.
+budget: Interpreter header_lines=1355 public_methods=77 members=32
 # One module, as the engine sees it: what it is called, its tree, its own
 # top-level scope, what it publishes, what it asked for, and how far it has
 # got. Six fields and a status, and every one of them is something the

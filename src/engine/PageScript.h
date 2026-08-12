@@ -423,6 +423,17 @@ class PageScript {
     return interpreter_ != nullptr ? interpreter_ : host_interpreter_;
   }
   js::RealmId Realm() const { return realm_; }
+  // Gives this document's realm back to the interpreter it borrowed one from.
+  // Called when the browsing context itself ends -- the frame left the document,
+  // or navigated -- and not on an ordinary `Detach`, which is a new document in
+  // the *same* context. See js::Interpreter::RetireRealm.
+  void RetireRealm() {
+    if (host_interpreter_ != nullptr) {
+      host_interpreter_->RetireRealm(realm_);
+      host_interpreter_ = nullptr;
+      realm_ = js::kMainRealm;
+    }
+  }
   // This document's global, or null before it has one. What an embedder puts in
   // its own `FrameGlobals` so that `iframe.contentWindow` can answer with it.
   js::Object* Global() const {

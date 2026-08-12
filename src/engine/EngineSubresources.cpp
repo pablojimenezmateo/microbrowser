@@ -509,6 +509,14 @@ bool Engine::ProcessDynamicFrames() {
   return dispatched;
 }
 
+void Engine::SettleFrameContexts() {
+  page_.CollectFrames();
+  StartFrameRequests();
+  // `run_scripts=false` is the whole point: a context and a window, and nothing that runs. A
+  // child's own scripts are a task boundary away, and so is the `load` its element owes.
+  RunFrameScripts(page_, /*run_scripts=*/false);
+}
+
 bool Engine::RunFrameScripts(Page& parent, bool run_scripts, js::Object* top_window) {
   bool ran = false;
   bool tree_changed = false;

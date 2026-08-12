@@ -259,7 +259,11 @@ max_tu_lines: 1000
 # only one that is a list: which `<iframe>` holds which child global. It is deliberately *not* a
 # member of `DomBindings`, which is at 989 of its 990 permitted lines -- the note above that cap
 # has been asking for a split rather than a raise for six raises now, and this is one.
-budget: FrameGlobals header_lines=45 public_methods=9 members=3
+# Grew for the settle hook: `iframe.contentWindow` is non-null the instant the element is in the
+# document (HTML creates the context on insertion), so the accessor asks the engine to settle the
+# tree rather than answering null and being right one turn later. Most of the growth is the comment
+# saying why that hook must *not* dispatch the `load` events those frames are owed.
+budget: FrameGlobals header_lines=60 public_methods=10 members=4
 budget: StorageSource header_lines=50 public_methods=11 members=0
 # Raised for MSE (ADR 0028 §3, session 28). The element half and the MediaSource half are one
 # interface on purpose: `video.src = URL.createObjectURL(source)` is the *only* way a MediaSource

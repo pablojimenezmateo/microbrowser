@@ -52,6 +52,23 @@ js::Object* FrameGlobals::Nested(const dom::Element* element) const {
       return global;
     }
   }
+  if (settle_) {
+    // Not found, so the element may be an `<iframe>` a script appended in this
+    // very turn. See SetSettleHook: this asks the engine to give it a context
+    // now rather than one turn later. Const-cast because settling writes back
+    // into this table -- the alternative is a non-const accessor, which would
+    // make every reader of `contentWindow` hold a mutable reference to the
+    // whole tree for the sake of one lazy fill.
+    const std::function<void()> settle = settle_;
+    const_cast<FrameGlobals*>(this)->settle_ = nullptr;  // once; no recursion
+    settle();
+    const_cast<FrameGlobals*>(this)->settle_ = settle;
+    for (const auto& [key, global] : nested_) {
+      if (key == element) {
+        return global;
+      }
+    }
+  }
   return nullptr;
 }
 

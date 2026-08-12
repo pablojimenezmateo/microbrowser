@@ -351,6 +351,7 @@ namespace microbrowser::util {
   X(JsRealmsCreated, "js.realms_created")                                         \
   X(JsRealmSwitches, "js.realm_switches")                                         \
   X(JsRealmsRefused, "js.realms_refused")                                         \
+  X(JsRealmsRetired, "js.realms_retired")                                         \
   X(JsStepsPeak, "js.steps_peak")                                                 \
   X(JsStepsExhausted, "js.steps_exhausted")                                       \
   /* NestedHostBudget refreshes under live frames when the shared hang allotment*/ \

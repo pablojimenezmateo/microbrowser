@@ -581,8 +581,6 @@ FAIL=createDocument test: metadata for "http://www.w3.org/2000/svg","",null
 FAIL=createDocument test: null,undefined,null,null
 FAIL=createDocument test: undefined,undefined,null,null
 FAIL=createDocument test: undefined,undefined,undefined,null
-[dom/nodes/DOMImplementation-createHTMLDocument-with-saved-implementation.html]
-FAIL=createHTMLDocument(): from a saved and detached implementation does not return null
 [dom/nodes/DOMImplementation-createHTMLDocument.html]
 FAIL=createHTMLDocument(): metadata
 [dom/nodes/Document-characterSet-normalization-1.html]
@@ -3402,14 +3400,9 @@ FAIL=Node.appendChild: inserting three scripts from a div
 [dom/nodes/insertion-removing-steps/insertion-removing-steps-iframe.window.html]
 FAIL=Insertion steps: load event fires synchronously *after* iframe DOM insertion, as part of the iframe element's insertion steps
 FAIL=Removing steps (innerHTML): script does not run synchronously during iframe destruction
-FAIL=Removing steps (remove): script does not run synchronously during iframe destruction
 FAIL=Removing steps (replaceChildren): script does not run synchronously during iframe destruction
 [dom/nodes/insertion-removing-steps/insertion-removing-steps-script.window.html]
 FAIL=Script execution happens after all batched DOM insertions complete through post-connection steps
-[dom/nodes/moveBefore/Node-moveBefore.html]
-FAIL=moveBefore() CharacterData into a Document
-FAIL=moveBefore() into a Document throws a HierarchyRequestError
-FAIL=moveBefore() on a cross-document target node throws a HierarchyRequestError
 [dom/nodes/moveBefore/continue-css-animation-left.html]
 harness=TIMEOUT
 [dom/nodes/moveBefore/continue-css-animation-transform.html]
@@ -3502,8 +3495,6 @@ FAIL=Moving a slot runs the assign slottables algorithm
 FAIL=Moving a slottable into and out out of a custom element fires 'slotchange' event
 FAIL=Moving default content into a slot fires 'slotchange' event
 FAIL=Moving default content out of a slot fires 'slotchange' event
-[dom/nodes/moveBefore/throws-exception.html]
-FAIL=moveBefore() on a cross-document target node
 [dom/nodes/name-validation.html]
 FAIL=Valid and invalid characters in createElementNS and createDocument.
 FAIL=Valid and invalid characters in setAttributeNS and createAttributeNS.

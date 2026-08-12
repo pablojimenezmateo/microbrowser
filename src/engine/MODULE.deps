@@ -157,7 +157,7 @@ max_tu_lines: 990
 # ordering rule and not a flag: a child's *window* has to exist before the embedder's first script
 # reads `contentWindow`, and its *scripts* must not have run by then. No new members; the state it
 # writes lives on the `Frame` and on the child's script half.
-budget: Engine header_lines=558 public_methods=22 members=26
+budget: Engine header_lines=564 public_methods=22 members=26
 # Raised for deferred location navigation (pending_location_ + replacing_document_)
 # — ADR 0026 §3 assign/replace/reload without tearing the document under script.
 # The network half, kept off Engine on purpose: policy, sockets, cookies and

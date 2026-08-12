@@ -3,6 +3,7 @@
 #include "url/Url.h"
 
 #include <cstddef>
+#include <optional>
 #include <string>
 
 #include "util/UserAgent.h"
@@ -21,6 +22,25 @@ namespace {
 
 using js::NativeCall;
 using js::Value;
+
+// The URL a `location` write names, resolved against the document, or nothing
+// when it does not parse.
+//
+// **A failure here is a `SyntaxError`, not a navigation to nowhere.** HTML's
+// "location-object navigate" begins by parsing, and "if that fails, throw a
+// SyntaxError DOMException" -- which is the whole of `url/failure.html`'s
+// third case, 188 subtests of exactly this and nothing else. Silently doing
+// nothing is worse than either answer: a page that expects the throw carries on
+// as though the navigation were under way.
+std::optional<std::string> ResolveLocationTarget(const std::string& input, const std::string& base) {
+  const std::optional<url::Url> parsed_base = url::Url::Parse(base);
+  const std::optional<url::Url> target =
+      parsed_base.has_value() ? url::Url::Parse(input, *parsed_base) : url::Url::Parse(input);
+  if (!target.has_value()) {
+    return std::nullopt;
+  }
+  return target->Serialize();
+}
 
 }  // namespace
 
@@ -220,7 +240,11 @@ void DomBindings::InstallWindow() {
         if (!CoerceToString(call, Argument(call.arguments, 0), url)) {
           return call.ThrownValue();
         }
-        owner->history_->RequestNavigation(url, replace);
+        const std::optional<std::string> target = ResolveLocationTarget(url, owner->url_);
+        if (!target.has_value()) {
+          return ThrowDom(call, "SyntaxError", "could not parse '" + url + "' as a URL");
+        }
+        owner->history_->RequestNavigation(*target, replace);
         return Value::Undefined();
       });
       if (method.IsObject()) {
@@ -258,8 +282,12 @@ void DomBindings::InstallWindow() {
       if (!CoerceToString(call, Argument(call.arguments, 0), url)) {
         return call.ThrownValue();
       }
+      const std::optional<std::string> target = ResolveLocationTarget(url, owner->url_);
+      if (!target.has_value()) {
+        return ThrowDom(call, "SyntaxError", "could not parse '" + url + "' as a URL");
+      }
       if (owner->history_ != nullptr) {
-        owner->history_->RequestNavigation(url, false);
+        owner->history_->RequestNavigation(*target, false);
       } else if (call.self.IsObject()) {
         // No history source (unit tests): update the slot in place so reads
         // still agree with what script wrote.
@@ -274,7 +302,35 @@ void DomBindings::InstallWindow() {
     }
 
     WriteLocationFields(location);
-    global->Set("location", location);
+    // **`window.location = x` is a *navigation*, not an assignment.** HTML makes
+    // it an accessor on Window whose setter runs "location-object navigate" --
+    // the same algorithm `location.href = x` runs, throw and all. Installed as a
+    // plain property it was a page overwriting the property: the object went
+    // away, nothing navigated, and nothing threw. `frame.contentWindow.location
+    // = badUrl` is how `url/failure.html` asks for the throw, and it silently
+    // succeeded 188 times.
+    const Value window_location_get =
+        interpreter_->NewNativeValue("location", [location](NativeCall&) { return location; });
+    const Value window_location_set =
+        interpreter_->NewNativeValue("location", [location](NativeCall& call) -> Value {
+          if (!location.IsObject()) {
+            return Value::Undefined();
+          }
+          // Through the same setter rather than beside it, so there is one
+          // implementation of "navigate this context to a string" and it cannot
+          // come to disagree with itself about which strings are URLs.
+          const js::Result assigned = call.interpreter.SetProperty(
+              location, js::PropertyKey("href"), Argument(call.arguments, 0));
+          if (assigned.IsAbrupt()) {
+            return call.ThrowValue(assigned.value);
+          }
+          return Value::Undefined();
+        });
+    if (window_location_get.IsObject() && window_location_set.IsObject()) {
+      global->DefineAccessor("location", window_location_get.object, window_location_set.object);
+    } else {
+      global->Set("location", location);
+    }
     interpreter_->GlobalScope()->Declare("location", location, false);
     // `document.location` is the same object as `window.location`, which is
     // what it is in a browser and what a page checks by identity. reddit's

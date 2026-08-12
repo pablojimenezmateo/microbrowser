@@ -139,6 +139,9 @@ class Interpreter {
   // same-origin `<iframe>` that runs script gets. Nullopt at `kMaxRealms`, which
   // the caller reports by not running the frame's script.
   std::optional<RealmId> CreateRealm();
+  // A realm's slot back, for a browsing context that has gone, so js/Realm.h's
+  // bound counts realms at once rather than realms ever made. See Realms.cpp.
+  void RetireRealm(RealmId realm);
   // The realm of the innermost *callee*, not of whoever called it.
   RealmId CurrentRealm() const { return current_realm_; }
   std::size_t RealmCount() const { return realms_.size(); }
@@ -1149,6 +1152,8 @@ class Interpreter {
   // storage is dangling as soon as the next frame is created. Bounded at
   // `kMaxRealms`, because the count is page-controlled.
   std::vector<std::unique_ptr<Realm>> realms_;
+  // Slots whose browsing context has gone, oldest first. See RetireRealm.
+  std::vector<RealmId> retired_realms_;
   // The realm whose intrinsics a builtin allocating right now should use.
   //
   // Follows the *callee* rather than the caller, which is the rule the language

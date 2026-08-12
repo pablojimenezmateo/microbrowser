@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <functional>
 #include <utility>
 #include <vector>
 
@@ -70,6 +71,23 @@ class FrameGlobals {
     top_ = top;
   }
 
+  // Run when a lookup finds nothing, once, before answering.
+  //
+  // **`iframe.contentWindow` is non-null the instant the element is in the
+  // document**, and that is not a nicety: HTML creates the nested context on
+  // insertion, and the pattern the suite is written in is
+  // `const f = document.body.appendChild(document.createElement("iframe"));
+  // f.contentWindow.location = x` -- all in one script turn, with no chance for
+  // the engine to have taken a turn in between. So the accessor asks the engine
+  // to settle the tree rather than answering null and being right one turn
+  // later. `url/failure.html` alone is 188 subtests of exactly that shape.
+  //
+  // It deliberately does **not** dispatch the `load` events those frames are
+  // owed: those are a task, and firing one from inside `appendChild` would
+  // deliver it before the line that assigns `onload` had run -- which is the
+  // ordering every one of this repo's frame tests exists to hold.
+  void SetSettleHook(std::function<void()> hook) { settle_ = std::move(hook); }
+
   // Dropped with the document whose frames these were. The keys are elements in
   // that document, so keeping them across a navigation is a use-after-free
   // waiting for the next page to allocate an element at the same address -- the
@@ -78,6 +96,7 @@ class FrameGlobals {
 
  private:
   std::vector<std::pair<const dom::Element*, js::Object*>> nested_;
+  std::function<void()> settle_;
   js::Object* embedder_ = nullptr;
   js::Object* top_ = nullptr;
 };

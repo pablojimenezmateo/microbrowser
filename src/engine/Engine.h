@@ -263,6 +263,11 @@ class Engine : private bindings::NetworkSource,
   // get this for free because a frame's document arrives asynchronously; here it is a parameter,
   // false on the pass before the page's scripts and true on the passes after.
   bool RunFrameScripts(Page& parent, bool run_scripts, js::Object* top_window = nullptr);
+  // Gives every `<iframe>` in the tree a context *now*, without dispatching the `load` events they
+  // are owed. Called back from `iframe.contentWindow` when the element has none, because HTML
+  // creates a nested context on insertion and a page reads the window in the same script turn.
+  // See bindings::FrameGlobals::SetSettleHook, which is where the `load` half is explained.
+  void SettleFrameContexts();
   // The above, plus what a handler having run implies: the navigation it asked for, or a relayout
   // and a paint. `navigated` says the document is gone and the caller must touch nothing else.
   bool SettleFrameLoads(bool& navigated);

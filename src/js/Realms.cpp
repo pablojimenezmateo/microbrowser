@@ -24,7 +24,58 @@
 
 namespace microbrowser::js {
 
+// **The bound in js/Realm.h is on realms that exist at once, and without this it
+// was a bound on realms ever made.** `url/failure.html` appends an `<iframe>`,
+// reads it, and removes it, 188 times: one live frame throughout, and past the
+// 64th every one of them silently ran no script. A page cannot hold more
+// contexts than it has elements, so counting the dead ones measured the wrong
+// thing.
+//
+// The slot is repopulated on reuse -- a fresh global, a fresh global scope, fresh
+// intrinsics -- so nothing of the retired document reaches the next one. What is
+// *not* recovered is an object the retired realm allocated that a page still
+// holds: it records this id, so a callable among them would run against the new
+// realm's global. That is bounded by what a realm is only ever created for -- a
+// **same-origin** child of this document -- so it is one same-origin document's
+// function reaching another's global, never a cross-origin one. Recovering it
+// properly is per-realm collection, which ADR 0042 considered and rejected:
+// same-origin realms hold references to each other by design, so the collector
+// cannot treat either as independently reachable.
+void Interpreter::RetireRealm(RealmId realm) {
+  if (realm == kMainRealm || realm >= realms_.size()) {
+    // Realm 0 is the interpreter's own and outlives everything; an id nobody
+    // handed out cannot be given back. Both are no-ops rather than errors,
+    // because the caller is a teardown path and a teardown that can fail is one
+    // that gets skipped.
+    return;
+  }
+  for (const RealmId retired : retired_realms_) {
+    if (retired == realm) {
+      return;  // retiring twice would hand one slot to two documents
+    }
+  }
+  retired_realms_.push_back(realm);
+  util::AddPerformanceCounter(util::PerfCounterId::JsRealmsRetired);
+}
+
 std::optional<RealmId> Interpreter::CreateRealm() {
+  if (!retired_realms_.empty()) {
+    // Oldest first, so a slot is reused as late as possible -- which is when the
+    // objects the previous occupant left behind are most likely to have been
+    // collected already.
+    const RealmId reused = retired_realms_.front();
+    retired_realms_.erase(retired_realms_.begin());
+    const RealmId previous = current_realm_;
+    Object* const previous_synced_from = realm_synced_from_;
+    EnterRealm(reused);
+    const bool populated = PopulateRealm(reused);
+    EnterRealm(previous);
+    realm_synced_from_ = previous_synced_from;
+    if (!populated) {
+      return std::nullopt;
+    }
+    return reused;
+  }
   if (realms_.size() >= kMaxRealms) {
     // ADR 0042 §4. The count is page-controlled -- one more `<iframe>` is one
     // more realm -- so it is bounded, and refusing is reported by the frame not

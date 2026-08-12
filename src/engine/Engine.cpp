@@ -120,6 +120,9 @@ Engine::Engine(ipc::EngineEndpoint& endpoint, gfx::FontProvider& fonts)
   // `csrf_token` from here; Wikipedia's inline script calls `.match` on it.
   page_.SetCookieSource(this);
   loader_.SetBlobRegistry(&page_.BlobUrls());
+  // `iframe.contentWindow` on a frame the running script just appended. ADR 0027 §1: the context
+  // exists on insertion, so the answer cannot wait for the next turn of the loop.
+  page_.ScriptHalf()->FrameWindows().SetSettleHook([this]() { SettleFrameContexts(); });
   page_.SetTrustedInsertionFlush([this]() {
     if (load_.scripts_ran || post_load_.document_interactive) {
       ProcessDynamicScripts();
