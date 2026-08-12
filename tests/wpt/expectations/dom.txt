@@ -714,43 +714,6 @@ harness=TIMEOUT
 FAIL=document.implementation.createDocument: document.contentType === 'application/xhtml+xml'
 [dom/nodes/Document-contentType/contentType/xhr_responseType_document.html]
 FAIL=XHR - retrieve HTML document: document.contentType === 'application/xml'
-[dom/nodes/Document-createAttribute.html]
-FAIL=HTML document.createAttribute("") should throw
-FAIL=HTML document.createAttribute("'")
-FAIL=HTML document.createAttribute("0")
-FAIL=HTML document.createAttribute("0:a")
-FAIL=HTML document.createAttribute(":")
-FAIL=HTML document.createAttribute(":a")
-FAIL=HTML document.createAttribute("TITLE")
-FAIL=HTML document.createAttribute("X")
-FAIL=HTML document.createAttribute("\"")
-FAIL=HTML document.createAttribute("\\")
-FAIL=HTML document.createAttribute("a:0")
-FAIL=HTML document.createAttribute("invalid^Name")
-FAIL=HTML document.createAttribute("title")
-FAIL=HTML document.createAttribute("x")
-FAIL=HTML document.createAttribute("x:y:x")
-FAIL=HTML document.createAttribute("~")
-FAIL=HTML document.createAttribute(null)
-FAIL=HTML document.createAttribute(undefined)
-FAIL=XML document.createAttribute("") should throw
-FAIL=XML document.createAttribute("'")
-FAIL=XML document.createAttribute("0")
-FAIL=XML document.createAttribute("0:a")
-FAIL=XML document.createAttribute(":")
-FAIL=XML document.createAttribute(":a")
-FAIL=XML document.createAttribute("TITLE")
-FAIL=XML document.createAttribute("X")
-FAIL=XML document.createAttribute("\"")
-FAIL=XML document.createAttribute("\\")
-FAIL=XML document.createAttribute("a:0")
-FAIL=XML document.createAttribute("invalid^Name")
-FAIL=XML document.createAttribute("title")
-FAIL=XML document.createAttribute("x")
-FAIL=XML document.createAttribute("x:y:x")
-FAIL=XML document.createAttribute("~")
-FAIL=XML document.createAttribute(null)
-FAIL=XML document.createAttribute(undefined)
 [dom/nodes/Document-createCDATASection-xhtml.xhtml]
 FAIL=Creating a CDATA section containing the string "]]>" must throw
 FAIL=createCDATASection("-b")

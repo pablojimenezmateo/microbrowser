@@ -129,8 +129,8 @@ void EachDescendantElement(dom::Node& root,
 // whether it still carries this attribute, so a record taken before a
 // `removeAttribute` answers null afterwards -- which is what the DOM says and
 // what `attributes.js`'s `attributes_are` checks on every attribute it is given.
-js::Value MakeAttr(DomBindings& owner, js::Interpreter& interpreter, dom::Element& element,
-                   const dom::Attribute& attribute) {
+js::Value MakeAttrImpl(DomBindings& owner, js::Interpreter& interpreter, dom::Element* element,
+                       const dom::Attribute& attribute) {
   const js::Value entry = interpreter.NewObjectValue();
   if (!entry.IsObject()) {
     return entry;
@@ -159,13 +159,25 @@ js::Value MakeAttr(DomBindings& owner, js::Interpreter& interpreter, dom::Elemen
   // looks the pair up again on every read. Holding the wrapper instead would
   // make this object keep an element alive that the page has dropped, which is
   // the shape of every DOM leak.
-  dom::Element* holder = &element;
+  // `nodeType` is 2, which is the one thing about an Attr a page checks that is
+  // not a string: `ATTRIBUTE_NODE`. It answers even though this is not a Node
+  // here, because the number is what a page switches on.
+  entry.object->Set("nodeType", js::Value::Number(2));
+  // The element is captured as a pointer and the name by value, and the getter
+  // looks the pair up again on every read. Holding the wrapper instead would
+  // make this object keep an element alive that the page has dropped, which is
+  // the shape of every DOM leak.
+  //
+  // **Null when there is no element at all**, which is what
+  // `document.createAttribute` produces: an Attr exists before anything
+  // carries it, and `attr.ownerElement === null` is the test for that.
+  dom::Element* holder = element;
   DomBindings* bindings = &owner;
   const dom::NamespaceRef name_space = attribute.name_space;
   const std::string local(attribute.LocalName());
   const js::Value getter = interpreter.NewNativeValue(
       "ownerElement", [holder, bindings, name_space, local](js::NativeCall&) {
-        if (holder->GetAttributeNS(name_space, local) == nullptr) {
+        if (holder == nullptr || holder->GetAttributeNS(name_space, local) == nullptr) {
           return js::Value::Null();
         }
         return bindings->WrapperFor(holder);
@@ -174,6 +186,11 @@ js::Value MakeAttr(DomBindings& owner, js::Interpreter& interpreter, dom::Elemen
     entry.object->DefineAccessor("ownerElement", getter.object, nullptr);
   }
   return entry;
+}
+
+js::Value MakeAttr(DomBindings& owner, js::Interpreter& interpreter, dom::Element& element,
+                   const dom::Attribute& attribute) {
+  return MakeAttrImpl(owner, interpreter, &element, attribute);
 }
 
 // The element siblings either side of `node`, since `nextSibling` gives
@@ -268,6 +285,15 @@ bool LocateNamespace(const dom::Element* element, std::string_view prefix,
 }
 
 }  // namespace
+
+// An `Attr` with no element behind it -- what `document.createAttribute` makes.
+// Declared in BindingSupport.h so DocumentBindings.cpp can reach the one
+// builder rather than growing a second one that disagrees, which is the bug
+// `getAttributeNode` and `attributes[i]` had before they were merged.
+js::Value MakeDetachedAttr(DomBindings& owner, js::Interpreter& interpreter,
+                           const dom::Attribute& attribute) {
+  return MakeAttrImpl(owner, interpreter, nullptr, attribute);
+}
 
 // Node: what every node can answer, whatever kind it is.
 void DomBindings::InstallNodeQueries(const js::Value& target) {

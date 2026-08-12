@@ -332,6 +332,14 @@ void InstallListenerRegistration(js::Interpreter& interpreter, const js::Value& 
 // aborted from inside a handler.
 bool ListenerStillRegistered(const js::Value& listeners, const js::Value& entry);
 
+// An `Attr` with no element behind it -- what `document.createAttribute` makes,
+// in ElementQueries.cpp beside the one that has an element. One builder rather
+// than two, because two of them is exactly the bug `getAttributeNode` and
+// `attributes[i]` had before they were merged: they disagreed about
+// `localName`.
+js::Value MakeDetachedAttr(DomBindings& owner, js::Interpreter& interpreter,
+                           const dom::Attribute& attribute);
+
 // A rectangle as a page reads one: the eight members of a `DOMRect`, where
 // `x`/`y`/`width`/`height` and `top`/`right`/`bottom`/`left` are the same four
 // numbers under two names.
