@@ -51,6 +51,31 @@ std::string BytesOf(const js::SerializedValue& serialized) {
 
 }  // namespace
 
+DomBindings::DomBindings(js::Interpreter& interpreter)
+    : interpreter_(&interpreter), document_(nullptr) {}
+
+void DomBindings::InstallWorkerScope() {
+  if (interpreter_ == nullptr) {
+    return;
+  }
+  // **The list is the decision.** Each of these is exposed in a `WorkerGlobalScope` by the
+  // specification and is already implemented here without ever asking about a document -- which is
+  // what makes reusing them right rather than expedient: `new URL('a', b)` in a worker and on a page
+  // are the same parser, so they cannot come to disagree.
+  //
+  // What is *not* here is as deliberate. `fetch` and `XMLHttpRequest` need the engine's request
+  // queue, which lives on the main thread and is reached through a seam this side of the boundary
+  // does not have; `IndexedDB` and `localStorage` are the same shape. Each is absent rather than
+  // present-and-broken, because under ADR 0012's rule a script that finds `fetch` and gets a promise
+  // that never settles has no fallback left.
+  InstallStructuredClone();
+  InstallUrlConstructor();
+  InstallUrlSearchParams();
+  InstallTextEncoding();
+  InstallCrypto();
+  InstallBlob();
+}
+
 void DomBindings::InstallStructuredClone() {
   if (interpreter_ == nullptr) {
     return;

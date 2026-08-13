@@ -98,6 +98,13 @@ void WorkerScope::Install() {
   InstallLocation();
   InstallNavigator();
   InstallImportScripts();
+  // And the document-free half of the binding layer, which is the larger half of what a worker sees.
+  // Constructed here, on this thread, and destroyed with the scope -- the same rule the interpreter
+  // follows, and for the same reason: there is no window in which two threads hold it.
+  bindings_ = std::make_unique<bindings::DomBindings>(interpreter_);
+  bindings_->InstallWorkerScope();
+  started_ms_ = static_cast<std::int64_t>(NowMs());
+  performance_.Install(interpreter_, started_ms_);
 
   const Value post_message =
       interpreter_.NewNativeValue("postMessage", [this](NativeCall& call) -> Value {
@@ -674,6 +681,9 @@ void WorkerScope::EndTurn() {
   // The microtask queue, drained at the end of the task rather than left: a worker whose promise
   // callbacks ran only when the *next* message arrived would look like it had stalled.
   interpreter_.DrainMicrotasks();
+  // `performance.now()` advances at the turn boundary and not inside one, which is the same rule the
+  // page's clock follows and the opposite of a timing oracle.
+  performance_.Tick(interpreter_, static_cast<std::int64_t>(NowMs()));
   const std::vector<std::string>& console = interpreter_.ConsoleOutput();
   for (std::size_t i = console_cursor_; i < console.size(); ++i) {
     host_.ReportConsole(console[i]);

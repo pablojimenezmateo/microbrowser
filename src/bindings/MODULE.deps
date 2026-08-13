@@ -337,7 +337,13 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # arrived while `InstallReflections` and `InstallHyperlinkElementUtils` left -- the second of those
 # to `Reflector`, which is the split the note above the cap keeps asking for, taken one method at
 # a time. Three features landed and the class got *smaller*.
-budget: DomBindings header_lines=930 public_methods=47 members=29
+# +2 public methods for the worker global (ADR 0022 §1): a constructor that takes no document, and
+# the installer for the document-free subset. It is worth being clear that this is *not* another
+# raise of the kind the note above keeps deferring -- nothing private grew, and what the two methods
+# buy is a deletion that did not have to be written: `URL`, `URLSearchParams`, `TextEncoder`, `atob`,
+# `crypto` and `Blob` in a worker are the same implementation the page uses rather than a second one
+# written against `src/url` and `src/text` for the worker's sake.
+budget: DomBindings header_lines=937 public_methods=49 members=29
 # ADR 0038's `indexedDB` seam: a database/store/key/version question this module
 # declares and `src/engine` answers, the same inversion StorageSource uses. Four
 # extra "methods" over what reads as the API (16) are the deleted copy ops and

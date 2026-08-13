@@ -5,6 +5,10 @@
 #include <string>
 #include <vector>
 
+#include <memory>
+
+#include "bindings/DomBindings.h"
+#include "bindings/Performance.h"
 #include "js/StructuredClone.h"
 #include "js/Value.h"
 
@@ -142,6 +146,17 @@ class WorkerScope {
 
   js::Interpreter& interpreter_;
   WorkerScopeHost& host_;
+  // The document-free half of the binding layer, on this thread and owning nothing shared. It is
+  // constructed with no document at all, which is what makes it *unable* to touch `src/dom` -- whose
+  // namespace intern table is process-wide and would be a data race from here. What it buys is
+  // `URL`, `URLSearchParams`, `TextEncoder`, `atob`, `crypto` and `Blob` from the one implementation
+  // the page already uses, rather than a second one written for workers that could disagree with it.
+  std::unique_ptr<bindings::DomBindings> bindings_;
+  // `performance.now()`, from this worker's own epoch. A worker-owned clock rather than the page's,
+  // because the two are different agents and a shared origin would leak when the *page* started to a
+  // script that has no other way to know.
+  bindings::Performance performance_;
+  std::int64_t started_ms_ = 0;
   std::string name_;
   WorkerLocation location_;
   std::vector<Timer> timers_;

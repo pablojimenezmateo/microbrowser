@@ -149,6 +149,16 @@ void DomBindings::EnsureInterfaces() {
   // reclaimed memory.
   interpreter_->Global()->Set("#domInterfaces", interfaces_);
 
+  // **No document: this is a worker's global, and the DOM interfaces are deliberately absent.**
+  // The table itself still exists, because things that are not DOM types at all -- `URLSearchParams`,
+  // `AbortSignal` -- hang a prototype on it. What must not appear is `Node`, `Element`,
+  // `HTMLDivElement` and the ninety others: there is no tree in a worker, and under ADR 0012's rule a
+  // script that finds `Element` in a `WorkerGlobalScope` has been told something false about where it
+  // is running. `idlharness` asserts their absence directly.
+  if (document_ == nullptr) {
+    return;
+  }
+
   // EventTarget is the root, and it is not decoration: the specification puts
   // `addEventListener` there rather than on Node, and a polyfill that patches
   // event dispatch patches `EventTarget.prototype` -- which is exactly what

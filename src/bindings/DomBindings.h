@@ -79,10 +79,17 @@ class DomBindings {
               WorkerHost* workers = nullptr, IndexedDbSource* indexed_db = nullptr,
               AnimationSource* animations = nullptr);
 
+  // A **worker's** global: an interpreter and no document at all. ADR 0022 §1, and the argument for
+  // it is in WorkerBindings.cpp beside `InstallWorkerScope`.
+  explicit DomBindings(js::Interpreter& interpreter);
+
   // Declares `document` in the global scope. Separate from the constructor so
   // that a caller can decide *when* a page's script gains access to its tree,
   // which is a decision the engine will want to make per navigation.
   void Install();
+
+  // The document-free subset, for a `WorkerGlobalScope`.
+  void InstallWorkerScope();
 
   dom::Document& Document() { return *document_; }
 
