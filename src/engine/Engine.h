@@ -242,6 +242,11 @@ class Engine : private bindings::NetworkSource,
   bool OnFrameFetch(Loader::Completion completion, const PendingResource& resource);
   void StartWorkerScriptRequests();
   bool OnWorkerScriptFetch(Loader::Completion completion);
+  // `importScripts`, which is a worker blocked on the main loop rather than a subresource the page
+  // wanted. ADR 0022 §1: the one thread that may block on a resource is the one that is not drawing.
+  void StartWorkerImportRequests();
+  // Both worker completions, behind one question: the router asks "is this a worker's?" once.
+  bool OnWorkerFetch(Loader::Completion completion);
   // One face's bytes. True when the provider took them and the page therefore
   // needs laying out again -- text measured before a face arrived was measured in
   // a different font, which is what `font-display: swap` looks like from inside.
@@ -512,6 +517,10 @@ class Engine : private bindings::NetworkSource,
   // subresource, and the worker's thread starts when it arrives -- so a page can construct a worker and
   // post to it before either has happened.
   std::map<Loader::RequestId, std::uint64_t> worker_fetches_;
+  // The same, for an `importScripts` a worker's thread is asleep waiting on. A separate map rather
+  // than a flag on the one above, because the two answers do different things: a worker script starts
+  // a thread, an import unblocks one.
+  std::map<Loader::RequestId, std::uint64_t> worker_import_fetches_;
   // Back and forward, for this tab. ADR 0026 §1: it is here rather than in
   // `src/ui` because a `pushState` entry is a URL *plus a state object owned by a
   // document*, and the chrome cannot see a document.

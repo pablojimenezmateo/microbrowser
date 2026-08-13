@@ -143,7 +143,10 @@ max_tu_lines: 990
 # member itself, keyed by the page's own partition key like EngineStorage.cpp.
 # Raised public_methods for HasInFlightScriptFetches: snapshot Accept drain
 # (TD-0032) must wait on page fetch without waiting on stuck fonts (TD-0031).
-budget: Engine header_lines=530 public_methods=22 members=26
+# +1 member for `worker_import_fetches_`: an `importScripts` in flight is not the same thing as a
+# worker script in flight, and folding the two into one map would mean asking, on every completion,
+# which of two very different things to do -- start a thread, or unblock one that is asleep.
+budget: Engine header_lines=530 public_methods=22 members=27
 # Raised for deferred location navigation (pending_location_ + replacing_document_)
 # — ADR 0026 §3 assign/replace/reload without tearing the document under script.
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
@@ -170,10 +173,25 @@ budget: Engine header_lines=530 public_methods=22 members=26
 # is set at the *draw*: a flag computed at read time would have to re-derive what had been drawn.
 # ADR 0022 §1's threads, and the ownership statement is in the header rather than here because it is
 # what a reader of the code needs: what a worker owns, what it borrows (nothing), and when it is joined.
-budget: Workers       header_lines=140 public_methods=14 members=3
-budget: Worker        header_lines=40 public_methods=0 members=12
-budget: Delivery      header_lines=20 public_methods=0 members=4
+# Raised for `importScripts`, which is the one call in this browser where a thread *blocks* on the
+# main loop -- the specification defines it as synchronous, and a worker is the thread allowed to
+# block because it is not the thread that draws. It costs three public methods (the worker's own
+# blocking call, plus the pair the loop answers it with), the `SyncFetch` channel and the worker's
+# `WorkerLocation`. What did *not* grow is the surface a script sees: that is `WorkerScope`, which is
+# its own class in its own translation unit for the reason `PageScript` is not `Page`.
+budget: Workers       header_lines=185 public_methods=17 members=3
+budget: Worker        header_lines=50 public_methods=0 members=14
+budget: SyncFetch     header_lines=25 public_methods=0 members=8
+budget: Delivery      header_lines=25 public_methods=0 members=4
+budget: ImportRequest header_lines=15 public_methods=0 members=3
 budget: PendingWorkerScript header_lines=15 public_methods=0 members=2
+# ADR 0022 §1's *other* half: what a script standing in a worker's heap can see. The host interface is
+# small on purpose -- put bytes on the page's queue, report an error, forward a console line, fetch --
+# and that list is the whole of what a thread which borrows nothing cannot do for itself.
+budget: WorkerScopeHost header_lines=45 public_methods=6 members=0
+budget: WorkerScope     header_lines=95 public_methods=11 members=7
+budget: WorkerLocation  header_lines=15 public_methods=0 members=9
+budget: Timer           header_lines=15 public_methods=0 members=4
 budget: CanvasSurfaces header_lines=110 public_methods=14 members=2
 budget: State         header_lines=50 public_methods=4 members=10
 budget: Surface       header_lines=30 public_methods=0 members=8
@@ -314,7 +332,10 @@ budget: PendingLoad header_lines=125 public_methods=8 members=21
 # bytes out reads it -- a link's query and a form's body are both in the
 # document's character set (ADR 0025 §2), which is the only place a
 # `<meta charset>` changes what leaves the browser.
-budget: Page   header_lines=990 public_methods=189 members=26
+# +2 methods for the `importScripts` channel (`TakeWorkerImportRequests` / `CompleteWorkerImport`),
+# which is the same shape as every other pair on this class: the engine owns the fetch, the page owns
+# the thing that is waiting for it.
+budget: Page   header_lines=990 public_methods=191 members=26
 budget: LayoutState header_lines=40 public_methods=0 members=8
 # ADR 0027 §1's child browsing context. Five members and each is a distinct
 # question: which element holds it, what context is behind it, what URL it was

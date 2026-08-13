@@ -34,7 +34,21 @@ std::uint64_t Page::StartWorker(const std::string& url) {
   if (url::Origin::FromUrl(*target) != url::Origin::FromUrl(*base)) {
     return 0;
   }
-  const std::uint64_t id = workers_.Reserve(url);
+  // **`location` is computed here, on the main thread, and never on the worker's.** The URL parser has
+  // lazily-initialised tables behind it -- IDNA, the public suffix list -- so a second thread reaching
+  // into it is a data race that would show up as a corrupted host once in a thousand runs. The worker
+  // holds strings, which is the same value-not-pointer rule the messages follow.
+  WorkerLocation location;
+  location.href = target->Href();
+  location.origin = url::Origin::FromUrl(*target).Serialize();
+  location.protocol = target->Protocol();
+  location.host = target->HostPort();
+  location.hostname = target->Hostname();
+  location.port = target->PortString();
+  location.pathname = target->Pathname();
+  location.search = target->Search();
+  location.hash = target->Hash();
+  const std::uint64_t id = workers_.Reserve(url, std::move(location));
   if (id == 0) {
     return 0;  // the sixteen-worker limit
   }
@@ -61,7 +75,7 @@ void Page::FailWorkerLoad(std::uint64_t worker_id, const std::string& reason) {
   // Delivered here rather than through the worker's outbox: the worker never started, so its pipe is
   // closed before the loop's next turn and a queued delivery would be lost. A page's `onerror` is how it
   // finds out that its worker script 404'd, so losing it would make the failure invisible.
-  script_.DeliverWorkerMessage(worker_id, std::string(), reason, true);
+  script_.DeliverWorkerMessage(worker_id, bindings::WorkerDelivery::Error, std::string(), reason);
 }
 
 bool Page::PostToWorker(std::uint64_t id, const std::string& serialized) {
@@ -72,6 +86,14 @@ bool Page::PostToWorker(std::uint64_t id, const std::string& serialized) {
 
 void Page::TerminateWorker(std::uint64_t id) { workers_.Terminate(id); }
 
+std::vector<Page::PendingWorkerImport> Page::TakeWorkerImportRequests() {
+  return workers_.TakeImportRequests();
+}
+
+void Page::CompleteWorkerImport(std::uint64_t worker_id, bool ok, std::string body) {
+  workers_.CompleteImport(worker_id, ok, std::move(body));
+}
+
 bool Page::DeliverWorkerMessages() {
   const std::vector<Workers::Delivery> deliveries = workers_.TakeDeliveries();
   bool ran = false;
@@ -80,8 +102,7 @@ bool Page::DeliverWorkerMessages() {
     // which is the whole of ADR 0022's "messages cross by value".
     const std::string bytes(reinterpret_cast<const char*>(delivery.message.bytes.data()),
                            delivery.message.bytes.size());
-    ran = script_.DeliverWorkerMessage(delivery.worker_id, bytes, delivery.error,
-                                      delivery.is_error) ||
+    ran = script_.DeliverWorkerMessage(delivery.worker_id, delivery.kind, bytes, delivery.text) ||
           ran;
   }
   return ran;

@@ -645,10 +645,6 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
                    engine.HasRunnableWork() ? 1 : 0, static_cast<long long>(ms));
       std::fflush(stderr);
     }
-    if (advanced || engine.HasRunnableWork()) {
-      DrainOutgoingPaints(ui, latest, best, viewport_width, viewport_height);
-      continue;
-    }
     // Due timers, animation frames and worker messages. The real loop runs this
     // beside Advance() and this one did not, which was two bugs rather than an
     // omission: a page that armed a timer during its load made `NextDeadlineMs`
@@ -656,8 +652,14 @@ void RunLoadToCompletion(microbrowser::engine::Engine& engine,
     // instantly and the loop **span** -- 376,522 turns and 768ms on
     // youtube.com's front page. And a snapshot showed a document whose timers
     // had never run, which is not the page the browser draws.
-    if (engine.RunDueWork()) {
-      if (trace && (turns <= 20ULL || (turns % 10000ULL) == 0ULL)) {
+    //
+    // It is *before* the `HasRunnableWork` short-circuit for a third reason found later: a worker
+    // with a message queued makes `HasRunnableWork` true, so the old order took the `continue` and
+    // never reached the drain that would have consumed it. Both calls, every turn, is what
+    // `Application::Turn` does.
+    const bool ran_due_work = engine.RunDueWork();
+    if (advanced || ran_due_work || engine.HasRunnableWork()) {
+      if (trace && ran_due_work && (turns <= 20ULL || (turns % 10000ULL) == 0ULL)) {
         std::fprintf(stderr, "[load] turn=%llu due_work\n",
                      static_cast<unsigned long long>(turns));
         std::fflush(stderr);

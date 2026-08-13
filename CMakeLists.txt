@@ -435,6 +435,7 @@ microbrowser_module(engine
     src/engine/Animations.cpp
     src/engine/CanvasSurfaces.cpp
     src/engine/Workers.cpp
+    src/engine/WorkerScope.cpp
     src/engine/PageCanvas.cpp
     src/engine/PageWorkers.cpp
     src/engine/PageActivation.cpp

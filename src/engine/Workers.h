@@ -11,6 +11,8 @@
 #include <thread>
 #include <vector>
 
+#include "bindings/Workers.h"
+#include "engine/WorkerScope.h"
 #include "js/StructuredClone.h"
 #include "util/WaitDescriptor.h"
 
@@ -71,7 +73,11 @@ class Workers {
   // immediately, and the messages queue in an inbox that exists. Zero when the limit is reached, which
   // the caller turns into nothing rather than an exception -- `new Worker` is specified not to throw for
   // this, and a page at sixteen workers has a bug rather than a recoverable error.
-  std::uint64_t Reserve(std::string name);
+  //
+  // `location` is computed by the caller, on the main thread, because the URL parser has
+  // lazily-initialised tables behind it and parsing on a second thread is a data race waiting to be
+  // found. See `WorkerLocation`.
+  std::uint64_t Reserve(std::string name, WorkerLocation location);
 
   // The script arrived: the thread starts and drains whatever queued while it was being fetched. False
   // when the id names nothing, which is what a worker terminated before its script arrived gets.
@@ -93,15 +99,33 @@ class Workers {
   // Messages a worker sent back, taken. Called on the main thread; deserializing them touches the
   // page's heap, which is why they cross as bytes and are rebuilt here rather than there.
   struct Delivery {
+    // `bindings::WorkerDelivery`, which is the seam's own vocabulary -- see `bindings/Workers.h`.
+    using Kind = bindings::WorkerDelivery;
+
     std::uint64_t worker_id = 0;
+    Kind kind = Kind::Message;
     js::SerializedValue message;
-    // An uncaught error inside the worker, as a message rather than a value: it becomes an `error`
-    // event on the page's `Worker` object. Text only -- a serialized exception from another heap would
-    // be an object graph crossing a boundary for a diagnostic.
-    std::string error;
-    bool is_error = false;
+    // An uncaught error inside the worker, or a console line, as text rather than as a value: it
+    // becomes an `error` event on the page's `Worker` object. Text only -- a serialized exception from
+    // another heap would be an object graph crossing a boundary for a diagnostic.
+    std::string text;
   };
   std::vector<Delivery> TakeDeliveries();
+
+  // One `importScripts` a worker is blocked on. The URL is the *specifier* the script wrote; the base
+  // it resolves against is the worker's own script URL, which is why both cross.
+  struct ImportRequest {
+    std::uint64_t worker_id = 0;
+    std::string specifier;
+    std::string base_url;
+  };
+
+  // Requests no one has started yet, marked as started. Called on the main thread, from the same drain
+  // that takes deliveries -- a worker signals the loop through the same pipe for both.
+  std::vector<ImportRequest> TakeImportRequests();
+
+  // The answer, which unblocks the worker's thread. `ok` false is the specification's `NetworkError`.
+  void CompleteImport(std::uint64_t worker_id, bool ok, std::string body);
 
   // The descriptors the platform wait should watch, so that a message from a worker wakes the loop.
   // One read end per worker, and nothing at all when there are no workers.
@@ -120,11 +144,29 @@ class Workers {
  private:
   // One worker. Not copyable or movable: the thread captures `this`, so a move would leave the running
   // thread pointing at a moved-from object. Held by `unique_ptr` for exactly that reason.
+  // One `importScripts` in flight. The worker thread fills `specifier` and blocks; the main thread
+  // fills `body` and sets `done`. Its own mutex rather than the inbox's, because the worker holds this
+  // one while it waits and a `postMessage` from the page must not block behind it.
+  struct SyncFetch {
+    mutable std::mutex mutex;
+    std::condition_variable ready;
+    std::string specifier;
+    std::string body;
+    // Set by the worker when it starts waiting; cleared when the answer is taken. `started` is what
+    // stops the main loop handing the same request out twice on two turns.
+    bool pending = false;
+    bool started = false;
+    bool done = false;
+    bool ok = false;
+  };
+
   struct Worker {
     std::uint64_t id = 0;
     std::string name;
     std::string source;
+    WorkerLocation location;
     std::thread thread;
+    SyncFetch sync;
     // The two queues, each with the one mutex that guards it. Two rather than one, so that a worker
     // draining its inbox does not block the page filling it.
     mutable std::mutex inbox_mutex;
@@ -147,6 +189,9 @@ class Workers {
   void Run(Worker& worker);
   void Wake(Worker& worker);
   void JoinAndClose(Worker& worker);
+  // The worker thread's side of `importScripts`: fills the request, wakes the loop, and blocks until
+  // the answer or `stop`. False on either failure, which the scope turns into a `NetworkError`.
+  bool FetchForWorker(Worker& worker, const std::string& specifier, std::string* body_out);
 
   mutable std::mutex workers_mutex_;
   std::map<std::uint64_t, std::unique_ptr<Worker>> workers_;

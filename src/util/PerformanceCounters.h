@@ -510,6 +510,9 @@ namespace microbrowser::util {
   X(WorkerRefusals, "worker.refusals")                                            \
   X(WorkerMessagesHandled, "worker.messages_handled")                             \
   X(WorkerMessagesDropped, "worker.messages_dropped")                             \
+  X(WorkerTimersFired, "worker.timers_fired")                                     \
+  X(WorkerScriptsImported, "worker.scripts_imported")                             \
+  X(WorkerImportFailures, "worker.import_failures")                               \
   X(AudioDevicesOpened, "audio.devices_opened")                                    \
   X(AudioDeviceUnavailable, "audio.device_unavailable")                           \
   X(EventSourceConnectionsOpened, "eventsource.connections_opened")                \

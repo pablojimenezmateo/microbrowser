@@ -626,6 +626,12 @@ class Page : private layout::ImageProvider,
   // The script did not load. Delivers the `error` event directly rather than through the worker's queue,
   // because the worker never started and its pipe is closed before the loop's next turn.
   void FailWorkerLoad(std::uint64_t worker_id, const std::string& reason);
+  // An `importScripts` a worker's thread is **blocked** on, and the answer to one. The specification
+  // defines `importScripts` as synchronous; the worker is the one thread allowed to block, and this is
+  // the pair of calls the main loop answers it with. ADR 0022 §1.
+  using PendingWorkerImport = Workers::ImportRequest;
+  std::vector<PendingWorkerImport> TakeWorkerImportRequests();
+  void CompleteWorkerImport(std::uint64_t worker_id, bool ok, std::string body);
   std::size_t WorkerCount() const { return workers_.Count(); }
 
 

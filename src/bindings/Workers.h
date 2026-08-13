@@ -5,6 +5,12 @@
 
 namespace microbrowser::bindings {
 
+// What arrived from a worker. Three kinds rather than a `bool is_error`, because a console line is
+// neither a message nor an error, and forwarding one as either would put a worker's diagnostics
+// through the page's `onerror`. Declared here rather than in `src/engine` for the reason the seam
+// itself is: it is the vocabulary of the interface, and both sides name it.
+enum class WorkerDelivery : std::uint8_t { Message, Error, Console };
+
 // What `new Worker(url)` and `structuredClone` are answered through.
 //
 // ADR 0022 §1, session 38. Declared here and implemented by `src/engine`, like every other seam -- and

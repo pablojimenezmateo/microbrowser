@@ -185,9 +185,16 @@ void DomBindings::RememberWorker(std::uint64_t id, const js::Value& worker) {
   table.object->Set(std::to_string(id), worker);
 }
 
-bool DomBindings::DeliverWorkerMessage(std::uint64_t id, const std::string& serialized,
-                                       const std::string& error, bool is_error) {
+bool DomBindings::DeliverWorkerMessage(std::uint64_t id, WorkerDelivery kind,
+                                       const std::string& serialized, const std::string& text) {
   if (interpreter_ == nullptr || !interfaces_.IsObject()) {
+    return false;
+  }
+  if (kind == WorkerDelivery::Console) {
+    // A worker's console line, put on the page's console rather than dispatched. Without this a
+    // worker's diagnostics land in an interpreter nobody ever reads, which is what made every bug in
+    // this file cost a rebuild to find.
+    interpreter_->LogConsoleLine("[worker] " + text);
     return false;
   }
   const Value* table = interfaces_.object->GetOwn("workers");
@@ -199,6 +206,7 @@ bool DomBindings::DeliverWorkerMessage(std::uint64_t id, const std::string& seri
     return false;
   }
   const Value worker = *found;
+  const bool is_error = kind == WorkerDelivery::Error;
   const Value event = interpreter_->NewObjectValue();
   if (!event.IsObject()) {
     return false;
@@ -208,7 +216,7 @@ bool DomBindings::DeliverWorkerMessage(std::uint64_t id, const std::string& seri
   if (is_error) {
     // Text, not a serialised exception. An error object from another heap crossing the boundary would be
     // an object graph copied for a diagnostic, and `message` is what a page's handler reads.
-    event.object->Set("message", Value::String(error));
+    event.object->Set("message", Value::String(text));
     event.object->Set("filename", Value::String(""));
     event.object->Set("lineno", Value::Number(0.0));
   } else {
@@ -218,24 +226,20 @@ bool DomBindings::DeliverWorkerMessage(std::uint64_t id, const std::string& seri
     bytes.bytes.assign(serialized.begin(), serialized.end());
     event.object->Set("data", js::StructuredDeserialize(*interpreter_, bytes));
   }
-  bool ran = false;
-  if (const Value* handler = worker.object->GetOwn(is_error ? "onerror" : "onmessage");
-      handler != nullptr && handler->IsObject()) {
-    const js::Result outcome = interpreter_->CallFunction(*handler, worker, {event});
-    if (outcome.completion == js::Completion::Throw) {
-      interpreter_->ReportUncaught(outcome.value, "worker message handler");
-    }
-    ran = true;
-  }
+  // **`dispatchEvent` and nothing else.** Calling the `onmessage` property here as well delivered
+  // every message *twice*: `RunListenersOn` reads `on<type>` off the target as an implicit listener,
+  // which is the specification's rule for a handler attribute, so an explicit call before it is a
+  // second delivery. It is invisible on a page that only counts side effects and fatal to a harness
+  // that counts results -- every subtest a worker reported arrived as two.
   if (const Value* dispatch = worker.object->GetOwn("dispatchEvent");
       dispatch != nullptr && dispatch->IsObject()) {
     const js::Result outcome = interpreter_->CallFunction(*dispatch, worker, {event});
     if (outcome.completion == js::Completion::Throw) {
       interpreter_->ReportUncaught(outcome.value, "worker event listener");
     }
-    ran = true;
+    return true;
   }
-  return ran;
+  return false;
 }
 
 }  // namespace microbrowser::bindings

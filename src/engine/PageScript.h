@@ -98,10 +98,9 @@ class PageScript {
   void SetTrustedInsertionFlush(std::function<void()> hook);
   // A worker's message or error, forwarded to the bindings. False without an interpreter, which is the
   // case on the turn a navigation replaced the document a worker was posting to.
-  bool DeliverWorkerMessage(std::uint64_t id, const std::string& serialized,
-                            const std::string& error, bool is_error) {
-    return bindings_ != nullptr &&
-           bindings_->DeliverWorkerMessage(id, serialized, error, is_error);
+  bool DeliverWorkerMessage(std::uint64_t id, bindings::WorkerDelivery kind,
+                            const std::string& serialized, const std::string& text) {
+    return bindings_ != nullptr && bindings_->DeliverWorkerMessage(id, kind, serialized, text);
   }
 
   // A socket's events, forwarded to the bindings when there are any. False without an

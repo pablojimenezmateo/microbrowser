@@ -162,6 +162,12 @@ class Interpreter {
   // testable and keeps a page from writing to the terminal.
   const std::vector<std::string>& ConsoleOutput() const { return console_; }
 
+  // A line the *host* wants on this interpreter's console, which is not the same thing as one the page
+  // wrote. There is one such caller and it is the reason this exists: a dedicated worker has its own
+  // interpreter on its own thread, so anything it logs lands in a console nobody ever reads. The line
+  // crosses as text and is prefixed by the caller, never derived from a page's own formatting.
+  void LogConsoleLine(std::string line) { console_.push_back(std::move(line)); }
+
   // An exception nobody caught, from a place where throwing is *reported* rather than propagated: an
   // event listener, an `on…` handler, an observer callback. It goes to the console line the host
   // collects, which is the only channel a page's own error has.

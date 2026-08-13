@@ -594,8 +594,8 @@ class DomBindings {
  public:
   // A message or an error from a worker, delivered to the page's `Worker` object. Public because the
   // engine drains the worker queues on the main loop's turn and hands them here.
-  bool DeliverWorkerMessage(std::uint64_t id, const std::string& serialized,
-                            const std::string& error, bool is_error);
+  bool DeliverWorkerMessage(std::uint64_t id, WorkerDelivery kind, const std::string& serialized,
+                            const std::string& text);
 
  private:
   void InstallCanvas(const js::Value& target);

@@ -227,10 +227,15 @@ bool PumpUntil(microbrowser::engine::Engine& engine, microbrowser::ipc::UiEndpoi
         *last_frame = std::move(paint->display_list);
       }
     }
-    if (engine.Advance() || engine.HasRunnableWork()) {
-      continue;
-    }
-    if (engine.RunDueWork()) {
+    // **Both, every turn, in this order** -- which is what `Application::Turn` does and what this
+    // loop did not. `RunDueWork` used to be reached only when `HasRunnableWork()` was false, and a
+    // worker with a message queued is precisely a case where it is *true*: the loop span at full
+    // speed until the deadline while the delivery that would have finished the page sat in a queue
+    // nothing was draining. Every `.any.worker.html` in the suite -- 1,763 files -- timed out on it,
+    // and from outside it is indistinguishable from an engine that cannot run workers at all.
+    const bool advanced = engine.Advance();
+    const bool ran_due_work = engine.RunDueWork();
+    if (advanced || ran_due_work || engine.HasRunnableWork()) {
       continue;
     }
     // Asking the page whether it is done costs a script evaluation, so it is

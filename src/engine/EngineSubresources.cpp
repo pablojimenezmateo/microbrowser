@@ -387,6 +387,62 @@ void Engine::StartWorkerScriptRequests() {
   }
 }
 
+// Called from `Advance` as well as from `RunDueWork`, and the difference is not tidiness: both loops
+// that drive this engine are shaped `if (Advance() || HasRunnableWork()) continue;` with `RunDueWork`
+// only on the else. A worker blocked in `importScripts` makes `HasRunnableWork` true, so the request
+// that would unblock it was never issued -- the loop span at full speed until its deadline while the
+// worker slept, and every one of the suite's 1,763 worker tests reported nothing.
+void Engine::StartWorkerImportRequests() {
+  for (const Page::PendingWorkerImport& pending : page_.TakeWorkerImportRequests()) {
+    // Resolved against the **worker's own script URL**, which is what the specification says
+    // `importScripts` uses as its base -- not the document's. A worker at `/a/b/w.js` importing
+    // `helper.js` means `/a/helper.js`, and a document-relative resolution would silently fetch the
+    // wrong file whenever the two directories differ.
+    const std::optional<url::Url> base = url::Url::Parse(pending.base_url);
+    if (!base.has_value()) {
+      page_.CompleteWorkerImport(pending.worker_id, false, std::string());
+      continue;
+    }
+    const Loader::RequestId id = loader_.StartSubresource(
+        pending.specifier, *base, privacy::ResourceType::Script, NowSeconds(), {});
+    if (id == 0) {
+      // Refused before it went out -- the privacy layer, or a URL the loader would not take. The
+      // worker's `importScripts` throws a `NetworkError`, which is the specification's answer for a
+      // script that could not be fetched and is indistinguishable from a 404 by design.
+      page_.CompleteWorkerImport(pending.worker_id, false, std::string());
+      continue;
+    }
+    worker_import_fetches_[id] = pending.worker_id;
+  }
+}
+
+// One entry point for both, because the router upstream asks one question -- "is this completion a
+// worker's?" -- and the two answers are opposite sides of the same feature: a worker script *starts* a
+// thread and an `importScripts` *unblocks* one.
+bool Engine::OnWorkerFetch(Loader::Completion completion) {
+  if (worker_fetches_.count(completion.id) != 0) {
+    return OnWorkerScriptFetch(std::move(completion));
+  }
+  const auto found = worker_import_fetches_.find(completion.id);
+  if (found == worker_import_fetches_.end()) {
+    return false;
+  }
+  const std::uint64_t worker_id = found->second;
+  worker_import_fetches_.erase(found);
+  // **A worker thread is blocked on this call**, so every path out of here must answer. An empty body
+  // is an answer: a zero-length script is a legal one, and refusing it would hang the worker on a file
+  // that simply had nothing in it.
+  //
+  // The *status* is checked and not only `ok`, and it is the difference between a diagnosis and a
+  // riddle: `ok` is "bytes arrived", and a 404's bytes are an error page. Running one as script
+  // reports `SyntaxError: expected ';'` from inside `importScripts`, which names neither the file nor
+  // the fact that it was never there. The specification's answer for a non-2xx is a `NetworkError`.
+  const bool ok = completion.result.ok && completion.result.status >= 200 &&
+                  completion.result.status < 300;
+  page_.CompleteWorkerImport(worker_id, ok, std::move(completion.result.body));
+  return true;
+}
+
 bool Engine::OnWorkerScriptFetch(Loader::Completion completion) {
   const auto found = worker_fetches_.find(completion.id);
   if (found == worker_fetches_.end()) {

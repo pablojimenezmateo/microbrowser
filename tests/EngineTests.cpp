@@ -3995,6 +3995,94 @@ document.addEventListener("DOMContentLoaded",async function(){var e=document.for
            "hand a page an object that is *nearly* the one it asked for");
   });
 
+  AddTest(tests, "Worker/TheGlobalScopeIsAWorkerGlobalScopeAndImportScriptsIsSynchronous", [] {
+    // **The surface a worker script stands in**, and every assertion here is one that was false before
+    // and cost the whole of web-platform-tests' 1,763 `.any.worker.html` files a twenty-second timeout.
+    //
+    // The two that are not obvious:
+    //
+    // - `self instanceof DedicatedWorkerGlobalScope`. testharness.js decides what environment it is in
+    //   with exactly that expression, and with no answer it concludes it is in a *shell* -- which has
+    //   no way to report a result at all. A worker that ran every assertion correctly still reported
+    //   nothing.
+    // - **One delivery per message.** `DeliverWorkerMessage` used to call the `onmessage` property and
+    //   *then* `dispatchEvent`, which runs `on<type>` again as the specification's implicit listener.
+    //   Every message arrived twice. It is invisible on a page that counts side effects and fatal to a
+    //   harness that counts results.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html",
+                   "<script>"
+                   "var seen = 0;"
+                   "var w = new Worker('/w.js');"
+                   "w.onmessage = function(e) { seen++; console.log('got:' + e.data +"
+                   "                            ' deliveries=' + seen);"
+                   "  if (String(e.data).indexOf('lib=') === 0) { w.postMessage('ping'); } };"
+                   "</" "script>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("application/javascript",
+                   // `importScripts` is synchronous: the line after it reads what it defined.
+                   "importScripts('/lib.js');"
+                   "postMessage('lib=' + LIB + ' scope=' +"
+                   "  (self instanceof DedicatedWorkerGlobalScope) + ',' +"
+                   "  (self instanceof WorkerGlobalScope) + ' path=' + location.pathname);"
+                   // A timer on the worker's own thread, and a listener rather than a property.
+                   "setTimeout(function() { postMessage('timer'); }, 1);"
+                   "self.addEventListener('message', function(e) { postMessage('echo:' + e.data); });"
+                   // A `NetworkError` rather than a syntax error from running a 404's error page.
+                   "try { importScripts('/gone.js'); } catch (err) {"
+                   "  postMessage('missing=' + (String(err).indexOf('NetworkError') >= 0)); }")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true, OkResponse("application/javascript", "var LIB = 7;")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        "HTTP/1.1 404 Not Found\r\nContent-Type: text/html\r\nContent-Length: 9\r\n\r\n<i>no</i>"});
+    session.engine.PageLoader().SetTransport(factory);
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/page.html"});
+
+    // Wall-clock rather than a turn count, for the reason the test above says: a worker is another
+    // thread and how soon it runs is the scheduler's business.
+    std::string log;
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+    while (std::chrono::steady_clock::now() < deadline) {
+      const bool advanced = session.engine.Advance();
+      const bool ran = session.engine.RunDueWork();
+      log.clear();
+      for (const std::string& line : session.engine.ConsoleOutput()) {
+        log += line + "|";
+      }
+      if (log.find("got:timer") != std::string::npos &&
+          log.find("got:missing=") != std::string::npos &&
+          log.find("got:echo:ping") != std::string::npos) {
+        break;
+      }
+      if (!advanced && !ran && !session.engine.HasRunnableWork()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      }
+    }
+    Expect(log.find("got:lib=7 ") != std::string::npos,
+           "importScripts ran the script and the *next line* saw what it defined: " + log);
+    Expect(log.find("scope=true,true ") != std::string::npos,
+           "the global is a DedicatedWorkerGlobalScope and a WorkerGlobalScope: " + log);
+    Expect(log.find("path=/w.js") != std::string::npos,
+           "and `location` is the worker's own URL, parsed on the main thread: " + log);
+    Expect(log.find("got:timer") != std::string::npos,
+           "a setTimeout on the worker's thread fired: " + log);
+    Expect(log.find("got:missing=true") != std::string::npos,
+           "a 404 is a NetworkError, not a SyntaxError from running the error page: " + log);
+    Expect(log.find("got:echo:ping") != std::string::npos,
+           "`self.addEventListener('message')` in the worker saw what the page posted: " + log);
+    // Every `got:` line carries the running count, so a doubled delivery shows up as a repeated
+    // number. Four posts from the worker, four deliveries, and there is no fifth.
+    Expect(log.find("deliveries=4") != std::string::npos &&
+               log.find("deliveries=5") == std::string::npos,
+           "each message was delivered exactly once: " + log);
+  });
+
   AddTest(tests, "Privacy/TheAnswerTableIsWhatADR0029SaysItIs", [] {
     // **ADR 0029 §6's table, asserted.** The values are one thing and the *absences* are the other, and
     // the absences are why this test exists: `navigator.deviceMemory` and its six siblings are things a

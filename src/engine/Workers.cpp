@@ -1,7 +1,9 @@
 #include "engine/Workers.h"
 
 #include <cerrno>
+#include <chrono>
 #include <fcntl.h>
+#include <functional>
 #include <unistd.h>
 #include <utility>
 
@@ -40,7 +42,7 @@ void Drain(int descriptor) {
 
 Workers::~Workers() { Clear(); }
 
-std::uint64_t Workers::Reserve(std::string name) {
+std::uint64_t Workers::Reserve(std::string name, WorkerLocation location) {
   std::lock_guard<std::mutex> guard(workers_mutex_);
   if (workers_.size() >= kMaxWorkers) {
     AddPerformanceCounter(PerfCounterId::WorkerRefusals);
@@ -62,6 +64,7 @@ std::uint64_t Workers::Reserve(std::string name) {
   auto worker = std::make_unique<Worker>();
   worker->id = ++next_id_;
   worker->name = std::move(name);
+  worker->location = std::move(location);
   worker->wake_read = pipes[0];
   worker->wake_write = pipes[1];
   const std::uint64_t id = worker->id;
@@ -131,81 +134,148 @@ void Workers::Run(Worker& worker) {
     this->Wake(worker);
   };
 
-  // `self.postMessage`, which is the only thing a worker can do to the outside world. Deliberately the
-  // only thing: no fetch, no DOM, no storage. A worker that needs a resource asks the page by message,
-  // which keeps the borrow list empty.
-  const js::Value post_message = interpreter.NewNativeValue(
-      "postMessage", [&interpreter, &post](js::NativeCall& call) -> js::Value {
-        const std::optional<js::SerializedValue> serialized =
-            js::StructuredSerialize(interpreter, call.arguments.empty() ? js::Value::Undefined()
-                                                                        : call.arguments[0]);
-        if (!serialized.has_value()) {
-          // The specification's `DataCloneError`. Throwing rather than dropping: a page whose message
-          // silently vanished because it held a function debugs the receiver.
-          return call.Throw("Error", "DataCloneError: the message could not be cloned");
-        }
-        Delivery delivery;
-        delivery.message = *serialized;
-        post(std::move(delivery));
-        return js::Value::Undefined();
-      });
-  if (post_message.IsObject()) {
-    interpreter.Global()->Set("postMessage", post_message);
-    interpreter.GlobalScope()->Declare("postMessage", post_message, false);
-  }
-  // `self` is the global, which is what a worker script expects -- there is no `window` here, and a
-  // script that tests for one correctly concludes it is not on a page.
-  const js::Value self = js::Value::Obj(interpreter.Global());
-  interpreter.Global()->Set("self", self);
-  interpreter.GlobalScope()->Declare("self", self, false);
-  interpreter.Global()->Set("name", js::Value::String(worker.name));
+  // The host half of the worker's global. Everything a thread with no borrows cannot do for itself,
+  // and nothing else -- see `WorkerScopeHost`. It is a local class rather than a member because its
+  // whole lifetime is this function's: it captures the worker and the queues, both of which outlive it
+  // and neither of which anything else may touch.
+  struct Host final : WorkerScopeHost {
+    Host(Workers& owner_in, Worker& worker_in, std::function<void(Delivery)> post_in)
+        : owner(owner_in), worker(worker_in), post(std::move(post_in)) {}
+
+    Workers& owner;
+    Worker& worker;
+    std::function<void(Delivery)> post;
+    bool closed = false;
+
+    void PostToPage(js::SerializedValue message) override {
+      Delivery delivery;
+      delivery.kind = Delivery::Kind::Message;
+      delivery.message = std::move(message);
+      post(std::move(delivery));
+    }
+    void ReportError(std::string message) override {
+      Delivery delivery;
+      delivery.kind = Delivery::Kind::Error;
+      delivery.text = std::move(message);
+      post(std::move(delivery));
+    }
+    void ReportConsole(std::string line) override {
+      Delivery delivery;
+      delivery.kind = Delivery::Kind::Console;
+      delivery.text = std::move(line);
+      post(std::move(delivery));
+    }
+    bool FetchSync(const std::string& url, std::string* body_out) override {
+      return owner.FetchForWorker(worker, url, body_out);
+    }
+    void RequestClose() override { closed = true; }
+  };
+  Host host(*this, worker, post);
+
+  WorkerScope scope(interpreter, host, worker.name, worker.location);
+  scope.Install();
 
   // The script, once. An error in it is reported and the worker stays alive with no `onmessage`, which
   // is what the specification says -- and is more useful than exiting, because the page's `error`
   // handler is how it finds out.
-  const js::Result ran = interpreter.Run(worker.source);
-  if (ran.completion == js::Completion::Throw) {
-    Delivery failure;
-    failure.is_error = true;
-    failure.error = js::ToString(ran.value);
-    post(std::move(failure));
-  }
+  scope.RunScript(worker.source, worker.location.href);
+  scope.EndTurn();
 
-  while (!worker.stop.load()) {
-    js::SerializedValue message;
+  while (!worker.stop.load() && !host.closed) {
+    std::vector<js::SerializedValue> batch;
     {
       std::unique_lock<std::mutex> guard(worker.inbox_mutex);
       // **The block that keeps zero-idle-CPU true.** A worker with nothing to do waits here and costs
-      // nothing; the predicate re-checks `stop` so that `terminate()` wakes it without a timeout.
-      worker.inbox_ready.wait(guard,
-                              [&worker] { return worker.stop.load() || !worker.inbox.empty(); });
+      // nothing; the predicate re-checks `stop` so that `terminate()` wakes it without a timeout. A
+      // worker with a timer armed waits until that timer is due and not one millisecond of polling --
+      // which is the same rule `IdleWaitState::next_deadline_ms` states for the main loop.
+      const auto ready = [&worker] { return worker.stop.load() || !worker.inbox.empty(); };
+      const double delay_ms = scope.NextDelayMs();
+      if (delay_ms < 0.0) {
+        worker.inbox_ready.wait(guard, ready);
+      } else {
+        worker.inbox_ready.wait_for(
+            guard, std::chrono::duration<double, std::milli>(delay_ms), ready);
+      }
       if (worker.stop.load()) {
         break;
       }
-      message = std::move(worker.inbox.front());
-      worker.inbox.pop_front();
+      while (!worker.inbox.empty()) {
+        batch.push_back(std::move(worker.inbox.front()));
+        worker.inbox.pop_front();
+      }
     }
-    const js::Value* handler = interpreter.Global()->Get("onmessage");
-    if (handler == nullptr || !handler->IsObject() || !handler->object->IsCallable()) {
-      continue;  // no handler: the message is dropped, which is what a page without one asked for
+    // Timers first, then messages: a timer that came due while the thread was asleep is older than a
+    // message that arrived to wake it, and running them the other way round reorders a page's own
+    // sequencing.
+    scope.RunDueTimers();
+    for (const js::SerializedValue& message : batch) {
+      scope.DeliverMessage(message);
+      AddPerformanceCounter(PerfCounterId::WorkerMessagesHandled);
     }
-    const js::Value event = interpreter.NewObjectValue();
-    if (event.IsObject()) {
-      event.object->Set("type", js::Value::String("message"));
-      event.object->Set("data", js::StructuredDeserialize(interpreter, message));
-    }
-    const js::Result outcome = interpreter.CallFunction(*handler, self, {event});
-    if (outcome.completion == js::Completion::Throw) {
-      Delivery failure;
-      failure.is_error = true;
-      failure.error = js::ToString(outcome.value);
-      post(std::move(failure));
-    }
-    // The microtask queue, drained here rather than left: a worker whose promise callbacks ran only
-    // when the *next* message arrived would look like it had stalled.
-    interpreter.DrainMicrotasks();
-    AddPerformanceCounter(PerfCounterId::WorkerMessagesHandled);
+    scope.EndTurn();
   }
+}
+
+bool Workers::FetchForWorker(Worker& worker, const std::string& specifier, std::string* body_out) {
+  {
+    std::lock_guard<std::mutex> guard(worker.sync.mutex);
+    worker.sync.specifier = specifier;
+    worker.sync.body.clear();
+    worker.sync.pending = true;
+    worker.sync.started = false;
+    worker.sync.done = false;
+    worker.sync.ok = false;
+  }
+  // The same pipe a message uses. The loop's drain asks for both, so one byte answers either.
+  Wake(worker);
+  std::unique_lock<std::mutex> guard(worker.sync.mutex);
+  // **The one place a worker blocks on the main thread**, and it is what `importScripts` is: the
+  // specification defines it as synchronous, and a worker is the thread that may block because it is
+  // not the thread that draws. `stop` is in the predicate so `terminate()` and a navigation both free
+  // it -- there is no path here that outlives the document.
+  worker.sync.ready.wait(guard, [&worker] { return worker.sync.done || worker.stop.load(); });
+  worker.sync.pending = false;
+  if (!worker.sync.done || !worker.sync.ok) {
+    AddPerformanceCounter(PerfCounterId::WorkerImportFailures);
+    return false;
+  }
+  *body_out = std::move(worker.sync.body);
+  AddPerformanceCounter(PerfCounterId::WorkerScriptsImported);
+  return true;
+}
+
+std::vector<Workers::ImportRequest> Workers::TakeImportRequests() {
+  std::vector<ImportRequest> out;
+  std::lock_guard<std::mutex> guard(workers_mutex_);
+  for (auto& [id, worker] : workers_) {
+    std::lock_guard<std::mutex> sync(worker->sync.mutex);
+    if (!worker->sync.pending || worker->sync.started) {
+      continue;
+    }
+    worker->sync.started = true;
+    out.push_back(ImportRequest{id, worker->sync.specifier, worker->location.href});
+  }
+  return out;
+}
+
+void Workers::CompleteImport(std::uint64_t worker_id, bool ok, std::string body) {
+  std::lock_guard<std::mutex> guard(workers_mutex_);
+  const auto found = workers_.find(worker_id);
+  if (found == workers_.end()) {
+    return;
+  }
+  Worker& worker = *found->second;
+  {
+    std::lock_guard<std::mutex> sync(worker.sync.mutex);
+    if (!worker.sync.pending) {
+      return;
+    }
+    worker.sync.ok = ok;
+    worker.sync.body = std::move(body);
+    worker.sync.done = true;
+  }
+  worker.sync.ready.notify_all();
 }
 
 bool Workers::Post(std::uint64_t id, js::SerializedValue message) {
@@ -232,6 +302,10 @@ bool Workers::Post(std::uint64_t id, js::SerializedValue message) {
 void Workers::JoinAndClose(Worker& worker) {
   worker.stop.store(true);
   worker.inbox_ready.notify_all();
+  // And the import channel, which is the *other* place a worker can be asleep. A worker blocked in
+  // `importScripts` when its document navigated would otherwise wait for an answer from a loop that is
+  // never going to run again, and the join below would never return.
+  worker.sync.ready.notify_all();
   if (worker.thread.joinable()) {
     // **Joined, never detached.** A detached thread holding an interpreter is a use-after-free waiting
     // for the process to exit, and this runs while the document is still alive precisely so that the
@@ -294,8 +368,16 @@ void Workers::AppendDescriptors(util::WaitDescriptorList& out) const {
 bool Workers::HasWork() const {
   std::lock_guard<std::mutex> guard(workers_mutex_);
   for (const auto& [id, worker] : workers_) {
-    std::lock_guard<std::mutex> outbox(worker->outbox_mutex);
-    if (!worker->outbox.empty()) {
+    {
+      std::lock_guard<std::mutex> outbox(worker->outbox_mutex);
+      if (!worker->outbox.empty()) {
+        return true;
+      }
+    }
+    // An `importScripts` nobody has started is work too, and it is the kind the loop must not sleep
+    // through: the worker is *blocked* until this turn answers it.
+    std::lock_guard<std::mutex> sync(worker->sync.mutex);
+    if (worker->sync.pending && !worker->sync.started) {
       return true;
     }
   }
