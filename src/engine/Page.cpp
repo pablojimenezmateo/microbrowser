@@ -185,15 +185,22 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
   // Before anything is collected. The policy decides which stylesheets and
   // scripts this document even has.
   policy_.Reset(std::move(header_policy), url_);
-  // Before the document goes, and this order is load-bearing: the binding layer
-  // holds a reference to it, so dropping the script half after replacing the
-  // document would leave that reference dangling for exactly as long as it took
-  // the next page's first script to read the tree.
-  script_.Detach();
-  // Before the document goes, for the reason the line above is: every frame's element lives in the
-  // document that is about to be replaced, and the borrowed pointer each one holds has to be
-  // cleared while that element is still there to clear it on. ADR 0027 §1, and see Frames.h.
+  // **The children first, and this order is the one that is load-bearing now.** Every same-origin
+  // child borrows *this* page's interpreter and holds a realm of it (ADR 0042 §5), so a child that
+  // outlived the line below would hold a pointer into a freed `js::Interpreter` -- and the next
+  // turn of the loop would build a `RealmScope` on it. ASan found exactly that, through
+  // `Engine::RunFrameDueWork`, on the form submission in
+  // `encoding/legacy-mb-tchinese/big5/big5-encode-form.html`.
+  //
+  // It also has to happen before the *document* goes, which it does: every frame's element lives in
+  // the document about to be replaced, and the borrowed pointer each one holds has to be cleared
+  // while that element is still there to clear it on. ADR 0027 §1, and see Frames.h.
   ClearFrames();
+  // Then the script half. Before the document goes, and that order is load-bearing too: the binding
+  // layer holds a reference to it, so dropping the script half after replacing the document would
+  // leave that reference dangling for exactly as long as it took the next page's first script to
+  // read the tree.
+  script_.Detach();
   // A fresh resolver per document. Author sheets belong to the document that
   // carried them, and keeping the old one would let the previous page's CSS
   // style this one.
@@ -571,6 +578,17 @@ DispatchOutcome Page::DispatchClickAt(gfx::FloatPoint document_point,
 
 
 void Page::AbandonForNavigation() {
+  // **The child contexts go with it, and they have to go first.** They borrow this page's
+  // interpreter and hold realms of it, so a child that survived the detach below would hold a
+  // pointer into a freed `js::Interpreter` -- and `Engine::RunFrameDueWork` would build a
+  // `RealmScope` on it on the very next turn. That is a use-after-free a page reaches by
+  // submitting a form from inside a frame, which is what
+  // `encoding/legacy-mb-tchinese/big5/big5-encode-form.html` does and how ASan found it.
+  //
+  // The DOM does stay until Load (TD-0048) and this does not change that: what ends here is the
+  // *contexts*, which cannot outlive the interpreter they borrowed. Their elements stay put and
+  // are re-collected against the next document.
+  ClearFrames();
   // Interpreter, timers, rAF, idle, host tasks. The DOM stays until Load; it
   // must not schedule against the in-flight document GET (TD-0048).
   script_.Detach();
