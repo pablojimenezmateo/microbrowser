@@ -22,6 +22,8 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/DocumentFacts.h"
+#include "html/UrlEncoding.h"
 #include "bindings/Reflection.h"
 #include "dom/Node.h"
 #include "url/Url.h"
@@ -144,7 +146,28 @@ const dom::Element* FindFirstBaseElement(const dom::Node& node) {
   return nullptr;
 }
 
+// Where a realm keeps the character set of the document whose script runs in it.
+// Not an identifier, so a page can neither read it nor shadow it -- the same
+// convention `#domInterfaces` and `#domWrappers` use.
+constexpr const char* kDocumentEncodingSlot = "#documentEncoding";
+
 }  // namespace
+
+void SetDocumentEncoding(js::Interpreter& interpreter, html::Encoding encoding) {
+  if (js::Object* global = interpreter.Global(); global != nullptr) {
+    global->Set(kDocumentEncodingSlot,
+                js::Value::Number(static_cast<double>(static_cast<std::uint8_t>(encoding))));
+  }
+}
+
+html::Encoding DocumentEncodingOf(js::Interpreter& interpreter) {
+  js::Object* global = interpreter.Global();
+  const js::Value* slot = global == nullptr ? nullptr : global->GetOwn(kDocumentEncodingSlot);
+  if (slot == nullptr || !slot->IsNumber()) {
+    return html::Encoding::Utf8;
+  }
+  return static_cast<html::Encoding>(static_cast<std::uint8_t>(slot->number));
+}
 
 // The document base URL, computed from the tree rather than remembered.
 //
@@ -494,8 +517,24 @@ void Reflector::InstallHyperlinkElementUtils() {
       // scalar value string, so the conversion happens here rather than at the setter -- the
       // attribute keeps what was written, and only the *parse* sees U+FFFD.
       const std::string text = util::ScrubLoneSurrogates(*href);
+      // **HTML's "encoding-parse a URL", which is two things and this used to do only one.** The
+      // base is `<base href>` re-read from the tree on every call -- a script can rewrite it
+      // between two link resolutions, and the URL Standard's own setter page does exactly that,
+      // nine hundred times. The *query* is percent-encoded in the **document's** character set
+      // rather than in UTF-8, so `<a href="?q=日本">` on a Shift_JIS page reports `%93%FA%96%7B`:
+      // the bytes a click would actually send.
+      //
+      // TD-0058 is the record of getting one without the other. Two worktrees implemented this
+      // accessor against the same base, each got a different half right, and the merge kept the
+      // live base -- so `url/` read 97.9% and every `encoding/legacy-mb-*` href case reported
+      // UTF-8. The debt entry proposed pointing this at `Engine::ResolveDocumentUrl`, which has
+      // the encoder; that would have traded the failure back the other way, because that function
+      // resolves against `DocumentPolicy::Base()`, computed once and blind to a script appending a
+      // `<base>`. Both halves belong here, and neither needs the other's owner.
+      const html::DocumentQueryEncoder encoder(DocumentEncodingOf(*owner->interpreter_));
       const std::optional<url::Url> base = url::Url::Parse(owner->DocumentBaseUrl(element->NodeDocument()));
-      return base.has_value() ? url::Url::Parse(text, *base) : url::Url::Parse(text);
+      return base.has_value() ? url::Url::Parse(text, *base, &encoder)
+                              : url::Url::Parse(text, &encoder);
     };
 
     const Value href_get =

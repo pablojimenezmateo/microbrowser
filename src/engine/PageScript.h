@@ -14,6 +14,7 @@
 #include "bindings/Workers.h"
 #include "bindings/DomBindings.h"
 #include "bindings/BrowsingContexts.h"
+#include "bindings/DocumentFacts.h"
 #include "bindings/Geometry.h"
 #include "bindings/History.h"
 #include "bindings/IndexedDb.h"
@@ -592,6 +593,11 @@ class PageScript {
   // that class is at 989 of its 990 permitted lines, which is the lint saying
   // the next thing added to it should be a separate class -- and this is one.
   bindings::FrameGlobals frame_windows_;
+  // What HTML's "encoding-parse a URL" encodes a query with, taken from the
+  // policy at collection time and published onto the realm when there is one.
+  // See bindings/DocumentFacts.h for why it lives on the realm rather than on
+  // the binding layer.
+  html::Encoding document_encoding_ = html::Encoding::Utf8;
 
   // The only thing that may build one. See RealmBoundScript.
   friend class RealmBoundScript;

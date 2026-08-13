@@ -2571,7 +2571,7 @@ Neither is a stub away. A `contentWindow` that was a plain object, or an `import
 resolved nothing, is exactly what ADR 0012 forbids: the test would still fail and a real page
 would fail later and further away.
 
-## TD-0058 — `<a href>` reflection resolves its query as UTF-8, and two base URLs disagree
+## TD-0058 — `<a href>` reflection resolves its query as UTF-8, and two base URLs disagree — **CLOSED 2026-08-13**
 
 **Created by a merge, not by a session**, which is why it is worth writing down: two worktrees
 implemented HTMLHyperlinkElementUtils against the same base and each got a different half right.
@@ -2597,14 +2597,38 @@ The merge kept the first. So today:
   does not move when a script appends a `<base>`. `Engine::ResolveDocumentUrl` uses the second.
   Two answers to that question is the same shape of bug the deleted `HrefParts.cpp` was.
 
-**The fix is one thing, not two**: give `DocumentPolicy` a live base — or have `ResolveDocumentUrl`
-read the tree the way `DocumentBaseUrl` does — and then point `url_of` in `UrlObject.cpp` at
-`ResolveDocumentUrl`. Doing it in the other order regresses `url/`, which is how it was found: the
-encoding worktree's version cannot pass the standard's setter vectors and the URL worktree's cannot
-pass `encoding/legacy-mb-*`'s href cases. Neither branch's tests cover the other's case, so **the
-suite is green either way** — check both before believing a change here.
+**Closed 2026-08-13, and it cost more than this entry estimated.** The fix is not either of the two
+proposed above: both halves belong in `url_of`, and neither needs the other's owner. It now builds a
+`html::DocumentQueryEncoder` from the document's character set *and* resolves against
+`DocumentBaseUrl`, which still re-reads `<base href>` from the tree. `src/bindings` may see
+`src/html`, so nothing had to move.
 
-## TD-0059 — `contentWindow` is not a window, because a browsing context is a realm and `src/js` has one — **the realm landed 2026-08-12; the binding half has not**
+The document's character set reaches the binding layer **on the realm's global** rather than as a
+member of `DomBindings` — `src/bindings/DocumentFacts.h`. Two reasons, and the second is the one
+worth keeping: a character set is per *document*, and since ADR 0042 §5 a same-origin `<iframe>` is
+a realm of the same interpreter with a global of its own, so the global is exactly the object that
+is one-per-document; and `DomBindings.h` is at 1,000 of its 1,000 permitted lines, so a fact that
+was never a member does not get to become one.
+
+One more thing had to change with it. `url/a-element-xhtml.xhtml` declares its encoding **only** in
+`<?xml version="1.0" encoding="UTF-8"?>`, which `html::SniffEncoding` did not read — so it fell back
+to windows-1252 and, once the query started honouring the document's charset, five of its subtests
+started reporting `?q=%26%238995%3B` where a browser reports `?q=%E2%8C%A3`. An XML document with no
+declaration is UTF-8, never windows-1252; that fallback is HTML's and HTML's alone. `SniffEncoding`
+now reads the XML declaration and defaults XML content types to UTF-8.
+
+**The measurement, and it is the reason this entry is worth reading after it is closed.**
+`encoding/` went **0.9% → 52.8%** (3,829 → 220,631 of 417,520 subtests; 40 unexpected tests → 1),
+and `url/` stayed at 99.8% with 0 unexpected — which is exactly the pair this entry said to check.
+
+**But the suite was not "green either way", and that sentence was the expensive mistake.** The
+expectation files were recorded by the encoding worktree *before* the merge, so they still claimed
+those ~217,000 subtests passed. The merge broke them and nothing said so: a regression is only
+visible where an expectation file is newer than the change. Twenty thousand subtests would have
+been noticed; two hundred thousand were not, because nobody re-ran the area. **Re-record every area
+a merge touched, not just the ones its branch named.**
+
+## TD-0059 — `contentWindow` is not a window, because a browsing context is a realm and `src/js` has one — **CLOSED 2026-08-13**
 
 **Status update.** ADR 0042 landed the concept: `js::Interpreter` now holds up to `kMaxRealms`
 realms, each with its own global, global scope and `js::Intrinsics`; a callable records its realm and
@@ -2614,9 +2638,12 @@ that gets its own `window` rather than its caller's, a cross-realm `map` whose a
 child's `Array.prototype`, well-known symbols shared so a protocol crosses, and every realm walked by
 the collector. Cost recorded as TD-0060.
 
-**What is still true of everything below**: `src/bindings` installs one DOM surface, `FrameBindings.cpp`
-still returns the plain-object stub, and no child frame runs script yet. The remaining work is the
-binding and engine halves, not the language one.
+**The binding and engine halves landed 2026-08-13 (ADR 0042 §5 steps 1-4), and the table below is
+now history rather than status.** `iframe.contentWindow` is the child realm's real global,
+`contentDocument` is that window's own `document` so the two are one object, a same-origin child
+runs its own script, and `parent`/`top`/`window[i]`/`window.length` answer. What is still absent is
+`postMessage` between realms, `frameElement`, and the engine's services inside a child (its `fetch`
+is undeclared) — see `docs/session-log.md` C12 and CLAUDE.md, which carry the current list.
 
 
 Landed 2026-08-12 with the rest of ADR 0027 §1's first half: a child browsing context now fetches

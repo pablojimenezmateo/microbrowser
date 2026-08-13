@@ -54,7 +54,7 @@ purpose: The seam between script and the document. The only module that sees bot
 # check lives, and an origin is a `url::Origin`. A layer that cannot name one cannot check one.
 allow: util js dom html css xml url
 
-public: AnimationFrames.h BrowsingContexts.h DomBindings.h Geometry.h History.h IdleCallbacks.h IndexedDb.h Input.h Media.h Network.h Performance.h Sockets.h Storage.h Cookies.h Timers.h ViewObservers.h Canvas.h Workers.h Waapi.h
+public: AnimationFrames.h BrowsingContexts.h DocumentFacts.h DomBindings.h Geometry.h History.h IdleCallbacks.h IndexedDb.h Input.h Media.h Network.h Performance.h Sockets.h Storage.h Cookies.h Timers.h ViewObservers.h Canvas.h Workers.h Waapi.h
 
 extern:
 

@@ -122,6 +122,13 @@ bool PageScript::CollectInserted(dom::Document& document, const DocumentPolicy& 
   // to know the answer to. Re-asked on every collection, because a `<meta>`
   // policy can arrive after the first element did.
   inline_handlers_allowed_ = policy.AllowsInlineHandler();
+  // Re-read here rather than captured once, for the reason the CSP flags above are: a `<meta
+  // charset>` can arrive after the first element did, and a link resolved with the wrong charset
+  // sends the wrong bytes.
+  document_encoding_ = policy.Encoding();
+  if (interpreter_ != nullptr) {
+    bindings::SetDocumentEncoding(*interpreter_, document_encoding_);
+  }
   if (bindings_ != nullptr) {
     bindings_->SetScriptStrictDynamic(script_strict_dynamic_);
     bindings_->SetInlineHandlersAllowed(inline_handlers_allowed_);
@@ -304,6 +311,9 @@ void PageScript::EnsureInterpreter(dom::Document& document, const std::string& u
   // installer put there with one that answers with the child's *actual* global.
   // See BrowsingContexts.h for why it is not a method on that class.
   bindings::InstallFrameWindows(*interpreter_, frame_windows_);
+  // HTML's "encoding-parse a URL" needs it, and every `<a href>` on the page goes through that.
+  // Published onto the realm rather than onto the binding layer; see bindings/DocumentFacts.h.
+  bindings::SetDocumentEncoding(*interpreter_, document_encoding_);
   bindings::PublishFrameWindows(*interpreter_, frame_windows_);
   bindings_->SetScriptStrictDynamic(script_strict_dynamic_);
   bindings_->SetInlineHandlersAllowed(inline_handlers_allowed_);

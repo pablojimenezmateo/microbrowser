@@ -530,6 +530,50 @@ std::size_t BomLength(std::string_view bytes) {
   return 0;
 }
 
+namespace {
+
+// Whether the response says this is XML. The `+xml` suffix is the general rule and the three
+// explicit types are the ones that predate it; between them they are what the MIME Sniffing
+// Standard calls an XML MIME type.
+bool IsXmlContentType(std::string_view content_type) {
+  const std::string essence =
+      util::AsciiLowerCase(util::TrimAscii(content_type.substr(0, content_type.find(';'))));
+  return essence == "text/xml" || essence == "application/xml" ||
+         (essence.size() > 4 && essence.compare(essence.size() - 4, 4, "+xml") == 0);
+}
+
+// `<?xml version="1.0" encoding="..."?>`, read from the first declaration only.
+//
+// Deliberately narrow: the declaration must be the very first thing in the document, which is what
+// XML requires, so there is no scanning and nothing to bound. Anything else -- a label this build
+// does not know, a missing `encoding` -- falls through to the XML default rather than to HTML's.
+std::optional<Encoding> EncodingFromXmlDeclaration(std::string_view bytes) {
+  constexpr std::string_view kPrefix = "<?xml";
+  if (bytes.size() < kPrefix.size() || bytes.substr(0, kPrefix.size()) != kPrefix) {
+    return std::nullopt;
+  }
+  const std::size_t end = bytes.find("?>");
+  if (end == std::string_view::npos) {
+    return std::nullopt;
+  }
+  const std::string_view declaration = bytes.substr(0, end);
+  const std::size_t at = declaration.find("encoding");
+  if (at == std::string_view::npos) {
+    return std::nullopt;
+  }
+  const std::size_t open = declaration.find_first_of("\"'", at);
+  if (open == std::string_view::npos) {
+    return std::nullopt;
+  }
+  const std::size_t close = declaration.find(declaration[open], open + 1);
+  if (close == std::string_view::npos) {
+    return std::nullopt;
+  }
+  return EncodingFromLabel(declaration.substr(open + 1, close - open - 1));
+}
+
+}  // namespace
+
 Encoding SniffEncoding(std::string_view bytes, std::string_view content_type) {
   // 1. The BOM, which wins over everything -- including a contradictory `charset`. The BOM is *in the
   // bytes*; a header is a claim about them, and when the two disagree the bytes are the evidence.
@@ -553,12 +597,27 @@ Encoding SniffEncoding(std::string_view bytes, std::string_view content_type) {
       }
     }
   }
-  // 3. The prescan.
+  // 3. The XML declaration, and the XML *default*, both of which apply only to an XML content type.
+  //
+  // **An XML document with no declaration is UTF-8, not windows-1252.** The fallback below is
+  // HTML's, and it is right for HTML for the reason written there; XML has never had it. The
+  // difference is observable well beyond decoding: a document's character set is what HTML's
+  // "encoding-parse a URL" encodes a query with, so `url/a-element-xhtml.xhtml` -- whose only
+  // declaration is `<?xml version="1.0" encoding="UTF-8"?>` -- reported `?q=%26%238995%3B` for a
+  // link a browser reports as `?q=%E2%8C%A3`. Five subtests, and they only became visible once
+  // `<a href>` started honouring the document's charset at all (TD-0058).
+  if (IsXmlContentType(content_type)) {
+    if (const std::optional<Encoding> declared = EncodingFromXmlDeclaration(bytes)) {
+      return *declared;
+    }
+    return Encoding::Utf8;
+  }
+  // 4. The prescan.
   if (const std::optional<Encoding> found = PrescanForMeta(bytes)) {
     AddPerformanceCounter(PerfCounterId::EncodingFromPrescan);
     return *found;
   }
-  // 4. windows-1252, and not UTF-8. A page with no declaration is overwhelmingly old, and decoding it
+  // 5. windows-1252, and not UTF-8. A page with no declaration is overwhelmingly old, and decoding it
   // as UTF-8 turns every high byte into U+FFFD where windows-1252 renders what its author saw.
   AddPerformanceCounter(PerfCounterId::EncodingFellBackToWindows1252);
   return Encoding::Windows1252;
