@@ -6162,3 +6162,69 @@ needed all three, in this order, and each was invisible until the one before it 
 - **Four cap raises**, each recorded in its `MODULE.deps` with what it bought. `bindings`' is the
   one to read: that note has asked for a class split for six raises now, and a class that cannot
   take a two-line member without a raise is the argument finishing itself.
+
+## C13 — TD-0058, and the merge regression nobody could see · 2026-08-13
+
+**Status:** done
+**Check:** `encoding/` **0.9% → 52.8%** (3,829 → 220,631 of 417,520 subtests; 40 unexpected tests
+→ 1). `url/` **held at 99.8%** with 0 unexpected, which is the pair TD-0058 named as the thing to
+check. `microbrowser_tests` 2,158/2,158.
+**Landed:** TD-0058 and TD-0059 closed; XML documents default to UTF-8; the child-context lifetime
+fix that removed 15 segfaults from `encoding/`.
+
+### The finding is the process, not the patch
+
+TD-0058 said two worktrees implemented `<a href>` against the same base, each got a different half
+of "encoding-parse a URL" right, and the merge kept one. It ended with **"the suite is green either
+way — check both before believing a change here."**
+
+That sentence was wrong in a way that cost ~217,000 subtests. The expectation files were recorded by
+the encoding worktree *before* the merge, so they still claimed those subtests passed. The merge
+broke them and nothing said so. **A regression is only visible where an expectation file is newer
+than the change** — and a merge is exactly the event that makes every file older than every change.
+
+Twenty thousand subtests would have been noticed by someone running the area. Two hundred thousand
+were not, because nobody re-ran it: the branch that owned that area had already recorded it, and the
+four branches that broke it had no reason to. **Re-record every area a merge touched, not just the
+ones its branch named.**
+
+### The fix, which is smaller than the entry predicted
+
+Both halves belong in `url_of` and neither needs the other's owner. `src/bindings` may see
+`src/html`, so `html::DocumentQueryEncoder` is reachable and nothing had to move; the live base
+stays. The debt entry's own proposal — point this at `Engine::ResolveDocumentUrl` — would have
+traded the failure back the other way, because that function resolves against
+`DocumentPolicy::Base()`, computed once and blind to a script appending a `<base>`.
+
+The document's character set reaches the binding layer **on the realm's global**
+(`src/bindings/DocumentFacts.h`), not as a `DomBindings` member. A character set is per-document,
+and since ADR 0042 §5 a same-origin `<iframe>` is a realm with a global of its own, so the global is
+the object that is one-per-document. It also costs `DomBindings` nothing, at 1,000 of its 1,000
+permitted lines.
+
+### One correctness fix fell out of it, and it was invisible before
+
+`url/a-element-xhtml.xhtml` declares its encoding **only** in `<?xml version="1.0"
+encoding="UTF-8"?>`. `html::SniffEncoding` did not read that, so it fell back to windows-1252 —
+harmless while nothing consulted the charset, and five subtests wide the moment `<a href>` started
+to. An XML document with no declaration is UTF-8; the windows-1252 fallback is HTML's and HTML's
+alone.
+
+### Left
+
+- **`encoding/` is 52.8%, and the rest is one feature.** The `*-encode-form-*` files need a form
+  whose `target` names an `<iframe>` to submit *into that frame*. Today the target is ignored and
+  the top-level page navigates — which is also what made those 15 tests segfault before the
+  lifetime fix. That is the same "a child navigation the engine drives is not built" item C12 left.
+- **`html/semantics/` is stale in the optimistic direction** and re-recorded here: 613 subtests
+  newly passing, 195 newly failing, 2,196 tests. The failures are overwhelmingly `document.write`
+  (deliberately unimplemented, ADR 0011) recorded as PASS by a baseline that predates the area
+  being run.
+- **`window.open` returns null**, and several areas now fail in their *cleanup* rather than their
+  body because of it (`mimesniff/sniffing/*`, `webstorage/*window_open*`,
+  `custom-elements/registries/*`). That is task J6, and after C12 it is much cheaper than it was:
+  a popup wants the realm, loading and lifetime machinery a child frame already has.
+- **Do not restrict cross-origin children from running script.** I tried it on the theory that a
+  document with no engine services behind it is worse than none, measured it, and it changed
+  nothing — reverted rather than kept, because it makes the browser less correct and the evidence
+  was absent.

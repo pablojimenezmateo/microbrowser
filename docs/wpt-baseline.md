@@ -23,10 +23,22 @@ out and started *reporting*, so subtests that never executed now execute, and so
 That is the same shape the handler work produced on 2026-08-12 and the same warning applies --
 **judge frame work by the harness column, not the subtest net.**
 
-`docs/session-log.md`'s C12 entry has what is left, and the two findings worth more than the
-feature: a `DomBindings` can now outlive nothing and be outlived by its own natives (so the owner
-slot is a never-reused serial, not an address), and `js::kMaxRealms` was bounding realms *ever
-made* rather than realms alive.
+**`encoding/` 0.9% → 52.8%** the same day (3,829 → 220,631 of 417,520 subtests, 40 unexpected tests
+→ 1), and **read why before trusting any other row in this file**: those ~217,000 subtests were
+broken by the five-worktree merge of 2026-08-12 and *nothing said so*, because the expectation file
+had been recorded by the branch that owned the area before the merge that broke it. A regression is
+only visible where an expectation file is newer than the change. **Re-record every area a merge
+touched, not just the ones its branch named.** TD-0058 has the whole account.
+
+**`html/semantics/` re-recorded 2026-08-13**: 2,196 tests, 17,558 subtests, 3,355 passing (19.1%),
+**613 subtests newly passing and 195 newly failing** against the M-B baseline. The failures are
+overwhelmingly `document.write`, deliberately unimplemented (ADR 0011), recorded as PASS by a
+baseline that predates the area being run at all.
+
+`docs/session-log.md`'s C12 and C13 entries have what is left, and the findings worth more than the
+features: a `DomBindings` can now be outlived by its own natives (so the owner slot is a never-reused
+serial, not an address), `js::kMaxRealms` was bounding realms *ever made* rather than realms alive,
+and the merge lesson above.
 
 **`dom/` re-measured 2026-08-12, after the `<iframe>` lifecycle landed, and it is the row below to
 trust.** 667 tests, **46,530 subtests, 38,589 passed (82.9%)**, 132 timeouts. Merged in by hand for
