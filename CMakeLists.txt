@@ -683,6 +683,7 @@ add_executable(microbrowser_tests
   tests/architecture/SourceScan.cpp
   tests/BlitterTests.cpp
   tests/CanvasTests.cpp
+  tests/ColorTextTests.cpp
   tests/CssTests.cpp
   tests/SelectorTests.cpp
   tests/GeometryQueryTests.cpp
@@ -730,6 +731,7 @@ add_executable(microbrowser_tests
   tests/MpegTsTests.cpp
   tests/AnimationTests.cpp
   tests/CanvasTests.cpp
+  tests/ColorTextTests.cpp
   tests/SandboxTests.cpp
   tests/MediaStateTests.cpp
   tests/StorageScriptTests.cpp

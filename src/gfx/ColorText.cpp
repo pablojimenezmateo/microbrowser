@@ -1,6 +1,7 @@
 #include "gfx/ColorText.h"
 
 #include <algorithm>
+#include <cmath>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -81,34 +82,225 @@ int HexValue(char c) {
   return -1;
 }
 
-std::optional<std::uint8_t> ParseRgbChannel(std::string_view text) {
+// --- The colour functions ------------------------------------------------------------------
+//
+// CSS Color 4 gives `rgb()` and `hsl()` two grammars and they are **not** interchangeable:
+//
+//   legacy   rgb(1, 2, 3)        rgb(1, 2, 3, 0.5)      commas throughout, no `none`
+//   modern   rgb(1 2 3)          rgb(1 2 3 / 0.5)       spaces, a slash before alpha, `none` allowed
+//
+// Mixing them -- `rgb(1, 2, 3 / 0.5)` -- is invalid, and telling the two apart by whether the body
+// contains a comma is what makes that fall out rather than needing a rule of its own. The parser
+// used to replace every comma with a space and split, which accepted the mixed form and rejected
+// every modern one with an alpha, because `/` came back as a fourth component.
+
+// One component of a colour function: a number, a percentage, or `none`.
+//
+// `none` is CSS Color 4's missing component. It behaves as zero everywhere this browser can see --
+// the difference only shows in interpolation and in the `color()` function's carry-forward rule,
+// neither of which exists here -- so it is accepted and read as zero rather than refused.
+struct Component {
+  double value = 0.0;
+  bool is_percent = false;
+  bool is_none = false;
+};
+
+std::optional<Component> ParseComponent(std::string_view text) {
+  Component component;
+  if (text == "none") {
+    component.is_none = true;
+    return component;
+  }
   if (text.ends_with('%')) {
     const std::optional<double> percent = util::ParseDouble(text.substr(0, text.size() - 1));
     if (!percent.has_value()) {
       return std::nullopt;
     }
-    return static_cast<std::uint8_t>(std::clamp(*percent, 0.0, 100.0) * 255.0 / 100.0 + 0.5);
+    component.value = *percent;
+    component.is_percent = true;
+    return component;
   }
   const std::optional<double> value = util::ParseDouble(text);
   if (!value.has_value()) {
     return std::nullopt;
   }
-  return static_cast<std::uint8_t>(std::clamp(*value, 0.0, 255.0) + 0.5);
+  component.value = *value;
+  return component;
 }
 
-std::optional<std::uint8_t> ParseAlphaChannel(std::string_view text) {
-  if (text.ends_with('%')) {
-    const std::optional<double> percent = util::ParseDouble(text.substr(0, text.size() - 1));
-    if (!percent.has_value()) {
-      return std::nullopt;
-    }
-    return static_cast<std::uint8_t>(std::clamp(*percent, 0.0, 100.0) * 255.0 / 100.0 + 0.5);
+// A hue: a number of degrees, or an angle with one of the four units. Normalised into [0, 360) here
+// rather than at the conversion, because `hsl(-300deg …)` and `hsl(60deg …)` are the same colour and
+// a test asserts exactly that.
+std::optional<double> ParseHue(std::string_view text) {
+  if (text == "none") {
+    return 0.0;
+  }
+  double scale = 1.0;
+  if (text.ends_with("deg")) {
+    text.remove_suffix(3);
+  } else if (text.ends_with("grad")) {
+    text.remove_suffix(4);
+    scale = 360.0 / 400.0;
+  } else if (text.ends_with("rad")) {
+    text.remove_suffix(3);
+    scale = 180.0 / 3.14159265358979323846;
+  } else if (text.ends_with("turn")) {
+    text.remove_suffix(4);
+    scale = 360.0;
   }
   const std::optional<double> value = util::ParseDouble(text);
   if (!value.has_value()) {
     return std::nullopt;
   }
-  return static_cast<std::uint8_t>(std::clamp(*value, 0.0, 1.0) * 255.0 + 0.5);
+  double degrees = std::fmod(*value * scale, 360.0);
+  if (degrees < 0.0) {
+    degrees += 360.0;
+  }
+  return degrees;
+}
+
+std::uint8_t ToByte(double value) {
+  return static_cast<std::uint8_t>(std::clamp(value, 0.0, 255.0) + 0.5);
+}
+
+// CSS Color 4's HSL-to-RGB, written as the specification writes it.
+std::array<double, 3> HslToRgb(double hue, double saturation, double lightness) {
+  const auto channel = [&](double n) {
+    const double k = std::fmod(n + hue / 30.0, 12.0);
+    const double a = saturation * std::min(lightness, 1.0 - lightness);
+    return lightness - a * std::max(-1.0, std::min({k - 3.0, 9.0 - k, 1.0}));
+  };
+  return {channel(0.0) * 255.0, channel(8.0) * 255.0, channel(4.0) * 255.0};
+}
+
+// The body of a colour function, split into components and an optional alpha, or nullopt when the
+// two grammars were mixed or the shape is wrong.
+struct FunctionArguments {
+  std::vector<std::string_view> components;
+  std::string_view alpha;
+  bool has_alpha = false;
+  bool legacy = false;
+};
+
+std::optional<FunctionArguments> SplitFunction(std::string_view body) {
+  FunctionArguments arguments;
+  const bool has_comma = body.find(',') != std::string_view::npos;
+  const bool has_slash = body.find('/') != std::string_view::npos;
+  if (has_comma && has_slash) {
+    return std::nullopt;  // the mixed form
+  }
+  if (has_comma) {
+    arguments.legacy = true;
+    std::size_t start = 0;
+    while (true) {
+      const std::size_t comma = body.find(',', start);
+      const std::string_view part =
+          Trim(body.substr(start, comma == std::string_view::npos ? std::string_view::npos
+                                                                  : comma - start));
+      if (part.empty()) {
+        return std::nullopt;
+      }
+      arguments.components.push_back(part);
+      if (comma == std::string_view::npos) {
+        break;
+      }
+      start = comma + 1;
+    }
+    if (arguments.components.size() == 4) {
+      arguments.alpha = arguments.components.back();
+      arguments.has_alpha = true;
+      arguments.components.pop_back();
+    }
+    return arguments.components.size() == 3 ? std::optional<FunctionArguments>(arguments)
+                                            : std::nullopt;
+  }
+  const std::size_t slash = body.find('/');
+  if (slash != std::string_view::npos) {
+    if (body.find('/', slash + 1) != std::string_view::npos) {
+      return std::nullopt;
+    }
+    const std::string_view after = Trim(body.substr(slash + 1));
+    if (after.empty()) {
+      return std::nullopt;
+    }
+    arguments.alpha = after;
+    arguments.has_alpha = true;
+    body = body.substr(0, slash);
+  }
+  arguments.components = SplitWords(body);
+  return arguments.components.size() == 3 ? std::optional<FunctionArguments>(arguments)
+                                          : std::nullopt;
+}
+
+std::optional<std::uint8_t> AlphaFrom(const FunctionArguments& arguments) {
+  if (!arguments.has_alpha) {
+    return static_cast<std::uint8_t>(255);
+  }
+  const std::optional<Component> component = ParseComponent(arguments.alpha);
+  if (!component.has_value() || (component->is_none && arguments.legacy)) {
+    return std::nullopt;
+  }
+  const double fraction = component->is_percent ? component->value / 100.0 : component->value;
+  return static_cast<std::uint8_t>(std::clamp(fraction, 0.0, 1.0) * 255.0 + 0.5);
+}
+
+std::optional<Color> ParseRgbFunction(std::string_view body) {
+  const std::optional<FunctionArguments> arguments = SplitFunction(body);
+  if (!arguments.has_value()) {
+    return std::nullopt;
+  }
+  std::array<std::uint8_t, 3> channels{};
+  bool any_percent = false;
+  bool any_number = false;
+  for (std::size_t i = 0; i < 3; ++i) {
+    const std::optional<Component> component = ParseComponent(arguments->components[i]);
+    if (!component.has_value() || (component->is_none && arguments->legacy)) {
+      return std::nullopt;
+    }
+    any_percent = any_percent || component->is_percent;
+    any_number = any_number || (!component->is_percent && !component->is_none);
+    channels[i] = component->is_percent ? ToByte(component->value * 255.0 / 100.0)
+                                        : ToByte(component->value);
+  }
+  // The legacy grammar takes three numbers *or* three percentages, never a mixture. The modern one
+  // does allow the mixture, which is the one place the two differ beyond punctuation.
+  if (arguments->legacy && any_percent && any_number) {
+    return std::nullopt;
+  }
+  const std::optional<std::uint8_t> alpha = AlphaFrom(*arguments);
+  if (!alpha.has_value()) {
+    return std::nullopt;
+  }
+  return Color::Rgba(channels[0], channels[1], channels[2], *alpha);
+}
+
+std::optional<Color> ParseHslFunction(std::string_view body) {
+  const std::optional<FunctionArguments> arguments = SplitFunction(body);
+  if (!arguments.has_value()) {
+    return std::nullopt;
+  }
+  const std::optional<double> hue = ParseHue(arguments->components[0]);
+  if (!hue.has_value() || (arguments->components[0] == "none" && arguments->legacy)) {
+    return std::nullopt;
+  }
+  std::array<double, 2> parts{};
+  for (std::size_t i = 0; i < 2; ++i) {
+    const std::optional<Component> component = ParseComponent(arguments->components[i + 1]);
+    if (!component.has_value() || (component->is_none && arguments->legacy)) {
+      return std::nullopt;
+    }
+    // Legacy `hsl()` requires percentages for both; the modern grammar takes a bare number as one.
+    if (arguments->legacy && !component->is_percent && !component->is_none) {
+      return std::nullopt;
+    }
+    parts[i] = std::clamp(component->value, 0.0, 100.0) / 100.0;
+  }
+  const std::optional<std::uint8_t> alpha = AlphaFrom(*arguments);
+  if (!alpha.has_value()) {
+    return std::nullopt;
+  }
+  const std::array<double, 3> rgb = HslToRgb(*hue, parts[0], parts[1]);
+  return Color::Rgba(ToByte(rgb[0]), ToByte(rgb[1]), ToByte(rgb[2]), *alpha);
 }
 
 }  // namespace
@@ -148,35 +340,16 @@ std::optional<Color> ParseColorText(std::string_view text) {
     return std::nullopt;
   }
 
-  if (lowered.rfind("rgb(", 0) == 0 || lowered.rfind("rgba(", 0) == 0) {
+  const bool is_rgb = lowered.rfind("rgb(", 0) == 0 || lowered.rfind("rgba(", 0) == 0;
+  const bool is_hsl = lowered.rfind("hsl(", 0) == 0 || lowered.rfind("hsla(", 0) == 0;
+  if (is_rgb || is_hsl) {
     const std::size_t open = lowered.find('(');
     const std::size_t close = lowered.rfind(')');
-    if (close == std::string::npos || close < open) {
+    if (close == std::string::npos || close < open || close + 1 != lowered.size()) {
       return std::nullopt;
     }
-    std::string body = lowered.substr(open + 1, close - open - 1);
-    std::replace(body.begin(), body.end(), ',', ' ');
-    const std::vector<std::string_view> parts = SplitWords(body);
-    if (parts.size() != 3 && parts.size() != 4) {
-      return std::nullopt;
-    }
-    std::array<std::uint8_t, 3> channels{};
-    for (std::size_t i = 0; i < 3; ++i) {
-      const std::optional<std::uint8_t> channel = ParseRgbChannel(parts[i]);
-      if (!channel.has_value()) {
-        return std::nullopt;
-      }
-      channels[i] = *channel;
-    }
-    std::uint8_t alpha = 255;
-    if (parts.size() == 4) {
-      const std::optional<std::uint8_t> parsed_alpha = ParseAlphaChannel(parts[3]);
-      if (!parsed_alpha.has_value()) {
-        return std::nullopt;
-      }
-      alpha = *parsed_alpha;
-    }
-    return Color::Rgba(channels[0], channels[1], channels[2], alpha);
+    const std::string_view body(lowered.data() + open + 1, close - open - 1);
+    return is_rgb ? ParseRgbFunction(body) : ParseHslFunction(body);
   }
 
   for (const NamedColor& named : kNamedColors) {

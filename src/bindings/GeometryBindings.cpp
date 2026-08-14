@@ -563,6 +563,42 @@ js::Value DomBindings::MakeComputedStyle(dom::Element& element) {
   getter.object->Set(kOwnerSlot, PointerValue(this));
   handler.object->Set("get", getter);
 
+  // **`'color' in getComputedStyle(el)`**, which is one line at the top of every
+  // `css/**/parsing/*-computed.html` in the suite:
+  //
+  //   assert_true(property in getComputedStyle(target),
+  //               property + " doesn't seem to be supported in the computed style");
+  //
+  // A `Proxy` with only a `get` trap answers that from its *target*, which is an empty object -- so
+  // every one of those files failed every subtest on its first assertion, reporting that this
+  // browser does not support `color`. `color-computed-hsl.html` alone is 3,753 subtests. The
+  // failures behind it may well be real; they were unreachable.
+  const Value has = interpreter_->NewNativeValue("has", [to_css_name](NativeCall& call) -> Value {
+    DomBindings* owner = OwnerOf(call);
+    dom::Element* self = ElementOf(Argument(call.arguments, 0));
+    if (owner == nullptr || self == nullptr || owner->geometry_ == nullptr) {
+      return Value::Bool(false);
+    }
+    const Value key = Argument(call.arguments, 1);
+    if (key.IsSymbol()) {
+      return Value::Bool(false);
+    }
+    const std::string written = js::ToString(key);
+    if (written == "getPropertyValue") {
+      return Value::Bool(true);
+    }
+    // Present exactly when this browser has an answer, which is stricter than the specification --
+    // it says every *supported* property is an own property, and a browser that supported nothing
+    // would still list them. Answering from the one place that knows is the honest version: a page
+    // feature-detecting `'gap' in getComputedStyle(el)` learns whether this engine can answer, which
+    // is what it wanted to know.
+    return Value::Bool(owner->geometry_->QueryUsedValue(*self, to_css_name(written)).has_value());
+  });
+  if (has.IsObject()) {
+    has.object->Set(kOwnerSlot, PointerValue(this));
+    handler.object->Set("has", has);
+  }
+
   js::Value* constructor = interpreter_->GlobalScope()->Lookup("Proxy");
   if (constructor == nullptr || !constructor->IsObject()) {
     return Value::Undefined();
