@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "util/PerformanceCounters.h"
+#include "util/StringUtil.h"
 #include "util/Env.h"
 #include "util/LoadTimeline.h"
 #include "util/PerformanceTrace.h"
@@ -20,18 +21,68 @@ namespace {
 using util::AddPerformanceCounter;
 using util::PerfCounterId;
 
+// The JavaScript MIME type essences, from the MIME Sniffing Standard's list.
+//
+// Sixteen strings and every one of them is history: `text/javascript1.3` and `text/livescript` name
+// languages that have not existed for twenty-five years, and they are here because the list is
+// *closed* -- a `type` that is not on it is not a script. That is the half this browser had
+// backwards. It accepted three spellings and rejected the other thirteen, so
+// `<script type="text/ecmascript">` was treated as data; and it accepted anything the list does not
+// contain only by accident of the same short comparison.
+constexpr std::string_view kJavaScriptMimeTypes[] = {
+    "application/ecmascript",   "application/javascript",   "application/x-ecmascript",
+    "application/x-javascript", "text/ecmascript",          "text/javascript",
+    "text/javascript1.0",       "text/javascript1.1",       "text/javascript1.2",
+    "text/javascript1.3",       "text/javascript1.4",       "text/javascript1.5",
+    "text/jscript",             "text/livescript",          "text/x-ecmascript",
+    "text/x-javascript",
+};
+
+// HTML's "script block's type string" (prepare the script element, step 8), which is *not* simply
+// the `type` attribute:
+//
+//   type present     -> the attribute, stripped of leading and trailing whitespace; empty means
+//                       `text/javascript`
+//   language present -> `text/` followed by the attribute; empty means `text/javascript`
+//   neither          -> `text/javascript`
+//
+// The `language` limb is why `<script language="JavaScript1.2">` runs and `<script
+// type="javascript1.2">` does not: the first becomes `text/javascript1.2`, which is on the list,
+// and the second is a bare word that is not. A rule that read only `type` gets both wrong, in
+// opposite directions.
+std::string ScriptTypeString(const dom::Element& element) {
+  if (const std::string* type = element.GetAttribute("type"); type != nullptr) {
+    const std::string trimmed(util::TrimHtmlWhitespace(*type));
+    return trimmed.empty() ? std::string("text/javascript") : trimmed;
+  }
+  if (const std::string* language = element.GetAttribute("language"); language != nullptr) {
+    return language->empty() ? std::string("text/javascript") : "text/" + *language;
+  }
+  return "text/javascript";
+}
+
+bool IsModule(const dom::Element& element) {
+  // Case-insensitive, and only from the `type` attribute: `language="module"` is
+  // `text/module`, which is not a script at all.
+  const std::string* type = element.GetAttribute("type");
+  return type != nullptr &&
+         util::EqualsAsciiCaseInsensitive(util::TrimHtmlWhitespace(*type), "module");
+}
+
 // A `type` that is not JavaScript is data the page put in a script tag so the
 // parser would leave it alone -- a template, a JSON blob -- and running it
 // would be worse than ignoring it.
 bool IsJavaScript(const dom::Element& element) {
-  const std::string* type = element.GetAttribute("type");
-  return type == nullptr || type->empty() || *type == "text/javascript" ||
-         *type == "application/javascript" || *type == "module";
-}
-
-bool IsModule(const dom::Element& element) {
-  const std::string* type = element.GetAttribute("type");
-  return type != nullptr && *type == "module";
+  if (IsModule(element)) {
+    return true;
+  }
+  const std::string type = ScriptTypeString(element);
+  for (const std::string_view essence : kJavaScriptMimeTypes) {
+    if (util::EqualsAsciiCaseInsensitive(type, essence)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 // When this element's script runs.

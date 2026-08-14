@@ -122,6 +122,23 @@ constexpr bool EqualsAsciiCaseInsensitive(std::string_view a, std::string_view b
   return c == ' ' || c == '\t' || c == '\n' || c == '\f' || c == '\r';
 }
 
+// The same strip as `TrimAscii` but over HTML's set rather than C's, which is the one-character
+// difference the comment above warns about: `\v` is whitespace to `isspace` and is *not* ASCII
+// whitespace to HTML. Every HTML algorithm that says "stripped of leading and trailing ASCII
+// whitespace" wants this one -- a `<script type="\vtext/javascript">` must not run, and with
+// `TrimAscii` it would.
+[[nodiscard]] constexpr std::string_view TrimHtmlWhitespace(std::string_view text) {
+  std::size_t begin = 0;
+  while (begin < text.size() && IsHtmlWhitespace(text[begin])) {
+    ++begin;
+  }
+  std::size_t end = text.size();
+  while (end > begin && IsHtmlWhitespace(text[end - 1])) {
+    --end;
+  }
+  return text.substr(begin, end - begin);
+}
+
 [[nodiscard]] constexpr bool EndsWith(std::string_view text, std::string_view suffix) {
   return text.size() >= suffix.size() && text.substr(text.size() - suffix.size()) == suffix;
 }

@@ -4191,6 +4191,47 @@ document.addEventListener("DOMContentLoaded",async function(){var e=document.for
            "and preventDefault puts it back rather than never having toggled it: " + log);
   });
 
+  AddTest(tests, "Script/TheTypeListIsClosedAndLanguageIsTheOtherHalfOfIt", [] {
+    // HTML's "script block's type string" is **not** the `type` attribute. It is the attribute
+    // stripped of ASCII whitespace when there is one, `text/` plus the `language` attribute when
+    // there is not, and `text/javascript` when there is neither -- and the result has to be an
+    // ASCII case-insensitive match for one of sixteen JavaScript MIME type essences.
+    //
+    // Both halves were wrong in opposite directions. Three spellings were accepted where the list
+    // has sixteen, so `<script type="text/ecmascript">` was treated as data; and `language` was not
+    // read at all, so `<script language="JavaScript1.2">` -- which becomes `text/javascript1.2`,
+    // which *is* on the list -- did not run while `<script type="javascript1.2">`, a bare word that
+    // is not, would have if the comparison had been any looser.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<script>window.r = [];</" "script>"
+        "<script type='text/ecmascript'>r.push('ecmascript');</" "script>"
+        "<script type='  text/javascript  '>r.push('padded');</" "script>"
+        "<script type='TEXT/JAVASCRIPT'>r.push('uppercase');</" "script>"
+        "<script type='text/javascript1.3'>r.push('js1.3');</" "script>"
+        "<script language='JavaScript1.2'>r.push('language');</" "script>"
+        "<script language=''>r.push('language-empty');</" "script>"
+        // And the three that must not run: a bare word is not a MIME type, `vbscript` is not on the
+        // list, and `text/plain` is what a page uses to park data in a script tag.
+        "<script type='javascript'>r.push('BAD-bare');</" "script>"
+        "<script language='vbscript'>r.push('BAD-vbscript');</" "script>"
+        "<script type='text/plain'>r.push('BAD-plain');</" "script>"
+        "<script>console.log('ran:' + r.join(','));</" "script>",
+        "https://example.org/");
+    page.RunScripts(0);
+    std::string log;
+    for (const std::string& line : page.ConsoleOutput()) {
+      log += line + "|";
+    }
+    Expect(log.find("ran:ecmascript,padded,uppercase,js1.3,language,language-empty") !=
+               std::string::npos,
+           "every JavaScript MIME type essence runs, whitespace and case included, and `language` "
+           "is read when `type` is absent: " + log);
+    Expect(log.find("BAD-") == std::string::npos,
+           "and the list is closed: a bare word, `vbscript` and `text/plain` are data: " + log);
+  });
+
   AddTest(tests, "Privacy/TheAnswerTableIsWhatADR0029SaysItIs", [] {
     // **ADR 0029 §6's table, asserted.** The values are one thing and the *absences* are the other, and
     // the absences are why this test exists: `navigator.deviceMemory` and its six siblings are things a
