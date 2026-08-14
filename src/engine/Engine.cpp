@@ -120,7 +120,16 @@ Engine::Engine(ipc::EngineEndpoint& endpoint, gfx::FontProvider& fonts)
   // `csrf_token` from here; Wikipedia's inline script calls `.match` on it.
   page_.SetCookieSource(this);
   loader_.SetBlobRegistry(&page_.BlobUrls());
-  page_.SetTrustedInsertionFlush([this]() {
+  page_.SetTrustedInsertionFlush([this](const dom::Element& element) {
+    // The inline half first, and **synchronously**: HTML runs an inline classic script during the
+    // insertion steps, so the line after `appendChild` reads what it set (TD-0059). It is not
+    // gated on the load being over, because the case that needs it most is a script inserted by
+    // one of the document's own scripts.
+    if (page_.RunInsertedScriptNow(element)) {
+      return;
+    }
+    // Everything else -- an external script to fetch, a module to graph -- keeps the turn boundary
+    // it has always had, because both of those finish on a later turn anyway.
     if (load_.scripts_ran || post_load_.document_interactive) {
       ProcessDynamicScripts();
     }

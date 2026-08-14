@@ -352,7 +352,7 @@ budget: PendingLoad header_lines=125 public_methods=8 members=21
 # the thing that is waiting for it.
 # +2 methods and +1 member for HTML's pre-click activation steps, which is one behaviour split in
 # half because the halves run either side of an event dispatch that is not this class's.
-budget: Page   header_lines=990 public_methods=197 members=30
+budget: Page   header_lines=990 public_methods=198 members=30
 budget: LayoutState header_lines=40 public_methods=0 members=8
 # ADR 0027 §1's child browsing context. Five members and each is a distinct
 # question: which element holds it, what context is behind it, what URL it was

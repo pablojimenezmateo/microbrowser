@@ -616,11 +616,21 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
       if (InTrustedScriptContext()) {
         csp_trusted_scripts_.insert(&element);
       }
-      // Flush when the element is already trusted (e.g. createElement marked it)
-      // even if this append is outside a trusted context — otherwise a script
-      // stamped under trust and appended a tick later never enters CollectInserted.
-      if (IsCspTrustedScript(element) && trusted_script_flush_) {
-        trusted_script_flush_();
+      // **Every script insertion flushes, not only a CSP-trusted one.**
+      //
+      // HTML runs an inline classic script *during* the insertion steps, so the line after
+      // `document.body.appendChild(script)` reads what it set -- and this gate meant only a script
+      // stamped under trust ever did. An ordinary `document.createElement('script')` ran a turn
+      // later, which the page cannot see and a test asserts against on the very next line
+      // (TD-0059).
+      //
+      // Widening it is safe on the axis the gate looked like it was protecting: **CSP is decided in
+      // `PageScript::CollectInserted`**, which asks `AllowsInline` for an inline script and
+      // `AllowsUrl` for an external one and drops the element before it becomes a slot. This gate
+      // was never the policy; it was the *schedule*, and conflating the two is why a page with no
+      // CSP at all got the deferred behaviour.
+      if (trusted_script_flush_) {
+        trusted_script_flush_(element);
       }
     } else if (element.TagName() == "iframe" && element.GetAttribute("src") == nullptr) {
       // es-module-shims feature detection inserts a hidden iframe with `srcdoc` after registering a

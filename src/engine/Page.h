@@ -238,7 +238,8 @@ class Page : private layout::ImageProvider,
   void SetNetworkSource(bindings::NetworkSource* network);
   // Borrowed audio device from `src/app`. Null keeps video silent (snapshot/tests).
   void SetAudioSink(media::AudioSink* sink) { video_.SetAudioSink(sink); }
-  void SetTrustedInsertionFlush(std::function<void()> hook);
+  void SetTrustedInsertionFlush(std::function<void(const dom::Element&)> hook);
+  bool RunInsertedScriptNow(const dom::Element& element);  // TD-0059: inline, at the insertion
   // The same, for `window.history`. Borrowed and set before any script runs, for
   // the reason the network source is: a source that arrived later would leave the
   // first script of a document without one, and `history` is declared or not

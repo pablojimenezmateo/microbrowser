@@ -4232,6 +4232,58 @@ document.addEventListener("DOMContentLoaded",async function(){var e=document.for
            "and the list is closed: a bare word, `vbscript` and `text/plain` are data: " + log);
   });
 
+  AddTest(tests, "Script/AnInsertedInlineScriptRunsAtTheInsertion", [] {
+    // **TD-0059.** HTML's "prepare the script element" runs an inline classic script *during* the
+    // insertion steps, so the line after `appendChild` reads what it set. This engine collected
+    // inserted scripts and ran them on the loop's next turn, which no page can observe as anything
+    // but "it did not run" -- and which the suite asserts against on the very next line.
+    //
+    // Only the inline classic case moved. An external script has to be fetched and a module has to
+    // be graphed; both finish on a later turn whatever this does, so both keep the path they had.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html",
+                   "<div id=p></div>"
+                   "<script>"
+                   "window.ran = 0;"
+                   "var s = document.createElement('script');"
+                   "s.textContent = 'window.ran = 1;';"
+                   "document.getElementById('p').appendChild(s);"
+                   "console.log('after-append:' + window.ran);"
+                   // Twice is once: the element is marked before it runs, so a later collection
+                   // pass cannot run it again.
+                   "document.getElementById('p').appendChild(s);"
+                   "console.log('after-reinsert:' + window.ran);"
+                   // An *external* one is still deferred, and saying so is the point of this line:
+                   // it has to be fetched, so there is nothing to run yet.
+                   "var e = document.createElement('script');"
+                   "e.src = '/late.js';"
+                   "document.getElementById('p').appendChild(e);"
+                   "console.log('external-immediately:' + window.ran);"
+                   "</" "script>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true, OkResponse("application/javascript", "window.ran = 2;")});
+    session.engine.PageLoader().SetTransport(factory);
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/page.html"});
+    for (int turn = 0; turn < 200 && session.engine.IsLoading(); ++turn) {
+      session.engine.Advance();
+      session.engine.RunDueWork();
+    }
+    std::string log;
+    for (const std::string& line : session.engine.ConsoleOutput()) {
+      log += line + "|";
+    }
+    Expect(log.find("after-append:1") != std::string::npos,
+           "an inline script inserted by script has already run on the next line: " + log);
+    Expect(log.find("after-reinsert:1") != std::string::npos,
+           "and re-inserting the same element does not run it a second time: " + log);
+    Expect(log.find("external-immediately:1") != std::string::npos,
+           "while an external one has not run yet, because it has not been fetched: " + log);
+  });
+
   AddTest(tests, "Privacy/TheAnswerTableIsWhatADR0029SaysItIs", [] {
     // **ADR 0029 §6's table, asserted.** The values are one thing and the *absences* are the other, and
     // the absences are why this test exists: `navigator.deviceMemory` and its six siblings are things a

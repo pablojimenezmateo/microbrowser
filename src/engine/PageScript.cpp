@@ -149,6 +149,62 @@ void PageScript::Collect(dom::Document& document, const DocumentPolicy& policy) 
   CollectInserted(document, policy);
 }
 
+// One inline script, run **at the insertion** rather than at the turn boundary.
+//
+// TD-0059. HTML's "prepare the script element" executes an inline classic script during the
+// insertion steps, so `document.body.appendChild(s)` is followed by a line that reads what it set.
+// This engine collected inserted scripts and ran them on the loop's next turn, which no page can
+// see and which a test asserts against on the very next line.
+//
+// Deliberately **only** the inline classic case. An external script has to be fetched and a module
+// has to be graphed, and both finish on a later turn whatever this does -- so they keep the path
+// they had, and this function answers false for them rather than pretending.
+//
+// The CSP check is the same one `CollectInserted` makes, in the same order, because it is the same
+// decision: whether this text may run at all. What moved is only *when*.
+bool PageScript::RunInsertedNow(const dom::Element& element, const DocumentPolicy& policy) {
+  if (interpreter_ == nullptr || element.TagName() != "script" || !IsJavaScript(element) ||
+      IsModule(element)) {
+    return false;
+  }
+  const std::string* src = element.GetAttribute("src");
+  if (src != nullptr && !src->empty()) {
+    return false;
+  }
+  if (collected_scripts_.contains(&element)) {
+    return false;  // already run, or already queued by a collection pass
+  }
+  const std::string text = element.TextContent();
+  if (text.empty()) {
+    return false;
+  }
+  // Marked before the policy check and before the run, so that neither a refusal nor a throw can
+  // leave the element eligible for a second attempt on the next collection.
+  collected_scripts_.insert(&element);
+  const std::string* nonce_attribute = element.GetAttribute("nonce");
+  const std::string_view nonce =
+      nonce_attribute == nullptr ? std::string_view{} : std::string_view(*nonce_attribute);
+  const bool trusted = bindings_ != nullptr && bindings_->IsCspTrustedScript(element);
+  if (!trusted && !policy.AllowsInline(csp::Directive::Script, nonce, text)) {
+    AddPerformanceCounter(PerfCounterId::CspInlineBlocked);
+    return true;  // handled: refused, and it must not fall through to the deferred path
+  }
+  if (bindings_ != nullptr && (trusted || !nonce.empty())) {
+    bindings_->MarkCspTrustedScript(element);
+  }
+  util::PerformanceTrace::ScopeLabel label("js::RunScript");
+  label.Field("src", std::string("inserted")).Field("bytes", static_cast<long long>(text.size()));
+  util::PerformanceTrace::Scope scope(label.View());
+  const js::Result result = interpreter_->Run(text);
+  if (result.completion == js::Completion::Throw) {
+    // Recorded rather than propagated, exactly as a slot's throw is: a script that throws does not
+    // stop the page, and a throw nobody wrote down is nine failed scripts looking like none.
+    errors_.push_back("inserted script: " + js::ToString(result.value));
+    interpreter_->ReportUncaught(result.value, "inserted script");
+  }
+  return true;
+}
+
 bool PageScript::CollectInserted(dom::Document& document, const DocumentPolicy& policy) {
   bool added = false;
   script_strict_dynamic_ = policy.ScriptStrictDynamic();
@@ -302,7 +358,7 @@ void PageScript::NotifyFetchFailed(std::size_t index) {
   }
 }
 
-void PageScript::SetTrustedInsertionFlush(std::function<void()> hook) {
+void PageScript::SetTrustedInsertionFlush(std::function<void(const dom::Element&)> hook) {
   trusted_insertion_flush_ = std::move(hook);
   if (bindings_ != nullptr) {
     bindings_->SetTrustedScriptFlush(trusted_insertion_flush_);

@@ -95,7 +95,10 @@ class PageScript {
   // first script would leave a page whose whole rendering is a canvas with a blank one.
   void SetCanvasSurface(bindings::CanvasSurface* canvas) { canvas_ = canvas; }
   void SetWorkerHost(bindings::WorkerHost* workers) { workers_ = workers; }
-  void SetTrustedInsertionFlush(std::function<void()> hook);
+  void SetTrustedInsertionFlush(std::function<void(const dom::Element&)> hook);
+  // HTML runs an inline classic script **during** the insertion steps, so the line after
+  // `appendChild` reads what it set. True when this element was one and it ran. TD-0059.
+  bool RunInsertedNow(const dom::Element& element, const DocumentPolicy& policy);
   // HTML's pre-click and canceled activation steps, forwarded to the binding layer -- which is
   // where the click is dispatched and therefore the only place they can bracket it.
   void SetActivationHooks(std::function<bool(dom::Element&)> pre_click,
@@ -497,7 +500,7 @@ class PageScript {
   // bindings are rebuilt on navigation and the flag has to survive to be set
   // on the new ones.
   bool inline_handlers_allowed_ = false;
-  std::function<void()> trusted_insertion_flush_;
+  std::function<void(const dom::Element&)> trusted_insertion_flush_;
   // Kept for the same reason the flush hook is: the binding layer is rebuilt per document, and a
   // hook set before the first load would otherwise be lost on it.
   std::function<bool(dom::Element&)> pre_click_activation_;

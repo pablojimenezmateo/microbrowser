@@ -702,7 +702,11 @@ void Page::SetNetworkSource(bindings::NetworkSource* network) {
   script_.SetNetworkSource(network);
 }
 
-void Page::SetTrustedInsertionFlush(std::function<void()> hook) {
+bool Page::RunInsertedScriptNow(const dom::Element& element) {
+  return script_.RunInsertedNow(element, policy_);
+}
+
+void Page::SetTrustedInsertionFlush(std::function<void(const dom::Element&)> hook) {
   script_.SetTrustedInsertionFlush(std::move(hook));
 }
 
