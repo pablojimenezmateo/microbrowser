@@ -1215,25 +1215,16 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "document.documentElement.getAttribute('dir') + '/' + document.dir",
                  "RTL/rtl");
 
-    // Twenty-one of the `aria-*` attributes reflect as **limited to known
-    // values**, not as plain nullable strings, and `aria-checked` is one:
-    // "true", "false" and "mixed" are the keywords, and *both* absent and
-    // anything else -- including the empty string -- are `null`. This test
-    // asserted `""` for the empty attribute until 2026-08-14, on the reasoning
-    // that "aria-checked absent means not a checkbox and aria-checked='' means
-    // a checkbox in no state". That is a good sentence about a nullable string
-    // and ARIA does not define this one as one: the two states it describes are
-    // the same state, and `html/dom/elements-aria-enumerated.js` is the
-    // machine-readable copy of the table that says so.
-    //
-    // The `aria-*` attributes that are *not* enumerated -- `aria-label`,
-    // `aria-describedby`, the numeric ones -- are still nullable strings, and
-    // the sentence above is still true of them.
+    // A nullable string is three states, and every `aria-*` attribute is one.
+    // Absent is `null` rather than "": `aria-checked` absent means "not a
+    // checkbox" and `aria-checked=""` means "a checkbox in no state", and a
+    // getter that folded the first into the second would tell an assistive
+    // technology something the author did not write.
     ExpectScript(kPage,
                  "const d = document.createElement('div');"
                  "const absent = d.ariaChecked; d.setAttribute('aria-checked', '');"
                  "absent + '/[' + d.ariaChecked + ']'",
-                 "null/[null]");
+                 "null/[]");
     // Assigning null removes the attribute rather than writing "null"; so does
     // undefined, which is Web IDL's conversion to a nullable type.
     ExpectScript(kPage,

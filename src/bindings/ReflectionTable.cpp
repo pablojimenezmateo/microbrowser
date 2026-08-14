@@ -46,29 +46,6 @@ constexpr std::string_view kReferrerPolicyKeywords[] = {"",
                                                         "strict-origin-when-cross-origin",
                                                         "unsafe-url"};
 constexpr std::string_view kCrossOriginKeywords[] = {"anonymous", "use-credentials"};
-
-// --- ARIA's reflected enumerations -------------------------------------------------------------
-//
-// Twenty-one of the `aria-*` attributes reflect as **limited to known values**, not as plain
-// nullable strings, and the three defaults differ per attribute in ways no rule would predict:
-// `aria-current=""` is `"false"` while `aria-current="nonsense"` is `"true"`, and `aria-haspopup`
-// absent is `null` while `aria-haspopup="nonsense"` is `"false"`. Transcribed from ARIA's own
-// reflection table, which `html/dom/elements-aria-enumerated.js` is the machine-readable copy of.
-//
-// The rest of the `aria-*` attributes stay `TextNullable`, which is what they are: three states,
-// because `aria-checked` absent means "not a checkbox" and `aria-checked=""` means "a checkbox in
-// no state".
-constexpr std::string_view kTrueFalseKeywords[] = {"true", "false"};
-constexpr std::string_view kTristateKeywords[] = {"true", "false", "mixed"};
-constexpr std::string_view kAutoCompleteKeywords[] = {"inline", "list", "both", "none"};
-constexpr std::string_view kAriaCurrentKeywords[] = {"page", "step", "location",
-                                                    "date", "time", "true",     "false"};
-constexpr std::string_view kHasPopupKeywords[] = {"true",   "false", "menu", "dialog",
-                                                 "listbox", "tree",  "grid"};
-constexpr std::string_view kAriaInvalidKeywords[] = {"true", "false", "spelling", "grammar"};
-constexpr std::string_view kAriaLiveKeywords[] = {"polite", "assertive", "off"};
-constexpr std::string_view kOrientationKeywords[] = {"horizontal", "vertical"};
-constexpr std::string_view kAriaSortKeywords[] = {"ascending", "descending", "other", "none"};
 constexpr std::string_view kEncTypeKeywords[] = {"application/x-www-form-urlencoded",
                                                  "multipart/form-data", "text/plain"};
 constexpr std::string_view kFormMethodKeywords[] = {"get", "post", "dialog"};
@@ -121,45 +98,45 @@ constexpr Reflection kReflections[] = {
     // stubs pointed at a percentage.
 
     {"Element", "role", "role", Reflect::TextNullable},
-    {"Element", "ariaAtomic", "aria-atomic", Reflect::Enumerated, kTrueFalseKeywords, nullptr, "false", true},
-    {"Element", "ariaAutoComplete", "aria-autocomplete", Reflect::Enumerated, kAutoCompleteKeywords, "none", "none", true},
+    {"Element", "ariaAtomic", "aria-atomic", Reflect::TextNullable},
+    {"Element", "ariaAutoComplete", "aria-autocomplete", Reflect::TextNullable},
     {"Element", "ariaBrailleLabel", "aria-braillelabel", Reflect::TextNullable},
     {"Element", "ariaBrailleRoleDescription", "aria-brailleroledescription", Reflect::TextNullable},
-    {"Element", "ariaBusy", "aria-busy", Reflect::Enumerated, kTrueFalseKeywords, "false", "false", true},
-    {"Element", "ariaChecked", "aria-checked", Reflect::Enumerated, kTristateKeywords, nullptr, nullptr, true},
+    {"Element", "ariaBusy", "aria-busy", Reflect::TextNullable},
+    {"Element", "ariaChecked", "aria-checked", Reflect::TextNullable},
     {"Element", "ariaColCount", "aria-colcount", Reflect::TextNullable},
     {"Element", "ariaColIndex", "aria-colindex", Reflect::TextNullable},
     {"Element", "ariaColIndexText", "aria-colindextext", Reflect::TextNullable},
     {"Element", "ariaColSpan", "aria-colspan", Reflect::TextNullable},
-    {"Element", "ariaCurrent", "aria-current", Reflect::Enumerated, kAriaCurrentKeywords, "false", "true", true, 0, 0, 0, "false"},
+    {"Element", "ariaCurrent", "aria-current", Reflect::TextNullable},
     {"Element", "ariaDescription", "aria-description", Reflect::TextNullable},
-    {"Element", "ariaDisabled", "aria-disabled", Reflect::Enumerated, kTrueFalseKeywords, "false", "false", true},
-    {"Element", "ariaExpanded", "aria-expanded", Reflect::Enumerated, kTrueFalseKeywords, nullptr, nullptr, true},
-    {"Element", "ariaHasPopup", "aria-haspopup", Reflect::Enumerated, kHasPopupKeywords, nullptr, "false", true},
-    {"Element", "ariaHidden", "aria-hidden", Reflect::Enumerated, kTrueFalseKeywords, "false", "false", true},
-    {"Element", "ariaInvalid", "aria-invalid", Reflect::Enumerated, kAriaInvalidKeywords, "false", "true", true, 0, 0, 0, "false"},
+    {"Element", "ariaDisabled", "aria-disabled", Reflect::TextNullable},
+    {"Element", "ariaExpanded", "aria-expanded", Reflect::TextNullable},
+    {"Element", "ariaHasPopup", "aria-haspopup", Reflect::TextNullable},
+    {"Element", "ariaHidden", "aria-hidden", Reflect::TextNullable},
+    {"Element", "ariaInvalid", "aria-invalid", Reflect::TextNullable},
     {"Element", "ariaKeyShortcuts", "aria-keyshortcuts", Reflect::TextNullable},
     {"Element", "ariaLabel", "aria-label", Reflect::TextNullable},
     {"Element", "ariaLevel", "aria-level", Reflect::TextNullable},
-    {"Element", "ariaLive", "aria-live", Reflect::Enumerated, kAriaLiveKeywords, "off", "off", true},
-    {"Element", "ariaModal", "aria-modal", Reflect::Enumerated, kTrueFalseKeywords, "false", "false", true},
-    {"Element", "ariaMultiLine", "aria-multiline", Reflect::Enumerated, kTrueFalseKeywords, "false", "false", true},
-    {"Element", "ariaMultiSelectable", "aria-multiselectable", Reflect::Enumerated, kTrueFalseKeywords, "false", "false", true},
-    {"Element", "ariaOrientation", "aria-orientation", Reflect::Enumerated, kOrientationKeywords, nullptr, nullptr, true},
+    {"Element", "ariaLive", "aria-live", Reflect::TextNullable},
+    {"Element", "ariaModal", "aria-modal", Reflect::TextNullable},
+    {"Element", "ariaMultiLine", "aria-multiline", Reflect::TextNullable},
+    {"Element", "ariaMultiSelectable", "aria-multiselectable", Reflect::TextNullable},
+    {"Element", "ariaOrientation", "aria-orientation", Reflect::TextNullable},
     {"Element", "ariaPlaceholder", "aria-placeholder", Reflect::TextNullable},
     {"Element", "ariaPosInSet", "aria-posinset", Reflect::TextNullable},
-    {"Element", "ariaPressed", "aria-pressed", Reflect::Enumerated, kTristateKeywords, nullptr, nullptr, true},
-    {"Element", "ariaReadOnly", "aria-readonly", Reflect::Enumerated, kTrueFalseKeywords, "false", "false", true},
+    {"Element", "ariaPressed", "aria-pressed", Reflect::TextNullable},
+    {"Element", "ariaReadOnly", "aria-readonly", Reflect::TextNullable},
     {"Element", "ariaRelevant", "aria-relevant", Reflect::TextNullable},
-    {"Element", "ariaRequired", "aria-required", Reflect::Enumerated, kTrueFalseKeywords, "false", "false", true},
+    {"Element", "ariaRequired", "aria-required", Reflect::TextNullable},
     {"Element", "ariaRoleDescription", "aria-roledescription", Reflect::TextNullable},
     {"Element", "ariaRowCount", "aria-rowcount", Reflect::TextNullable},
     {"Element", "ariaRowIndex", "aria-rowindex", Reflect::TextNullable},
     {"Element", "ariaRowIndexText", "aria-rowindextext", Reflect::TextNullable},
     {"Element", "ariaRowSpan", "aria-rowspan", Reflect::TextNullable},
-    {"Element", "ariaSelected", "aria-selected", Reflect::Enumerated, kTrueFalseKeywords, nullptr, nullptr, true},
+    {"Element", "ariaSelected", "aria-selected", Reflect::TextNullable},
     {"Element", "ariaSetSize", "aria-setsize", Reflect::TextNullable},
-    {"Element", "ariaSort", "aria-sort", Reflect::Enumerated, kAriaSortKeywords, "none", "none", true},
+    {"Element", "ariaSort", "aria-sort", Reflect::TextNullable},
     {"Element", "ariaValueMax", "aria-valuemax", Reflect::TextNullable},
     {"Element", "ariaValueMin", "aria-valuemin", Reflect::TextNullable},
     {"Element", "ariaValueNow", "aria-valuenow", Reflect::TextNullable},
