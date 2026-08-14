@@ -88,7 +88,8 @@ constexpr const char* kUsage =
     "  --shard-index N --shard-count N   deterministic slice of the run\n"
     "  --update-expectations rewrite the expectation files from this run\n"
     "  --summary FILE        write the per-area table and the ranked causes\n"
-    "  --summary-state FILE  carry a sharded run's counts between invocations\n"
+    "  --summary-state FILE  carry a sharded run's counts between invocations; usable\n"
+    "                        without --summary, which is what the first shard wants\n"
     "  --long-timeout MS     for a test marked `timeout=long` (default 60000)\n"
     "  --list                print the tests that would run and exit\n"
     "  --refresh-manifest    re-walk the checkout instead of using the cache\n"
@@ -1114,7 +1115,13 @@ int main(int argc, char** argv) {
     std::fprintf(stderr, "expectations updated in %s\n", options.expectations_dir.c_str());
   }
 
-  if (!options.summary_path.empty()) {
+  // **`--summary-state` is honoured on its own**, without `--summary`, and it has to be: the flag
+  // exists so a run that measures part of the suite can hand its counts to a later one, and the
+  // *first* of a pair of shards has nothing to write a table from yet. It used to sit inside the
+  // `--summary` branch, so a run given only the state path did the whole measurement and saved
+  // none of it -- silently, with the flag accepted and the file never created. Three hours of
+  // `dom/`, `fetch/`, `xhr/`, `encoding/` and thirty-four other areas came back and went nowhere.
+  if (!options.summary_path.empty() || !options.summary_state_path.empty()) {
     // The revision the numbers came from, so a table in the repository can be
     // traced to the tests that produced it. A checkout somebody moved by hand
     // is why this is read from the pin rather than from the checkout.
@@ -1136,9 +1143,9 @@ int main(int argc, char** argv) {
     if (!options.summary_state_path.empty()) {
       if (!std::filesystem::exists(options.summary_state_path)) {
         std::fprintf(stderr,
-                     "warning: %s does not exist, so %s will describe only the areas this run "
-                     "measured. Every other area's numbers are lost.\n",
-                     options.summary_state_path.c_str(), options.summary_path.c_str());
+                     "warning: %s does not exist, so the summary will describe only the areas "
+                     "this run measured. Every other area's numbers are lost.\n",
+                     options.summary_state_path.c_str());
       }
       summary.LoadState(options.summary_state_path);
     }
@@ -1148,11 +1155,16 @@ int main(int argc, char** argv) {
       std::fprintf(stderr, "%s\n", summary_error.c_str());
       return 2;
     }
-    if (!summary.Write(options.summary_path, revision, &summary_error)) {
-      std::fprintf(stderr, "%s\n", summary_error.c_str());
-      return 2;
+    if (!options.summary_path.empty()) {
+      if (!summary.Write(options.summary_path, revision, &summary_error)) {
+        std::fprintf(stderr, "%s\n", summary_error.c_str());
+        return 2;
+      }
+      std::fprintf(stderr, "summary written to %s\n", options.summary_path.c_str());
+    } else {
+      std::fprintf(stderr, "summary state written to %s (no --summary, so no table)\n",
+                   options.summary_state_path.c_str());
     }
-    std::fprintf(stderr, "summary written to %s\n", options.summary_path.c_str());
   }
 
   const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
