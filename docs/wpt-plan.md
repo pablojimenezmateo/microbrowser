@@ -172,6 +172,37 @@ stylesheet and presentational-attribute work is genuinely done.
   failure at all — it is a clean "not implemented", which is the easiest
   possible thing to record.
 
+### 0.6 What 2026-08-14 changed about §0.5's table
+
+Three of the five causes above are **gone**, and all three had the same shape: a
+capability this browser already had with nothing exposing it to the test. None
+was a specification gap and none would have been found by reading the failures.
+
+| cause | tests | what it actually was |
+|---|--:|---|
+| `importScripts` is not defined | 1,380 | a worker had **no global scope at all** — G5 |
+| `not implemented by testdriver-vendor.js` | 1,158 | the input path existed; nothing exposed it — B5 |
+| `Python handlers are not implemented` | 512 | ADR 0040 §2's condition was met — H1 |
+
+**The rule worth taking from it:** when an area is at single-digit percent, check
+whether the harness can *reach* the feature at all before reading the failures as
+a specification gap. `workers/` was at 1.8% with a complete, tested,
+thread-and-heap worker implementation behind it.
+
+Two of §0.5's "targets the measurement says are wrong" are answered by that:
+
+- **G5 `workers` 60% / measured 1.8%** — the diagnosis in that row ("`importScripts`")
+  named a symptom. On a 400-file sample of the suite's worker variants, 20 of
+  13,742 subtests passing became 4,215 of 18,000.
+- **H4 `fetch/api` 60% / measured 7.4%** — the `.py` gap was the whole of it in
+  `fetch/api/basic/`, which is now 237 of 462 (51.3%).
+
+**And one thing measured here that changes what to do next:** `websockets/` (532
+tests) is blocked on the **server**, not the browser. Its `.any.html` window
+variants time out as well, because this server speaks no WebSocket. It is an
+H1-shaped problem, and implementing `WebSocket` in a worker to chase it would
+gain nothing.
+
 ## 1. Where this browser actually is
 
 Complete or near-complete, per `CLAUDE.md` and the session log: HTML parsing and
