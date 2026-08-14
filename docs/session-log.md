@@ -5801,3 +5801,91 @@ same 400 files gave 4,215 passing subtests at `--jobs 12` on an idle machine and
 binary while a build was running. Re-record at low concurrency, and check the *denominator* before
 believing a number — the existing warning in `docs/wpt-baseline.md` about `html/dom/` applies here
 with more force.
+
+## 2026-08-14 — H1 and B5: the two causes that were in the *harness*, not the browser
+
+**Status:** done
+**Check:** H1 — `fetch/api/basic/` 237 of 462 subtests (51.3%), 3 timeouts; `cors/` +
+`fetch/api/cors/` + `fetch/api/redirect/` 348 of 1,553; `xhr/` 296 of 1,597. B5 — on a 150-file
+sample of the tests that load testdriver.js, 2,244 subtests counted with 247 passing and **zero**
+`not implemented by testdriver-vendor.js` in the run; `uievents/click/click_events_on_input.html`
+TIMEOUT → OK. `microbrowser_tests` 2123/2123.
+**Landed:** `The .py handlers, transcribed`, `testdriver.js, over the input path this browser
+already has`, `` `element.click()` was trusted ``.
+
+### The shape both of these share
+
+Neither was a browser bug. Both were **a capability the browser already had with nothing exposing
+it to the test**, which is the same shape as the worker global earlier the same day — and that is
+now three in one session. It is worth stating as a rule for whoever reads this next: *when an area
+is at single-digit percent, check whether the harness can reach the feature at all before reading
+the failures as a specification gap.*
+
+### H1: the `.py` handlers, and why ADR 0040 §2 was right and still changed
+
+§2 refused to implement them and its reason stands verbatim: "a handler is arbitrary Python;
+approximating one makes a test pass for the wrong reason, which is worse than a failure." It also
+named the condition — *"until somebody measures that those specific tests are what is blocking"* —
+and the measurement is stark: **one run of `xhr/` asks for `xhr/resources/content.py` 117 times,
+`status.py` 110 and `delay.py` 74.** Ten files account for most of it.
+
+What keeps this on the right side of the objection is two structural properties, not an intention:
+
+- **Each handler is a transcription of one specific file with that file's source quoted above it.**
+  Same parameters, same defaults, same order of operations, so a reviewer can put the two side by
+  side. The defaults are where a transcription silently diverges — `status.py` answers the reason
+  phrase `OMG`, an absent request header is reported as the literal string `NO` — and each is
+  pinned by a test.
+- **Dispatch is on the repo-relative path**, because three different `redirect.py` files exist in
+  the checkout with three different behaviours. A handler keyed by basename would apply one of them
+  to all three, which is exactly "passes for the wrong reason".
+
+**`?pipe=` was the larger half and nobody had counted it.** Hundreds of tests ask for a status or a
+header on an *ordinary static file* with `?pipe=status(404)`. A server that ignored the query served
+the file as itself — a **wrong** answer rather than a missing one, and therefore worse than the 501
+§2 was protecting. That is the part of this that was never a trade.
+
+**And the server did not read request bodies.** It answered before reading one, so the bytes stayed
+in the buffer to be parsed as the next request line. Invisible while every request was a GET, and
+most of what `fetch/` and `xhr/` do is not.
+
+One thing could not be transcribed: upstream's slow handlers are `time.sleep` under a
+thread-per-connection server. This one is single-threaded by ADR 0040 §4's own rule and six test
+processes talk to it at once, so a sleep would stall the run and produce a cascade of timeouts that
+reads exactly like a browser bug. A delayed response is **held** in its connection and written on a
+later turn of the poll loop.
+
+### B5: testdriver, and why it has to be the real input path
+
+1,146 in-scope tests load `/resources/testdriver.js`. Upstream's `testdriver-vendor.js` is empty —
+it is the hook `wptrunner` fills with WebDriver calls — so each got `not implemented by
+testdriver-vendor.js`. B3 predicted the answer's shape exactly and it was right: a harness-only
+global drained through `EvaluateScript`, the same seam the report already uses.
+
+**The part worth not getting wrong:** ADR 0017 makes a page's own synthetic event untrusted by
+construction, so a `test_driver.click()` implemented as `element.click()` would pass the half of
+each test that counts handler calls and fail the half that checks what the click *did*. The runner
+drives the real `ipc::PointerInputMessage` and `ipc::KeyInputMessage` instead — move, down, up,
+because a page listening on `pointerdown` is ordinary.
+
+**It found a real bug within minutes of existing**, which is the argument for the seam in
+miniature: `element.click()` produced a **trusted** event, and a test in `tests/` asserted that it
+did, on the reasoning that "untrusted would send youtube's handlers down a no-op path". That
+reasoning was wrong twice — a page's handlers see the same event either way, and ADR 0017 §3 is
+explicit that there must be no way for a page to make `isTrusted` true, because every gate that
+reads it reads it as a statement about a person.
+
+### What is next here, measured
+
+- `xhr/`'s remaining 501s are 3–12 requests each rather than 117: the handler tail is a tail.
+  `common/security-features/subresource/*.py` is the exception on paper (`referrer-policy/gen` is
+  1,001 tests) but those need iframes, https and cross-origin contexts as well, so the handler is
+  not what blocks them.
+- **`websockets/` is blocked on the server, not the browser.** Its *window* variants time out too:
+  this server speaks no WebSocket, so the 532 tests there are an H1-shaped problem rather than a
+  worker one. Worth knowing before anyone implements `WebSocket` in a worker expecting a gain.
+- **HTML's pre-click activation steps are not implemented**, and
+  `html/semantics/forms/the-input-element/checkbox.html` measures it: a checkbox must be toggled
+  *before* the click event is dispatched and restored if the event is cancelled, where this engine
+  records the activation and applies it after. Four of that file's six subtests are that one
+  difference.
