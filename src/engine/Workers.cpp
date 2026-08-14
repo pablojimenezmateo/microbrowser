@@ -386,11 +386,25 @@ bool Workers::Post(std::uint64_t id, js::SerializedValue message) {
 }
 
 void Workers::JoinAndClose(Worker& worker) {
-  worker.stop.store(true);
+  // **Each flag is set under the mutex its waiter blocks on**, which is not tidiness: `wait(lock,
+  // pred)` holds the mutex while it evaluates `pred` and only then releases it atomically to sleep.
+  // A notifier that does not take the same mutex can signal inside that window, the signal is lost,
+  // and the worker sleeps forever -- with `join()` below waiting on it. The bug is rare by
+  // construction and permanent when it happens, which is the worst pair.
+  {
+    std::lock_guard<std::mutex> guard(worker.inbox_mutex);
+    worker.stop.store(true);
+  }
   worker.inbox_ready.notify_all();
   // And the import channel, which is the *other* place a worker can be asleep. A worker blocked in
   // `importScripts` when its document navigated would otherwise wait for an answer from a loop that is
   // never going to run again, and the join below would never return.
+  {
+    // Taken and released with nothing done inside it. The acquisition *is* the point: it cannot
+    // complete until the waiter is asleep rather than mid-predicate, which is what makes the notify
+    // below impossible to lose.
+    const std::lock_guard<std::mutex> guard(worker.sync.mutex);
+  }
   worker.sync.ready.notify_all();
   if (worker.thread.joinable()) {
     // **Joined, never detached.** A detached thread holding an interpreter is a use-after-free waiting
