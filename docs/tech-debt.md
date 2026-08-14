@@ -2606,7 +2606,7 @@ suite is green either way** — check both before believing a change here.
 
 ---
 
-## TD-0059 — A dynamically inserted inline script runs at the turn boundary, not at the insertion
+## TD-0059 — A dynamically inserted inline script runs at the turn boundary — **fixed 2026-08-14**
 
 HTML's "prepare the script element" runs an inline classic script **during the insertion steps**:
 
@@ -2640,3 +2640,12 @@ The re-entrancy that the flush exists to avoid is real and does not go away: a s
 during `appendChild` can navigate, and `FollowScriptNavigation` must still be the thing that acts
 on it at the turn boundary. That separation already exists for `element.click()`, which dispatches
 its event synchronously and *records* the activation for later; the same shape applies here.
+
+**Fixed the same day, and the fix was a deletion.** The flush was *already* synchronous and already
+at the insertion -- `TreeMutation.cpp` called it there -- and gated on `IsCspTrustedScript(element)`.
+That gate was on the wrong axis: CSP is decided in `CollectInserted`, which asks `AllowsInline` and
+drops the element before it becomes a slot, so the insertion gate was never the policy. It was the
+*schedule*, which is why a page with **no CSP at all** got the deferred behaviour.
+`PageScript::RunInsertedNow` makes the same CSP check in the same order and runs the text; only the
+inline classic case moved, because an external script and a module both finish on a later turn
+whatever this does. `script-type-and-language-js.html` 238 -> 455 of 456.
