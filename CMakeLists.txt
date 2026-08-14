@@ -659,6 +659,7 @@ target_link_libraries(microbrowser_urlconf PRIVATE microbrowser_url)
 add_executable(microbrowser_wpt
   tools/wpt/main.cpp
   tools/wpt/Server.cpp
+  tools/wpt/Handlers.cpp
   tools/wpt/TestList.cpp
   tools/wpt/Expectations.cpp
   tools/wpt/Summary.cpp)
@@ -675,7 +676,9 @@ add_executable(microbrowser_tests
   tests/AppDirectoriesTests.cpp
   tests/ArchitectureInvariantsTests.cpp
   tests/WptExpectationsTests.cpp
+  tests/WptHandlerTests.cpp
   tools/wpt/Expectations.cpp
+  tools/wpt/Handlers.cpp
   tests/architecture/ModuleManifest.cpp
   tests/architecture/SourceScan.cpp
   tests/BlitterTests.cpp

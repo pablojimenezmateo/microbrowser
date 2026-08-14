@@ -1,5 +1,7 @@
 #include "wpt/Server.h"
 
+#include "wpt/Handlers.h"
+
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -470,6 +472,12 @@ struct Server::Connection {
   std::string output;
   std::size_t written = 0;
   bool closing = false;
+  // A response held back until its delay elapses. `common/slow.py` is 208 files of the suite and
+  // upstream implements it with `time.sleep`; a sleep here would stall every other test in the run,
+  // so the bytes wait in the connection and the poll loop's timeout accounts for them.
+  std::string delayed;
+  std::chrono::steady_clock::time_point deliver_at{};
+  bool has_delayed = false;
 };
 
 Server::Server(ServerOptions options) : options_(std::move(options)) {}
@@ -593,8 +601,34 @@ bool Server::ReadFrom(Connection& connection) {
       break;
     }
     const std::string request = connection.input.substr(0, end);
-    connection.input.erase(0, end + 4);
-    Respond(connection, request);
+    // **The body, which this server used to discard.** A `POST` to a handler is most of what
+    // `fetch/` and `xhr/` do, and a server that answered before reading the body left the bytes in
+    // the buffer to be parsed as the next request line. Waiting for the whole of it is what makes a
+    // handler able to echo it back.
+    std::size_t content_length = 0;
+    {
+      std::size_t position = 0;
+      while (position < request.size()) {
+        const std::size_t line_end = request.find("\r\n", position);
+        const std::string_view line(request.data() + position,
+                                    (line_end == std::string::npos ? request.size() : line_end) -
+                                        position);
+        if (line.size() > 15 && strncasecmp(line.data(), "Content-Length:", 15) == 0) {
+          content_length = static_cast<std::size_t>(std::strtoul(
+              std::string(line.substr(15)).c_str(), nullptr, 10));
+        }
+        if (line_end == std::string::npos) {
+          break;
+        }
+        position = line_end + 2;
+      }
+    }
+    if (connection.input.size() < end + 4 + content_length) {
+      break;  // the body has not all arrived yet
+    }
+    const std::string body = connection.input.substr(end + 4, content_length);
+    connection.input.erase(0, end + 4 + content_length);
+    Respond(connection, request, body);
     if (connection.closing) {
       break;
     }
@@ -620,7 +654,8 @@ bool Server::WriteTo(Connection& connection) {
   return !connection.closing;
 }
 
-void Server::Respond(Connection& connection, std::string_view request) {
+void Server::Respond(Connection& connection, std::string_view request,
+                     std::string_view request_body) {
   const std::size_t line_end = request.find("\r\n");
   const std::string_view request_line = request.substr(0, line_end);
   std::size_t first_space = request_line.find(' ');
@@ -654,14 +689,69 @@ void Server::Respond(Connection& connection, std::string_view request) {
     content_type = "text/plain; charset=utf-8";
   };
 
-  if (method != "GET" && method != "HEAD") {
-    // POST is only ever aimed at a `.py` handler here, and those are refused
-    // below anyway. Answering 501 rather than 404 keeps the two apart in a log.
-    fail(501, "Not Implemented");
-  } else if (relative.empty() || decoded.find('\0') != std::string::npos) {
+  // Every request header, in order, because a handler reads them and because the pipe stage that
+  // echoes one needs the value rather than the presence.
+  std::vector<std::pair<std::string, std::string>> request_headers;
+  {
+    std::size_t position = line_end == std::string_view::npos ? request.size() : line_end + 2;
+    while (position < request.size()) {
+      const std::size_t header_end = request.find("\r\n", position);
+      const std::string_view line = request.substr(
+          position, (header_end == std::string_view::npos ? request.size() : header_end) - position);
+      const std::size_t colon = line.find(':');
+      if (colon != std::string_view::npos) {
+        std::string value(line.substr(colon + 1));
+        while (!value.empty() && (value.front() == ' ' || value.front() == '\t')) {
+          value.erase(0, 1);
+        }
+        request_headers.emplace_back(std::string(line.substr(0, colon)), std::move(value));
+      }
+      if (header_end == std::string_view::npos) {
+        break;
+      }
+      position = header_end + 2;
+    }
+  }
+
+  int delay_ms = 0;
+  const bool is_python = relative.size() > 3 && relative.compare(relative.size() - 3, 3, ".py") == 0;
+
+  if (relative.empty() || decoded.find('\0') != std::string::npos) {
     fail(404, "Not Found");
-  } else if (relative.size() > 4 && relative.compare(relative.size() - 3, 3, ".py") == 0) {
-    fail(501, "Python handlers are not implemented");
+  } else if (is_python) {
+    HandlerRequest handler_request;
+    handler_request.method = std::string(method);
+    handler_request.path = relative;
+    handler_request.query = query;
+    handler_request.body = std::string(request_body);
+    handler_request.headers = request_headers;
+    handler_request.origin =
+        "http://" + options_.host + ":" + std::to_string(connection.port);
+    HandlerResponse answer = RunHandler(handler_request, stash_);
+    if (!answer.handled) {
+      // Still the ADR's answer for everything not on the closed list: a test that needs an
+      // unimplemented handler fails visibly rather than getting a plausible 200.
+      fail(501, "Python handlers are not implemented");
+    } else {
+      status = answer.status;
+      status_text = answer.status_text;
+      body = std::move(answer.body);
+      delay_ms = answer.delay_ms;
+      content_type.clear();
+      for (const auto& [name, value] : answer.headers) {
+        if (strncasecmp(name.c_str(), "Content-Type", 13) == 0) {
+          content_type = value;
+        } else {
+          extra_headers.push_back(name + ": " + value);
+        }
+      }
+      if (content_type.empty()) {
+        content_type = "text/plain";
+      }
+    }
+  } else if (method != "GET" && method != "HEAD") {
+    // A method a static file cannot answer. 501 rather than 404 keeps the two apart in a log.
+    fail(501, "Not Implemented");
   } else {
     bool found = false;
 
@@ -761,6 +851,46 @@ void Server::Respond(Connection& connection, std::string_view request) {
     }
   }
 
+  // `?pipe=` -- wptserve's chain, applied to whatever the response now is. Hundreds of tests ask for
+  // a status or a header on an *ordinary static file* this way, and a server that ignored it served
+  // the file as itself: a wrong answer rather than a missing one, and therefore the worse of the two.
+  {
+    const std::vector<std::pair<std::string, std::string>> parsed = ParseQuery(query);
+    if (QueryHas(parsed, "pipe")) {
+      HandlerResponse piped;
+      piped.status = status;
+      piped.status_text = status_text;
+      piped.body = std::move(body);
+      if (!content_type.empty()) {
+        piped.headers.emplace_back("Content-Type", content_type);
+      }
+      for (const std::string& header : extra_headers) {
+        const std::size_t colon = header.find(':');
+        if (colon != std::string::npos) {
+          std::string value = header.substr(colon + 1);
+          while (!value.empty() && value.front() == ' ') {
+            value.erase(0, 1);
+          }
+          piped.headers.emplace_back(header.substr(0, colon), std::move(value));
+        }
+      }
+      ApplyPipes(QueryFirst(parsed, "pipe"), piped);
+      status = piped.status;
+      status_text = piped.status_text;
+      body = std::move(piped.body);
+      delay_ms += piped.delay_ms;
+      content_type.clear();
+      extra_headers.clear();
+      for (const auto& [name, value] : piped.headers) {
+        if (content_type.empty() && strncasecmp(name.c_str(), "Content-Type", 13) == 0) {
+          content_type = value;
+        } else {
+          extra_headers.push_back(name + ": " + value);
+        }
+      }
+    }
+  }
+
   std::string response = "HTTP/1.1 " + std::to_string(status) + " " + status_text + "\r\n";
   response += "Content-Length: " + std::to_string(body.size()) + "\r\n";
   if (!content_type.empty()) {
@@ -776,12 +906,42 @@ void Server::Respond(Connection& connection, std::string_view request) {
   if (method != "HEAD") {
     response += body;
   }
-  connection.output += response;
+  if (delay_ms > 0) {
+    // Held, not slept on. One delayed response per connection is enough: a test that pipelines two
+    // slow requests down one socket does not exist, and the second would simply wait its turn.
+    connection.delayed += response;
+    connection.deliver_at = std::chrono::steady_clock::now() + std::chrono::milliseconds(delay_ms);
+    connection.has_delayed = true;
+  } else {
+    connection.output += response;
+  }
 
   if (options_.verbose) {
     std::fprintf(stderr, "[wptserve] %d %.*s\n", status, static_cast<int>(target.size()),
                  target.data());
   }
+}
+
+int Server::ReleaseDelayedResponses() {
+  int soonest = -1;
+  const auto now = std::chrono::steady_clock::now();
+  for (const auto& connection : connections_) {
+    if (!connection->has_delayed) {
+      continue;
+    }
+    if (connection->deliver_at <= now) {
+      connection->output += connection->delayed;
+      connection->delayed.clear();
+      connection->has_delayed = false;
+      continue;
+    }
+    const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+                               connection->deliver_at - now)
+                               .count();
+    const int milliseconds = static_cast<int>(remaining <= 0 ? 1 : remaining);
+    soonest = soonest < 0 ? milliseconds : std::min(soonest, milliseconds);
+  }
+  return soonest;
 }
 
 void Server::Serve(int stop_after_idle_ms) {
@@ -790,6 +950,9 @@ void Server::Serve(int stop_after_idle_ms) {
   auto last_activity = std::chrono::steady_clock::now();
   std::vector<pollfd> descriptors;
   while (true) {
+    // Before the descriptor list, so that a response whose delay has just elapsed is in `output` and
+    // its connection is polled for POLLOUT on this turn rather than the next.
+    const int next_delayed = ReleaseDelayedResponses();
     descriptors.clear();
     for (const int listener : listeners_) {
       descriptors.push_back(pollfd{listener, POLLIN, 0});
@@ -801,7 +964,10 @@ void Server::Serve(int stop_after_idle_ms) {
       }
       descriptors.push_back(pollfd{connection->descriptor, events, 0});
     }
-    const int timeout_ms = stop_after_idle_ms < 0 ? 1000 : std::min(stop_after_idle_ms, 1000);
+    int timeout_ms = stop_after_idle_ms < 0 ? 1000 : std::min(stop_after_idle_ms, 1000);
+    if (next_delayed >= 0) {
+      timeout_ms = std::min(timeout_ms, next_delayed);
+    }
     const int ready = ::poll(descriptors.data(), descriptors.size(), timeout_ms);
     if (ready < 0) {
       if (errno == EINTR) {
@@ -810,6 +976,10 @@ void Server::Serve(int stop_after_idle_ms) {
       break;
     }
     if (ready > 0) {
+      last_activity = std::chrono::steady_clock::now();
+    } else if (next_delayed >= 0) {
+      // A held response is activity: a run that gave up here would kill the very test that asked
+      // for the delay.
       last_activity = std::chrono::steady_clock::now();
     } else if (stop_after_idle_ms >= 0 && connections_.empty()) {
       const auto idle = std::chrono::duration_cast<std::chrono::milliseconds>(

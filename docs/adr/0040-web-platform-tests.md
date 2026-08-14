@@ -257,3 +257,62 @@ is to record from both, not to tune a constant.
   a fork, it stops tracking upstream immediately, and the curation would be done
   by the same people who decide what to implement — so it would omit exactly the
   things nobody thought of.
+
+---
+
+## Amendment, 2026-08-14 — §2 gains a closed list of transcribed handlers
+
+**§2's refusal was right and its reason still stands.** It also named the
+condition under which the trade changes: *"until somebody measures that those
+specific tests are what is blocking."* The measurement now exists, and it is
+larger than the ADR expected.
+
+**The measurement.** `501 Python handlers are not implemented` is the top cause
+in `xhr/` by a wide margin — one run of that area asked for
+`xhr/resources/content.py` 117 times, `status.py` 110 times and `delay.py` 74
+times — and `fetch/api/basic/` could not report a status code, a redirect or a
+posted body without one. It is not a long tail: **ten files account for most of
+it**, and the whole of `xhr/` and `fetch/` sits behind them.
+
+**What changed, and what did not.** The server now implements a **named, closed
+list** of handlers in `tools/wpt/Handlers.{h,cpp}`. Everything not on the list
+still answers 501, and a test is asserted to that effect
+(`WptHandlers/TheSetIsClosedAndEverythingElseIsStill501`). Two rules keep this on
+the right side of §2's objection, and both are structural rather than intentions:
+
+1. **Each handler is a transcription of one specific file, with that file's
+   source quoted above it.** Not "something that behaves like a redirect": the
+   same parameters, the same defaults, the same order of operations. A reviewer
+   can put the two side by side. Where upstream's behaviour depends on something
+   this server does not have, the handler is *absent* rather than guessed.
+2. **Dispatch is on the repo-relative path.** Three different `redirect.py` files
+   exist in the checkout with three different behaviours; a handler keyed by its
+   basename would apply one of them to all three, which is precisely the "passes
+   for the wrong reason" this section refuses.
+
+The defaults are what a test asserts against and are therefore what a
+transcription silently gets wrong: `status.py` answers the reason phrase `OMG`,
+an absent request header is reported as the literal string `NO`, and
+`slow.py` with no parameter waits two seconds. Each is pinned by a test.
+
+**`?pipe=` lands with it, and it is the larger half.** Hundreds of tests ask for
+a status or a header on an *ordinary static file* with `?pipe=status(404)` or
+`?pipe=header(Content-Type,text/html)`. A server that ignored the query served
+the file as itself — a **wrong** answer rather than a missing one, and therefore
+worse than the 501 this section was protecting. `status`, `header`, `slice` and
+`trickle` are implemented; an unrecognised stage changes nothing.
+
+**One thing the transcription could not keep.** Upstream implements a slow
+handler with `time.sleep`, under a server that runs a thread per connection.
+This server is single-threaded by the same rule as the browser (§4: "nothing in
+the harness runs a thread"), and six test processes talk to it at once — so a
+sleep would stall the whole run and produce a cascade of timeouts that reads
+exactly like a browser bug. A delayed response is **held** in its connection and
+written on a later turn of the poll loop, and the loop's timeout accounts for it.
+`trickle` collapses to its total delay with the body delivered whole, which is
+named in the code as a deviation: a test asserting on progressive delivery fails,
+which is the correct outcome for a browser with no incremental parse (ADR 0030).
+
+**And the server now reads a request body.** It answered before reading one, so
+the bytes stayed in the buffer to be parsed as the next request line. That was
+invisible while every request was a GET.

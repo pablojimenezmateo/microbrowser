@@ -1,10 +1,13 @@
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
+
+#include "wpt/Handlers.h"
 
 namespace microbrowser::wpt {
 
@@ -25,10 +28,12 @@ namespace microbrowser::wpt {
 //   3. `.headers` sidecar files, which is how a test asks for a `Content-Type`,
 //      a CSP, or a CORS header without a handler.
 //
-// What it deliberately does not implement is the `.py` handlers. A handler is
-// arbitrary Python; approximating one would make a test pass for the wrong
-// reason, which is worse than a failure. A request for a `.py` path answers
-// 501 and the test that made it fails visibly.
+// A **named, closed list** of `.py` handlers is transcribed in Handlers.h, and
+// everything not on it still answers 501. ADR 0040 §2 originally implemented
+// none of them and its reason was right -- approximating a handler makes a test
+// pass for the wrong reason, which is worse than a failure -- so what is there
+// is a transcription of a specific file with that file quoted beside it, not a
+// guess at what a name suggests. The ADR's own amendment says what changed.
 //
 // **Origins without root.** WPT's own hostnames (`web-platform.test`) need an
 // /etc/hosts entry. `*.localhost` does not: glibc resolves every label under it
@@ -107,9 +112,17 @@ class Server {
   // Returns false when the connection should be closed.
   bool ReadFrom(Connection& connection);
   bool WriteTo(Connection& connection);
-  void Respond(Connection& connection, std::string_view request);
+  void Respond(Connection& connection, std::string_view request, std::string_view body);
+  // Moves any response whose delay has elapsed into its connection's output, and answers how many
+  // milliseconds the poll may sleep before the next one is due. See `HandlerResponse::delay_ms`:
+  // a `.py` handler that upstream implements with `time.sleep` must not stall a single-threaded
+  // server that six test processes are talking to.
+  int ReleaseDelayedResponses();
 
   ServerOptions options_;
+  // `request.server.stash`, shared across every connection because that is what it is for: a test
+  // puts under a token on one request and takes on another.
+  Stash stash_;
   std::vector<int> listeners_;
   std::vector<std::uint16_t> listener_ports_;
   std::vector<std::uint16_t> bound_ports_;

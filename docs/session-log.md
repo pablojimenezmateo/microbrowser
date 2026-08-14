@@ -5693,3 +5693,111 @@ silently: the request never reaches the network and nothing anywhere says why. A
 it looked exactly like a frame whose URL did not parse. `Subdocument` is the right type and is what
 every blocklist means by a frame load, but the silence is worth a look — it is the second
 "refused with no way to see it" in this area in two sessions.
+
+## 2026-08-14 — G5: a worker had no global scope, and it cost 1,763 test files
+
+**Status:** done
+**Check:** `dom/abort/event.any.worker.html` TIMEOUT/0 subtests -> OK/16 subtests.
+`xhr/abort-after-receive.any.worker.html` TIMEOUT -> OK, every subtest passing. On a fixed
+400-file sample of the suite's worker variants: **20 of 13,742 subtests passing -> 4,215 of
+18,000**, with 352 of the 400 files changing result. `microbrowser_tests` 2117/2117.
+**Landed:** `A worker had no global scope…`, `A worker's URL parser is the page's URL parser…`,
+`A worker's fetch is the page's fetch with the two ends moved`.
+
+### The finding, and it is not about workers
+
+`engine::Workers` has owned a thread and a heap since session 38 and every test of it passed.
+What a script standing in that heap could **see** was `postMessage`, `self`, `name` and
+`onmessage`. No `importScripts`, no `addEventListener`, no `location`, no `setTimeout`, no
+`DedicatedWorkerGlobalScope`.
+
+That is not a partial feature. It is an unreachable one, and the measurement says so exactly:
+**1,763 of web-platform-tests' 42,185 files are a `.any.worker.html` variant** — the same
+assertions as the `.any.html` file beside them, in a global that did not exist here — and every
+one was a twenty-second timeout. 1,726 of the suite's 7,981 recorded timeouts, in one cause.
+
+The lesson generalises past this feature: **a subsystem with a complete implementation and no
+surface is invisible to every test of the subsystem.** `Workers`' own tests exercised the thread,
+the queues, the join and the structured clone, and all of them passed while nothing a page could
+write would run.
+
+### Four things had to be true before one worker test could report
+
+Each was false, and three of them are not obvious from the specification.
+
+1. **`self instanceof DedicatedWorkerGlobalScope`.** testharness.js decides what environment it is
+   in with exactly that expression, falling back to `WorkerGlobalScope`. With neither, it concludes
+   it is in a *shell* — which has no channel to report on at all. A worker that ran every assertion
+   correctly still said nothing.
+2. **`importScripts`, which is specified as synchronous.** The worker thread files a request, wakes
+   the main loop through the pipe it already had, and blocks on a condition variable. That is what a
+   worker is *for*: the one thread allowed to block on a resource is the one that is not drawing.
+   The wait's predicate includes `stop` and `JoinAndClose` notifies it, so a worker blocked in
+   `importScripts` when its document navigates is freed rather than joined forever.
+3. **Timers.** The run loop waits until the earliest deadline rather than forever. Zero idle CPU is
+   unchanged — a worker with nothing pending still blocks, one with a timer blocks *until* it.
+4. **`addEventListener` unqualified.** testharness.js calls it both as `self.addEventListener` and
+   as a bare global, so every name is declared in the global scope *and* set on the global object.
+
+### Two bugs found on the way, and the second is the larger one
+
+**Every message from every worker was delivered twice.** `DeliverWorkerMessage` called the page's
+`onmessage` property and *then* `dispatchEvent` — and `RunListenersOn` reads `on<type>` off the
+target as an implicit listener, which is the specification's rule for a handler attribute. The
+comment in `EventBindings.cpp` explaining that rule was already there. Invisible on a page that
+counts side effects; fatal to a harness that counts results.
+
+**Both test tools drove the engine as `if (Advance() || HasRunnableWork()) continue;` with
+`RunDueWork()` only on the else** — while `RunDueWork` is what drains a worker's outbox and
+`HasRunnableWork` is true precisely when there is something in it. The loop span at full speed
+until its deadline while the delivery that would have finished the page sat in a queue nothing was
+draining. `Application::Turn` calls both every turn; these now do too. **The same shape had already
+been found once in `tools/snapshot` for timers and the comment there says so** — this is the second
+bug of that exact shape in that exact line, and it is worth treating the pattern as the defect:
+a tool loop that is not `Application::Turn` will diverge from it again.
+
+### What the API surface cost, which was almost nothing
+
+`URL`, `URLSearchParams`, `TextEncoder`, `TextDecoder`, `atob`, `btoa`, `crypto`,
+`structuredClone`, `Blob`, `fetch`, `Headers`, `Request`, `Response`, `FormData`,
+`AbortController` and `XMLHttpRequest` in a worker are **the same implementation the page uses**.
+Not one line of them was rewritten.
+
+Two properties made that possible and both are worth keeping:
+
+- **`DomBindings::document_` was already a pointer.** A `DomBindings` with a null document is a
+  binding layer that *cannot* reach the tree — there is no document to walk from — so a worker
+  thread provably never touches `src/dom`, whose namespace intern table is process-wide and would
+  be a real data race. `EnsureInterfaces` stops after creating the table when there is none, so
+  `Node`, `Element` and the ninety per-tag interfaces are absent in a worker, which is what the
+  specification says.
+- **`bindings::NetworkSource` was already an interface.** A worker's `fetch` is a second
+  implementation of it whose other end is the worker's thread: same privacy verdict, same CORS
+  check inside `net`, same pool keyed by the same partition. `StartScriptRequest` and
+  `ScriptResponseFrom` are shared with the page's path, because everything in the first is a policy
+  decision and a second copy is a second place to make one of them differently.
+
+**`src/url` is safe to call from a second thread and `src/dom` is not**, and that difference is
+the whole architecture of this change. `src/url` is a pure parser over generated const tables with
+no lazy initialisation anywhere in it. Check that property before reaching for any other module
+from a worker.
+
+### What is left in a worker, in the order it blocks tests
+
+1. **`WebSocket`** — 20 of the 400-file sample's remaining harness errors, and `websockets/` is
+   532 tests. `bindings::SocketSource` is the seam and it is the same shape `NetworkSource` was.
+2. **`IndexedDB` and `localStorage`** — both want a store keyed by an origin and reached from the
+   main thread. Absent rather than stubbed.
+3. **`OffscreenCanvas`** — 889 tests suite-wide (task F6) and most of the canvas worker variants
+   now report a clean "not defined" rather than a timeout, which is what makes them countable.
+4. **`SharedWorker`** stays refused: ADR 0022 §1 names it as the one thing the model exists to
+   avoid.
+
+### A warning about measuring this area
+
+Worker results are **load-sensitive in a way the rest of the suite is not**: a worker is a real
+second thread per test process, so `--jobs 12` on a twelve-core machine oversubscribes badly. The
+same 400 files gave 4,215 passing subtests at `--jobs 12` on an idle machine and 40 on the same
+binary while a build was running. Re-record at low concurrency, and check the *denominator* before
+believing a number — the existing warning in `docs/wpt-baseline.md` about `html/dom/` applies here
+with more force.
