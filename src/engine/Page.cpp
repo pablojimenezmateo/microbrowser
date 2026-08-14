@@ -124,6 +124,12 @@ Page::Page(gfx::FontProvider& fonts)
   // one -- which for a page whose whole rendering is a canvas is a blank page.
   script_.SetCanvasSurface(this);
   script_.SetWorkerHost(this);
+  // HTML's pre-click and canceled activation steps, bracketing the dispatch that happens in the
+  // binding layer. Same lifetime as everything above it and for the same reason: a checkbox in the
+  // first document has to toggle before the first click, not after the second navigation.
+  script_.SetActivationHooks([this](dom::Element& target) { return PreClickActivation(target); },
+                             [this]() { CancelClickActivation(); },
+                             [this]() { FinishClickActivation(); });
 }
 
 const std::vector<std::string>& Page::ConsoleOutput() const { return script_.ConsoleOutput(); }

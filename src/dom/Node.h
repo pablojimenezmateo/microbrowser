@@ -306,6 +306,11 @@ enum class ElementState : std::uint16_t {
   Focus = 1u << 7,
   FocusVisible = 1u << 8,
   FocusWithin = 1u << 9,
+  // `input.indeterminate`, and the one state here with **no DOM behind it**: it is an IDL property
+  // rather than a content attribute, so unlike `:checked` it cannot be derived from the tree and has
+  // to be stored. HTML clears it as part of a checkbox's pre-click activation steps, which is the
+  // only thing besides the setter that writes it.
+  Indeterminate = 1u << 10,
 };
 
 constexpr ElementState operator|(ElementState a, ElementState b) {
@@ -321,7 +326,8 @@ constexpr bool Any(ElementState state) { return state != ElementState::None; }
 // creating the second copy the enum's comment refuses.
 inline constexpr ElementState kStoredElementStates =
     ElementState::Hover | ElementState::Active | ElementState::Target | ElementState::Checked |
-    ElementState::Disabled | ElementState::Required | ElementState::PlaceholderShown;
+    ElementState::Disabled | ElementState::Required | ElementState::PlaceholderShown |
+    ElementState::Indeterminate;
 
 // What a shadow root remembers about how it was attached.
 //

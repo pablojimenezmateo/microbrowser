@@ -1,5 +1,6 @@
 #include "engine/Page.h"
 
+#include <algorithm>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -65,6 +66,115 @@ dom::Element* ComposedParentElement(dom::Element* element) {
 
 }  // namespace
 
+// --- Pre-click activation ------------------------------------------------------------------
+//
+// HTML runs a checkbox's toggle **before** the `click` event is dispatched and undoes it if the
+// event is cancelled ("pre-click activation steps" and "canceled activation steps"). This engine
+// ran it after, which is observably different in the one place a page looks: inside its own
+// handler, `checkbox.checked` answered the *old* value. `the-input-element/checkbox.html` measures
+// exactly that and four of its six subtests are this one difference.
+//
+// Running it here rather than in the binding layer is what keeps one algorithm: both a pointer
+// release and an `element.click()` reach `DomBindings::DispatchClick`, and it calls these hooks.
+bool Page::PreClickActivation(dom::Element& click_target) {
+  pre_click_element_ = nullptr;
+  if (document_ == nullptr) {
+    return false;
+  }
+  for (dom::Element* at = &click_target; at != nullptr; at = ComposedParentElement(at)) {
+    // The same stop conditions the walk below has, and for the same reason: a `<button type=button>`
+    // has an empty activation behaviour, and that *is* the answer rather than a reason to keep
+    // looking at its ancestors.
+    if (at->Namespace().IsHtml() &&
+        (at->LocalName() == "button" || at->LocalName() == "input")) {
+      const std::string* type = at->GetAttribute("type");
+      if (type != nullptr && util::AsciiLowerCase(*type) == "button") {
+        return false;
+      }
+    }
+    if (html::IsSubmitControl(*at) || html::IsResetControl(*at)) {
+      return false;
+    }
+    if (html::IsCheckableInput(*at)) {
+      // Remembered before it changes, and as the **set of everything that was checked** rather than
+      // as one element's boolean: a radio's pre-click step clears every peer in its group, so
+      // undoing it has to put the one that *was* checked back rather than leave the group empty.
+      // Recorded by scanning rather than by asking which elements are peers, because the grouping
+      // rule lives in one place and a second reading of it is a second answer.
+      pre_click_element_ = at;
+      pre_click_finished_ = false;
+      pre_click_indeterminate_ = at->HasState(dom::ElementState::Indeterminate);
+      // HTML's pre-click activation steps set a checkbox's indeterminate flag to false, and the
+      // canceled steps put it back. It is IDL-only state with no attribute behind it, which is why
+      // it is a bit on the element rather than something derivable from the tree.
+      at->SetState(dom::ElementState::Indeterminate, false);
+      pre_click_checked_.clear();
+      document_->ForEachDescendant([&](const dom::Node& node) {
+        if (!node.IsElement()) {
+          return;
+        }
+        auto& candidate = const_cast<dom::Element&>(static_cast<const dom::Element&>(node));
+        if (html::IsCheckableInput(candidate) && candidate.HasAttribute("checked")) {
+          pre_click_checked_.push_back(&candidate);
+        }
+      });
+      return ActivateCheckableInputOn(*at);
+    }
+    if (at->TagName() == "a" || (at->Namespace().IsHtml() && at->LocalName() == "summary")) {
+      return false;
+    }
+  }
+  return false;
+}
+
+void Page::CancelClickActivation() {
+  if (pre_click_element_ == nullptr || document_ == nullptr) {
+    return;
+  }
+  pre_click_element_->SetState(dom::ElementState::Indeterminate, pre_click_indeterminate_);
+  pre_click_element_ = nullptr;
+  pre_click_finished_ = false;
+  // Every checkable put back to what the snapshot said, which restores a radio group as a whole.
+  // A handler that changed some *other* checkbox from inside the click loses that change, and that
+  // is what the specification says: the canceled activation steps restore the state the pre-click
+  // steps captured.
+  document_->ForEachDescendant([&](const dom::Node& node) {
+    if (!node.IsElement()) {
+      return;
+    }
+    auto& candidate = const_cast<dom::Element&>(static_cast<const dom::Element&>(node));
+    if (!html::IsCheckableInput(candidate)) {
+      return;
+    }
+    const bool was = std::find(pre_click_checked_.begin(),
+                               pre_click_checked_.end(),
+                               &candidate) != pre_click_checked_.end();
+    if (was) {
+      candidate.SetAttribute("checked", "");
+    } else {
+      candidate.RemoveAttribute("checked");
+    }
+  });
+  pre_click_checked_.clear();
+  InvalidateBoxTree();
+}
+
+// The rest of a checkable's activation behaviour, **synchronously inside the click**. HTML fires
+// `input` and then `change` as part of the activation behaviour, and a page reads them there: the
+// suite's own `the-input-element/checkbox.html` calls `checkbox.click()` and asserts both handlers
+// have already run on the line after it. Deferring them to the turn boundary -- which is right for
+// a form submission and for following an `href`, because both replace the document -- is wrong for
+// two events that change nothing outside the DOM.
+void Page::FinishClickActivation() {
+  if (pre_click_element_ == nullptr || pre_click_finished_) {
+    return;
+  }
+  pre_click_finished_ = true;
+  dom::Element& input = *pre_click_element_;
+  script_.DispatchMediaEvent(input, "input");
+  script_.DispatchMediaEvent(input, "change");
+}
+
 ClickActivation Page::ResolveClickActivation(dom::Element* click_target) {
   ClickActivation activation;
   if (click_target == nullptr || document_ == nullptr) {
@@ -102,7 +212,24 @@ ClickActivation Page::ResolveClickActivation(dom::Element* click_target) {
       return activation;
     }
     if (html::IsCheckableInput(*at)) {
-      activation.toggled_checkable = ActivateCheckableInputOn(*at);
+      // **Already toggled**, by `PreClickActivation` before the event went out. What is left of the
+      // activation behaviour is the pair of events, in the order HTML fires them and the order
+      // `the-input-element/checkbox.html` asserts: `input`, then `change`, both after `click`.
+      // Already toggled when a click event went out; toggled *here* when none did. A document with
+      // no script has no binding layer and therefore no dispatch, and a checkbox on one still has
+      // to work -- which is why this is a fallback rather than an assertion.
+      const bool pre_toggled = pre_click_element_ == at;
+      const bool already_finished = pre_toggled && pre_click_finished_;
+      pre_click_element_ = nullptr;
+      pre_click_finished_ = false;
+      activation.toggled_checkable = pre_toggled || ActivateCheckableInputOn(*at);
+      // The events, unless `FinishClickActivation` already fired them inside the dispatch. A
+      // document with no script has no binding layer and therefore no dispatch, so this is the path
+      // that keeps a checkbox working on one.
+      if (activation.toggled_checkable && !already_finished) {
+        script_.DispatchMediaEvent(*at, "input");
+        script_.DispatchMediaEvent(*at, "change");
+      }
       return activation;
     }
     // `<summary>` opens and closes the `<details>` it is the summary of --

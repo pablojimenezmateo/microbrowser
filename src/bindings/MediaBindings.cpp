@@ -248,10 +248,17 @@ bool DomBindings::DispatchMediaEvent(dom::Element& element, const std::string& t
   // Not bubbling, which is the specification and is load-bearing: media events on a `<video>`
   // inside a list must not reach the list's click-through handler.
   //
+  // **Except `input` and `change`**, which do bubble and are dispatched through here because they
+  // are the same kind of thing -- an event the *browser* produced, at an element, as part of an
+  // algorithm a page cannot fake. `the-input-element/checkbox.html` asserts `e.bubbles` on both, and
+  // a form listening for `change` on the `<form>` rather than on each control is the ordinary way to
+  // write one.
+  //
   // Same MediaEventBudget as SourceBuffer updateend: FlushMediaEventsForBuffer runs
   // while appendBuffer's frames are still live (TD-0020).
   const js::Interpreter::MediaEventBudget media_budget(*interpreter_);
-  const Value event = MakeEvent(type, false, false, true);
+  const bool bubbles = type == "input" || type == "change";
+  const Value event = MakeEvent(type, bubbles, false, true);
   if (!event.IsObject()) {
     return false;
   }

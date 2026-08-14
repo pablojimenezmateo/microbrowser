@@ -120,7 +120,12 @@ extern:
 # kind of thing that should never have landed on this class, and it touches nothing private, so it
 # is a free function in FrameBindings.h beside ShadowDom.h. That is the third member the cut has
 # taken back, and this note is no longer only asking.
-max_tu_lines: 990
+# **Raised to 1000 on 2026-08-14 for the same reason `src/engine` was, and with the same debt.**
+# `DomBindings.h` took the worker global's two entry points and the pre-click activation hooks. The
+# note further down about the class being the missing module is still the true reading of this
+# number; the split it names -- the URL surface, which shares no state with the rest of the class --
+# is still available and still not done.
+max_tu_lines: 1000
 
 # A wrapper is a JavaScript object holding a raw `dom::Node*`, which is only
 # safe while nothing frees a node before its document. `Node::Remove` would;
@@ -343,7 +348,10 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # buy is a deletion that did not have to be written: `URL`, `URLSearchParams`, `TextEncoder`, `atob`,
 # `crypto` and `Blob` in a worker are the same implementation the page uses rather than a second one
 # written against `src/url` and `src/text` for the worker's sake.
-budget: DomBindings header_lines=939 public_methods=49 members=29
+# +1 method and the two members behind it for HTML's pre-click activation steps: a checkbox is
+# toggled *before* the click event and put back when the event is cancelled, and both halves have
+# to bracket the dispatch -- which happens here while the toggle belongs to the engine.
+budget: DomBindings header_lines=946 public_methods=50 members=32
 # ADR 0038's `indexedDB` seam: a database/store/key/version question this module
 # declares and `src/engine` answers, the same inversion StorageSource uses. Four
 # extra "methods" over what reads as the API (16) are the deleted copy ops and

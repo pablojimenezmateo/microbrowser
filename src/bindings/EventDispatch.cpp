@@ -486,8 +486,30 @@ bool DomBindings::DispatchPointerMouse(dom::Element& target, std::string_view ty
   return DispatchEventTo(target, event);
 }
 
+void DomBindings::SetActivationHooks(std::function<bool(dom::Element&)> pre,
+                                     std::function<void()> cancel, std::function<void()> finish) {
+  pre_click_activation_ = std::move(pre);
+  cancel_activation_ = std::move(cancel);
+  finish_activation_ = std::move(finish);
+}
+
 bool DomBindings::DispatchClick(dom::Element& target, const PointerInput& pointer, bool trusted) {
-  return DispatchPointerMouse(target, "click", pointer, trusted);
+  // **Before the event, not after.** HTML's pre-click activation steps toggle a checkbox and then
+  // dispatch, so a page's own handler reads the *new* value -- and the canceled activation steps
+  // put it back when the handler calls `preventDefault`. Running the toggle afterwards is
+  // observably different in the one place a page looks, and
+  // `html/semantics/forms/the-input-element/checkbox.html` measures exactly that.
+  const bool pre_activated = pre_click_activation_ != nullptr && pre_click_activation_(target);
+  const bool prevented = DispatchPointerMouse(target, "click", pointer, trusted);
+  if (pre_activated && prevented && cancel_activation_ != nullptr) {
+    cancel_activation_();
+  } else if (pre_activated && finish_activation_ != nullptr) {
+    // `input` and `change`, inside the click rather than at the turn boundary. See
+    // `Page::FinishClickActivation`, which says why these two are not deferred where a form
+    // submission is.
+    finish_activation_();
+  }
+  return prevented;
 }
 
 

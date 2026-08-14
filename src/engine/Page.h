@@ -400,6 +400,10 @@ class Page : private layout::ImageProvider,
   // of that element — never a fresh hit-test at the pointer — so a press on a
   // dismissible overlay cannot activate a link that was underneath.
   ClickActivation ResolveClickActivation(dom::Element* click_target);
+  // HTML's pre-click and canceled activation steps. See PageActivation.cpp.
+  bool PreClickActivation(dom::Element& click_target);
+  void CancelClickActivation();
+  void FinishClickActivation();
 
   // The form submission activated at `document_point`, or nullopt when no
   // supported form control was activated -- or when a `submit` handler called
@@ -626,7 +630,7 @@ class Page : private layout::ImageProvider,
   // The script did not load. The `error` event goes direct rather than through the worker's queue:
   // the worker never started, so its pipe closes before the loop's next turn.
   void FailWorkerLoad(std::uint64_t id, const std::string& reason);
-  // What a worker asked the loop for. ADR 0022 §1: `importScripts` blocks its thread; `fetch` does not.
+  // What a worker asked the loop for. ADR 0022 §1: `importScripts` blocks its thread, `fetch` not.
   using PendingWorkerImport = Workers::ImportRequest;
   std::vector<PendingWorkerImport> TakeWorkerImportRequests();
   void CompleteWorkerImport(std::uint64_t worker_id, bool ok, std::string body);
@@ -826,6 +830,11 @@ class Page : private layout::ImageProvider,
   // ResolveClickActivation so a retargeted click cannot activate whatever is
   // under the pointer after a dialog dismisses itself on mousedown.
   bool ActivateCheckableInputOn(dom::Element& input);
+  // What `CancelClickActivation` puts back. One click is in flight at a time.
+  dom::Element* pre_click_element_ = nullptr;
+  std::vector<dom::Element*> pre_click_checked_;
+  bool pre_click_finished_ = false;
+  bool pre_click_indeterminate_ = false;
   bool ResetFormOn(const dom::Element& reset);
   bool ToggleMediaPlaybackOn(dom::Element& hit);
   // The focused element when a key can type into it, and null otherwise. Every

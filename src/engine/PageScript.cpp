@@ -258,6 +258,16 @@ void PageScript::SetTrustedInsertionFlush(std::function<void()> hook) {
   }
 }
 
+void PageScript::SetActivationHooks(std::function<bool(dom::Element&)> pre_click,
+                                    std::function<void()> cancel, std::function<void()> finish) {
+  pre_click_activation_ = std::move(pre_click);
+  cancel_activation_ = std::move(cancel);
+  finish_activation_ = std::move(finish);
+  if (bindings_ != nullptr) {
+    bindings_->SetActivationHooks(pre_click_activation_, cancel_activation_, finish_activation_);
+  }
+}
+
 void PageScript::EnsureInterpreter(dom::Document& document, const std::string& url,
                                    std::int64_t now_ms) {
   if (interpreter_ != nullptr) {
@@ -271,6 +281,9 @@ void PageScript::EnsureInterpreter(dom::Document& document, const std::string& u
   bindings_->Install();
   bindings_->SetScriptStrictDynamic(script_strict_dynamic_);
   bindings_->SetInlineHandlersAllowed(inline_handlers_allowed_);
+  if (pre_click_activation_ || cancel_activation_) {
+    bindings_->SetActivationHooks(pre_click_activation_, cancel_activation_, finish_activation_);
+  }
   if (trusted_insertion_flush_) {
     bindings_->SetTrustedScriptFlush(trusted_insertion_flush_);
   }

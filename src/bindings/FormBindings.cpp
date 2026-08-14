@@ -101,7 +101,43 @@ std::vector<dom::Element*> DomBindings::TakePendingActivations() {
   return taken;
 }
 
+namespace {
+
+// `input.indeterminate`, which is **not** a reflected attribute: HTML defines it as IDL-only state,
+// so unlike `checked` there is nothing in the tree to read it back from. It lives as a bit on the
+// element (`dom::ElementState::Indeterminate`) because that is also what `:indeterminate` matches
+// on, and because HTML's pre-click activation steps clear it -- which the engine has to be able to
+// do without going through a binding.
+void InstallIndeterminate(js::Interpreter& interpreter, const js::Value& input_interface,
+                          DomBindings* owner) {
+  if (!input_interface.IsObject()) {
+    return;
+  }
+  const Value getter = interpreter.NewNativeValue("indeterminate", [](NativeCall& call) -> Value {
+    const dom::Node* self = NodeOf(call.self);
+    return Value::Bool(self != nullptr && self->IsElement() &&
+                       static_cast<const dom::Element*>(self)->HasState(
+                           dom::ElementState::Indeterminate));
+  });
+  const Value setter = interpreter.NewNativeValue("indeterminate", [](NativeCall& call) -> Value {
+    dom::Node* self = NodeOf(call.self);
+    if (self != nullptr && self->IsElement()) {
+      static_cast<dom::Element*>(self)->SetState(dom::ElementState::Indeterminate,
+                                                 js::ToBoolean(Argument(call.arguments, 0)));
+    }
+    return Value::Undefined();
+  });
+  if (getter.IsObject() && setter.IsObject()) {
+    getter.object->Set(kOwnerSlot, PointerValue(owner));
+    setter.object->Set(kOwnerSlot, PointerValue(owner));
+    input_interface.object->DefineAccessor("indeterminate", getter.object, setter.object);
+  }
+}
+
+}  // namespace
+
 void DomBindings::InstallFormApis() {
+  InstallIndeterminate(*interpreter_, InterfaceNamed("HTMLInputElement"), this);
   // `document.forms`, as an accessor so it follows the tree rather than
   // freezing what it looked like when the bindings were installed. reddit's
   // interstitial reads `document.forms[0]`.

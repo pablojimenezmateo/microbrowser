@@ -103,8 +103,8 @@ class DomBindings {
   // A C++ entry point rather than something script can reach, because the only
   // thing allowed to say a click happened is the thing that saw one. A page
   // that could dispatch its own trusted events could make a form submit itself.
-  // `trusted` is false for `element.click()`. Only `isTrusted` differs: HTML runs the activation
-  // behaviour for a scripted click too. See the note at the call site in FocusBindings.cpp.
+  // `trusted` is false for `element.click()`; only `isTrusted` differs, because HTML runs the
+  // activation behaviour for a scripted click too. See the call site in FocusBindings.cpp.
   bool DispatchClick(dom::Element& target, const PointerInput& pointer, bool trusted = true);
   // Trusted `pointerdown`/`pointerup`/`mousedown`/`mouseup`, synthesized from
   // a real `PointerInputMessage`. youtube's player listens on `pointerdown`
@@ -285,6 +285,10 @@ class DomBindings {
   // somebody remembers to turn it off is the wrong default for the one gate
   // between markup and running code.
   void SetInlineHandlersAllowed(bool allowed) { inline_handlers_allowed_ = allowed; }
+  // HTML's pre-click and canceled activation steps. They belong to the engine and bracket the
+  // dispatch that happens here; null in a document with no engine behind it.
+  void SetActivationHooks(std::function<bool(dom::Element&)> pre, std::function<void()> cancel,
+                          std::function<void()> finish);
   void MarkCspTrustedScript(const dom::Element& element) { csp_trusted_scripts_.insert(&element); }
   bool IsCspTrustedScript(const dom::Element& element) const {
     return csp_trusted_scripts_.contains(&element);
@@ -950,6 +954,9 @@ class DomBindings {
   // frees a node before its document. Bounded, because a page can click in a
   // loop and this list is drained once per turn.
   std::vector<dom::Element*> pending_activations_;
+  std::function<bool(dom::Element&)> pre_click_activation_;
+  std::function<void()> cancel_activation_;
+  std::function<void()> finish_activation_;
   // Borrowed, like the interpreter and the document, and null when there is no
   // layout behind this binding layer.
   GeometrySource* geometry_ = nullptr;

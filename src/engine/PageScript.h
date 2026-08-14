@@ -96,6 +96,10 @@ class PageScript {
   void SetCanvasSurface(bindings::CanvasSurface* canvas) { canvas_ = canvas; }
   void SetWorkerHost(bindings::WorkerHost* workers) { workers_ = workers; }
   void SetTrustedInsertionFlush(std::function<void()> hook);
+  // HTML's pre-click and canceled activation steps, forwarded to the binding layer -- which is
+  // where the click is dispatched and therefore the only place they can bracket it.
+  void SetActivationHooks(std::function<bool(dom::Element&)> pre_click,
+                          std::function<void()> cancel, std::function<void()> finish);
   // A worker's message or error, forwarded to the bindings. False without an interpreter, which is the
   // case on the turn a navigation replaced the document a worker was posting to.
   bool DeliverWorkerMessage(std::uint64_t id, bindings::WorkerDelivery kind,
@@ -494,6 +498,11 @@ class PageScript {
   // on the new ones.
   bool inline_handlers_allowed_ = false;
   std::function<void()> trusted_insertion_flush_;
+  // Kept for the same reason the flush hook is: the binding layer is rebuilt per document, and a
+  // hook set before the first load would otherwise be lost on it.
+  std::function<bool(dom::Element&)> pre_click_activation_;
+  std::function<void()> cancel_activation_;
+  std::function<void()> finish_activation_;
 };
 
 }  // namespace microbrowser::engine
