@@ -14,8 +14,6 @@ FAIL=last frame at 10
 FAIL=last frame at 22
 [media-source/SourceBuffer-short-frame-endOfStream.html]
 FAIL=endOfStream() with short frame duration
-[media-source/URL-createObjectURL-null.html]
-FAIL=URL.createObjectURL(null)
 [media-source/URL-createObjectURL-revoke.html]
 harness=TIMEOUT
 [media-source/dedicated-worker/mediasource-worker-detach-element.html]
@@ -37,11 +35,20 @@ FAIL=Test element detachment from worker MediaSource after at least 4 main threa
 [media-source/dedicated-worker/mediasource-worker-duration.html]
 FAIL=Test worker MediaSource duration updates before and after HAVE_METADATA
 [media-source/dedicated-worker/mediasource-worker-handle-transfer.html]
-harness=TIMEOUT
+FAIL=A detached (already transferred away) MediaSourceHandle cannot successfully load when assigned to srcObject
+FAIL=Attempt to transfer detached MediaSourceHandle must fail, tested in window context
+FAIL=MediaSourceHandle cannot be transferred, if it was srcObject when asynchronous load starts (loadstart), even if srcObject is then immediately reset to null
+FAIL=MediaSourceHandle cannot be transferred, immediately after set as srcObject, even if srcObject immediately reset to null
+FAIL=MediaSourceHandle serialization without transfer must fail, tested in window context
+FAIL=MediaSourceHandle serialization without transfer must fail, tested in worker
+FAIL=Precisely one load of the same MediaSourceHandle assigned synchronously to multiple media element srcObjects succeeds
+FAIL=Same MediaSourceHandle transferred multiple times in single postMessage must fail, tested in window context
+FAIL=Same MediaSourceHandle transferred multiple times in single postMessage must fail, tested in worker
 [media-source/dedicated-worker/mediasource-worker-handle.html]
-harness=TIMEOUT
+FAIL=Test main context receipt of postMessage'd MediaSourceHandle from DedicatedWorker MediaSource
+FAIL=Test main-thread has MediaSourceHandle defined
 [media-source/dedicated-worker/mediasource-worker-objecturl.html]
-harness=TIMEOUT
+FAIL=Test main context load of a DedicatedWorker MediaSource object URL should fail
 [media-source/dedicated-worker/mediasource-worker-play-terminate-worker.html]
 FAIL=Test worker MediaSource termination after at least 0 main thread setTimeouts, starting counting after first ended event
 FAIL=Test worker MediaSource termination after at least 0 main thread setTimeouts, starting counting after setting srcObject
@@ -95,15 +102,12 @@ FAIL=addSourceBuffer() sets SourceBuffer.mode to 'segments' when the generate ti
 FAIL=addSourceBuffer() sets SourceBuffer.mode to 'sequence' when the generate timestamps flag is true
 [media-source/mediasource-addsourcebuffer.html]
 FAIL=Test addSourceBuffer() audio only
-FAIL=Test addSourceBuffer() in 'ended' state.
 FAIL=Test addSourceBuffer() video only
 FAIL=Test addSourceBuffer() with AAC and H.264
 FAIL=Test addSourceBuffer() with AAC and H.264 in separate SourceBuffers
 FAIL=Test addSourceBuffer() with Vorbis and VP8
 FAIL=Test addSourceBuffer() with Vorbis and VP8 in separate SourceBuffers
 FAIL=Test addSourceBuffer() with empty type
-FAIL=Test addSourceBuffer() with null
-FAIL=Test addSourceBuffer() with unsupported type
 [media-source/mediasource-append-buffer.html]
 harness=TIMEOUT
 [media-source/mediasource-appendbuffer-quota-exceeded.html]
@@ -154,8 +158,6 @@ FAIL=Test changeType sets mode to sequence for change to type that generates tim
 FAIL=Test changeType transitioning readyState from 'ended' to 'open'.
 FAIL=Test changeType while update pending.
 FAIL=Test changeType with an empty type.
-FAIL=Test changeType with null type.
-FAIL=Test changeType with unsupported type.
 [media-source/mediasource-closed.html]
 harness=TIMEOUT
 [media-source/mediasource-config-change-mp4-a-bitrate.html]
@@ -244,8 +246,6 @@ FAIL=clearLiveSeekableRange returns with no error when conditions are correct
 FAIL=clearLiveSeekableRange throws an InvalidStateError exception if the readyState attribute is not 'open'
 FAIL=setLiveSeekableRange does not restrict to not currently updating
 FAIL=setLiveSeekableRange returns with no error when conditions are correct
-FAIL=setLiveSeekableRange throws a TypeError if start is greater than end
-FAIL=setLiveSeekableRange throws a TypeError if start is negative
 FAIL=setLiveSeekableRange throws an InvalidStateError exception if the readyState attribute is not 'open'
 [media-source/mediasource-multiple-attach.html]
 harness=TIMEOUT

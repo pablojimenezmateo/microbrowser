@@ -467,7 +467,7 @@ FAIL=document.cookie behavior on documents without browser context
 [cookies/ordering/ordering.sub.html]
 FAIL=Test cookie ordering
 [cookies/origin-bound-cookies/port-bound-cookies.html]
-harness=TIMEOUT
+FAIL=Cookies should be bound to their origin's port.
 [cookies/origin-bound-cookies/scheme-bound-cookies.https.html]
 FAIL=Set a cookie on a secure origin and test it's not sent to an insecure origin.
 [cookies/partitioned-cookies/partitioned-cookies-a-b-a-embed.tentative.https.html]
@@ -605,97 +605,27 @@ harness=TIMEOUT
 [cookies/samesite/about-blank-toplevel.https.html]
 harness=TIMEOUT
 [cookies/samesite/fetch.https.html]
-FAIL=Cross-site fetches are cross-site
-FAIL=Cross-site redirecting to cross-site fetches are cross-site
-FAIL=Cross-site redirecting to same-host fetches are cross-site
-FAIL=Cross-site redirecting to subdomain fetches are cross-site
-FAIL=Same-host fetches are strictly same-site
-FAIL=Same-host redirecting to cross-site fetches are cross-site
-FAIL=Same-host redirecting to same-host fetches are strictly same-site
-FAIL=Same-host redirecting to subdomain fetches are strictly same-site
-FAIL=Subdomain fetches are strictly same-site
-FAIL=Subdomain redirecting to cross-site fetches are cross-site
-FAIL=Subdomain redirecting to same-host fetches are strictly same-site
-FAIL=Subdomain redirecting to subdomain fetches are strictly same-site
+harness=TIMEOUT
 [cookies/samesite/form-get-blank-reload.https.html]
-FAIL=Reloaded cross-site top-level form GETs are strictly same-site
-FAIL=Reloaded same-host top-level form GETs are strictly same-site
-FAIL=Reloaded subdomain top-level form GETs are strictly same-site
+harness=TIMEOUT
 [cookies/samesite/form-get-blank.https.html]
-FAIL=Cross-site redirecting to cross-site top-level form GETs are laxly same-site
-FAIL=Cross-site redirecting to same-host top-level form GETs are laxly same-site
-FAIL=Cross-site redirecting to subdomain top-level form GETs are laxly same-site
-FAIL=Cross-site top-level form GETs are laxly same-site
-FAIL=Same-host redirecting to cross-site top-level form GETs are laxly same-site
-FAIL=Same-host redirecting to same-host top-level form GETs are strictly same-site
-FAIL=Same-host redirecting to subdomain top-level form GETs are strictly same-site
-FAIL=Same-host top-level form GETs are strictly same-site
-FAIL=Subdomain redirecting to cross-site top-level form GETs are laxly same-site
-FAIL=Subdomain redirecting to same-host top-level form GETs are strictly same-site
-FAIL=Subdomain redirecting to subdomain top-level form GETs are strictly same-site
-FAIL=Subdomain top-level form GETs are strictly same-site
+harness=TIMEOUT
 [cookies/samesite/form-post-blank-reload.https.html]
-FAIL=Reloaded cross-site top-level form POSTs are strictly same-site
-FAIL=Reloaded same-host top-level form POSTs are strictly same-site
-FAIL=Reloaded subdomain top-level form POSTs are strictly same-site
+harness=TIMEOUT
 [cookies/samesite/form-post-blank.https.html]
-FAIL=Cross-site redirecting to cross-site top-level form POSTs are cross-site
-FAIL=Cross-site redirecting to same-host top-level form POSTs are cross-site
-FAIL=Cross-site redirecting to subdomain top-level form POSTs are cross-site
-FAIL=Cross-site top-level form POSTs are cross-site
-FAIL=Same-host redirecting to cross-site top-level form POSTs are cross-site
-FAIL=Same-host redirecting to same-host top-level form POSTs are strictly same-site
-FAIL=Same-host redirecting to subdomain top-level form POSTs are strictly same-site
-FAIL=Same-host top-level form POSTs are strictly same-site
-FAIL=Subdomain redirecting to cross-site top-level form POSTs are cross-site
-FAIL=Subdomain redirecting to same-host top-level form POSTs are strictly same-site
-FAIL=Subdomain redirecting to subdomain top-level form POSTs are strictly same-site
-FAIL=Subdomain top-level form POSTs are strictly same-site
+harness=TIMEOUT
 [cookies/samesite/get_all_cookies-default-samesite.html]
 FAIL=Get all cookies w/ default SameSite
 [cookies/samesite/get_named_cookie-default-samesite.html]
 FAIL=Get Named cookie  w/ default SameSite
 [cookies/samesite/iframe-reload.https.html]
-FAIL=Reloaded cross-site fetches are cross-site
-FAIL=Reloaded same-host fetches are strictly same-site
-FAIL=Reloaded subdomain fetches are strictly same-site
+harness=TIMEOUT
 [cookies/samesite/iframe.document.https.html]
 harness=TIMEOUT
 [cookies/samesite/iframe.https.html]
-FAIL=Cross-site fetches are cross-site
-FAIL=Cross-site navigating to cross-site fetches are cross-site
-FAIL=Cross-site navigating to same-host fetches are cross-site
-FAIL=Cross-site navigating to subdomain fetches are cross-site-site
-FAIL=Cross-site redirecting to cross-site fetches are cross-site
-FAIL=Cross-site redirecting to same-host fetches are cross-site
-FAIL=Cross-site redirecting to subdomain fetches are cross-site
-FAIL=Same-host fetches are strictly same-site
-FAIL=Same-host navigating to cross-site fetches are cross-site
-FAIL=Same-host navigating to same-host fetches are strictly same-site
-FAIL=Same-host navigating to subdomain fetches are strictly same-site
-FAIL=Same-host redirecting to cross-site fetches are cross-site
-FAIL=Same-host redirecting to same-host fetches are strictly same-site
-FAIL=Same-host redirecting to subdomain fetches are strictly same-site
-FAIL=Subdomain fetches are strictly same-site
-FAIL=Subdomain navigating to cross-site fetches are cross-site
-FAIL=Subdomain navigating to same-host fetches are strictly same-site
-FAIL=Subdomain navigating to subdomain fetches are strictly same-site
-FAIL=Subdomain redirecting to cross-site fetches are cross-site
-FAIL=Subdomain redirecting to same-host fetches are strictly same-site
-FAIL=Subdomain redirecting to subdomain fetches are strictly same-site
+harness=TIMEOUT
 [cookies/samesite/img.https.html]
-FAIL=Cross-site images are cross-site
-FAIL=Cross-site redirecting to cross-site images are cross-site
-FAIL=Cross-site redirecting to same-host images are cross-site
-FAIL=Cross-site redirecting to subdomain images are cross-site
-FAIL=Same-host images are strictly same-site
-FAIL=Same-host redirecting to cross-site images are cross-site
-FAIL=Same-host redirecting to same-host images are strictly same-site
-FAIL=Same-host redirecting to subdomain images are strictly same-site
-FAIL=Subdomain images are strictly same-site
-FAIL=Subdomain redirecting to cross-site images are cross-site
-FAIL=Subdomain redirecting to same-host images are strictly same-site
-FAIL=Subdomain redirecting to subdomain images are strictly same-site
+harness=TIMEOUT
 [cookies/samesite/multiple-samesite-attributes.https.html]
 FAIL=Cross-site images are cross-site
 FAIL=Cross-site redirecting to cross-site images are cross-site
@@ -716,39 +646,17 @@ harness=TIMEOUT
 [cookies/samesite/sandbox-iframe-subresource.https.html]
 harness=TIMEOUT
 [cookies/samesite/setcookie-lax.https.html]
-FAIL=Cross-site window shouldn't be able to set `SameSite=Lax` or `SameSite=Strict` cookies.
-FAIL=Same-site window should be able to set `SameSite=Lax` or `SameSite=Strict` cookies.
+harness=TIMEOUT
 [cookies/samesite/setcookie-navigation.https.html]
-FAIL=Cross-site to cross-site iframe navigation should only be able to set SameSite=None cookies.
-FAIL=Cross-site to same-site iframe navigation should only be able to set SameSite=None cookies.
-FAIL=Cross-site top-level POST should be able to set SameSite=* cookies.
-FAIL=Cross-site top-level navigation should be able to set SameSite=* cookies.
-FAIL=Same-site to cross-site-site iframe navigation should only be able to set SameSite=None cookies.
-FAIL=Same-site to same-site iframe navigation should be able to set SameSite=* cookies.
-FAIL=Same-site top-level POST should be able to set SameSite=* cookies.
-FAIL=Same-site top-level navigation should be able to set SameSite=* cookies.
+harness=TIMEOUT
 [cookies/samesite/window-open-reload.https.html]
-FAIL=Reloaded cross-site auxiliary navigations are strictly same-site
-FAIL=Reloaded same-host auxiliary navigations are strictly same-site.
-FAIL=Reloaded subdomain auxiliary navigations are strictly same-site.
+harness=TIMEOUT
 [cookies/samesite/window-open.https.html]
-FAIL=Cross-site auxiliary navigations are laxly same-site
-FAIL=Cross-site redirecting to cross-site auxiliary navigations are laxly same-site
-FAIL=Cross-site redirecting to same-host auxiliary navigations are laxly same-site
-FAIL=Cross-site redirecting to subdomain auxiliary navigations are laxly same-site
-FAIL=Same-host auxiliary navigations are strictly same-site
-FAIL=Same-host redirecting to cross-site auxiliary navigations are laxly same-site
-FAIL=Same-host redirecting to same-host auxiliary navigations are strictly same-site
-FAIL=Same-host redirecting to subdomain auxiliary navigations are strictly same-site
-FAIL=Subdomain auxiliary navigations are strictly same-site
-FAIL=Subdomain redirecting to cross-site auxiliary navigations are laxly same-site
-FAIL=Subdomain redirecting to same-host auxiliary navigations are strictly same-site
-FAIL=Subdomain redirecting to subdomain auxiliary navigations are strictly same-site
+harness=TIMEOUT
 [cookies/schemeful-same-site/schemeful-iframe-subresource.tentative.html]
 harness=TIMEOUT
 [cookies/schemeful-same-site/schemeful-navigation.tentative.html]
-FAIL=Navigate cross-scheme
-FAIL=Navigate same-scheme
+harness=TIMEOUT
 [cookies/schemeful-same-site/schemeful-subresource.tentative.html]
 harness=TIMEOUT
 [cookies/schemeful-same-site/schemeful-websockets.sub.tentative.html]

@@ -79,7 +79,7 @@ FAIL=Preflight for {"range":"bytes=\t\t100-200"}
 FAIL=Preflight for {"range":"bytes=abc-def"}
 FAIL=Preflight for {"range":"bytes\t=100-200"}
 [cors/cors-safelisted-request-header.any.worker.html]
-harness=TIMEOUT
+harness=ERROR
 [cors/credentials-flag.htm]
 harness=TIMEOUT
 [cors/image-tainting-in-cross-origin-iframe.sub.html]
@@ -90,13 +90,13 @@ FAIL=Late listeners: Preflight
 [cors/origin.htm]
 FAIL=Allow origin: *
 FAIL=Allow origin: [tab]*
-FAIL=Allow origin: [tab]http://localhost:33303
+FAIL=Allow origin: [tab]http://localhost:43183
 FAIL=Allow origin: _*__
-FAIL=Allow origin: _http://localhost:33303
-FAIL=Allow origin: _http://localhost:33303___[tab]_
-FAIL=Allow origin: http://localhost:33303
+FAIL=Allow origin: _http://localhost:43183
+FAIL=Allow origin: _http://localhost:43183___[tab]_
+FAIL=Allow origin: http://localhost:43183
 [cors/preflight-cache-partitioning.sub.window.html]
-FAIL=The preflight cache should be partitioned
+harness=TIMEOUT
 [cors/preflight-cache.htm]
 FAIL=Test preflight
 FAIL=age = -1, should not be cached
@@ -144,7 +144,6 @@ FAIL=getResponseHeader: Server: unreadable by default
 FAIL=getResponseHeader: X-Powered-By: unreadable by default
 FAIL=getResponseHeader: x-custom-header bytes
 [cors/script-304.html]
-FAIL=Load a fresh cross-origin script
 FAIL=Reload same cross-origin script from the memory cache after revalidation
 [cors/simple-requests-ch.tentative.htm]
 FAIL=No preflight GET and {"save-data":"on","device-memory":"2.0","dpr":"3.0","width":"1200","viewport-width":"1300","rtt":"1","downlink":"1.0","ect":"2g"}

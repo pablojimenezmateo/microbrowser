@@ -81,7 +81,8 @@ harness=TIMEOUT
 [referrer-policy/4K+1/gen/top.http-rp/same-origin/worker-module.http.html]
 harness=TIMEOUT
 [referrer-policy/4K+1/gen/top.http-rp/same-origin/xhr.http.html]
-harness=TIMEOUT
+FAIL=Referrer Policy: Expects stripped-referrer for xhr to same-http origin and keep-origin redirection from http context.
+FAIL=Referrer Policy: Expects stripped-referrer for xhr to same-http origin and no-redirect redirection from http context.
 [referrer-policy/4K+1/gen/top.http-rp/strict-origin-when-cross-origin/a-tag.http.html]
 harness=TIMEOUT
 [referrer-policy/4K+1/gen/top.http-rp/strict-origin-when-cross-origin/fetch.http.html]
@@ -133,18 +134,7 @@ harness=TIMEOUT
 [referrer-policy/4K+1/gen/top.http-rp/unsafe-url/worker-module.http.html]
 harness=TIMEOUT
 [referrer-policy/4K+1/gen/top.http-rp/unsafe-url/xhr.http.html]
-FAIL=Referrer Policy: Expects stripped-referrer for xhr to cross-http origin and keep-origin redirection from http context.
-FAIL=Referrer Policy: Expects stripped-referrer for xhr to cross-http origin and no-redirect redirection from http context.
-FAIL=Referrer Policy: Expects stripped-referrer for xhr to cross-http origin and swap-origin redirection from http context.
-FAIL=Referrer Policy: Expects stripped-referrer for xhr to cross-https origin and keep-origin redirection from http context.
-FAIL=Referrer Policy: Expects stripped-referrer for xhr to cross-https origin and no-redirect redirection from http context.
-FAIL=Referrer Policy: Expects stripped-referrer for xhr to cross-https origin and swap-origin redirection from http context.
-FAIL=Referrer Policy: Expects stripped-referrer for xhr to same-http origin and keep-origin redirection from http context.
-FAIL=Referrer Policy: Expects stripped-referrer for xhr to same-http origin and no-redirect redirection from http context.
-FAIL=Referrer Policy: Expects stripped-referrer for xhr to same-http origin and swap-origin redirection from http context.
-FAIL=Referrer Policy: Expects stripped-referrer for xhr to same-https origin and keep-origin redirection from http context.
-FAIL=Referrer Policy: Expects stripped-referrer for xhr to same-https origin and no-redirect redirection from http context.
-FAIL=Referrer Policy: Expects stripped-referrer for xhr to same-https origin and swap-origin redirection from http context.
+harness=TIMEOUT
 [referrer-policy/4K+1/gen/top.http-rp/unset/a-tag.http.html]
 harness=TIMEOUT
 [referrer-policy/4K+1/gen/top.http-rp/unset/fetch.http.html]
@@ -510,7 +500,18 @@ FAIL=Referrer Policy: Expects stripped-referrer for xhr to same-http origin and 
 [referrer-policy/4K-1/gen/top.meta/no-referrer-when-downgrade/a-tag.http.html]
 harness=TIMEOUT
 [referrer-policy/4K-1/gen/top.meta/no-referrer-when-downgrade/fetch.http.html]
-harness=TIMEOUT
+FAIL=Referrer Policy: Expects stripped-referrer for fetch to cross-http origin and keep-origin redirection from http context.
+FAIL=Referrer Policy: Expects stripped-referrer for fetch to cross-http origin and no-redirect redirection from http context.
+FAIL=Referrer Policy: Expects stripped-referrer for fetch to cross-http origin and swap-origin redirection from http context.
+FAIL=Referrer Policy: Expects stripped-referrer for fetch to cross-https origin and keep-origin redirection from http context.
+FAIL=Referrer Policy: Expects stripped-referrer for fetch to cross-https origin and no-redirect redirection from http context.
+FAIL=Referrer Policy: Expects stripped-referrer for fetch to cross-https origin and swap-origin redirection from http context.
+FAIL=Referrer Policy: Expects stripped-referrer for fetch to same-http origin and keep-origin redirection from http context.
+FAIL=Referrer Policy: Expects stripped-referrer for fetch to same-http origin and no-redirect redirection from http context.
+FAIL=Referrer Policy: Expects stripped-referrer for fetch to same-http origin and swap-origin redirection from http context.
+FAIL=Referrer Policy: Expects stripped-referrer for fetch to same-https origin and keep-origin redirection from http context.
+FAIL=Referrer Policy: Expects stripped-referrer for fetch to same-https origin and no-redirect redirection from http context.
+FAIL=Referrer Policy: Expects stripped-referrer for fetch to same-https origin and swap-origin redirection from http context.
 [referrer-policy/4K-1/gen/top.meta/no-referrer-when-downgrade/iframe-tag.http.html]
 harness=TIMEOUT
 [referrer-policy/4K-1/gen/top.meta/no-referrer-when-downgrade/img-tag.http.html]
@@ -1023,7 +1024,7 @@ harness=TIMEOUT
 [referrer-policy/css-integration/font-face/internal-import-stylesheet.html]
 FAIL=Font from imported stylesheet (internal).
 [referrer-policy/css-integration/font-face/internal-stylesheet.html]
-harness=TIMEOUT
+FAIL=Font from internal stylesheet.
 [referrer-policy/css-integration/font-face/processing-instruction.html]
 FAIL=Font from external stylesheet (from ProcessingInstruction).
 [referrer-policy/css-integration/image/external-import-stylesheet.html]
@@ -2570,7 +2571,18 @@ FAIL=Referrer Policy: Expects stripped-referrer for xhr to same-http origin and 
 [referrer-policy/gen/top.http-rp/origin/a-tag.http.html]
 harness=TIMEOUT
 [referrer-policy/gen/top.http-rp/origin/fetch.http.html]
-harness=TIMEOUT
+FAIL=Referrer Policy: Expects origin for fetch to cross-http origin and keep-origin redirection from http context.
+FAIL=Referrer Policy: Expects origin for fetch to cross-http origin and no-redirect redirection from http context.
+FAIL=Referrer Policy: Expects origin for fetch to cross-http origin and swap-origin redirection from http context.
+FAIL=Referrer Policy: Expects origin for fetch to cross-https origin and keep-origin redirection from http context.
+FAIL=Referrer Policy: Expects origin for fetch to cross-https origin and no-redirect redirection from http context.
+FAIL=Referrer Policy: Expects origin for fetch to cross-https origin and swap-origin redirection from http context.
+FAIL=Referrer Policy: Expects origin for fetch to same-http origin and keep-origin redirection from http context.
+FAIL=Referrer Policy: Expects origin for fetch to same-http origin and no-redirect redirection from http context.
+FAIL=Referrer Policy: Expects origin for fetch to same-http origin and swap-origin redirection from http context.
+FAIL=Referrer Policy: Expects origin for fetch to same-https origin and keep-origin redirection from http context.
+FAIL=Referrer Policy: Expects origin for fetch to same-https origin and no-redirect redirection from http context.
+FAIL=Referrer Policy: Expects origin for fetch to same-https origin and swap-origin redirection from http context.
 [referrer-policy/gen/top.http-rp/origin/iframe-tag.http.html]
 harness=TIMEOUT
 [referrer-policy/gen/top.http-rp/origin/img-tag.http.html]
@@ -2732,7 +2744,18 @@ harness=TIMEOUT
 [referrer-policy/gen/top.http-rp/strict-origin/worker-module.http.html]
 harness=TIMEOUT
 [referrer-policy/gen/top.http-rp/strict-origin/xhr.http.html]
-harness=TIMEOUT
+FAIL=Referrer Policy: Expects origin for xhr to cross-http origin and keep-origin redirection from http context.
+FAIL=Referrer Policy: Expects origin for xhr to cross-http origin and no-redirect redirection from http context.
+FAIL=Referrer Policy: Expects origin for xhr to cross-http origin and swap-origin redirection from http context.
+FAIL=Referrer Policy: Expects origin for xhr to cross-https origin and keep-origin redirection from http context.
+FAIL=Referrer Policy: Expects origin for xhr to cross-https origin and no-redirect redirection from http context.
+FAIL=Referrer Policy: Expects origin for xhr to cross-https origin and swap-origin redirection from http context.
+FAIL=Referrer Policy: Expects origin for xhr to same-http origin and keep-origin redirection from http context.
+FAIL=Referrer Policy: Expects origin for xhr to same-http origin and no-redirect redirection from http context.
+FAIL=Referrer Policy: Expects origin for xhr to same-http origin and swap-origin redirection from http context.
+FAIL=Referrer Policy: Expects origin for xhr to same-https origin and keep-origin redirection from http context.
+FAIL=Referrer Policy: Expects origin for xhr to same-https origin and no-redirect redirection from http context.
+FAIL=Referrer Policy: Expects origin for xhr to same-https origin and swap-origin redirection from http context.
 [referrer-policy/gen/top.http-rp/unsafe-url/a-tag.http.html]
 harness=TIMEOUT
 [referrer-policy/gen/top.http-rp/unsafe-url/fetch.http.html]

@@ -46,7 +46,7 @@ harness=TIMEOUT
 [webstorage/event_local_url.html]
 harness=TIMEOUT
 [webstorage/event_local_window_open_oldvalue.html]
-FAIL=oldValue property test of local event from window.open() - Local event is fired due to an invocation of the setItem(), clear() methods.
+harness=TIMEOUT
 [webstorage/event_no_duplicates.html]
 harness=TIMEOUT
 [webstorage/event_session_key.html]
@@ -62,7 +62,7 @@ harness=TIMEOUT
 [webstorage/event_session_url.html]
 harness=TIMEOUT
 [webstorage/event_session_window_open_scope.html]
-FAIL=sessionStorage events from a new window opened via window.open() should not fire in the opener
+harness=TIMEOUT
 [webstorage/event_setattribute.html]
 FAIL=localStorage mutations fire StorageEvents that are caught by the event listener attached via setattribute.
 FAIL=sessionStorage mutations fire StorageEvents that are caught by the event listener attached via setattribute.
@@ -117,15 +117,15 @@ FAIL=localStorage retains comparable quota after sessionStorage exhaustion
 [webstorage/storage_local_setitem_quotaexceedederr.window.html]
 FAIL=Throws QuotaExceededError when the quota has been exceeded
 [webstorage/storage_local_window_open.window.html]
-FAIL=A new window to make sure there is a copy of the previous window's localStorage, and that they do not diverge after a change
+harness=TIMEOUT
 [webstorage/storage_session_quota_independent_from_local.window.html]
 FAIL=sessionStorage retains comparable quota after localStorage exhaustion
 [webstorage/storage_session_setitem_quotaexceedederr.window.html]
 FAIL=Throws QuotaExceededError when the quota has been exceeded
 [webstorage/storage_session_window_noopener.window.html]
-FAIL=A new noopener window to make sure there is a not copy of the previous window's sessionStorage
+harness=TIMEOUT
 [webstorage/storage_session_window_open.window.html]
-FAIL=A new window to make sure there is a copy of the previous window's sessionStorage, and that they diverge after a change
+harness=TIMEOUT
 [webstorage/storage_session_window_reopen.window.html]
 FAIL=ensure that re-opening a named window doesn't copy sessionStorage
 [webstorage/storage_setitem.window.html]

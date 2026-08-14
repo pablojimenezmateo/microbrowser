@@ -1,72 +1,76 @@
 [webmessaging/Channel_postMessage_Blob.any.html]
 FAIL=Test Description: Messages can contain Blobs.
 [webmessaging/Channel_postMessage_Blob.any.worker.html]
-harness=TIMEOUT
-[webmessaging/Channel_postMessage_DataCloneErr.any.html]
-FAIL=Throw a DataCloneError when a host object (e.g. a DOM node) is used with postMessage.
+harness=ERROR
 [webmessaging/Channel_postMessage_DataCloneErr.any.worker.html]
-harness=TIMEOUT
+FAIL=Throw a DataCloneError when a host object (e.g. a DOM node) is used with postMessage.
 [webmessaging/Channel_postMessage_clone_port.any.html]
 harness=TIMEOUT
 [webmessaging/Channel_postMessage_clone_port.any.worker.html]
-harness=TIMEOUT
-[webmessaging/Channel_postMessage_clone_port_error.any.html]
-FAIL=Test Description: Throw a DataCloneError if transfer array in postMessage contains source port.
+harness=ERROR
 [webmessaging/Channel_postMessage_clone_port_error.any.worker.html]
-harness=TIMEOUT
+FAIL=Test Description: Throw a DataCloneError if transfer array in postMessage contains source port.
 [webmessaging/Channel_postMessage_event_properties.any.html]
 FAIL=Test Description: The postMessage() method - Create an event that uses the MessageEvent interface, with the name message, which does not bubble and is not cancelable.
 [webmessaging/Channel_postMessage_event_properties.any.worker.html]
-harness=TIMEOUT
+harness=ERROR
 [webmessaging/Channel_postMessage_ports_readonly_array.any.html]
 harness=TIMEOUT
 [webmessaging/Channel_postMessage_ports_readonly_array.any.worker.html]
-harness=TIMEOUT
+harness=ERROR
 [webmessaging/Channel_postMessage_target_source.any.worker.html]
-harness=TIMEOUT
+harness=ERROR
 [webmessaging/Channel_postMessage_transfer_xsite_incoming_messages.window.html]
 harness=TIMEOUT
 [webmessaging/Channel_postMessage_with_transfer_entangled.any.html]
 FAIL=An entangled port transferred to the same origin receives messages in order
 [webmessaging/Channel_postMessage_with_transfer_entangled.any.worker.html]
-harness=TIMEOUT
+FAIL=An entangled port transferred to the same origin receives messages in order
 [webmessaging/Channel_postMessage_with_transfer_incoming_messages.any.html]
-FAIL=When transferring a non-enabled port mutiple times,
+FAIL:esc=When transferring a non-enabled port mutiple times,\n    incoming messages sent at various transfer steps are received in order upon enablement.
 [webmessaging/Channel_postMessage_with_transfer_incoming_messages.any.worker.html]
-harness=TIMEOUT
+FAIL:esc=When transferring a non-enabled port mutiple times,\n    incoming messages sent at various transfer steps are received in order upon enablement.
 [webmessaging/Channel_postMessage_with_transfer_outgoing_messages.any.html]
-FAIL=When transferring a port,
+FAIL:esc=When transferring a port,\n    outgoing messages sent at each transfer step are received in order by the entangled port.
 [webmessaging/Channel_postMessage_with_transfer_outgoing_messages.any.worker.html]
-harness=TIMEOUT
+FAIL:esc=When transferring a port,\n    outgoing messages sent at each transfer step are received in order by the entangled port.
 [webmessaging/MessageEvent-trusted.any.html]
 harness=TIMEOUT
 [webmessaging/MessageEvent-trusted.any.worker.html]
-harness=TIMEOUT
+FAIL=With a BroadcastChannel
+FAIL=With a MessageChannel and its MessagePorts
 [webmessaging/MessageEvent-trusted.window.html]
 FAIL=With window
-[webmessaging/MessageEvent.any.html]
-FAIL=initMessageEvent with no arguments
 [webmessaging/MessageEvent.any.worker.html]
-harness=TIMEOUT
+FAIL=mozInitMessageEvent on the prototype
+FAIL=msInitMessageEvent on the prototype
+FAIL=oInitMessageEvent on the prototype
+FAIL=webkitInitMessageEvent on the prototype
 [webmessaging/MessageEvent_properties.htm]
 harness=TIMEOUT
 [webmessaging/MessagePort_initial_disabled.any.worker.html]
-harness=TIMEOUT
+FAIL=MessagePort_initial_disabled
 [webmessaging/MessagePort_onmessage_start.any.worker.html]
-harness=TIMEOUT
+FAIL=MessagePort_onmessage_start
 [webmessaging/Transferred_objects_unusable.sub.htm]
 harness=TIMEOUT
 [webmessaging/broadcastchannel/basics.any.html]
 FAIL=BroadcastChannel constructor called as normal function
 FAIL=postMessage results in correct event
 [webmessaging/broadcastchannel/basics.any.worker.html]
-harness=TIMEOUT
+FAIL=BroadcastChannel constructor called as normal function
+FAIL=Closing a channel in onmessage prevents already queued tasks from firing onmessage events
+FAIL=closing and creating channels during message delivery works correctly
+FAIL=messages are delivered in port creation order
+FAIL=messages aren't delivered to a closed port
+FAIL=messages aren't delivered to a port closed after calling postMessage.
+FAIL=postMessage results in correct event
 [webmessaging/broadcastchannel/blobs.html]
 harness=TIMEOUT
 [webmessaging/broadcastchannel/cross-origin.html]
 FAIL=Messages aren't delivered across origins
 [webmessaging/broadcastchannel/cross-partition.https.tentative.html]
-harness=TIMEOUT
+harness=ERROR
 [webmessaging/broadcastchannel/detached-iframe.html]
 FAIL=BroadcastChannel messages from detached iframe to parent should be ignored (BC created after detaching)
 FAIL=BroadcastChannel messages from detached iframe to parent should be ignored (BC created before detaching)
@@ -76,12 +80,21 @@ FAIL=BroadcastChannel messages within detached iframe should be ignored (BCs cre
 FAIL=BroadcastChannel messages within detached iframe should be ignored (BCs created before detaching)
 [webmessaging/broadcastchannel/interface.any.html]
 FAIL=Should throw if no name is provided
+FAIL=postMessage without parameters should throw
+[webmessaging/broadcastchannel/interface.any.worker.html]
+FAIL=BroadcastChannel should have an onmessage event
+FAIL=Non-empty name should not throw
+FAIL=Non-string name should not throw
+FAIL=Null name should not throw
+FAIL=Should throw if no name is provided
+FAIL=Undefined name should not throw
+FAIL=close should not throw
+FAIL=close should not throw when called multiple times
 FAIL=postMessage after close should throw
 FAIL=postMessage should throw InvalidStateError after close, even with uncloneable data
 FAIL=postMessage should throw with uncloneable data
+FAIL=postMessage with null should not throw
 FAIL=postMessage without parameters should throw
-[webmessaging/broadcastchannel/interface.any.worker.html]
-harness=TIMEOUT
 [webmessaging/broadcastchannel/opaque-origin.html]
 harness=TIMEOUT
 [webmessaging/broadcastchannel/ordering.html]
@@ -105,7 +118,7 @@ harness=TIMEOUT
 [webmessaging/event.source.xorigin.sub.htm]
 harness=TIMEOUT
 [webmessaging/message-channels/basics.any.worker.html]
-harness=TIMEOUT
+FAIL=basics
 [webmessaging/message-channels/close-event/document-destroyed.tentative.window.html]
 harness=TIMEOUT
 [webmessaging/message-channels/close-event/entangled-after-back-forward-cache-restore.https.tentative.window.html]
@@ -115,35 +128,40 @@ harness=TIMEOUT
 [webmessaging/message-channels/close-event/garbage-collected.tentative.any.html]
 harness=TIMEOUT
 [webmessaging/message-channels/close-event/garbage-collected.tentative.any.worker.html]
-harness=TIMEOUT
+FAIL=Entangled port is garbage collected, and the close event is fired.
 [webmessaging/message-channels/close.any.html]
 FAIL=Message sent to closed port from transferred port should not arrive.
 FAIL=close() detaches a MessagePort (but not the one its entangled with)
 [webmessaging/message-channels/close.any.worker.html]
-harness=TIMEOUT
+FAIL=Close in onmessage should not cancel inflight messages.
+FAIL=Inflight messages should be delivered even when sending port is closed afterwards.
+FAIL=Message sent from closed port should not arrive.
+FAIL=Message sent to closed port from transferred port should not arrive.
+FAIL=Message sent to closed port should not arrive.
+FAIL=close() detaches a MessagePort (but not the one its entangled with)
 [webmessaging/message-channels/cross-document.html]
 FAIL=cross-document channel
 [webmessaging/message-channels/detached-iframe.window.html]
 FAIL=MessageChannel created from a detached iframe should not send messages (remove after create)
 FAIL=MessageChannel created from a detached iframe should not send messages (remove before create)
 [webmessaging/message-channels/dictionary-transferrable.any.worker.html]
-harness=TIMEOUT
+FAIL=dictionary-transferrable
 [webmessaging/message-channels/implied-start.any.worker.html]
-harness=TIMEOUT
+FAIL=implied-start
 [webmessaging/message-channels/no-start.any.worker.html]
-harness=TIMEOUT
+FAIL=no-start
 [webmessaging/message-channels/user-activation.tentative.any.html]
 FAIL=user activation messagechannel test
 [webmessaging/message-channels/user-activation.tentative.any.worker.html]
-harness=TIMEOUT
+FAIL=user-activation
 [webmessaging/message-channels/worker-post-after-close.any.html]
 harness=TIMEOUT
 [webmessaging/message-channels/worker-post-after-close.any.worker.html]
-harness=TIMEOUT
+FAIL=MessageChannel/MessagePort should not work after a worker self.close()
 [webmessaging/message-channels/worker.any.html]
 harness=TIMEOUT
 [webmessaging/message-channels/worker.any.worker.html]
-harness=TIMEOUT
+FAIL=MessageChannel/MessagePort created and used after a worker self.close()
 [webmessaging/messageerror.html]
 FAIL=The default value of onmessageerror is null
 FAIL=The onmessageerror content attribute must be compiled into the onmessageerror property
@@ -161,7 +179,7 @@ harness=TIMEOUT
 [webmessaging/postMessage_ArrayBuffer.sub.htm]
 harness=TIMEOUT
 [webmessaging/postMessage_CryptoKey_insecure.sub.html]
-FAIL=insecure context should not receive an object for secure contexts only
+harness=TIMEOUT
 [webmessaging/postMessage_Date.sub.htm]
 harness=TIMEOUT
 [webmessaging/postMessage_Document.htm]
@@ -299,10 +317,9 @@ FAIL=origin of the script that invoked the method, scheme/host/port
 harness=TIMEOUT
 [webmessaging/without-ports/021.html]
 harness=TIMEOUT
-[webmessaging/without-ports/024.html]
-FAIL=Object cloning: throw an exception if function values encountered
 [webmessaging/without-ports/025.html]
-harness=TIMEOUT
+FAIL=Worker MessageChannel's port should be an instance of MessagePort
+FAIL=Worker MessagePort should not be [[Callable]]
 [webmessaging/without-ports/026.html]
 FAIL=Cloning objects with getter properties
 [webmessaging/without-ports/027.html]
@@ -312,4 +329,4 @@ FAIL=Cloning objects, preserving sharing #2
 [webmessaging/without-ports/029.html]
 FAIL=Check that getters don't linger after deletion wrt cloning
 [webmessaging/worker_postMessage_user_activation.tentative.html]
-harness=TIMEOUT
+FAIL=Post Message from a worker

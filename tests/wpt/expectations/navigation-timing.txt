@@ -49,11 +49,11 @@ FAIL=Each window has a unique nav timing 2 instance.
 [navigation-timing/navigation-type-post-backforward.html]
 harness=TIMEOUT
 [navigation-timing/nested-unload-timing.html]
-FAIL=Navigation Timing: unload event with nested contexts
+harness=TIMEOUT
 [navigation-timing/po-navigation.html]
 FAIL=navigation entry is observable
 [navigation-timing/prefetch-transfer-size-executor.html]
-FAIL=Navigation timing transfer size for a prefetched navigation should be 0.
+harness=TIMEOUT
 [navigation-timing/prefetch-transfer-size-iframe.html]
 harness=TIMEOUT
 [navigation-timing/redirect-tao.html]

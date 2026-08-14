@@ -144,10 +144,6 @@ FAIL=A steps(1, end) function on a keyframe affects the resulting style
 FAIL=A steps(1, start) function on a keyframe affects the resulting style
 FAIL=A steps(2, end) function on a keyframe affects the resulting style
 FAIL=A steps(2, start) function on a keyframe affects the resulting style
-[web-animations/animation-model/keyframe-effects/keyframe-exceptions.html]
-FAIL=Invalid offset
-FAIL=Offsets must be loosely sorted
-FAIL=Offsets must be null or in the range [0,1]
 [web-animations/animation-trigger/event-trigger-before-handlers.tentative.html]
 FAIL=Animation triggers are handled before registered event listeners
 [web-animations/animation-trigger/event-trigger-once.tentative.html]
@@ -412,23 +408,11 @@ FAIL=Allows setting the iterationStart of an animation in progress: active phase
 FAIL=Allows setting the iterationStart of an animation in progress: backwards-filling
 FAIL=Allows setting the iterationStart of an animation in progress: forwards-filling
 FAIL=Allows setting the iterations of an animation in progress
-FAIL=Throws when setting invalid delay value: -Infinity
-FAIL=Throws when setting invalid delay value: Infinity
-FAIL=Throws when setting invalid delay value: NaN
 FAIL=Throws when setting invalid duration: "100"
 FAIL=Throws when setting invalid duration: "abc"
 FAIL=Throws when setting invalid duration: -1
 FAIL=Throws when setting invalid duration: -Infinity
 FAIL=Throws when setting invalid duration: NaN
-FAIL=Throws when setting invalid iterationStart value: -1
-FAIL=Throws when setting invalid iterationStart value: -Infinity
-FAIL=Throws when setting invalid iterationStart value: Infinity
-FAIL=Throws when setting invalid iterationStart value: NaN
-FAIL=Throws when setting invalid iterations value: -1
-FAIL=Throws when setting invalid iterations value: -Infinity
-FAIL=Throws when setting invalid iterations value: NaN
-FAIL=Throws when setting the endDelay to infinity
-FAIL=Throws when setting the endDelay to negative infinity
 FAIL=Updates the specified value when setting the easing to 'cubic-bezier(0.1, 5, 0.23, 0)'
 FAIL=Updates the specified value when setting the easing to 'ease'
 FAIL=Updates the specified value when setting the easing to 'ease-in'

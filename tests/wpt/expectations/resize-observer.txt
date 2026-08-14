@@ -1,9 +1,11 @@
 [resize-observer/callback-cross-realm-report-exception.html]
 harness=TIMEOUT
 [resize-observer/change-layout-in-error.html]
-FAIL=Changing layout in window error handler should not result in lifecyle loop when resize observer loop limit is reached.
-[resize-observer/eventloop.html]
 harness=TIMEOUT
+[resize-observer/eventloop.html]
+FAIL=test0: multiple notifications inside same event loop
+FAIL=test1: depths of shadow roots
+FAIL=test2: move target in dom while inside event loop
 [resize-observer/fragments.html]
 FAIL=Adding 2nd fragment
 FAIL=Resizing 2nd fragment
@@ -12,8 +14,6 @@ FAIL=Resizing all fragments
 FAIL=idl_test setup
 [resize-observer/notify.html]
 harness=TIMEOUT
-[resize-observer/observe-003.html]
-FAIL=throw exception when observing non-element
 [resize-observer/observe-006.html]
 harness=TIMEOUT
 [resize-observer/observe-007.html]

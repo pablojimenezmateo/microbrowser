@@ -2,7 +2,9 @@
 FAIL=Performance interface extends EventTarget.
 FAIL=self.performance.now() returns a positive number
 [hr-time/basic.any.worker.html]
-harness=TIMEOUT
+FAIL=High resolution time has approximately the right relative magnitude
+FAIL=Performance interface extends EventTarget.
+FAIL=self.performance.now() returns a positive number
 [hr-time/clamped-time-origin-isolated.https.html]
 FAIL=timeOrigins are clamped.
 [hr-time/clamped-time-origin.html]
@@ -14,7 +16,7 @@ FAIL=idl_test setup
 [hr-time/monotonic-clock.any.html]
 FAIL=self.performance.now() returns a positive number
 [hr-time/monotonic-clock.any.worker.html]
-harness=TIMEOUT
+FAIL=self.performance.now() returns a positive number
 [hr-time/navigation-start-post-before-unload.html]
 harness=TIMEOUT
 [hr-time/performance-tojson.html]

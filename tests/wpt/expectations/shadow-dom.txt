@@ -105,8 +105,7 @@ FAIL=assignedSlot must return null when the assigned slot element is inside a cl
 FAIL=assignedSlot must return null when the node does not have an assigned node
 FAIL=assignedSlot must return the assigned slot
 [shadow-dom/accesskey.tentative.html]
-FAIL=button element with accesskey in the shadow tree of closed mode
-FAIL=button element with accesskey in the shadow tree of open mode
+harness=TIMEOUT
 [shadow-dom/attachShadow-with-ShadowRoot.html]
 FAIL=can use ShadowRoot as options for attachShadow
 FAIL=can use ShadowRoot in document fragment as options for attachShadow
@@ -227,9 +226,9 @@ harness=TIMEOUT
 [shadow-dom/declarative/tentative/shadowrootadoptedstylesheets/shadowrootadoptedstylesheets-serialization.html]
 FAIL=getHTML() ignores script-added entries in adoptedStyleSheets and emits only the authored shadowrootadoptedstylesheets value.
 [shadow-dom/dragenter-related-target.html]
-harness=TIMEOUT
+FAIL=dragleave relatedTarget should be retargeted to shadow host when entering shadow DOM
 [shadow-dom/dragleave-related-target.html]
-harness=TIMEOUT
+FAIL=dragleave relatedTarget should be retargeted to shadow host when entering shadow DOM
 [shadow-dom/event-composed-path-with-related-target.html]
 FAIL=Event path for an event with a relatedTarget which is identical to target. Event should be dispatched and should stop at the shadow root.
 FAIL=Event path for an event with a relatedTarget. Event should be dispatched at every slots.
@@ -383,8 +382,6 @@ FAIL=Testing tab navigation order with mode open, tabindex=1 and delegatesFocus=
 FAIL=Focus controller should treat slots as a focus scope.
 [shadow-dom/focus-navigation/focus-nested-slots.html]
 FAIL=Verifies that focus order goes in flat tree order with buttons inside nested slots which have a mixture of assigned and unassigned states.
-[shadow-dom/focus-navigation/focus-reverse-unassignable-slot.html]
-FAIL=Verifies that focusing backwards from an input inside a slot which has no shadow root goes to the previous focusable element in light DOM.
 [shadow-dom/focus-navigation/focus-reverse-unassigned-slot.html]
 FAIL=Verifies that focusing backwards from a button inside a slot which has no assigned nodes goes to the previous focusable element.
 [shadow-dom/focus-navigation/focus-unassignable-slot.html]
@@ -637,7 +634,7 @@ FAIL=document.applets should not contain any nodes
 FAIL=document.embeds should not contain shadow nodes
 FAIL=document.plugins should not contain shadow nodes
 [shadow-dom/leaktests/selection.html]
-harness=TIMEOUT
+FAIL=selection API should not leak nodes in Shadow DOM.
 [shadow-dom/leaktests/window-frames.html]
 FAIL=window.frames should not leak frames in Shadow DOM.
 [shadow-dom/offsetParent-across-shadow-boundaries.html]
@@ -876,7 +873,7 @@ FAIL=The user agent should scroll to an anchor element with a name attribute exa
 FAIL=The user agent should scroll to an element with an ID exactly equal to the decoded fragid in the document tree even if there was another element with the same ID inside a closed shadow tree earlier in tree order
 FAIL=The user agent should scroll to an element with an ID exactly equal to the decoded fragid in the document tree even if there was another element with the same ID inside an open shadow tree earlier in tree order
 [shadow-dom/shadow-root-clonable.html]
-harness=TIMEOUT
+FAIL=attachShadow with clonable: true
 [shadow-dom/slotchange-customelements.html]
 FAIL=slotchange must fire on initialization of custom elements with slotted children
 [shadow-dom/slotchange-event.html]

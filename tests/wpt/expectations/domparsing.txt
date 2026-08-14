@@ -35,37 +35,6 @@ FAIL=innerHTML in XHTML: getting while the document is in an invalid state 1
 harness=TIMEOUT
 [domparsing/innerhtml-05.xhtml]
 harness=TIMEOUT
-[domparsing/innerhtml-mxss.sub.html]
-FAIL=href after setter: 1680
-FAIL=href after setter: 2000
-FAIL=href after setter: 2001
-FAIL=href after setter: 2002
-FAIL=href after setter: 2003
-FAIL=href after setter: 2004
-FAIL=href after setter: 2005
-FAIL=href after setter: 2006
-FAIL=href after setter: 2007
-FAIL=href after setter: 2008
-FAIL=href after setter: 2009
-FAIL=href after setter: 200a
-FAIL=href after setter: 2028
-FAIL=href after setter: 205f
-FAIL=href after setter: 3000
-FAIL=href before setter: 1680
-FAIL=href before setter: 2000
-FAIL=href before setter: 2001
-FAIL=href before setter: 2002
-FAIL=href before setter: 2003
-FAIL=href before setter: 2004
-FAIL=href before setter: 2005
-FAIL=href before setter: 2006
-FAIL=href before setter: 2007
-FAIL=href before setter: 2008
-FAIL=href before setter: 2009
-FAIL=href before setter: 200a
-FAIL=href before setter: 2028
-FAIL=href before setter: 205f
-FAIL=href before setter: 3000
 [domparsing/insert_adjacent_html-xhtml.xhtml]
 harness=TIMEOUT
 [domparsing/style_attribute_html.html]

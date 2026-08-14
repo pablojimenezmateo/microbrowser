@@ -13,23 +13,49 @@ FAIL=Attributes are not children of their parents
 FAIL=Elements are parents of their attributes
 [domxpath/evaluator-constructor.html]
 FAIL=Constructor with 'new'
-FAIL=Constructor without 'new'
 [domxpath/evaluator-cross-realm.tentative.html]
 harness=TIMEOUT
 [domxpath/evaluator-different-document.tentative.html]
-harness=TIMEOUT
+FAIL=evaluate operation on HTML document, context node in HTML document, no namespace resolver
+FAIL=evaluate operation on HTML document, context node in HTML document, with namespace resolver
+FAIL=evaluate operation on HTML document, context node in XML document, no namespace resolver
+FAIL=evaluate operation on HTML document, context node in XML document, with namespace resolver
+FAIL=evaluate operation on XML document, context node in HTML document, no namespace resolver
+FAIL=evaluate operation on XML document, context node in HTML document, with namespace resolver
+FAIL=evaluate operation on XML document, context node in XML document, no namespace resolver
+FAIL=evaluate operation on XML document, context node in XML document, with namespace resolver
 [domxpath/expression-cross-realm.tentative.html]
 harness=TIMEOUT
 [domxpath/expression-different-document.tentative.html]
-harness=TIMEOUT
+FAIL=expression from HTML document, context node in HTML document, no namespace resolver
+FAIL=expression from HTML document, context node in HTML document, with namespace resolver
+FAIL=expression from HTML document, context node in XML document, no namespace resolver
+FAIL=expression from HTML document, context node in XML document, with namespace resolver
+FAIL=expression from XML document, context node in HTML document, no namespace resolver
+FAIL=expression from XML document, context node in HTML document, with namespace resolver
+FAIL=expression from XML document, context node in XML document, no namespace resolver
+FAIL=expression from XML document, context node in XML document, with namespace resolver
 [domxpath/fn-concat.html]
 FAIL=concat() arguments depending on the context node
 [domxpath/fn-contains.html]
 FAIL=contains() arguments depending on the context node
 [domxpath/fn-id.html]
-harness=TIMEOUT
+FAIL=id(" test1 "): <root><div id="test1">Match</div></root>
+FAIL=id(""): <root><div id="">Empty ID</div></root>
+FAIL=id("Test1"): <root><div id="test1">No match</div></root>
+FAIL=id("duplicate"): <root><div id="duplicate">First</div><div id="duplicate">Second</div></root>
+FAIL=id("nonexistent"): <root><div id="test1">No match</div></root>
+FAIL=id("test-1"): <root><div id="test-1">Match</div></root>
+FAIL=id("test1 test2"): <root><div id="test1">First</div><div id="test2">Second</div></root>
+FAIL=id("test1"): <root><div id="test1">Match</div></root>
 [domxpath/fn-lang.html]
-harness=TIMEOUT
+FAIL=lang("en"): <root><match xml:lang="EN"></match></root>
+FAIL=lang("en"): <root><match xml:lang="en"></match></root>
+FAIL=lang("en"): <root><match xml:lang="en-us"></match></root>
+FAIL=lang("en"): <root><unmatch></unmatch></root>
+FAIL=lang("ja"): <root xml:lang="ja"><match></match></root>
+FAIL=lang("ja"): <root xml:lang="ja-jp"><unmatch xml:lang="ja_JP"></unmatch></root>
+FAIL=lang("ko"): <root><unmatch xml:lang="U+212ao"></unmatch></root>
 [domxpath/fn-normalize-space.html]
 FAIL=normalize-space() should handle only #x20, #x9, #xD, and #xA
 FAIL=normalize-space() without arguments

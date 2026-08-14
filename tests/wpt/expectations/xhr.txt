@@ -3,19 +3,19 @@ FAIL=setting on synchronous XHR
 FAIL=setting withCredentials when in DONE state (synchronous)
 FAIL=setting withCredentials when not in UNSENT, OPENED state (asynchronous)
 [xhr/XMLHttpRequest-withCredentials.any.worker.html]
-harness=TIMEOUT
-[xhr/abort-after-receive.any.worker.html]
-harness=TIMEOUT
+FAIL=setting on synchronous XHR
+FAIL=setting withCredentials when in DONE state (synchronous)
+FAIL=setting withCredentials when not in UNSENT, OPENED state (asynchronous)
 [xhr/abort-after-send.any.html]
 FAIL=XMLHttpRequest: abort() after send()
 [xhr/abort-after-send.any.worker.html]
-harness=TIMEOUT
+FAIL=abort-after-send
 [xhr/abort-after-stop.window.html]
 FAIL=XMLHttpRequest: abort event should fire when stop() method is used
 [xhr/abort-after-timeout.any.html]
 FAIL=XMLHttpRequest: abort() after a timeout should not fire "abort" event
 [xhr/abort-after-timeout.any.worker.html]
-harness=TIMEOUT
+FAIL=abort-after-timeout
 [xhr/abort-during-done.window.html]
 FAIL=XMLHttpRequest: abort() during DONE (async)
 FAIL=XMLHttpRequest: abort() during DONE (sync aborted in readystatechange)
@@ -29,103 +29,83 @@ harness=TIMEOUT
 [xhr/abort-during-open.any.html]
 FAIL=XMLHttpRequest: abort() during OPEN
 [xhr/abort-during-open.any.worker.html]
-harness=TIMEOUT
-[xhr/abort-during-readystatechange.any.worker.html]
-harness=TIMEOUT
-[xhr/abort-during-unsent.any.worker.html]
-harness=TIMEOUT
+FAIL=XMLHttpRequest: abort() during OPEN
 [xhr/abort-during-upload.any.html]
 FAIL=XMLHttpRequest: abort() while sending data
 [xhr/abort-during-upload.any.worker.html]
-harness=TIMEOUT
+FAIL=abort-during-upload
 [xhr/abort-event-abort.any.html]
 FAIL=XMLHttpRequest: The abort() method: do not fire abort event in OPENED state when send() flag is unset.
 [xhr/abort-event-abort.any.worker.html]
-harness=TIMEOUT
-[xhr/abort-event-listeners.any.worker.html]
-harness=TIMEOUT
+FAIL=abort-event-abort
 [xhr/abort-event-loadend.any.html]
 FAIL=XMLHttpRequest: The abort() method: Fire a progress event named loadend
 [xhr/abort-event-loadend.any.worker.html]
-harness=TIMEOUT
+FAIL=abort-event-loadend
 [xhr/abort-event-order.htm]
 harness=TIMEOUT
 [xhr/abort-progress-events.any.html]
 FAIL=Calling open/abort in readystatechange should not crash
 [xhr/abort-progress-events.any.worker.html]
-harness=TIMEOUT
+FAIL=Calling open/abort in readystatechange should not crash
 [xhr/abort-upload-event-abort.any.html]
 harness=TIMEOUT
 [xhr/abort-upload-event-abort.any.worker.html]
-harness=TIMEOUT
+harness=ERROR
 [xhr/abort-upload-event-loadend.any.html]
 harness=TIMEOUT
 [xhr/abort-upload-event-loadend.any.worker.html]
-harness=TIMEOUT
-[xhr/abort-with-error.any.worker.html]
-harness=TIMEOUT
-[xhr/access-control-and-redirects-async-same-origin.any.html]
-FAIL=Request with credentials is redirected to a cross-origin response with Access-Control-Allow-Origin=* (with star)
-FAIL=Request with credentials is redirected to a cross-origin response with a specific Access-Control-Allow-Origin
-FAIL=Request with credentials is redirected to a cross-origin response with a specific Access-Control-Allow-Origin (no credentials)
-FAIL=Request without credentials is redirected to a cross-origin response with Access-Control-Allow-Origin=* (with star)
-FAIL=Request without credentials is redirected to a cross-origin response with a specific Access-Control-Allow-Origin
-FAIL=Request without credentials is redirected to a cross-origin response with a specific Access-Control-Allow-Origin (no credentials)
-[xhr/access-control-and-redirects-async-same-origin.any.worker.html]
-harness=TIMEOUT
+harness=ERROR
 [xhr/access-control-and-redirects-async.any.html]
-FAIL=Request is redirected to a response with Access-Control-Allow-Origin=*
-FAIL=Request is redirected to a same-origin resource file
+FAIL=Request with user info is redirected to a response with Access-Control-Allow-Origin=*
 [xhr/access-control-and-redirects-async.any.worker.html]
-harness=TIMEOUT
+FAIL=Request with user info is redirected to a response with Access-Control-Allow-Origin=*
 [xhr/access-control-and-redirects.any.html]
 FAIL=Local sync redirect to remote origin
 FAIL=Remote sync redirect to local origin
 FAIL=Remote sync redirect to same remote origin
 [xhr/access-control-and-redirects.any.worker.html]
-harness=TIMEOUT
+FAIL=Local sync redirect to remote origin
+FAIL=Remote sync redirect to local origin
+FAIL=Remote sync redirect to same remote origin
 [xhr/access-control-basic-allow-access-control-origin-header-data-url.htm]
 harness=TIMEOUT
 [xhr/access-control-basic-allow-access-control-origin-header.any.html]
 FAIL=Access control test with origin header
 [xhr/access-control-basic-allow-access-control-origin-header.any.worker.html]
-harness=TIMEOUT
-[xhr/access-control-basic-allow-async.any.html]
-FAIL=Basic async cross-origin XHR request
-[xhr/access-control-basic-allow-async.any.worker.html]
-harness=TIMEOUT
+FAIL=Access control test with origin header
 [xhr/access-control-basic-allow-non-cors-safelisted-method-async.any.html]
 FAIL=Allow async PUT request
 [xhr/access-control-basic-allow-non-cors-safelisted-method-async.any.worker.html]
-harness=TIMEOUT
+FAIL=Allow async PUT request
 [xhr/access-control-basic-allow-non-cors-safelisted-method.any.html]
 FAIL=Allow PUT request
 [xhr/access-control-basic-allow-non-cors-safelisted-method.any.worker.html]
-harness=TIMEOUT
+FAIL=Allow PUT request
 [xhr/access-control-basic-allow-preflight-cache-invalidation-by-header.any.html]
 FAIL=Preflight cache should be invalidated in presence of custom header
 [xhr/access-control-basic-allow-preflight-cache-invalidation-by-header.any.worker.html]
-harness=TIMEOUT
+FAIL=Preflight cache should be invalidated in presence of custom header
 [xhr/access-control-basic-allow-preflight-cache-invalidation-by-method.any.html]
 FAIL=Preflight cache should be invalidated by changed method
 [xhr/access-control-basic-allow-preflight-cache-invalidation-by-method.any.worker.html]
-harness=TIMEOUT
+FAIL=Preflight cache should be invalidated by changed method
 [xhr/access-control-basic-allow-preflight-cache-timeout.any.html]
 FAIL=Preflight cache should be invalidated on timeout
 [xhr/access-control-basic-allow-preflight-cache-timeout.any.worker.html]
-harness=TIMEOUT
+FAIL=Preflight cache should be invalidated on timeout
 [xhr/access-control-basic-allow-preflight-cache.any.html]
 FAIL=Preflight cache should allow second request
 [xhr/access-control-basic-allow-preflight-cache.any.worker.html]
-harness=TIMEOUT
+FAIL=Preflight cache should allow second request
 [xhr/access-control-basic-allow-star.any.html]
 FAIL=Allow star
 [xhr/access-control-basic-allow-star.any.worker.html]
-harness=TIMEOUT
+FAIL=Allow star
 [xhr/access-control-basic-allow.any.html]
 FAIL=Allow basic
 [xhr/access-control-basic-allow.any.worker.html]
-harness=TIMEOUT
+FAIL=Allow basic
 [xhr/access-control-basic-cors-safelisted-request-headers.htm]
 FAIL=Request with CORS-safelisted headers
 [xhr/access-control-basic-cors-safelisted-response-headers.htm]
@@ -142,8 +122,6 @@ FAIL=POST request with text content and no Content-Type header
 [xhr/access-control-basic-post-with-non-cors-safelisted-content-type.htm]
 FAIL=CORS request with non-safelisted content type sends preflight and fails
 FAIL=Same-origin request with non-safelisted content type succeeds
-[xhr/access-control-expose-headers-on-redirect.html]
-FAIL=XHR should respect access-control-expose-headers header on redirect
 [xhr/access-control-preflight-async-header-denied.htm]
 FAIL=Async request denied at preflight
 [xhr/access-control-preflight-async-method-denied.htm]
@@ -161,13 +139,13 @@ FAIL=Preflighted sync request with custom header
 [xhr/access-control-preflight-request-allow-headers-returns-star.any.html]
 FAIL=Access-Control-Allow-Headers supports *
 [xhr/access-control-preflight-request-allow-headers-returns-star.any.worker.html]
-harness=TIMEOUT
+FAIL=access-control-preflight-request-allow-headers-returns-star
 [xhr/access-control-preflight-request-header-lowercase.htm]
 FAIL=Request with uppercase header set
 [xhr/access-control-preflight-request-header-returns-origin.any.html]
 FAIL=Access-Control-Request-Origin accept different origin between preflight and actual request
 [xhr/access-control-preflight-request-header-returns-origin.any.worker.html]
-harness=TIMEOUT
+FAIL=access-control-preflight-request-header-returns-origin
 [xhr/access-control-preflight-request-header-sorted.htm]
 FAIL=Tests that Access-Control-Request-Headers are sorted.
 [xhr/access-control-preflight-request-headers-origin.htm]
@@ -184,8 +162,6 @@ FAIL=Sync PUT request denied at preflight
 FAIL=Tests body from CORS preflight response and actual response with sync request
 [xhr/access-control-response-with-body.htm]
 FAIL=Tests that XHR doesn't prepend the body from CORS preflight response to the actual response
-[xhr/access-control-response-with-exposed-headers.htm]
-FAIL=Test CORS response with 'Access-Control-Expose-Headers' header
 [xhr/access-control-sandboxed-iframe-allow-origin-null.htm]
 harness=TIMEOUT
 [xhr/access-control-sandboxed-iframe-allow.htm]
@@ -196,8 +172,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [xhr/allow-lists-starting-with-comma.htm]
 FAIL=Allow lists starting with a comma should be parsed correctly
-[xhr/anonymous-mode-unsupported.htm]
-FAIL=XMLHttpRequest: anonymous mode unsupported
 [xhr/blob-range.any.html]
 FAIL=A blob range request with no end.
 FAIL=A blob range request with no start.
@@ -227,25 +201,47 @@ FAIL=Blob range with whitespace after hyphen
 FAIL=Blob range with whitespace around equals sign
 FAIL=Blob range with whitespace before and after hyphen
 [xhr/blob-range.any.worker.html]
-harness=TIMEOUT
+FAIL=A blob range request with no end.
+FAIL=A blob range request with no start.
+FAIL=A blob range request with no type.
+FAIL=A simple blob range request with whitespace.
+FAIL=A simple blob range request.
+FAIL=Blob content with short content and a large range end
+FAIL=Blob content with short content and a large range start
+FAIL=Blob content with short content and a range end matching content length
+FAIL=Blob content with short content and a range start matching the content length
+FAIL=Blob range end should be an ASCII digit
+FAIL=Blob range request with multiple range values
+FAIL=Blob range request with multiple range values and whitespace
+FAIL=Blob range request with short range end
+FAIL=Blob range request with trailing comma
+FAIL=Blob range should have a dash
+FAIL=Blob range should include '-'
+FAIL=Blob range should include '='
+FAIL=Blob range should include 'bytes='
+FAIL=Blob range start should be an ASCII digit
+FAIL=Blob range with incorrect range header
+FAIL=Blob range with incorrect range header #2
+FAIL=Blob range with incorrect range header #3
+FAIL=Blob range with no start or end
+FAIL=Blob range with no value
+FAIL=Blob range with whitespace after hyphen
+FAIL=Blob range with whitespace around equals sign
+FAIL=Blob range with whitespace before and after hyphen
 [xhr/close-worker-with-xhr-in-progress.html]
-harness=TIMEOUT
-[xhr/content-type-unmodified.any.html]
-FAIL=content-type-unmodified
-[xhr/content-type-unmodified.any.worker.html]
 harness=TIMEOUT
 [xhr/cookies.http.html]
 FAIL=Basic non-cross-site cookie handling in XHR
 [xhr/cors-expose-star.sub.any.html]
-FAIL=* can be one of several values
 FAIL=* for credentialed fetches only matches literally
-FAIL=Basic Access-Control-Expose-Headers: * support
 [xhr/cors-expose-star.sub.any.worker.html]
-harness=TIMEOUT
+FAIL=* for credentialed fetches only matches literally
 [xhr/cors-upload.any.html]
-harness=TIMEOUT
+FAIL=Cross-Origin POST FormData body but no preflight
+FAIL=Cross-Origin POST with preflight and FormData body
 [xhr/cors-upload.any.worker.html]
-harness=TIMEOUT
+FAIL=Cross-Origin POST FormData body but no preflight
+FAIL=Cross-Origin POST with preflight and FormData body
 [xhr/data-uri.htm]
 FAIL=XHR method DELETE with MIME type text/plain
 FAIL=XHR method GET with MIME type image/png
@@ -257,98 +253,97 @@ FAIL=XHR method HEAD with MIME type text/plain
 FAIL=XHR method POST with MIME type text/plain
 FAIL=XHR method PUT with MIME type text/plain
 FAIL=XHR method UNICORN with MIME type text/plain
-[xhr/event-abort.any.worker.html]
-harness=TIMEOUT
 [xhr/event-error-order.sub.html]
 FAIL=XMLHttpRequest: event - error (order of events)
 [xhr/event-error.sub.any.html]
 FAIL=error while reading body should report zeros for loaded and total
 FAIL=onerror should be called
 [xhr/event-error.sub.any.worker.html]
-harness=TIMEOUT
+FAIL=error while reading body should report zeros for loaded and total
+FAIL=onerror should be called
 [xhr/event-load.any.html]
 FAIL=XMLHttpRequest: The send() method: Fire an event named load (synchronous flag is unset)
 [xhr/event-load.any.worker.html]
-harness=TIMEOUT
+FAIL=event-load
 [xhr/event-loadend.any.html]
 FAIL=XMLHttpRequest: loadend event
 [xhr/event-loadend.any.worker.html]
-harness=TIMEOUT
+FAIL=event-loadend
 [xhr/event-loadstart-upload.any.html]
 FAIL=XMLHttpRequest: The send() method: Fire a progress event named loadstart on upload object (synchronous flag is unset)
 [xhr/event-loadstart-upload.any.worker.html]
-harness=TIMEOUT
+FAIL=event-loadstart-upload
 [xhr/event-loadstart.any.html]
 FAIL=XMLHttpRequest: loadstart event
 [xhr/event-loadstart.any.worker.html]
-harness=TIMEOUT
+FAIL=event-loadstart
 [xhr/event-progress.any.html]
 FAIL=XMLHttpRequest: The send() method: Fire a progress event named progress (synchronous flag is unset)
 [xhr/event-progress.any.worker.html]
-harness=TIMEOUT
+FAIL=event-progress
 [xhr/event-readystate-sync-open.any.html]
 FAIL=XMLHttpRequest: open() call fires sync readystate event (sync)
 [xhr/event-readystate-sync-open.any.worker.html]
-harness=TIMEOUT
+FAIL=XMLHttpRequest: open() call fires sync readystate event (sync)
 [xhr/event-readystatechange-loaded.any.html]
 FAIL=XMLHttpRequest: the LOADING state change may be emitted multiple times
 [xhr/event-readystatechange-loaded.any.worker.html]
-harness=TIMEOUT
+FAIL=event-readystatechange-loaded
 [xhr/event-timeout-order.any.html]
 FAIL=XMLHttpRequest: event - timeout (order of events)
 [xhr/event-timeout-order.any.worker.html]
-harness=TIMEOUT
+FAIL=event-timeout-order
 [xhr/event-timeout.any.html]
 FAIL=XMLHttpRequest: timeout event
 [xhr/event-timeout.any.worker.html]
-harness=TIMEOUT
+FAIL=event-timeout
 [xhr/event-upload-progress-crossorigin.any.html]
-FAIL=Upload events registered on time (http://127.0.0.1:42801/xhr/resources/corsenabled.py)
-FAIL=Upload events registered on time (resources/redirect.py?code=307&location=http://127.0.0.1:42801/xhr/resources/corsenabled.py)
-FAIL=Upload events registered too late (http://127.0.0.1:42801/xhr/resources/corsenabled.py)
-FAIL=Upload events registered too late (resources/redirect.py?code=307&location=http://127.0.0.1:42801/xhr/resources/corsenabled.py)
+FAIL=Upload events registered on time (http://127.0.0.1:43183/xhr/resources/corsenabled.py)
+FAIL=Upload events registered on time (resources/redirect.py?code=307&location=http://127.0.0.1:43183/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (http://127.0.0.1:43183/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (resources/redirect.py?code=307&location=http://127.0.0.1:43183/xhr/resources/corsenabled.py)
 [xhr/event-upload-progress-crossorigin.any.worker.html]
-harness=TIMEOUT
+FAIL=Upload events registered on time (http://127.0.0.1:43183/xhr/resources/corsenabled.py)
+FAIL=Upload events registered on time (resources/redirect.py?code=307&location=http://127.0.0.1:43183/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (http://127.0.0.1:43183/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (resources/redirect.py?code=307&location=http://127.0.0.1:43183/xhr/resources/corsenabled.py)
 [xhr/event-upload-progress.any.html]
-FAIL=Upload events registered on time (http://127.0.0.1:42801/xhr/resources/corsenabled.py)
-FAIL=Upload events registered on time (resources/redirect.py?code=307&location=http://127.0.0.1:42801/xhr/resources/corsenabled.py)
-FAIL=Upload events registered too late (http://127.0.0.1:42801/xhr/resources/corsenabled.py)
-FAIL=Upload events registered too late (resources/redirect.py?code=307&location=http://127.0.0.1:42801/xhr/resources/corsenabled.py)
+FAIL=Upload events registered on time (http://127.0.0.1:43183/xhr/resources/corsenabled.py)
+FAIL=Upload events registered on time (resources/redirect.py?code=307&location=http://127.0.0.1:43183/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (http://127.0.0.1:43183/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (resources/redirect.py?code=307&location=http://127.0.0.1:43183/xhr/resources/corsenabled.py)
 [xhr/event-upload-progress.any.worker.html]
-harness=TIMEOUT
+FAIL=Upload events registered on time (http://127.0.0.1:43183/xhr/resources/corsenabled.py)
+FAIL=Upload events registered on time (resources/redirect.py?code=307&location=http://127.0.0.1:43183/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (http://127.0.0.1:43183/xhr/resources/corsenabled.py)
+FAIL=Upload events registered too late (resources/redirect.py?code=307&location=http://127.0.0.1:43183/xhr/resources/corsenabled.py)
 [xhr/firing-events-http-content-length.html]
 FAIL=ProgressEvent: firing events for HTTP with Content-Length
 [xhr/firing-events-http-no-content-length.html]
 FAIL=ProgressEvent: firing events for HTTP with no Content-Length
 [xhr/formdata.html]
-harness=TIMEOUT
+FAIL=Newly created FormData contains entries added to "formData" IDL attribute of FormDataEvent.
+FAIL=empty formdata
+FAIL=formdata from form
+FAIL=formdata with blob
+FAIL=formdata with named blob
+FAIL=formdata with named string
+FAIL=formdata with string
+FAIL=formdata.append() should throw if value is string and file name is given
+FAIL=|new FormData()| in formdata event handler should throw
 [xhr/formdata/append-formelement.html]
-FAIL=testFormDataAppendToForm1
-FAIL=testFormDataAppendToForm2
-FAIL=testFormDataAppendToFormNull1
-FAIL=testFormDataAppendToFormNull2
 FAIL=testFormDataAppendToFormString
-FAIL=testFormDataAppendToFormUndefined1
-FAIL=testFormDataAppendToFormUndefined2
 FAIL=testFormDataAppendToFormWrongPlatformObject
 [xhr/formdata/append.any.html]
-FAIL=testFormDataAppend1
-FAIL=testFormDataAppend2
 FAIL=testFormDataAppendEmptyBlob
-FAIL=testFormDataAppendNull1
-FAIL=testFormDataAppendNull2
-FAIL=testFormDataAppendUndefined1
-FAIL=testFormDataAppendUndefined2
 [xhr/formdata/append.any.worker.html]
-harness=TIMEOUT
+FAIL=testFormDataAppendEmptyBlob
 [xhr/formdata/constructor-formelement.html]
 FAIL=test that FormData is correctly constructed from the form data set
 [xhr/formdata/constructor-submitter-coordinate.html]
 FAIL=The constructed FormData object should contain correct entries for Image Button submitter's dispatched coordinate
 [xhr/formdata/constructor-submitter.html]
 FAIL=FormData construction should allow a null submitter
-FAIL=FormData construction should allow an undefined form and a null submitter
-FAIL=FormData construction should allow an undefined form and an undefined submitter
 FAIL=FormData construction should throw a 'NotFoundError' DOMException if a non-null submitter is not owned by the form
 FAIL=FormData construction should throw a TypeError if a non-null submitter is not a submit button
 FAIL=The constructed FormData object should contain an in-tree-order entry for a named submit button submitter
@@ -358,77 +353,38 @@ FAIL=The constructed FormData object should not contain an entry for an unnamed 
 [xhr/formdata/constructor.any.html]
 FAIL=Constructors should throw a type error
 [xhr/formdata/constructor.any.worker.html]
-harness=TIMEOUT
+FAIL=Constructors should throw a type error
 [xhr/formdata/delete-formelement.html]
-FAIL=testFormDataDeleteFromEmptyForm
-FAIL=testFormDataDeleteFromForm
 FAIL=testFormDataDeleteFromFormNonExistentKey
 FAIL=testFormDataDeleteFromFormOtherKey
-[xhr/formdata/delete.any.html]
-FAIL=testFormDataDelete
-FAIL=testFormDataDeleteNonExistentKey
-FAIL=testFormDataDeleteOtherKey
-[xhr/formdata/delete.any.worker.html]
-harness=TIMEOUT
 [xhr/formdata/foreach.any.html]
 harness=TIMEOUT
 [xhr/formdata/foreach.any.worker.html]
-harness=TIMEOUT
+harness=ERROR
 [xhr/formdata/get-formelement.html]
-FAIL=testFormDataGetAllFromEmptyForm
 FAIL=testFormDataGetAllFromForm
-FAIL=testFormDataGetAllFromFormNull
-FAIL=testFormDataGetFromEmptyForm
 FAIL=testFormDataGetFromForm
-FAIL=testFormDataGetFromFormNull
-[xhr/formdata/get.any.html]
-FAIL=testFormDataGet
-FAIL=testFormDataGetAll
-FAIL=testFormDataGetAllEmpty1
-FAIL=testFormDataGetAllEmpty2
-FAIL=testFormDataGetNull1
-FAIL=testFormDataGetNull2
-[xhr/formdata/get.any.worker.html]
-harness=TIMEOUT
 [xhr/formdata/has-formelement.html]
-FAIL=testFormDataHasFromEmptyForm
 FAIL=testFormDataHasFromForm
-FAIL=testFormDataHasFromFormNull
-[xhr/formdata/has.any.html]
-FAIL=testFormDataHas
-FAIL=testFormDataHasEmpty1
-FAIL=testFormDataHasEmpty2
-[xhr/formdata/has.any.worker.html]
-harness=TIMEOUT
-[xhr/formdata/iteration.any.html]
-FAIL=Appending a value pair during iteration causes it to be reached during iteration
-FAIL=Iteration skips elements removed while iterating
-FAIL=Removing elements already iterated over causes an element to be skipped during iteration
-[xhr/formdata/iteration.any.worker.html]
-harness=TIMEOUT
 [xhr/formdata/set-blob.any.html]
-harness=TIMEOUT
+FAIL=blob with custom name
+FAIL=blob with type
+FAIL=blob without type
+FAIL=file with lastModified and custom name
+FAIL=file without lastModified or custom name
 [xhr/formdata/set-blob.any.worker.html]
-harness=TIMEOUT
+FAIL=blob with custom name
+FAIL=blob with type
+FAIL=blob without type
+FAIL=file with lastModified and custom name
+FAIL=file without lastModified or custom name
 [xhr/formdata/set-formelement.html]
-FAIL=testFormDataSetToForm1
-FAIL=testFormDataSetToForm2
-FAIL=testFormDataSetToFormNull1
-FAIL=testFormDataSetToFormNull2
 FAIL=testFormDataSetToFormString
-FAIL=testFormDataSetToFormUndefined1
-FAIL=testFormDataSetToFormUndefined2
 FAIL=testFormDataSetToFormWrongPlatformObject
 [xhr/formdata/set.any.html]
-FAIL=testFormDataSet1
-FAIL=testFormDataSet2
 FAIL=testFormDataSetEmptyBlob
-FAIL=testFormDataSetNull1
-FAIL=testFormDataSetNull2
-FAIL=testFormDataSetUndefined1
-FAIL=testFormDataSetUndefined2
 [xhr/formdata/set.any.worker.html]
-harness=TIMEOUT
+FAIL=testFormDataSetEmptyBlob
 [xhr/formdata/submitter-coordinate-value.html]
 FAIL=dispatched event coordinates should match user intention coordinates
 [xhr/getallresponseheaders-after-reuse.html]
@@ -461,7 +417,12 @@ FAIL=getResponseHeader('foo-test') expects 1, 2, 3
 FAIL=getResponseHeader('heya') expects , , 1, , , 2
 FAIL=getResponseHeader('www-authenticate') expects 1, 2, 3, 4
 [xhr/getresponseheader.any.worker.html]
-harness=TIMEOUT
+FAIL=getResponseHeader('content-length') expects 0
+FAIL=getResponseHeader('content-length') expects 0, 0
+FAIL:esc=getResponseHeader('double-trouble') expects , 
+FAIL=getResponseHeader('foo-test') expects 1, 2, 3
+FAIL=getResponseHeader('heya') expects , , 1, , , 2
+FAIL=getResponseHeader('www-authenticate') expects 1, 2, 3, 4
 [xhr/header-user-agent-async.htm]
 FAIL=Async request has User-Agent header
 [xhr/header-user-agent-sync.htm]
@@ -485,15 +446,13 @@ FAIL=Header value: hello_world__
 [xhr/idlharness.any.html]
 FAIL=idl_test setup
 [xhr/idlharness.any.worker.html]
-harness=TIMEOUT
+FAIL=idl_test setup
 [xhr/json.any.html]
 FAIL=Ensure the correct JSON parser is used
 [xhr/json.any.worker.html]
-harness=TIMEOUT
+FAIL=Ensure the correct JSON parser is used
 [xhr/loadstart-and-state.html]
 harness=TIMEOUT
-[xhr/open-after-setrequestheader.htm]
-FAIL=XMLHttpRequest: open() after setRequestHeader()
 [xhr/open-after-stop.window.html]
 FAIL=open() after window.stop()
 [xhr/open-during-abort-event.htm]
@@ -538,12 +497,6 @@ FAIL=XMLHttpRequest: open() - "insecure" methods (trAck)
 FAIL=XMLHttpRequest: open() - "insecure" methods (traCE)
 FAIL=XMLHttpRequest: open() - "insecure" methods (trace)
 FAIL=XMLHttpRequest: open() - "insecure" methods (track)
-[xhr/open-method-responsetype-set-sync.htm]
-FAIL=XMLHttpRequest: open() sync request not allowed if responseType is set (arraybuffer)
-FAIL=XMLHttpRequest: open() sync request not allowed if responseType is set (blob)
-FAIL=XMLHttpRequest: open() sync request not allowed if responseType is set (document)
-FAIL=XMLHttpRequest: open() sync request not allowed if responseType is set (json)
-FAIL=XMLHttpRequest: open() sync request not allowed if responseType is set (text)
 [xhr/open-open-send.htm]
 FAIL=XMLHttpRequest: open() - open() - send()
 [xhr/open-open-sync-send.htm]
@@ -593,15 +546,11 @@ harness=TIMEOUT
 [xhr/open-url-redirected-sharedworker-origin.htm]
 harness=TIMEOUT
 [xhr/open-url-redirected-worker-origin.htm]
-harness=TIMEOUT
+FAIL=Referer header
 [xhr/open-url-worker-origin.htm]
-harness=TIMEOUT
-[xhr/open-url-worker-simple.htm]
-harness=TIMEOUT
+FAIL=Referer header
 [xhr/open-user-password-non-same-origin.htm]
 FAIL=XMLHttpRequest: open() - user/pass argument and non same-origin URL doesn't throw
-[xhr/over-1-meg.any.worker.html]
-harness=TIMEOUT
 [xhr/overridemimetype-blob.html]
 FAIL=1) MIME types need to be parsed and serialized: text/html;charset=gbk
 FAIL=10) MIME types need to be parsed and serialized: text/html;charset= gbk
@@ -682,7 +631,7 @@ FAIL=Use text/xml as fallback MIME type, 2
 [xhr/overridemimetype-done-state.any.html]
 FAIL=overridemimetype-done-state
 [xhr/overridemimetype-done-state.any.worker.html]
-harness=TIMEOUT
+FAIL=overridemimetype-done-state
 [xhr/overridemimetype-edge-cases.window.html]
 FAIL=Charset can be overridden by overrideMimeType() with a bogus charset
 FAIL=If charset is not overridden by overrideMimeType() the original continues to be used
@@ -703,9 +652,8 @@ FAIL=XMLHttpRequest: overrideMimeType() in open state, XML MIME type with UTF-8 
 [xhr/overridemimetype-unsent-state-force-shiftjis.any.html]
 FAIL=XMLHttpRequest: overrideMimeType() in unsent state, enforcing Shift-JIS encoding
 [xhr/overridemimetype-unsent-state-force-shiftjis.any.worker.html]
-harness=TIMEOUT
+FAIL=XMLHttpRequest: overrideMimeType() in unsent state, enforcing Shift-JIS encoding
 [xhr/preserve-ua-header-on-redirect.htm]
-FAIL=XMLHttpRequest: User-Agent header is preserved on redirect
 FAIL=XMLHttpRequest: User-Agent header is preserved on redirect 1
 [xhr/progress-events-response-data-gzip.htm]
 FAIL=XMLHttpRequest: progress events and GZIP encoding
@@ -730,12 +678,14 @@ FAIL=interface prototype object
 FAIL=Fetched blob: URLs set the Content-Length header
 FAIL=Uploads need to set the Content-Length header
 [xhr/request-content-length.any.worker.html]
-harness=TIMEOUT
+FAIL=Fetched blob: URLs set the Content-Length header
+FAIL=Uploads need to set the Content-Length header
 [xhr/response-body-errors.any.html]
 FAIL=Asynchronous XMLHttpRequest should clear response on bad chunk
 FAIL=Synchronous XMLHttpRequest should throw on bad chunk
 [xhr/response-body-errors.any.worker.html]
-harness=TIMEOUT
+FAIL=Asynchronous XMLHttpRequest should clear response on bad chunk
+FAIL=Synchronous XMLHttpRequest should throw on bad chunk
 [xhr/response-data-arraybuffer.htm]
 FAIL=XMLHttpRequest: The response attribute: ArrayBuffer data
 [xhr/response-data-blob.htm]
@@ -747,21 +697,12 @@ FAIL=XMLHttpRequest: GZIP response was correctly inflated
 [xhr/response-data-progress.htm]
 FAIL=XMLHttpRequest: progress events grow response body size, known content-length
 FAIL=XMLHttpRequest: progress events grow response body size, unknown content-length
-[xhr/response-json.htm]
-FAIL=JSON object roundtrip
-FAIL=JSON roundtrip with Japanese text
-FAIL=json response with malformed data: response property is null
-FAIL=json response with no data: response property is null
 [xhr/response-method.htm]
 FAIL=GET
 FAIL=HEAD
 FAIL=POST
 [xhr/responseText-status.html]
 FAIL=XMLHttpRequest Test: responseText - status
-[xhr/responseType-document-in-worker.html]
-harness=TIMEOUT
-[xhr/responseXML-unavailable-in-worker.html]
-harness=TIMEOUT
 [xhr/responsedocument-decoding.htm]
 FAIL=XMLHttpRequest: response document decoding (application/xml %3C%3Fxml%20version%3D'1.0'%20encoding%3D'windows-1252'%3F%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E)
 FAIL=XMLHttpRequest: response document decoding (application/xml;charset=utf-8 %3C%3Fxml%20version%3D'1.0'%20encoding%3D'windows-1252'%3F%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E)
@@ -770,22 +711,13 @@ FAIL=XMLHttpRequest: response document decoding (text/html %3C!doctype%20html%3E
 FAIL=XMLHttpRequest: response document decoding (text/html;charset=utf-8 %3C!doctype%20html%3E%3Cmeta%20charset%3Dwindows-1252%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E)
 FAIL=XMLHttpRequest: response document decoding (text/html;charset=windows-1252 %3C!doctype%20html%3E%3Cmeta%20charset%3Dwindows-1252%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E)
 [xhr/responsetext-decoding.htm]
-FAIL=XMLHttpRequest: responseText decoding (application/xml %3C%3Fxml%20version%3D'1.0'%20encoding%3D'windows-1252'%3F%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E  text)
 FAIL=XMLHttpRequest: responseText decoding (application/xml %3C%3Fxml%20version%3D'1.0'%20encoding%3D'windows-1252'%3F%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E empty)
-FAIL=XMLHttpRequest: responseText decoding (application/xml;charset=utf-8 %3C%3Fxml%20version%3D'1.0'%20encoding%3D'windows-1252'%3F%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E  text)
-FAIL=XMLHttpRequest: responseText decoding (application/xml;charset=utf-8 %3C%3Fxml%20version%3D'1.0'%20encoding%3D'windows-1252'%3F%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E empty)
 FAIL=XMLHttpRequest: responseText decoding (application/xml;charset=windows-1252 %3C%3Fxml%20version%3D'1.0'%20encoding%3D'windows-1252'%3F%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E  text)
 FAIL=XMLHttpRequest: responseText decoding (application/xml;charset=windows-1252 %3C%3Fxml%20version%3D'1.0'%20encoding%3D'windows-1252'%3F%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E empty)
-FAIL=XMLHttpRequest: responseText decoding (text/html %3C!doctype%20html%3E%3Cmeta%20charset%3Dwindows-1252%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E  text)
-FAIL=XMLHttpRequest: responseText decoding (text/html %3C!doctype%20html%3E%3Cmeta%20charset%3Dwindows-1252%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E empty)
-FAIL=XMLHttpRequest: responseText decoding (text/html;charset=utf-8 %3C!doctype%20html%3E%3Cmeta%20charset%3Dwindows-1252%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E  text)
-FAIL=XMLHttpRequest: responseText decoding (text/html;charset=utf-8 %3C!doctype%20html%3E%3Cmeta%20charset%3Dwindows-1252%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E empty)
 FAIL=XMLHttpRequest: responseText decoding (text/html;charset=windows-1252 %3C!doctype%20html%3E%3Cmeta%20charset%3Dwindows-1252%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E  text)
 FAIL=XMLHttpRequest: responseText decoding (text/html;charset=windows-1252 %3C!doctype%20html%3E%3Cmeta%20charset%3Dwindows-1252%3E%3Cx%3E%e6%a9%9f%3C%2Fx%3E empty)
 FAIL=XMLHttpRequest: responseText decoding (text/plain %C2  text)
 FAIL=XMLHttpRequest: responseText decoding (text/plain %C2 empty)
-FAIL=XMLHttpRequest: responseText decoding (text/plain %E3%81%B2  text)
-FAIL=XMLHttpRequest: responseText decoding (text/plain %E3%81%B2 empty)
 FAIL=XMLHttpRequest: responseText decoding (text/plain %EF%BB%BF  text)
 FAIL=XMLHttpRequest: responseText decoding (text/plain %EF%BB%BF empty)
 FAIL=XMLHttpRequest: responseText decoding (text/plain %EF%BB%BF%EF%BB%BF  text)
@@ -844,14 +776,46 @@ FAIL=Set responseType to "text" when readyState is DONE.
 FAIL=Set responseType to "text" when readyState is LOADING.
 FAIL=Set responseType to "text" when readyState is OPENED and the sync flag is set.
 [xhr/responsetype.any.worker.html]
-harness=TIMEOUT
+FAIL=Set responseType to "" when readyState is DONE and the sync flag is set.
+FAIL=Set responseType to "" when readyState is DONE.
+FAIL=Set responseType to "" when readyState is LOADING.
+FAIL=Set responseType to "" when readyState is OPENED and the sync flag is set.
+FAIL=Set responseType to "arraybuffer" when readyState is DONE and the sync flag is set.
+FAIL=Set responseType to "arraybuffer" when readyState is DONE.
+FAIL=Set responseType to "arraybuffer" when readyState is HEADERS_RECEIVED.
+FAIL=Set responseType to "arraybuffer" when readyState is LOADING.
+FAIL=Set responseType to "arraybuffer" when readyState is OPENED and the sync flag is set.
+FAIL=Set responseType to "arraybuffer" when readyState is OPENED.
+FAIL=Set responseType to "arraybuffer" when readyState is UNSENT.
+FAIL=Set responseType to "blob" when readyState is DONE and the sync flag is set.
+FAIL=Set responseType to "blob" when readyState is DONE.
+FAIL=Set responseType to "blob" when readyState is HEADERS_RECEIVED.
+FAIL=Set responseType to "blob" when readyState is LOADING.
+FAIL=Set responseType to "blob" when readyState is OPENED and the sync flag is set.
+FAIL=Set responseType to "blob" when readyState is OPENED.
+FAIL=Set responseType to "blob" when readyState is UNSENT.
+FAIL=Set responseType to "document" when readyState is DONE and the sync flag is set.
+FAIL=Set responseType to "document" when readyState is OPENED and the sync flag is set.
+FAIL=Set responseType to "json" when readyState is DONE and the sync flag is set.
+FAIL=Set responseType to "json" when readyState is DONE.
+FAIL=Set responseType to "json" when readyState is LOADING.
+FAIL=Set responseType to "json" when readyState is OPENED and the sync flag is set.
+FAIL=Set responseType to "nosuchtype" when readyState is DONE and the sync flag is set.
+FAIL=Set responseType to "nosuchtype" when readyState is OPENED and the sync flag is set.
+FAIL=Set responseType to "text" when readyState is DONE and the sync flag is set.
+FAIL=Set responseType to "text" when readyState is DONE.
+FAIL=Set responseType to "text" when readyState is LOADING.
+FAIL=Set responseType to "text" when readyState is OPENED and the sync flag is set.
 [xhr/responseurl-after-abort.any.html]
 FAIL=abort() during DONE clears responseURL (async)
 FAIL=abort() during DONE clears responseURL (sync)
 FAIL=abort() during HEADERS_RECEIVED clears responseURL
 FAIL=abort() during LOADING clears responseURL
 [xhr/responseurl-after-abort.any.worker.html]
-harness=TIMEOUT
+FAIL=abort() during DONE clears responseURL (async)
+FAIL=abort() during DONE clears responseURL (sync)
+FAIL=abort() during HEADERS_RECEIVED clears responseURL
+FAIL=abort() during LOADING clears responseURL
 [xhr/responseurl.html]
 FAIL=404 response has proper responseURL
 FAIL=Redirected response has proper responseURL
@@ -977,23 +941,22 @@ FAIL=XMLHttpRequest: send() - Content-Type
 [xhr/send-data-arraybuffer.any.html]
 FAIL=XMLHttpRequest.send(arraybuffer)
 [xhr/send-data-arraybuffer.any.worker.html]
-harness=TIMEOUT
+FAIL=send-data-arraybuffer
 [xhr/send-data-arraybufferview.any.html]
 FAIL=XMLHttpRequest.send(arraybufferview)
 [xhr/send-data-arraybufferview.any.worker.html]
-harness=TIMEOUT
+FAIL=send-data-arraybufferview
 [xhr/send-data-blob.htm]
 FAIL=XMLHttpRequest: The send() method: Blob data
 [xhr/send-data-es-object.any.html]
 FAIL=sending a new XHR instance
-FAIL=sending a plain empty object
 FAIL=sending the ES Math object
 [xhr/send-data-es-object.any.worker.html]
-harness=TIMEOUT
+harness=ERROR
 [xhr/send-data-formdata.any.html]
 FAIL=XMLHttpRequest.send(formdata)
 [xhr/send-data-formdata.any.worker.html]
-harness=TIMEOUT
+FAIL=send-data-formdata
 [xhr/send-data-sharedarraybuffer.any.html]
 FAIL=sending a BigInt64Array backed by a SharedArrayBuffer
 FAIL=sending a BigUint64Array backed by a SharedArrayBuffer
@@ -1010,7 +973,20 @@ FAIL=sending a Uint32Array backed by a SharedArrayBuffer
 FAIL=sending a Uint8Array backed by a SharedArrayBuffer
 FAIL=sending a Uint8ClampedArray backed by a SharedArrayBuffer
 [xhr/send-data-sharedarraybuffer.any.worker.html]
-harness=TIMEOUT
+FAIL=sending a BigInt64Array backed by a SharedArrayBuffer
+FAIL=sending a BigUint64Array backed by a SharedArrayBuffer
+FAIL=sending a DataView backed by a SharedArrayBuffer
+FAIL=sending a Float16Array backed by a SharedArrayBuffer
+FAIL=sending a Float32Array backed by a SharedArrayBuffer
+FAIL=sending a Float64Array backed by a SharedArrayBuffer
+FAIL=sending a Int16Array backed by a SharedArrayBuffer
+FAIL=sending a Int32Array backed by a SharedArrayBuffer
+FAIL=sending a Int8Array backed by a SharedArrayBuffer
+FAIL=sending a SharedArrayBuffer
+FAIL=sending a Uint16Array backed by a SharedArrayBuffer
+FAIL=sending a Uint32Array backed by a SharedArrayBuffer
+FAIL=sending a Uint8Array backed by a SharedArrayBuffer
+FAIL=sending a Uint8ClampedArray backed by a SharedArrayBuffer
 [xhr/send-data-string-invalid-unicode.any.html]
 FAIL=invalid unicode '\u{d83d}' should be fixed with replacement character
 FAIL=invalid unicode '\u{d83d}ab' should be fixed with replacement character
@@ -1022,7 +998,15 @@ FAIL=invalid unicode 'ab\u{d83d}' should be fixed with replacement character
 FAIL=invalid unicode 'ab\u{dc94}' should be fixed with replacement character
 FAIL=valid unicode should be sent correctly
 [xhr/send-data-string-invalid-unicode.any.worker.html]
-harness=TIMEOUT
+FAIL=invalid unicode '\u{d83d}' should be fixed with replacement character
+FAIL=invalid unicode '\u{d83d}ab' should be fixed with replacement character
+FAIL=invalid unicode '\u{dc94}' should be fixed with replacement character
+FAIL=invalid unicode '\u{dc94}ab' should be fixed with replacement character
+FAIL=invalid unicode 'a\u{d83d}b' should be fixed with replacement character
+FAIL=invalid unicode 'a\u{dc94}b' should be fixed with replacement character
+FAIL=invalid unicode 'ab\u{d83d}' should be fixed with replacement character
+FAIL=invalid unicode 'ab\u{dc94}' should be fixed with replacement character
+FAIL=valid unicode should be sent correctly
 [xhr/send-data-unexpected-tostring.htm]
 FAIL=open() called from data stringification
 FAIL=send() called from data stringification
@@ -1034,7 +1018,10 @@ FAIL=XMLHttpRequest: send() - data argument (2,2)
 FAIL=XMLHttpRequest: send() - data argument (A A)
 FAIL=XMLHttpRequest: send() - data argument (false)
 [xhr/send-entity-body-document-bogus.htm]
-harness=TIMEOUT
+FAIL=Serializing documents through XMLHttpRequest: ''
+FAIL=Serializing documents through XMLHttpRequest: '<test:test test:test="gee" x="U+fffd"/>'
+FAIL=Serializing documents through XMLHttpRequest: '<test:test test:test="gee"/>'
+FAIL=Serializing documents through XMLHttpRequest: '<test:test/>'
 [xhr/send-entity-body-document.htm]
 harness=TIMEOUT
 [xhr/send-entity-body-empty.htm]
@@ -1068,7 +1055,7 @@ FAIL=XMLHttpRequest: The send() method: event order when there is no response en
 FAIL=XMLHttpRequest: send() - non same-origin (about:blank)
 FAIL=XMLHttpRequest: send() - non same-origin (blob:bogusidentifier)
 FAIL=XMLHttpRequest: send() - non same-origin (folder.txt)
-FAIL=XMLHttpRequest: send() - non same-origin (http://127.0.0.1:42801)
+FAIL=XMLHttpRequest: send() - non same-origin (http://127.0.0.1:43183)
 FAIL=XMLHttpRequest: send() - non same-origin (javascript:alert('FAIL'))
 FAIL=XMLHttpRequest: send() - non same-origin (mailto:test@example.org)
 FAIL=XMLHttpRequest: send() - non same-origin (tel:+31600000000)
@@ -1082,11 +1069,6 @@ FAIL=XMLHttpRequest: send() - Redirects (bogus Location header; sync) (302: http
 FAIL=XMLHttpRequest: send() - Redirects (bogus Location header; sync) (302: mailto:someone@example.org)
 FAIL=XMLHttpRequest: send() - Redirects (bogus Location header; sync) (303: http://nonexistent.localhost)
 FAIL=XMLHttpRequest: send() - Redirects (bogus Location header; sync) (303: tel:1234567890)
-[xhr/send-redirect-bogus.sub.htm]
-FAIL=XMLHttpRequest: send() - Redirects (bogus Location header) (302: http://nonexistent.localhost)
-FAIL=XMLHttpRequest: send() - Redirects (bogus Location header) (302: mailto:someone@example.org)
-FAIL=XMLHttpRequest: send() - Redirects (bogus Location header) (303: foobar:someone@example.org)
-FAIL=XMLHttpRequest: send() - Redirects (bogus Location header) (303: http://nonexistent.localhost)
 [xhr/send-redirect-infinite-sync.htm]
 FAIL=XMLHttpRequest: send() - Redirects (infinite loop; sync) (301)
 [xhr/send-redirect-infinite.htm]
@@ -1103,34 +1085,15 @@ FAIL=XMLHttpRequest: The send() method: POSTing to URL that redirects (303)
 FAIL=XMLHttpRequest: The send() method: POSTing to URL that redirects (307 (blob))
 FAIL=XMLHttpRequest: The send() method: POSTing to URL that redirects (307 (string))
 [xhr/send-redirect-to-cors.htm]
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (301 GET with explicit Content-Type safelisted)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (301 GET with explicit Content-Type)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (301 POST with string and explicit Content-Type safelisted)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (301 POST with string and explicit Content-Type)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (301)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (302 FOO with string and explicit Content-Type safelisted)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (302 POST with string and explicit Content-Type)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (302)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (303 FOO with string and explicit Content-Type safelisted)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (303 GET with explicit Content-Type safelisted)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (303)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307 FOO with string and explicit Content-Type)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307 POST with string and explicit Content-Type safelisted)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307 POST with string and explicit Content-Type)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307 post with null)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307 post with string)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307 post with typed array)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (307)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (308 FOO with string and explicit Content-Type multipart/form-data)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (308 FOO with string and explicit Content-Type safelisted)
-FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (308 FOO with string and explicit Content-Type text/plain)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (308 FOO with string and explicit Content-Type)
 FAIL=XMLHttpRequest: send() - Redirect to CORS-enabled resource (308 POST with string and explicit Content-Type)
-[xhr/send-redirect-to-non-cors.htm]
-FAIL=XMLHttpRequest: send() - Redirect to cross-origin resource, not CORS-enabled (301)
-FAIL=XMLHttpRequest: send() - Redirect to cross-origin resource, not CORS-enabled (302)
-FAIL=XMLHttpRequest: send() - Redirect to cross-origin resource, not CORS-enabled (303)
-FAIL=XMLHttpRequest: send() - Redirect to cross-origin resource, not CORS-enabled (307)
 [xhr/send-redirect.htm]
 harness=TIMEOUT
 [xhr/send-response-event-order.htm]
@@ -1144,7 +1107,7 @@ FAIL=XMLHttpRequest: The send() method: Fire a progress event named progress on 
 [xhr/send-send.any.html]
 FAIL=XMLHttpRequest: send() - send()
 [xhr/send-send.any.worker.html]
-harness=TIMEOUT
+FAIL=XMLHttpRequest: send() - send()
 [xhr/send-sync-blocks-async.htm]
 FAIL=XMLHttpRequest: sync requests should block events on pending async requests
 [xhr/send-sync-no-response-event-load.htm]
@@ -1160,140 +1123,7 @@ FAIL=XMLHttpRequest: timeout during sync send() should not run
 [xhr/send-timeout-events.htm]
 FAIL:esc=XMLHttpRequest: The send() method: timeout is not 0 
 [xhr/send-usp.any.html]
-FAIL=XMLHttpRequest.send(URLSearchParams) (0)
-FAIL=XMLHttpRequest.send(URLSearchParams) (1)
-FAIL=XMLHttpRequest.send(URLSearchParams) (10)
-FAIL=XMLHttpRequest.send(URLSearchParams) (100)
-FAIL=XMLHttpRequest.send(URLSearchParams) (101)
-FAIL=XMLHttpRequest.send(URLSearchParams) (102)
-FAIL=XMLHttpRequest.send(URLSearchParams) (103)
-FAIL=XMLHttpRequest.send(URLSearchParams) (104)
-FAIL=XMLHttpRequest.send(URLSearchParams) (105)
-FAIL=XMLHttpRequest.send(URLSearchParams) (106)
-FAIL=XMLHttpRequest.send(URLSearchParams) (107)
-FAIL=XMLHttpRequest.send(URLSearchParams) (108)
-FAIL=XMLHttpRequest.send(URLSearchParams) (109)
-FAIL=XMLHttpRequest.send(URLSearchParams) (11)
-FAIL=XMLHttpRequest.send(URLSearchParams) (110)
-FAIL=XMLHttpRequest.send(URLSearchParams) (111)
-FAIL=XMLHttpRequest.send(URLSearchParams) (112)
-FAIL=XMLHttpRequest.send(URLSearchParams) (113)
-FAIL=XMLHttpRequest.send(URLSearchParams) (114)
-FAIL=XMLHttpRequest.send(URLSearchParams) (115)
-FAIL=XMLHttpRequest.send(URLSearchParams) (116)
-FAIL=XMLHttpRequest.send(URLSearchParams) (117)
-FAIL=XMLHttpRequest.send(URLSearchParams) (118)
-FAIL=XMLHttpRequest.send(URLSearchParams) (119)
-FAIL=XMLHttpRequest.send(URLSearchParams) (12)
-FAIL=XMLHttpRequest.send(URLSearchParams) (120)
-FAIL=XMLHttpRequest.send(URLSearchParams) (121)
-FAIL=XMLHttpRequest.send(URLSearchParams) (122)
-FAIL=XMLHttpRequest.send(URLSearchParams) (123)
-FAIL=XMLHttpRequest.send(URLSearchParams) (124)
-FAIL=XMLHttpRequest.send(URLSearchParams) (125)
-FAIL=XMLHttpRequest.send(URLSearchParams) (126)
-FAIL=XMLHttpRequest.send(URLSearchParams) (127)
-FAIL=XMLHttpRequest.send(URLSearchParams) (13)
-FAIL=XMLHttpRequest.send(URLSearchParams) (14)
-FAIL=XMLHttpRequest.send(URLSearchParams) (15)
-FAIL=XMLHttpRequest.send(URLSearchParams) (16)
-FAIL=XMLHttpRequest.send(URLSearchParams) (17)
-FAIL=XMLHttpRequest.send(URLSearchParams) (18)
-FAIL=XMLHttpRequest.send(URLSearchParams) (19)
-FAIL=XMLHttpRequest.send(URLSearchParams) (2)
-FAIL=XMLHttpRequest.send(URLSearchParams) (20)
-FAIL=XMLHttpRequest.send(URLSearchParams) (21)
-FAIL=XMLHttpRequest.send(URLSearchParams) (22)
-FAIL=XMLHttpRequest.send(URLSearchParams) (23)
-FAIL=XMLHttpRequest.send(URLSearchParams) (24)
-FAIL=XMLHttpRequest.send(URLSearchParams) (25)
-FAIL=XMLHttpRequest.send(URLSearchParams) (26)
-FAIL=XMLHttpRequest.send(URLSearchParams) (27)
-FAIL=XMLHttpRequest.send(URLSearchParams) (28)
-FAIL=XMLHttpRequest.send(URLSearchParams) (29)
-FAIL=XMLHttpRequest.send(URLSearchParams) (3)
-FAIL=XMLHttpRequest.send(URLSearchParams) (30)
-FAIL=XMLHttpRequest.send(URLSearchParams) (31)
-FAIL=XMLHttpRequest.send(URLSearchParams) (32)
-FAIL=XMLHttpRequest.send(URLSearchParams) (33)
-FAIL=XMLHttpRequest.send(URLSearchParams) (34)
-FAIL=XMLHttpRequest.send(URLSearchParams) (35)
-FAIL=XMLHttpRequest.send(URLSearchParams) (36)
-FAIL=XMLHttpRequest.send(URLSearchParams) (37)
-FAIL=XMLHttpRequest.send(URLSearchParams) (38)
-FAIL=XMLHttpRequest.send(URLSearchParams) (39)
-FAIL=XMLHttpRequest.send(URLSearchParams) (4)
-FAIL=XMLHttpRequest.send(URLSearchParams) (40)
-FAIL=XMLHttpRequest.send(URLSearchParams) (41)
-FAIL=XMLHttpRequest.send(URLSearchParams) (42)
-FAIL=XMLHttpRequest.send(URLSearchParams) (43)
-FAIL=XMLHttpRequest.send(URLSearchParams) (44)
-FAIL=XMLHttpRequest.send(URLSearchParams) (45)
-FAIL=XMLHttpRequest.send(URLSearchParams) (46)
-FAIL=XMLHttpRequest.send(URLSearchParams) (47)
-FAIL=XMLHttpRequest.send(URLSearchParams) (48)
-FAIL=XMLHttpRequest.send(URLSearchParams) (49)
-FAIL=XMLHttpRequest.send(URLSearchParams) (5)
-FAIL=XMLHttpRequest.send(URLSearchParams) (50)
-FAIL=XMLHttpRequest.send(URLSearchParams) (51)
-FAIL=XMLHttpRequest.send(URLSearchParams) (52)
-FAIL=XMLHttpRequest.send(URLSearchParams) (53)
-FAIL=XMLHttpRequest.send(URLSearchParams) (54)
-FAIL=XMLHttpRequest.send(URLSearchParams) (55)
-FAIL=XMLHttpRequest.send(URLSearchParams) (56)
-FAIL=XMLHttpRequest.send(URLSearchParams) (57)
-FAIL=XMLHttpRequest.send(URLSearchParams) (58)
-FAIL=XMLHttpRequest.send(URLSearchParams) (59)
-FAIL=XMLHttpRequest.send(URLSearchParams) (6)
-FAIL=XMLHttpRequest.send(URLSearchParams) (60)
-FAIL=XMLHttpRequest.send(URLSearchParams) (61)
-FAIL=XMLHttpRequest.send(URLSearchParams) (62)
-FAIL=XMLHttpRequest.send(URLSearchParams) (63)
-FAIL=XMLHttpRequest.send(URLSearchParams) (64)
-FAIL=XMLHttpRequest.send(URLSearchParams) (65)
-FAIL=XMLHttpRequest.send(URLSearchParams) (66)
-FAIL=XMLHttpRequest.send(URLSearchParams) (67)
-FAIL=XMLHttpRequest.send(URLSearchParams) (68)
-FAIL=XMLHttpRequest.send(URLSearchParams) (69)
-FAIL=XMLHttpRequest.send(URLSearchParams) (7)
-FAIL=XMLHttpRequest.send(URLSearchParams) (70)
-FAIL=XMLHttpRequest.send(URLSearchParams) (71)
-FAIL=XMLHttpRequest.send(URLSearchParams) (72)
-FAIL=XMLHttpRequest.send(URLSearchParams) (73)
-FAIL=XMLHttpRequest.send(URLSearchParams) (74)
-FAIL=XMLHttpRequest.send(URLSearchParams) (75)
-FAIL=XMLHttpRequest.send(URLSearchParams) (76)
-FAIL=XMLHttpRequest.send(URLSearchParams) (77)
-FAIL=XMLHttpRequest.send(URLSearchParams) (78)
-FAIL=XMLHttpRequest.send(URLSearchParams) (79)
-FAIL=XMLHttpRequest.send(URLSearchParams) (8)
-FAIL=XMLHttpRequest.send(URLSearchParams) (80)
-FAIL=XMLHttpRequest.send(URLSearchParams) (81)
-FAIL=XMLHttpRequest.send(URLSearchParams) (82)
-FAIL=XMLHttpRequest.send(URLSearchParams) (83)
-FAIL=XMLHttpRequest.send(URLSearchParams) (84)
-FAIL=XMLHttpRequest.send(URLSearchParams) (85)
-FAIL=XMLHttpRequest.send(URLSearchParams) (86)
-FAIL=XMLHttpRequest.send(URLSearchParams) (87)
-FAIL=XMLHttpRequest.send(URLSearchParams) (88)
-FAIL=XMLHttpRequest.send(URLSearchParams) (89)
-FAIL=XMLHttpRequest.send(URLSearchParams) (9)
-FAIL=XMLHttpRequest.send(URLSearchParams) (90)
-FAIL=XMLHttpRequest.send(URLSearchParams) (91)
-FAIL=XMLHttpRequest.send(URLSearchParams) (92)
-FAIL=XMLHttpRequest.send(URLSearchParams) (93)
-FAIL=XMLHttpRequest.send(URLSearchParams) (94)
-FAIL=XMLHttpRequest.send(URLSearchParams) (95)
-FAIL=XMLHttpRequest.send(URLSearchParams) (96)
-FAIL=XMLHttpRequest.send(URLSearchParams) (97)
-FAIL=XMLHttpRequest.send(URLSearchParams) (98)
-FAIL=XMLHttpRequest.send(URLSearchParams) (99)
-FAIL=XMLHttpRequest.send(URLSearchParams): GET keeps an author-set Content-Type
-FAIL=XMLHttpRequest.send(URLSearchParams): GET sends neither a body nor a Content-Type
-FAIL=XMLHttpRequest.send(URLSearchParams): HEAD sends neither a body nor a Content-Type
-FAIL=XMLHttpRequest.send(URLSearchParams): POST keeps an author-set Content-Type
-FAIL=XMLHttpRequest.send(URLSearchParams): POST replaces the charset parameter of an author-set Content-Type
-FAIL=XMLHttpRequest.send(URLSearchParams): POST uses the URLSearchParams MIME type when no Content-Type was set
+harness=TIMEOUT
 [xhr/send-usp.any.worker.html]
 harness=TIMEOUT
 [xhr/setrequestheader-after-send.htm]
@@ -1474,7 +1304,12 @@ FAIL=XMLHttpRequest: status/statusText - various responses 7 (GET 402)
 FAIL=XMLHttpRequest: status/statusText - various responses 8 (HEAD 402)
 FAIL=XMLHttpRequest: status/statusText - various responses 9 (CHICKEN 402)
 [xhr/status-error.htm]
-harness=TIMEOUT
+FAIL=POST on blob uri
+FAIL=Unknown scheme
+FAIL=XMLHttpRequest: status error handling GET 699
+FAIL=XMLHttpRequest: status error handling HEAD 699
+FAIL=XMLHttpRequest: status error handling POST 699
+FAIL=XMLHttpRequest: status error handling PUT 699
 [xhr/status.h2.window.html]
 FAIL=statusText over H2 for status 200 should be the empty string
 FAIL=statusText over H2 for status 210 should be the empty string
@@ -1486,11 +1321,11 @@ FAIL=statusText over H2 for status 502 should be the empty string
 [xhr/sync-no-progress.any.html]
 FAIL=progress event should not be fired by sync XHR
 [xhr/sync-no-progress.any.worker.html]
-harness=TIMEOUT
+FAIL=progress event should not be fired by sync XHR
 [xhr/sync-no-timeout.any.html]
 FAIL=Sync XHR should not have a timeout
 [xhr/sync-no-timeout.any.worker.html]
-harness=TIMEOUT
+FAIL=Sync XHR should not have a timeout
 [xhr/sync-xhr-and-window-onload.html]
 harness=TIMEOUT
 [xhr/sync-xhr-supported-by-permissions-policy.tentative.html]
@@ -1504,18 +1339,20 @@ harness=TIMEOUT
 [xhr/timeout-cors-async.htm]
 FAIL=XMLHttpRequest: timeout event and cross-origin request
 [xhr/timeout-multiple-fetches.html]
-harness=TIMEOUT
+FAIL=CORS preflights should not reset the timer
+FAIL=Redirects should not reset the timer
 [xhr/timeout-sync.htm]
-FAIL=open() with async false when timeout is set
 FAIL=setting timeout attribute on sync request
 [xhr/xhr-authorization-redirect.any.html]
 FAIL=getAuthorizationHeaderValue - cross origin redirection
 FAIL=getAuthorizationHeaderValue - no redirection
 FAIL=getAuthorizationHeaderValue - same origin redirection
 [xhr/xhr-authorization-redirect.any.worker.html]
-harness=TIMEOUT
+FAIL=getAuthorizationHeaderValue - cross origin redirection
+FAIL=getAuthorizationHeaderValue - no redirection
+FAIL=getAuthorizationHeaderValue - same origin redirection
 [xhr/xhr-timeout-longtask.any.worker.html]
-harness=TIMEOUT
+harness=ERROR
 [xhr/xmlhttprequest-basic.htm]
 FAIL=XMLHttpRequest: prototype and members
 [xhr/xmlhttprequest-network-error-sync.htm]
@@ -1531,32 +1368,30 @@ harness=TIMEOUT
 [xhr/xmlhttprequest-sync-not-hang-scriptloader.html]
 harness=TIMEOUT
 [xhr/xmlhttprequest-timeout-aborted.html]
-harness=TIMEOUT
-[xhr/xmlhttprequest-timeout-abortedonmain.html]
-harness=TIMEOUT
+FAIL=Timeout test: time to abort is 5000, timeout set at 2000
 [xhr/xmlhttprequest-timeout-overrides.html]
-harness=TIMEOUT
+FAIL=Timeout test: timeout overrides load after a delay, original timeout at 5000, reset at 1000 to 2000
 [xhr/xmlhttprequest-timeout-overridesexpires.html]
-harness=TIMEOUT
-[xhr/xmlhttprequest-timeout-reused.html]
-harness=TIMEOUT
+FAIL=Timeout test: timeout set to expired value before load fires, original timeout at 5000, reset at 2000 to 1100
+FAIL=Timeout test: timeout set to non-expiring value after timeout fires, original timeout at 1000, reset at 2000 to 500
 [xhr/xmlhttprequest-timeout-simple.html]
-harness=TIMEOUT
+FAIL=Timeout test: timeout hit before load, timeout scheduled at 2000
 [xhr/xmlhttprequest-timeout-synconmain.html]
 harness=TIMEOUT
 [xhr/xmlhttprequest-timeout-twice.html]
-harness=TIMEOUT
+FAIL=Timeout test: timeout fires normally with same timeout set twice, original timeout at 2000, reset at 1000 to 2000
 [xhr/xmlhttprequest-timeout-worker-aborted.html]
-harness=TIMEOUT
+FAIL=Timeout test: time to abort is 5000, timeout set at 2000
 [xhr/xmlhttprequest-timeout-worker-overrides.html]
-harness=TIMEOUT
+FAIL=Timeout test: timeout overrides load after a delay, original timeout at 5000, reset at 1000 to 2000
 [xhr/xmlhttprequest-timeout-worker-overridesexpires.html]
-harness=TIMEOUT
+FAIL=Timeout test: timeout set to expired value before load fires, original timeout at 5000, reset at 2000 to 1100
+FAIL=Timeout test: timeout set to non-expiring value after timeout fires, original timeout at 1000, reset at 2000 to 500
 [xhr/xmlhttprequest-timeout-worker-simple.html]
-harness=TIMEOUT
+FAIL=Timeout test: timeout hit before load, timeout scheduled at 2000
 [xhr/xmlhttprequest-timeout-worker-synconworker.html]
 harness=TIMEOUT
 [xhr/xmlhttprequest-timeout-worker-twice.html]
-harness=TIMEOUT
+FAIL=Timeout test: timeout fires normally with same timeout set twice, original timeout at 2000, reset at 1000 to 2000
 [xhr/xmlhttprequest-unsent.htm]
 FAIL=XMLHttpRequest: members during UNSENT

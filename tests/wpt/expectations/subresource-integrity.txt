@@ -1,7 +1,7 @@
 [subresource-integrity/integrity-policy/parsing.html]
 harness=TIMEOUT
 [subresource-integrity/integrity-policy/preload-script-with-integrity.https.html]
-harness=TIMEOUT
+FAIL=Script with integrity in initial HTML should not trigger Integrity-Policy reports (tests preload scanner)
 [subresource-integrity/integrity-policy/script.https.html]
 harness=TIMEOUT
 [subresource-integrity/integrity-policy/style.https.html]
@@ -24,20 +24,8 @@ FAIL=ed25519-xDnP380zcL4rJ76rXYjeHlfMyPZEOqpJYjsjEppbuXE= malformed-thing ed2551
 [subresource-integrity/signatures/tentative/authority.https.window.html]
 harness=TIMEOUT
 [subresource-integrity/signatures/tentative/client-initiated.cross-origin.window.html]
-FAIL=`fetch()`: Invalid signature, matching integrity check, cors: blocked.
-FAIL=`fetch()`: Invalid signature, matching integrity check, no cors: blocked.
-FAIL=`fetch()`: Invalid signature, mismatched integrity check, cors: blocked.
-FAIL=`fetch()`: Invalid signature, mismatched integrity check, no cors: blocked.
-FAIL=`fetch()`: Invalid signature, one valid integrity check, cors: loads.
-FAIL=`fetch()`: Invalid signature, one valid integrity check, no cors: loads.
-FAIL=`fetch()`: No signature, valid integrity check, w/ cors: blocked.
-FAIL=`fetch()`: No signature, valid integrity check, w/o cors: blocked.
 FAIL=`fetch()`: Valid signature, matching integrity check, cors: loads.
-FAIL=`fetch()`: Valid signature, matching integrity check, no cors: blocked.
-FAIL=`fetch()`: Valid signature, mismatched integrity check, cors: blocked.
-FAIL=`fetch()`: Valid signature, mismatched integrity check, no cors: blocked.
 FAIL=`fetch()`: Valid signature, one valid integrity check, cors: loads.
-FAIL=`fetch()`: Valid signature, one valid integrity check, no cors: loads.
 [subresource-integrity/signatures/tentative/client-initiated.same-origin.window.html]
 FAIL=`fetch()`: Invalid signature, malformed integrity check: blocked.
 FAIL=`fetch()`: Invalid signature, matching integrity check: blocked.
@@ -103,10 +91,8 @@ FAIL=`fetch()`: Query = "test=a": mismatched integrity check: blocked.
 FAIL=`fetch()`: Query = "test=a": no integrity check: loads.
 [subresource-integrity/signatures/tentative/scheme.window.html]
 FAIL=`fetch()`: Valid signature (signature=:WZp87p7X3ELfgIKL/qxsY/CT6XArMvZRaxcJ3uy1QklEcLf0c8tol2+W2pvaXX4jnd7hGevFVkzWE77rCOIzAA==:), matching integrity check: loads.
-FAIL=`fetch()`: Valid signature (signature=:WZp87p7X3ELfgIKL/qxsY/CT6XArMvZRaxcJ3uy1QklEcLf0c8tol2+W2pvaXX4jnd7hGevFVkzWE77rCOIzAA==:), mismatched integrity check: blocked.
 FAIL=`fetch()`: Valid signature (signature=:WZp87p7X3ELfgIKL/qxsY/CT6XArMvZRaxcJ3uy1QklEcLf0c8tol2+W2pvaXX4jnd7hGevFVkzWE77rCOIzAA==:), no integrity check: loads.
 FAIL=`fetch()`: Valid signature (signature=:lMzR8lIXYG0Iz0MmTXcRTcBfNw6TgBAPfaNLAU1LzsxWC5dlez8SNe7aCW7avHTWKgaqTGBCMW1LgxkHlijgDA==:), matching integrity check: loads.
-FAIL=`fetch()`: Valid signature (signature=:lMzR8lIXYG0Iz0MmTXcRTcBfNw6TgBAPfaNLAU1LzsxWC5dlez8SNe7aCW7avHTWKgaqTGBCMW1LgxkHlijgDA==:), mismatched integrity check: blocked.
 FAIL=`fetch()`: Valid signature (signature=:lMzR8lIXYG0Iz0MmTXcRTcBfNw6TgBAPfaNLAU1LzsxWC5dlez8SNe7aCW7avHTWKgaqTGBCMW1LgxkHlijgDA==:), no integrity check: loads.
 [subresource-integrity/signatures/tentative/script.window.html]
 FAIL=`<script>`: No signature, malformed integrity check: loads.
@@ -121,14 +107,11 @@ FAIL=`<script>`: Valid signatures, integrity check matches the other: loads.
 FAIL=`<script>`: Valid signatures, malformed integrity check: loads.
 FAIL=`<script>`: Valid signatures, no integrity check: loads.
 [subresource-integrity/signatures/tentative/server-initiated.window.html]
-FAIL=`fetch()`: Invalid signature, cross-origin w/ cors, mode: cors: blocked.
 FAIL=`fetch()`: Invalid signature, cross-origin w/ cors, mode: no-cors: blocked.
-FAIL=`fetch()`: Invalid signature, cross-origin w/o cors, cors: blocked.
 FAIL=`fetch()`: Invalid signature, cross-origin w/o cors, mode: no-cors: blocked.
 FAIL=`fetch()`: Invalid signature, same-origin w/ cors: blocked.
 FAIL=`fetch()`: Invalid signature, same-origin: blocked.
 FAIL=`fetch()`: Valid signature, cross-origin w/cors, mode: cors: loads.
-FAIL=`fetch()`: Valid signature, cross-origin w/o cors, cors: blocked (because of CORS).
 FAIL=`fetch()`: Valid signature, same-origin w/ cors: loads.
 FAIL=`fetch()`: Valid signature, same-origin: loads.
 [subresource-integrity/signatures/tentative/status.window.html]
@@ -206,10 +189,135 @@ FAIL=Good integrity metadata + Repeated sha-256 header: loads.
 FAIL=Good integrity metadata + Repeated sha-512 header: blocked.
 FAIL=Good integrity metadata + Repeated sha-512 header: loads.
 [subresource-integrity/unencoded-digest/tentative/fetch.any.worker.html?include=integrity-fail]
-harness=TIMEOUT
+FAIL=Bad integrity metadata blocks everything, even: Bad sha-256 header: blocked.
+FAIL=Bad integrity metadata blocks everything, even: Bad sha-512 header: blocked.
+FAIL=Bad integrity metadata blocks everything, even: Good sha-256 header: loads.
+FAIL=Bad integrity metadata blocks everything, even: Good sha-512 header: loads.
+FAIL=Bad integrity metadata blocks everything, even: Mixed good and bad headers: blocked.
+FAIL=Bad integrity metadata blocks everything, even: Multiple bad headers (previous += sha-256): blocked.
+FAIL=Bad integrity metadata blocks everything, even: Multiple bad headers (previous += sha-512): blocked.
+FAIL=Bad integrity metadata blocks everything, even: Multiple good headers (previous += sha-256): loads.
+FAIL=Bad integrity metadata blocks everything, even: Multiple good headers (previous += sha-512): loads.
+FAIL=Bad integrity metadata blocks everything, even: No header: loads.
+FAIL=Bad integrity metadata blocks everything, even: Repeated sha-256 header: blocked.
+FAIL=Bad integrity metadata blocks everything, even: Repeated sha-256 header: loads.
+FAIL=Bad integrity metadata blocks everything, even: Repeated sha-512 header: blocked.
+FAIL=Bad integrity metadata blocks everything, even: Repeated sha-512 header: loads.
+FAIL=Good integrity metadata + Bad sha-256 header: blocked.
+FAIL=Good integrity metadata + Bad sha-512 header: blocked.
+FAIL=Good integrity metadata + Good sha-256 header: loads.
+FAIL=Good integrity metadata + Good sha-512 header: loads.
+FAIL=Good integrity metadata + Mixed good and bad headers: blocked.
+FAIL=Good integrity metadata + Multiple bad headers (previous += sha-256): blocked.
+FAIL=Good integrity metadata + Multiple bad headers (previous += sha-512): blocked.
+FAIL=Good integrity metadata + Multiple good headers (previous += sha-256): loads.
+FAIL=Good integrity metadata + Multiple good headers (previous += sha-512): loads.
+FAIL=Good integrity metadata + No header: loads.
+FAIL=Good integrity metadata + Repeated sha-256 header: blocked.
+FAIL=Good integrity metadata + Repeated sha-256 header: loads.
+FAIL=Good integrity metadata + Repeated sha-512 header: blocked.
+FAIL=Good integrity metadata + Repeated sha-512 header: loads.
+FAIL=No integrity metadata + Bad sha-256 header: blocked.
+FAIL=No integrity metadata + Bad sha-512 header: blocked.
+FAIL=No integrity metadata + Good sha-256 header: loads.
+FAIL=No integrity metadata + Good sha-512 header: loads.
+FAIL=No integrity metadata + Mixed good and bad headers: blocked.
+FAIL=No integrity metadata + Multiple bad headers (previous += sha-256): blocked.
+FAIL=No integrity metadata + Multiple bad headers (previous += sha-512): blocked.
+FAIL=No integrity metadata + Multiple good headers (previous += sha-256): loads.
+FAIL=No integrity metadata + Multiple good headers (previous += sha-512): loads.
+FAIL=No integrity metadata + No header: loads.
+FAIL=No integrity metadata + Repeated sha-256 header: blocked.
+FAIL=No integrity metadata + Repeated sha-256 header: loads.
+FAIL=No integrity metadata + Repeated sha-512 header: blocked.
+FAIL=No integrity metadata + Repeated sha-512 header: loads.
 [subresource-integrity/unencoded-digest/tentative/fetch.any.worker.html?include=integrity-none]
-harness=TIMEOUT
+FAIL=Bad integrity metadata blocks everything, even: Bad sha-256 header: blocked.
+FAIL=Bad integrity metadata blocks everything, even: Bad sha-512 header: blocked.
+FAIL=Bad integrity metadata blocks everything, even: Good sha-256 header: loads.
+FAIL=Bad integrity metadata blocks everything, even: Good sha-512 header: loads.
+FAIL=Bad integrity metadata blocks everything, even: Mixed good and bad headers: blocked.
+FAIL=Bad integrity metadata blocks everything, even: Multiple bad headers (previous += sha-256): blocked.
+FAIL=Bad integrity metadata blocks everything, even: Multiple bad headers (previous += sha-512): blocked.
+FAIL=Bad integrity metadata blocks everything, even: Multiple good headers (previous += sha-256): loads.
+FAIL=Bad integrity metadata blocks everything, even: Multiple good headers (previous += sha-512): loads.
+FAIL=Bad integrity metadata blocks everything, even: No header: loads.
+FAIL=Bad integrity metadata blocks everything, even: Repeated sha-256 header: blocked.
+FAIL=Bad integrity metadata blocks everything, even: Repeated sha-256 header: loads.
+FAIL=Bad integrity metadata blocks everything, even: Repeated sha-512 header: blocked.
+FAIL=Bad integrity metadata blocks everything, even: Repeated sha-512 header: loads.
+FAIL=Good integrity metadata + Bad sha-256 header: blocked.
+FAIL=Good integrity metadata + Bad sha-512 header: blocked.
+FAIL=Good integrity metadata + Good sha-256 header: loads.
+FAIL=Good integrity metadata + Good sha-512 header: loads.
+FAIL=Good integrity metadata + Mixed good and bad headers: blocked.
+FAIL=Good integrity metadata + Multiple bad headers (previous += sha-256): blocked.
+FAIL=Good integrity metadata + Multiple bad headers (previous += sha-512): blocked.
+FAIL=Good integrity metadata + Multiple good headers (previous += sha-256): loads.
+FAIL=Good integrity metadata + Multiple good headers (previous += sha-512): loads.
+FAIL=Good integrity metadata + No header: loads.
+FAIL=Good integrity metadata + Repeated sha-256 header: blocked.
+FAIL=Good integrity metadata + Repeated sha-256 header: loads.
+FAIL=Good integrity metadata + Repeated sha-512 header: blocked.
+FAIL=Good integrity metadata + Repeated sha-512 header: loads.
+FAIL=No integrity metadata + Bad sha-256 header: blocked.
+FAIL=No integrity metadata + Bad sha-512 header: blocked.
+FAIL=No integrity metadata + Good sha-256 header: loads.
+FAIL=No integrity metadata + Good sha-512 header: loads.
+FAIL=No integrity metadata + Mixed good and bad headers: blocked.
+FAIL=No integrity metadata + Multiple bad headers (previous += sha-256): blocked.
+FAIL=No integrity metadata + Multiple bad headers (previous += sha-512): blocked.
+FAIL=No integrity metadata + Multiple good headers (previous += sha-256): loads.
+FAIL=No integrity metadata + Multiple good headers (previous += sha-512): loads.
+FAIL=No integrity metadata + No header: loads.
+FAIL=No integrity metadata + Repeated sha-256 header: blocked.
+FAIL=No integrity metadata + Repeated sha-256 header: loads.
+FAIL=No integrity metadata + Repeated sha-512 header: blocked.
+FAIL=No integrity metadata + Repeated sha-512 header: loads.
 [subresource-integrity/unencoded-digest/tentative/fetch.any.worker.html?include=integrity-pass]
+FAIL=Bad integrity metadata blocks everything, even: Bad sha-256 header: blocked.
+FAIL=Bad integrity metadata blocks everything, even: Bad sha-512 header: blocked.
+FAIL=Bad integrity metadata blocks everything, even: Good sha-256 header: loads.
+FAIL=Bad integrity metadata blocks everything, even: Good sha-512 header: loads.
+FAIL=Bad integrity metadata blocks everything, even: Mixed good and bad headers: blocked.
+FAIL=Bad integrity metadata blocks everything, even: Multiple bad headers (previous += sha-256): blocked.
+FAIL=Bad integrity metadata blocks everything, even: Multiple bad headers (previous += sha-512): blocked.
+FAIL=Bad integrity metadata blocks everything, even: Multiple good headers (previous += sha-256): loads.
+FAIL=Bad integrity metadata blocks everything, even: Multiple good headers (previous += sha-512): loads.
+FAIL=Bad integrity metadata blocks everything, even: No header: loads.
+FAIL=Bad integrity metadata blocks everything, even: Repeated sha-256 header: blocked.
+FAIL=Bad integrity metadata blocks everything, even: Repeated sha-256 header: loads.
+FAIL=Bad integrity metadata blocks everything, even: Repeated sha-512 header: blocked.
+FAIL=Bad integrity metadata blocks everything, even: Repeated sha-512 header: loads.
+FAIL=Good integrity metadata + Bad sha-256 header: blocked.
+FAIL=Good integrity metadata + Bad sha-512 header: blocked.
+FAIL=Good integrity metadata + Good sha-256 header: loads.
+FAIL=Good integrity metadata + Good sha-512 header: loads.
+FAIL=Good integrity metadata + Mixed good and bad headers: blocked.
+FAIL=Good integrity metadata + Multiple bad headers (previous += sha-256): blocked.
+FAIL=Good integrity metadata + Multiple bad headers (previous += sha-512): blocked.
+FAIL=Good integrity metadata + Multiple good headers (previous += sha-256): loads.
+FAIL=Good integrity metadata + Multiple good headers (previous += sha-512): loads.
+FAIL=Good integrity metadata + No header: loads.
+FAIL=Good integrity metadata + Repeated sha-256 header: blocked.
+FAIL=Good integrity metadata + Repeated sha-256 header: loads.
+FAIL=Good integrity metadata + Repeated sha-512 header: blocked.
+FAIL=Good integrity metadata + Repeated sha-512 header: loads.
+FAIL=No integrity metadata + Bad sha-256 header: blocked.
+FAIL=No integrity metadata + Bad sha-512 header: blocked.
+FAIL=No integrity metadata + Good sha-256 header: loads.
+FAIL=No integrity metadata + Good sha-512 header: loads.
+FAIL=No integrity metadata + Mixed good and bad headers: blocked.
+FAIL=No integrity metadata + Multiple bad headers (previous += sha-256): blocked.
+FAIL=No integrity metadata + Multiple bad headers (previous += sha-512): blocked.
+FAIL=No integrity metadata + Multiple good headers (previous += sha-256): loads.
+FAIL=No integrity metadata + Multiple good headers (previous += sha-512): loads.
+FAIL=No integrity metadata + No header: loads.
+FAIL=No integrity metadata + Repeated sha-256 header: blocked.
+FAIL=No integrity metadata + Repeated sha-256 header: loads.
+FAIL=No integrity metadata + Repeated sha-512 header: blocked.
+FAIL=No integrity metadata + Repeated sha-512 header: loads.
+[subresource-integrity/unencoded-digest/tentative/script.window.html?include=integrity-fail]
 harness=TIMEOUT
 [subresource-integrity/unencoded-digest/tentative/script.window.html?include=integrity-none]
 FAIL=No `integrity` attribute + Good sha-256 header: loads.
@@ -220,10 +328,4 @@ FAIL=No `integrity` attribute + No header: loads.
 FAIL=No `integrity` attribute + Repeated sha-256 header: loads.
 FAIL=No `integrity` attribute + Repeated sha-512 header: loads.
 [subresource-integrity/unencoded-digest/tentative/script.window.html?include=integrity-pass]
-FAIL=Matching `integrity` attribute + Good sha-256 header: loads.
-FAIL=Matching `integrity` attribute + Good sha-512 header: loads.
-FAIL=Matching `integrity` attribute + Multiple good headers (previous += sha-256): loads.
-FAIL=Matching `integrity` attribute + Multiple good headers (previous += sha-512): loads.
-FAIL=Matching `integrity` attribute + No header: loads.
-FAIL=Matching `integrity` attribute + Repeated sha-256 header: loads.
-FAIL=Matching `integrity` attribute + Repeated sha-512 header: loads.
+harness=TIMEOUT

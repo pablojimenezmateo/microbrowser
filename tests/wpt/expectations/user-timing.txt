@@ -1,28 +1,15 @@
 [user-timing/buffered-flag.any.worker.html]
 harness=TIMEOUT
-[user-timing/case-sensitivity.any.worker.html]
-harness=TIMEOUT
 [user-timing/clearMarks.html]
 harness=TIMEOUT
 [user-timing/clearMeasures.html]
-harness=TIMEOUT
-[user-timing/clear_all_marks.any.worker.html]
-harness=TIMEOUT
-[user-timing/clear_all_measures.any.worker.html]
-harness=TIMEOUT
-[user-timing/clear_non_existent_mark.any.worker.html]
-harness=TIMEOUT
-[user-timing/clear_non_existent_measure.any.worker.html]
-harness=TIMEOUT
-[user-timing/clear_one_mark.any.worker.html]
-harness=TIMEOUT
-[user-timing/clear_one_measure.any.worker.html]
 harness=TIMEOUT
 [user-timing/entry_type.any.html]
 FAIL=Validate the user timing entry type PerformanceMark
 FAIL=Validate the user timing entry type PerformanceMeasure
 [user-timing/entry_type.any.worker.html]
-harness=TIMEOUT
+FAIL=Validate the user timing entry type PerformanceMark
+FAIL=Validate the user timing entry type PerformanceMeasure
 [user-timing/idlharness.any.html]
 FAIL=idl_test setup
 [user-timing/invoke_with_timing_attributes.html]
@@ -47,8 +34,6 @@ FAIL=performance.mark should throw if used with timing attribute responseStart
 FAIL=performance.mark should throw if used with timing attribute secureConnectionStart
 FAIL=performance.mark should throw if used with timing attribute unloadEventEnd
 FAIL=performance.mark should throw if used with timing attribute unloadEventStart
-[user-timing/invoke_with_timing_attributes.worker.html]
-harness=TIMEOUT
 [user-timing/invoke_without_parameter.html]
 FAIL=window.performance.mark() throws a TypeError exception when invoke without a parameter.
 FAIL=window.performance.measure() throws a TypeError exception when invoke without a parameter.
@@ -60,7 +45,12 @@ FAIL=Mark entry can be created by 'new PerformanceMark(string, {startTime})'.
 FAIL=Mark entry can be created by 'new PerformanceMark(string, {})'.
 FAIL=Using new PerformanceMark() shouldn't add the entry to performance timeline.
 [user-timing/mark-entry-constructor.any.worker.html]
-harness=TIMEOUT
+FAIL=Mark entry can be created by 'new PerformanceMark(string)'.
+FAIL=Mark entry can be created by 'new PerformanceMark(string, {detail})'.
+FAIL=Mark entry can be created by 'new PerformanceMark(string, {startTime, detail})'.
+FAIL=Mark entry can be created by 'new PerformanceMark(string, {startTime})'.
+FAIL=Mark entry can be created by 'new PerformanceMark(string, {})'.
+FAIL=Using new PerformanceMark() shouldn't add the entry to performance timeline.
 [user-timing/mark-errors.any.html]
 FAIL=[new PerformanceMark]: Infinity should be rejected as the mark-options.
 FAIL=[new PerformanceMark]: NaN should be rejected as the mark-options.
@@ -73,11 +63,20 @@ FAIL=[performance.mark]: Negative startTime in mark-options should be rejected
 FAIL=[performance.mark]: Number should be rejected as the mark-options.
 FAIL=[performance.mark]: String should be rejected as the mark-options.
 [user-timing/mark-errors.any.worker.html]
-harness=TIMEOUT
+FAIL=[new PerformanceMark]: Infinity should be rejected as the mark-options.
+FAIL=[new PerformanceMark]: NaN should be rejected as the mark-options.
+FAIL=[new PerformanceMark]: Negative startTime in mark-options should be rejected
+FAIL=[new PerformanceMark]: Number should be rejected as the mark-options.
+FAIL=[new PerformanceMark]: String should be rejected as the mark-options.
+FAIL=[performance.mark]: Infinity should be rejected as the mark-options.
+FAIL=[performance.mark]: NaN should be rejected as the mark-options.
+FAIL=[performance.mark]: Negative startTime in mark-options should be rejected
+FAIL=[performance.mark]: Number should be rejected as the mark-options.
+FAIL=[performance.mark]: String should be rejected as the mark-options.
 [user-timing/mark-l3.any.html]
 FAIL=mark entries' detail and startTime are customizable.
 [user-timing/mark-l3.any.worker.html]
-harness=TIMEOUT
+FAIL=mark entries' detail and startTime are customizable.
 [user-timing/mark-measure-feature-detection.html]
 FAIL=Test PerformanceMark existence and feature detection
 FAIL=Test PerformanceMeasure existence and feature detection
@@ -88,9 +87,11 @@ FAIL=L3: performance.measure(name) should return an entry.
 FAIL=L3: performance.measure(name, param1) should return an entry.
 FAIL=L3: performance.measure(name, param1, param2) should return an entry.
 [user-timing/mark-measure-return-objects.any.worker.html]
-harness=TIMEOUT
-[user-timing/mark.any.worker.html]
-harness=TIMEOUT
+FAIL=L3: performance.mark(name) should return an entry.
+FAIL=L3: performance.mark(name, param) should return an entry.
+FAIL=L3: performance.measure(name) should return an entry.
+FAIL=L3: performance.measure(name, param1) should return an entry.
+FAIL=L3: performance.measure(name, param1, param2) should return an entry.
 [user-timing/mark.html]
 harness=TIMEOUT
 [user-timing/mark_exceptions.html]
@@ -132,13 +133,16 @@ FAIL=Passing 51.15 as a mark to measure API should cause error.
 FAIL=Passing DoesNotExist as a mark to measure API should cause error.
 [user-timing/measure-l3.any.html]
 FAIL=When the end mark is given and the start is unprovided, the end time of the measure entry should be the end mark's time, the start time should be 0.
+FAIL=When the start mark is given and the end is unprovided, the start time of the measure entry should be the start mark's time, the end should be now.
 [user-timing/measure-l3.any.worker.html]
-harness=TIMEOUT
+FAIL=When the end mark is given and the start is unprovided, the end time of the measure entry should be the end mark's time, the start time should be 0.
+FAIL=When the start mark is given and the end is unprovided, the start time of the measure entry should be the start mark's time, the end should be now.
 [user-timing/measure-with-dict.any.html]
 FAIL=measure entries' detail and start/end are customizable
 FAIL=measure should throw a TypeError when passed an invalid argument combination
 [user-timing/measure-with-dict.any.worker.html]
-harness=TIMEOUT
+FAIL=measure entries' detail and start/end are customizable
+FAIL=measure should throw a TypeError when passed an invalid argument combination
 [user-timing/measure.html]
 harness=TIMEOUT
 [user-timing/measure_associated_with_navigation_timing.html]
@@ -167,11 +171,15 @@ FAIL=self.performance.measure("measure", "mark"), where "mark" is a non-existent
 FAIL=self.performance.measure("measure", "mark", "existing_mark"), where "mark" is a non-existent mark, throws a SyntaxError exception.
 FAIL=self.performance.measure("measure", "mark", "mark"), where "mark" is a non-existent mark, throws a SyntaxError exception.
 [user-timing/measure_syntax_err.any.worker.html]
-harness=TIMEOUT
+FAIL=self.performance.measure("measure", "existing_mark", "mark"), where "mark" is a non-existent mark, throws a SyntaxError exception.
+FAIL=self.performance.measure("measure", "mark"), where "mark" is a non-existent mark, throws a SyntaxError exception.
+FAIL=self.performance.measure("measure", "mark", "existing_mark"), where "mark" is a non-existent mark, throws a SyntaxError exception.
+FAIL=self.performance.measure("measure", "mark", "mark"), where "mark" is a non-existent mark, throws a SyntaxError exception.
 [user-timing/measures.html]
 harness=TIMEOUT
 [user-timing/performance-measure-invalid.worker.html]
-harness=TIMEOUT
+FAIL=When converting 'navigationStart' to a timestamp and a mark named 'navigationStart' exists, the global object has to be a Window object.
+FAIL=When converting 'navigationStart' to a timestamp, the global object has to be a Window object.
 [user-timing/structured-serialize-detail.any.html]
 FAIL=Mark: Throw an exception when the detail property cannot be structured-serialized.
 FAIL=Measure: Throw an exception when the detail property cannot be structured-serialized.
@@ -182,11 +190,16 @@ FAIL=The detail property in the measure method should be structured-clone.
 FAIL=When accessing detail from a mark entry and the detail is not provided, just return a null value.
 FAIL=When accessing detail from a measure entry and the detail is not provided, just return a null value.
 [user-timing/structured-serialize-detail.any.worker.html]
-harness=TIMEOUT
+FAIL=Mark: Throw an exception when the detail property cannot be structured-serialized.
+FAIL=Measure: Throw an exception when the detail property cannot be structured-serialized.
+FAIL=The detail object is cloned when passed to mark API.
+FAIL=The detail property in the mark constructor should be structured-clone.
+FAIL=The detail property in the mark method should be structured-clone.
+FAIL=The detail property in the measure method should be structured-clone.
+FAIL=When accessing detail from a mark entry and the detail is not provided, just return a null value.
+FAIL=When accessing detail from a measure entry and the detail is not provided, just return a null value.
 [user-timing/supported-usertiming-types.any.worker.html]
 harness=TIMEOUT
 [user-timing/user-timing-tojson.html]
 FAIL=Test toJSON() in PerformanceMark
 FAIL=Test toJSON() in PerformanceMeasure
-[user-timing/user_timing_exists.any.worker.html]
-harness=TIMEOUT

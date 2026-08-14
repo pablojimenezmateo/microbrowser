@@ -1,7 +1,7 @@
 [storage/buckets/bucket-quota-indexeddb.tentative.https.any.html]
 FAIL=IDB respects bucket quota
 [storage/buckets/bucket-quota-indexeddb.tentative.https.any.worker.html]
-harness=TIMEOUT
+FAIL=IDB respects bucket quota
 [storage/buckets/bucket-storage-policy.tentative.https.any.html]
 FAIL=The open promise should reject with a TypeError when quota is requested outside the range of 1 to Number.MAX_SAFE_INTEGER.
 [storage/buckets/bucket_names.tentative.https.any.html]
@@ -61,29 +61,31 @@ FAIL=two handles can refer to the same bucket, and a bucket name can be reused a
 [storage/estimate-indexeddb.https.any.html]
 FAIL=estimate() shows usage increase after large value is stored
 [storage/estimate-indexeddb.https.any.worker.html]
-harness=TIMEOUT
+FAIL=estimate() shows usage increase after large value is stored
 [storage/estimate-parallel.https.any.html]
 FAIL=Multiple estimate() calls in parallel should complete
 [storage/estimate-parallel.https.any.worker.html]
-harness=TIMEOUT
+FAIL=Multiple estimate() calls in parallel should complete
 [storage/estimate-usage-details-caches.https.tentative.any.html]
 FAIL=estimate() shows usage increase after large value is stored
 [storage/estimate-usage-details-caches.https.tentative.any.worker.html]
-harness=TIMEOUT
+FAIL=estimate() shows usage increase after large value is stored
 [storage/estimate-usage-details-indexeddb.https.tentative.any.html]
-harness=TIMEOUT
+FAIL=estimate() resolves to dictionary with usageDetails member
+FAIL=estimate() usage details reflects increase in indexedDB after large value is stored
 [storage/estimate-usage-details-indexeddb.https.tentative.any.worker.html]
-harness=TIMEOUT
+FAIL=estimate() resolves to dictionary with usageDetails member
+FAIL=estimate() usage details reflects increase in indexedDB after large value is stored
 [storage/estimate-usage-details-service-workers.https.tentative.window.html]
 FAIL=estimate() shows usage increase after large value is stored
 [storage/estimate-usage-details.https.tentative.any.html]
 FAIL=estimate() resolves to dictionary with members, including usageDetails
 [storage/estimate-usage-details.https.tentative.any.worker.html]
-harness=TIMEOUT
+FAIL=estimate() resolves to dictionary with members, including usageDetails
 [storage/idlharness.https.any.html]
-harness=TIMEOUT
+FAIL=idl_test setup
 [storage/idlharness.https.any.worker.html]
-harness=TIMEOUT
+FAIL=idl_test setup
 [storage/opaque-origin.https.window.html]
 harness=TIMEOUT
 [storage/partitioned-estimate-usage-details-caches.tentative.https.sub.html]
@@ -95,24 +97,26 @@ harness=TIMEOUT
 [storage/permission-query.https.any.html]
 FAIL=The "persistent-storage" permission is recognized
 [storage/permission-query.https.any.worker.html]
-harness=TIMEOUT
+FAIL=The "persistent-storage" permission is recognized
 [storage/persisted.https.any.html]
 FAIL=persisted() method exists and returns a Promise
 FAIL=persisted() returns a promise and resolves as boolean with false
 [storage/persisted.https.any.worker.html]
-harness=TIMEOUT
+FAIL=persisted() method exists and returns a Promise
+FAIL=persisted() returns a promise and resolves as boolean with false
 [storage/storagemanager-estimate.https.any.html]
 FAIL=estimate() method exists and returns a Promise
 FAIL=estimate() resolves to dictionary with members
 [storage/storagemanager-estimate.https.any.worker.html]
-harness=TIMEOUT
+FAIL=estimate() method exists and returns a Promise
+FAIL=estimate() resolves to dictionary with members
 [storage/storagemanager-persist-persisted-match.https.window.html]
 FAIL=navigator.storage.persist() resolves to a value that matches navigator.storage.persisted()
 [storage/storagemanager-persist.https.window.html]
 FAIL=navigator.storage.persist() returns a promise that resolves.
 [storage/storagemanager-persist.https.worker.html]
-harness=TIMEOUT
+FAIL=navigator.storage.persist should not exist in workers
 [storage/storagemanager-persisted.https.any.html]
 FAIL=navigator.storage.persisted() returns a promise that resolves.
 [storage/storagemanager-persisted.https.any.worker.html]
-harness=TIMEOUT
+FAIL=navigator.storage.persisted() returns a promise that resolves.

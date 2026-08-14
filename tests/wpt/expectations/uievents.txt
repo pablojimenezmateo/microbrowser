@@ -1,11 +1,5 @@
 [uievents/click/auxclick_event.html]
 harness=TIMEOUT
-[uievents/click/click_event_target_child_parent.html]
-harness=TIMEOUT
-[uievents/click/click_event_target_siblings.html]
-harness=TIMEOUT
-[uievents/click/click_events_on_input.html]
-harness=TIMEOUT
 [uievents/click/contextmenu_event.html]
 harness=TIMEOUT
 [uievents/click/dblclick_event_mouse.html]
@@ -43,11 +37,19 @@ harness=TIMEOUT
 [uievents/keyboard/keyboardevent-composed.html]
 harness=TIMEOUT
 [uievents/keyboard/keypress-not-fired-for-modifier-shortcuts.html]
-harness=TIMEOUT
+FAIL=keypress must be dispatched for a plain key
+FAIL=keypress must not be dispatched for Control + v
+FAIL=keypress must not be dispatched for Meta + v
 [uievents/keyboard/modifier-keys-combinations.html]
-harness=TIMEOUT
+FAIL=Check sending "Alt + y" key combination
+FAIL=Check sending "Control + y" key combination
+FAIL=Check sending "Meta + y" key combination
+FAIL=Check sending "Shift + y" key combination
 [uievents/keyboard/modifier-keys.html]
-harness=TIMEOUT
+FAIL=Check sending Alt key
+FAIL=Check sending Control key
+FAIL=Check sending Meta key
+FAIL=Check sending Shift key
 [uievents/legacy-domevents-tests/approved/dispatchEvent.click.checkbox.html]
 harness=TIMEOUT
 [uievents/legacy/Event-subclasses-init.html]
@@ -56,11 +58,12 @@ FAIL=Call initKeyboardEvent without parameters
 FAIL=Call initMouseEvent without parameters
 FAIL=Call initUIEvent without parameters
 [uievents/mouse/attributes.html]
-FAIL=MouseEvent attributes
+harness=TIMEOUT
 [uievents/mouse/cancel-mousedown-in-subframe.html]
 harness=TIMEOUT
 [uievents/mouse/layer-coords-transform.html]
-harness=TIMEOUT
+FAIL=layer-coords-transform
+FAIL=layer-coords-transform 1
 [uievents/mouse/layout_change_should_fire_mouseover.html]
 harness=TIMEOUT
 [uievents/mouse/mouse_boundary_events_after_reappending_last_over_target.tentative.html]
@@ -79,8 +82,10 @@ FAIL=After removing and re-appending the last over element with flushing layout 
 FAIL=After removing the last over element, redundant mouseenter events should not be fired on the ancestors
 FAIL=After removing the root element in the shadow under the cursor, mouseleave events should be targeted outside the shadow, but redundant mouseenter events should not be fired
 [uievents/mouse/mouse_boundary_events_modifier_no_mouse_movement.html]
-FAIL=Test undefined of mouse boundary events (modifiers are changed after move)
-FAIL=Test undefined of mouse boundary events (modifiers are changed before move)
+FAIL=Test undefined of mouse boundary events (modifiers are changed after move): undefined of mouseout should be true
+FAIL=Test undefined of mouse boundary events (modifiers are changed after move): undefined of mouseover should be true
+FAIL=Test undefined of mouse boundary events (modifiers are changed before move): undefined of mouseout should be true
+FAIL=Test undefined of mouse boundary events (modifiers are changed before move): undefined of mouseover should be true
 [uievents/mouse/mouse_boundary_events_on_image_map.html]
 FAIL=mouse boundary events when both <area> and <img> are resized
 FAIL=mouse boundary events when moved from an <area> to the same <area> shared by another <img>
@@ -93,7 +98,9 @@ FAIL=mouse boundary events when usemap is modified and <img> is resized
 [uievents/mouse/mouse_buttons_back_forward.html]
 harness=TIMEOUT
 [uievents/mouse/mouseenter-mouseleave-on-drag.html]
-harness=TIMEOUT
+FAIL=Test dragging across inner div
+FAIL=Test dragging into inner div
+FAIL=Test dragging out of inner div
 [uievents/mouse/mouseevent_move_button.html]
 harness=TIMEOUT
 [uievents/mouse/mousemove-action-interpolation.html]
@@ -137,29 +144,26 @@ FAIL=mouseover should be fired before mouseup if mousedown target is removed (6)
 FAIL=mouseover should be fired before mouseup if mousedown target is removed (7)
 FAIL=mouseover should be fired before mouseup if mousedown target is removed (8)
 FAIL=mouseover should be fired before mouseup if mousedown target is removed (9)
-[uievents/mouse/offset_and_page_after_dispatch.tentative.html]
-FAIL=Click on the target without moving the mouse cursor
 [uievents/mouse/synthetic-mouse-enter-leave-over-out-button-state-after-target-removed.tentative.html]
 FAIL=Removing an element at mousedown
+FAIL=Removing an element at mousedown: mousedown should've been fired
 FAIL=Removing an element at mouseup
+FAIL=Removing an element at mouseup: mousedown should've been fired
 [uievents/order-of-events/focus-events/focus-automated-blink-webkit.html]
-harness=TIMEOUT
-[uievents/order-of-events/focus-events/focus-contained.html]
-harness=TIMEOUT
+FAIL=Focus-related events should fire in the correct order (different DocumentOwner)
+FAIL=Focus-related events should fire in the correct order (same DocumentOwner)
 [uievents/order-of-events/focus-events/focus-management-expectations.html]
 harness=TIMEOUT
 [uievents/order-of-events/focus-events/focus.html]
-harness=TIMEOUT
+FAIL=Focus-related events should fire in the correct order
 [uievents/order-of-events/mouse-events/click-cancel.html]
 FAIL=Default action is canceled if the click event is canceled.
 [uievents/order-of-events/mouse-events/click-on-body.html]
 FAIL=Clicking on the body element itself should fire a click event targeted at the body element
 [uievents/order-of-events/mouse-events/click-on-div.html]
 FAIL=Clicking on a div element and having a click event listener on only document
-[uievents/order-of-events/mouse-events/click-on-html.html]
-FAIL=Clicking on the html element itself should fire a click event targeted at the html element
 [uievents/order-of-events/mouse-events/click-order.html]
-harness=TIMEOUT
+FAIL=Click-related events should fire in the correct order
 [uievents/order-of-events/mouse-events/mouseevents-mousemove.htm]
 harness=TIMEOUT
 [uievents/order-of-events/mouse-events/mousemove-across.html]

@@ -1187,11 +1187,4 @@ FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade o
 FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-http-downgrade origin and no-redirect redirection from https context.
 FAIL=Upgrade-Insecure-Requests: Expects allowed for xhr to same-https origin and downgrade redirection from https context.
 [upgrade-insecure-requests/link-upgrade.sub.https.html]
-FAIL=./link-upgrade/basic-link-no-upgrade.sub.html
-FAIL=./link-upgrade/basic-link-upgrade.sub.html
-FAIL=./link-upgrade/iframe-link-upgrade.sub.html
-FAIL=./link-upgrade/iframe-top-navigation-no-upgrade-1.sub.html
-FAIL=./link-upgrade/iframe-top-navigation-no-upgrade-2.sub.html
-FAIL=./link-upgrade/iframe-top-navigation-upgrade-1.sub.html
-FAIL=./link-upgrade/iframe-top-navigation-upgrade-2.sub.html
-FAIL=./link-upgrade/iframe-top-navigation-upgrade-meta.sub.html
+harness=ERROR

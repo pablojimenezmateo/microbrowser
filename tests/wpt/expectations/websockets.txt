@@ -5,11 +5,11 @@ harness=TIMEOUT
 [websockets/Close-1000-reason.any.html?wss]
 harness=TIMEOUT
 [websockets/Close-1000-reason.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-1000-reason.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-1000-reason.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-1000-verify-code.any.html?default]
 harness=TIMEOUT
 [websockets/Close-1000-verify-code.any.html?wpt_flags=h2]
@@ -17,11 +17,11 @@ harness=TIMEOUT
 [websockets/Close-1000-verify-code.any.html?wss]
 harness=TIMEOUT
 [websockets/Close-1000-verify-code.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-1000-verify-code.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-1000-verify-code.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-1000.any.html?default]
 harness=TIMEOUT
 [websockets/Close-1000.any.html?wpt_flags=h2]
@@ -29,11 +29,11 @@ harness=TIMEOUT
 [websockets/Close-1000.any.html?wss]
 harness=TIMEOUT
 [websockets/Close-1000.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-1000.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-1000.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-1005-verify-code.any.html?default]
 harness=TIMEOUT
 [websockets/Close-1005-verify-code.any.html?wpt_flags=h2]
@@ -41,11 +41,11 @@ harness=TIMEOUT
 [websockets/Close-1005-verify-code.any.html?wss]
 harness=TIMEOUT
 [websockets/Close-1005-verify-code.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-1005-verify-code.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-1005-verify-code.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-1005.any.html?default]
 harness=TIMEOUT
 [websockets/Close-1005.any.html?wpt_flags=h2]
@@ -53,11 +53,11 @@ harness=TIMEOUT
 [websockets/Close-1005.any.html?wss]
 harness=TIMEOUT
 [websockets/Close-1005.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-1005.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-1005.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-2999-reason.any.html?default]
 harness=TIMEOUT
 [websockets/Close-2999-reason.any.html?wpt_flags=h2]
@@ -65,11 +65,11 @@ harness=TIMEOUT
 [websockets/Close-2999-reason.any.html?wss]
 harness=TIMEOUT
 [websockets/Close-2999-reason.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-2999-reason.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-2999-reason.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-3000-reason.any.html?default]
 harness=TIMEOUT
 [websockets/Close-3000-reason.any.html?wpt_flags=h2]
@@ -77,11 +77,11 @@ harness=TIMEOUT
 [websockets/Close-3000-reason.any.html?wss]
 harness=TIMEOUT
 [websockets/Close-3000-reason.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-3000-reason.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-3000-reason.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-3000-verify-code.any.html?default]
 harness=TIMEOUT
 [websockets/Close-3000-verify-code.any.html?wpt_flags=h2]
@@ -89,11 +89,11 @@ harness=TIMEOUT
 [websockets/Close-3000-verify-code.any.html?wss]
 harness=TIMEOUT
 [websockets/Close-3000-verify-code.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-3000-verify-code.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-3000-verify-code.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-4999-reason.any.html?default]
 harness=TIMEOUT
 [websockets/Close-4999-reason.any.html?wpt_flags=h2]
@@ -101,11 +101,11 @@ harness=TIMEOUT
 [websockets/Close-4999-reason.any.html?wss]
 harness=TIMEOUT
 [websockets/Close-4999-reason.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-4999-reason.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-4999-reason.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-Reason-124Bytes.any.html?default]
 harness=TIMEOUT
 [websockets/Close-Reason-124Bytes.any.html?wpt_flags=h2]
@@ -113,11 +113,11 @@ harness=TIMEOUT
 [websockets/Close-Reason-124Bytes.any.html?wss]
 harness=TIMEOUT
 [websockets/Close-Reason-124Bytes.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-Reason-124Bytes.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-Reason-124Bytes.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-delayed.any.html?default]
 harness=TIMEOUT
 [websockets/Close-delayed.any.html?wpt_flags=h2]
@@ -125,11 +125,11 @@ harness=TIMEOUT
 [websockets/Close-delayed.any.html?wss]
 harness=TIMEOUT
 [websockets/Close-delayed.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-delayed.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-delayed.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-onlyReason.any.html?default]
 harness=TIMEOUT
 [websockets/Close-onlyReason.any.html?wpt_flags=h2]
@@ -137,11 +137,11 @@ harness=TIMEOUT
 [websockets/Close-onlyReason.any.html?wss]
 harness=TIMEOUT
 [websockets/Close-onlyReason.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-onlyReason.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-onlyReason.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-readyState-Closed.any.html?default]
 harness=TIMEOUT
 [websockets/Close-readyState-Closed.any.html?wpt_flags=h2]
@@ -149,11 +149,11 @@ harness=TIMEOUT
 [websockets/Close-readyState-Closed.any.html?wss]
 harness=TIMEOUT
 [websockets/Close-readyState-Closed.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-readyState-Closed.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-readyState-Closed.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-readyState-Closing.any.html?default]
 harness=TIMEOUT
 [websockets/Close-readyState-Closing.any.html?wpt_flags=h2]
@@ -161,11 +161,11 @@ harness=TIMEOUT
 [websockets/Close-readyState-Closing.any.html?wss]
 harness=TIMEOUT
 [websockets/Close-readyState-Closing.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-readyState-Closing.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-readyState-Closing.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-reason-unpaired-surrogates.any.html?default]
 harness=TIMEOUT
 [websockets/Close-reason-unpaired-surrogates.any.html?wpt_flags=h2]
@@ -173,11 +173,11 @@ harness=TIMEOUT
 [websockets/Close-reason-unpaired-surrogates.any.html?wss]
 harness=TIMEOUT
 [websockets/Close-reason-unpaired-surrogates.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-reason-unpaired-surrogates.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-reason-unpaired-surrogates.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-server-initiated-close.any.html?default]
 harness=TIMEOUT
 [websockets/Close-server-initiated-close.any.html?wpt_flags=h2]
@@ -185,11 +185,11 @@ harness=TIMEOUT
 [websockets/Close-server-initiated-close.any.html?wss]
 harness=TIMEOUT
 [websockets/Close-server-initiated-close.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-server-initiated-close.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-server-initiated-close.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-undefined.any.html?default]
 harness=TIMEOUT
 [websockets/Close-undefined.any.html?wpt_flags=h2]
@@ -197,11 +197,11 @@ harness=TIMEOUT
 [websockets/Close-undefined.any.html?wss]
 harness=TIMEOUT
 [websockets/Close-undefined.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-undefined.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Close-undefined.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Create-asciiSep-protocol-string.any.html?default]
 FAIL=Create WebSocket - Pass a valid URL and a protocol string with an ascii separator character - SYNTAX_ERR is thrown
 [websockets/Create-asciiSep-protocol-string.any.html?wpt_flags=h2]
@@ -209,11 +209,11 @@ FAIL=Create WebSocket - Pass a valid URL and a protocol string with an ascii sep
 [websockets/Create-asciiSep-protocol-string.any.html?wss]
 FAIL=Create WebSocket - Pass a valid URL and a protocol string with an ascii separator character - SYNTAX_ERR is thrown
 [websockets/Create-asciiSep-protocol-string.any.worker.html?default]
-harness=TIMEOUT
+FAIL=Create WebSocket - Pass a valid URL and a protocol string with an ascii separator character - SYNTAX_ERR is thrown
 [websockets/Create-asciiSep-protocol-string.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+FAIL=Create WebSocket - Pass a valid URL and a protocol string with an ascii separator character - SYNTAX_ERR is thrown
 [websockets/Create-asciiSep-protocol-string.any.worker.html?wss]
-harness=TIMEOUT
+FAIL=Create WebSocket - Pass a valid URL and a protocol string with an ascii separator character - SYNTAX_ERR is thrown
 [websockets/Create-blocked-port.any.html?default]
 harness=TIMEOUT
 [websockets/Create-blocked-port.any.html?wpt_flags=h2]
@@ -221,11 +221,260 @@ FAIL=Basic check
 [websockets/Create-blocked-port.any.html?wss]
 FAIL=Basic check
 [websockets/Create-blocked-port.any.worker.html?default]
-harness=TIMEOUT
+FAIL=Basic check
+FAIL=WebSocket blocked port test 0
+FAIL=WebSocket blocked port test 1
+FAIL=WebSocket blocked port test 10080
+FAIL=WebSocket blocked port test 101
+FAIL=WebSocket blocked port test 102
+FAIL=WebSocket blocked port test 103
+FAIL=WebSocket blocked port test 104
+FAIL=WebSocket blocked port test 109
+FAIL=WebSocket blocked port test 11
+FAIL=WebSocket blocked port test 110
+FAIL=WebSocket blocked port test 111
+FAIL=WebSocket blocked port test 113
+FAIL=WebSocket blocked port test 115
+FAIL=WebSocket blocked port test 117
+FAIL=WebSocket blocked port test 119
+FAIL=WebSocket blocked port test 123
+FAIL=WebSocket blocked port test 13
+FAIL=WebSocket blocked port test 135
+FAIL=WebSocket blocked port test 137
+FAIL=WebSocket blocked port test 139
+FAIL=WebSocket blocked port test 143
+FAIL=WebSocket blocked port test 15
+FAIL=WebSocket blocked port test 161
+FAIL=WebSocket blocked port test 17
+FAIL=WebSocket blocked port test 1719
+FAIL=WebSocket blocked port test 1720
+FAIL=WebSocket blocked port test 1723
+FAIL=WebSocket blocked port test 179
+FAIL=WebSocket blocked port test 19
+FAIL=WebSocket blocked port test 20
+FAIL=WebSocket blocked port test 2049
+FAIL=WebSocket blocked port test 21
+FAIL=WebSocket blocked port test 22
+FAIL=WebSocket blocked port test 23
+FAIL=WebSocket blocked port test 25
+FAIL=WebSocket blocked port test 3659
+FAIL=WebSocket blocked port test 37
+FAIL=WebSocket blocked port test 389
+FAIL=WebSocket blocked port test 4045
+FAIL=WebSocket blocked port test 4190
+FAIL=WebSocket blocked port test 42
+FAIL=WebSocket blocked port test 427
+FAIL=WebSocket blocked port test 43
+FAIL=WebSocket blocked port test 465
+FAIL=WebSocket blocked port test 5060
+FAIL=WebSocket blocked port test 5061
+FAIL=WebSocket blocked port test 512
+FAIL=WebSocket blocked port test 513
+FAIL=WebSocket blocked port test 514
+FAIL=WebSocket blocked port test 515
+FAIL=WebSocket blocked port test 526
+FAIL=WebSocket blocked port test 53
+FAIL=WebSocket blocked port test 530
+FAIL=WebSocket blocked port test 531
+FAIL=WebSocket blocked port test 532
+FAIL=WebSocket blocked port test 540
+FAIL=WebSocket blocked port test 548
+FAIL=WebSocket blocked port test 554
+FAIL=WebSocket blocked port test 556
+FAIL=WebSocket blocked port test 563
+FAIL=WebSocket blocked port test 587
+FAIL=WebSocket blocked port test 6000
+FAIL=WebSocket blocked port test 601
+FAIL=WebSocket blocked port test 636
+FAIL=WebSocket blocked port test 6566
+FAIL=WebSocket blocked port test 6665
+FAIL=WebSocket blocked port test 6666
+FAIL=WebSocket blocked port test 6667
+FAIL=WebSocket blocked port test 6668
+FAIL=WebSocket blocked port test 6669
+FAIL=WebSocket blocked port test 6679
+FAIL=WebSocket blocked port test 6697
+FAIL=WebSocket blocked port test 69
+FAIL=WebSocket blocked port test 7
+FAIL=WebSocket blocked port test 77
+FAIL=WebSocket blocked port test 79
+FAIL=WebSocket blocked port test 87
+FAIL=WebSocket blocked port test 9
+FAIL=WebSocket blocked port test 95
+FAIL=WebSocket blocked port test 989
+FAIL=WebSocket blocked port test 990
+FAIL=WebSocket blocked port test 993
+FAIL=WebSocket blocked port test 995
 [websockets/Create-blocked-port.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+FAIL=Basic check
+FAIL=WebSocket blocked port test 0
+FAIL=WebSocket blocked port test 1
+FAIL=WebSocket blocked port test 10080
+FAIL=WebSocket blocked port test 101
+FAIL=WebSocket blocked port test 102
+FAIL=WebSocket blocked port test 103
+FAIL=WebSocket blocked port test 104
+FAIL=WebSocket blocked port test 109
+FAIL=WebSocket blocked port test 11
+FAIL=WebSocket blocked port test 110
+FAIL=WebSocket blocked port test 111
+FAIL=WebSocket blocked port test 113
+FAIL=WebSocket blocked port test 115
+FAIL=WebSocket blocked port test 117
+FAIL=WebSocket blocked port test 119
+FAIL=WebSocket blocked port test 123
+FAIL=WebSocket blocked port test 13
+FAIL=WebSocket blocked port test 135
+FAIL=WebSocket blocked port test 137
+FAIL=WebSocket blocked port test 139
+FAIL=WebSocket blocked port test 143
+FAIL=WebSocket blocked port test 15
+FAIL=WebSocket blocked port test 161
+FAIL=WebSocket blocked port test 17
+FAIL=WebSocket blocked port test 1719
+FAIL=WebSocket blocked port test 1720
+FAIL=WebSocket blocked port test 1723
+FAIL=WebSocket blocked port test 179
+FAIL=WebSocket blocked port test 19
+FAIL=WebSocket blocked port test 20
+FAIL=WebSocket blocked port test 2049
+FAIL=WebSocket blocked port test 21
+FAIL=WebSocket blocked port test 22
+FAIL=WebSocket blocked port test 23
+FAIL=WebSocket blocked port test 25
+FAIL=WebSocket blocked port test 3659
+FAIL=WebSocket blocked port test 37
+FAIL=WebSocket blocked port test 389
+FAIL=WebSocket blocked port test 4045
+FAIL=WebSocket blocked port test 4190
+FAIL=WebSocket blocked port test 42
+FAIL=WebSocket blocked port test 427
+FAIL=WebSocket blocked port test 43
+FAIL=WebSocket blocked port test 465
+FAIL=WebSocket blocked port test 5060
+FAIL=WebSocket blocked port test 5061
+FAIL=WebSocket blocked port test 512
+FAIL=WebSocket blocked port test 513
+FAIL=WebSocket blocked port test 514
+FAIL=WebSocket blocked port test 515
+FAIL=WebSocket blocked port test 526
+FAIL=WebSocket blocked port test 53
+FAIL=WebSocket blocked port test 530
+FAIL=WebSocket blocked port test 531
+FAIL=WebSocket blocked port test 532
+FAIL=WebSocket blocked port test 540
+FAIL=WebSocket blocked port test 548
+FAIL=WebSocket blocked port test 554
+FAIL=WebSocket blocked port test 556
+FAIL=WebSocket blocked port test 563
+FAIL=WebSocket blocked port test 587
+FAIL=WebSocket blocked port test 6000
+FAIL=WebSocket blocked port test 601
+FAIL=WebSocket blocked port test 636
+FAIL=WebSocket blocked port test 6566
+FAIL=WebSocket blocked port test 6665
+FAIL=WebSocket blocked port test 6666
+FAIL=WebSocket blocked port test 6667
+FAIL=WebSocket blocked port test 6668
+FAIL=WebSocket blocked port test 6669
+FAIL=WebSocket blocked port test 6679
+FAIL=WebSocket blocked port test 6697
+FAIL=WebSocket blocked port test 69
+FAIL=WebSocket blocked port test 7
+FAIL=WebSocket blocked port test 77
+FAIL=WebSocket blocked port test 79
+FAIL=WebSocket blocked port test 87
+FAIL=WebSocket blocked port test 9
+FAIL=WebSocket blocked port test 95
+FAIL=WebSocket blocked port test 989
+FAIL=WebSocket blocked port test 990
+FAIL=WebSocket blocked port test 993
+FAIL=WebSocket blocked port test 995
 [websockets/Create-blocked-port.any.worker.html?wss]
-harness=TIMEOUT
+FAIL=Basic check
+FAIL=WebSocket blocked port test 0
+FAIL=WebSocket blocked port test 1
+FAIL=WebSocket blocked port test 10080
+FAIL=WebSocket blocked port test 101
+FAIL=WebSocket blocked port test 102
+FAIL=WebSocket blocked port test 103
+FAIL=WebSocket blocked port test 104
+FAIL=WebSocket blocked port test 109
+FAIL=WebSocket blocked port test 11
+FAIL=WebSocket blocked port test 110
+FAIL=WebSocket blocked port test 111
+FAIL=WebSocket blocked port test 113
+FAIL=WebSocket blocked port test 115
+FAIL=WebSocket blocked port test 117
+FAIL=WebSocket blocked port test 119
+FAIL=WebSocket blocked port test 123
+FAIL=WebSocket blocked port test 13
+FAIL=WebSocket blocked port test 135
+FAIL=WebSocket blocked port test 137
+FAIL=WebSocket blocked port test 139
+FAIL=WebSocket blocked port test 143
+FAIL=WebSocket blocked port test 15
+FAIL=WebSocket blocked port test 161
+FAIL=WebSocket blocked port test 17
+FAIL=WebSocket blocked port test 1719
+FAIL=WebSocket blocked port test 1720
+FAIL=WebSocket blocked port test 1723
+FAIL=WebSocket blocked port test 179
+FAIL=WebSocket blocked port test 19
+FAIL=WebSocket blocked port test 20
+FAIL=WebSocket blocked port test 2049
+FAIL=WebSocket blocked port test 21
+FAIL=WebSocket blocked port test 22
+FAIL=WebSocket blocked port test 23
+FAIL=WebSocket blocked port test 25
+FAIL=WebSocket blocked port test 3659
+FAIL=WebSocket blocked port test 37
+FAIL=WebSocket blocked port test 389
+FAIL=WebSocket blocked port test 4045
+FAIL=WebSocket blocked port test 4190
+FAIL=WebSocket blocked port test 42
+FAIL=WebSocket blocked port test 427
+FAIL=WebSocket blocked port test 43
+FAIL=WebSocket blocked port test 465
+FAIL=WebSocket blocked port test 5060
+FAIL=WebSocket blocked port test 5061
+FAIL=WebSocket blocked port test 512
+FAIL=WebSocket blocked port test 513
+FAIL=WebSocket blocked port test 514
+FAIL=WebSocket blocked port test 515
+FAIL=WebSocket blocked port test 526
+FAIL=WebSocket blocked port test 53
+FAIL=WebSocket blocked port test 530
+FAIL=WebSocket blocked port test 531
+FAIL=WebSocket blocked port test 532
+FAIL=WebSocket blocked port test 540
+FAIL=WebSocket blocked port test 548
+FAIL=WebSocket blocked port test 554
+FAIL=WebSocket blocked port test 556
+FAIL=WebSocket blocked port test 563
+FAIL=WebSocket blocked port test 587
+FAIL=WebSocket blocked port test 6000
+FAIL=WebSocket blocked port test 601
+FAIL=WebSocket blocked port test 636
+FAIL=WebSocket blocked port test 6566
+FAIL=WebSocket blocked port test 6665
+FAIL=WebSocket blocked port test 6666
+FAIL=WebSocket blocked port test 6667
+FAIL=WebSocket blocked port test 6668
+FAIL=WebSocket blocked port test 6669
+FAIL=WebSocket blocked port test 6679
+FAIL=WebSocket blocked port test 6697
+FAIL=WebSocket blocked port test 69
+FAIL=WebSocket blocked port test 7
+FAIL=WebSocket blocked port test 77
+FAIL=WebSocket blocked port test 79
+FAIL=WebSocket blocked port test 87
+FAIL=WebSocket blocked port test 9
+FAIL=WebSocket blocked port test 95
+FAIL=WebSocket blocked port test 989
+FAIL=WebSocket blocked port test 990
+FAIL=WebSocket blocked port test 993
+FAIL=WebSocket blocked port test 995
 [websockets/Create-extensions-empty.any.html?default]
 harness=TIMEOUT
 [websockets/Create-extensions-empty.any.html?wpt_flags=h2]
@@ -238,27 +487,40 @@ harness=TIMEOUT
 harness=TIMEOUT
 [websockets/Create-extensions-empty.any.worker.html?wss]
 harness=TIMEOUT
+[websockets/Create-http-urls.any.html]
+FAIL=WebSocket: ensure both HTTP schemes are supported
 [websockets/Create-http-urls.any.worker.html]
-harness=TIMEOUT
+FAIL=WebSocket: ensure both HTTP schemes are supported
 [websockets/Create-invalid-urls.any.html]
 FAIL=new WebSocket("#test") should throw a "SyntaxError" DOMException
 FAIL=new WebSocket("about:blank") should throw a "SyntaxError" DOMException
-FAIL=new WebSocket("ftp://localhost:34121/") should throw a "SyntaxError" DOMException
-FAIL=new WebSocket("http://localhost:34121/#") should throw a "SyntaxError" DOMException
-FAIL=new WebSocket("http://localhost:34121/#test") should throw a "SyntaxError" DOMException
+FAIL=new WebSocket("ftp://localhost:43183/") should throw a "SyntaxError" DOMException
+FAIL=new WebSocket("http://localhost:43183/#") should throw a "SyntaxError" DOMException
+FAIL=new WebSocket("http://localhost:43183/#test") should throw a "SyntaxError" DOMException
 FAIL=new WebSocket("mailto:example@example.org") should throw a "SyntaxError" DOMException
 FAIL=new WebSocket("ws://foo bar.com/") should throw a "SyntaxError" DOMException
 FAIL=new WebSocket("wss://foo bar.com/") should throw a "SyntaxError" DOMException
 [websockets/Create-invalid-urls.any.worker.html]
-harness=TIMEOUT
+FAIL=new WebSocket("#test") should throw a "SyntaxError" DOMException
+FAIL=new WebSocket("about:blank") should throw a "SyntaxError" DOMException
+FAIL=new WebSocket("ftp://localhost:43183/") should throw a "SyntaxError" DOMException
+FAIL=new WebSocket("http://localhost:43183/#") should throw a "SyntaxError" DOMException
+FAIL=new WebSocket("http://localhost:43183/#test") should throw a "SyntaxError" DOMException
+FAIL=new WebSocket("mailto:example@example.org") should throw a "SyntaxError" DOMException
+FAIL=new WebSocket("ws://foo bar.com/") should throw a "SyntaxError" DOMException
+FAIL=new WebSocket("wss://foo bar.com/") should throw a "SyntaxError" DOMException
 [websockets/Create-non-absolute-url.any.html]
-FAIL=Create WebSocket - Pass a non absolute URL:
+FAIL:esc=Create WebSocket - Pass a non absolute URL: 
 FAIL=Create WebSocket - Pass a non absolute URL: 123
 FAIL=Create WebSocket - Pass a non absolute URL: ?
 FAIL=Create WebSocket - Pass a non absolute URL: null
 FAIL=Create WebSocket - Pass a non absolute URL: test
 [websockets/Create-non-absolute-url.any.worker.html]
-harness=TIMEOUT
+FAIL:esc=Create WebSocket - Pass a non absolute URL: 
+FAIL=Create WebSocket - Pass a non absolute URL: 123
+FAIL=Create WebSocket - Pass a non absolute URL: ?
+FAIL=Create WebSocket - Pass a non absolute URL: null
+FAIL=Create WebSocket - Pass a non absolute URL: test
 [websockets/Create-nonAscii-protocol-string.any.html?default]
 FAIL=Create WebSocket - Pass a valid URL and a protocol string with non-ascii values - SYNTAX_ERR is thrown
 [websockets/Create-nonAscii-protocol-string.any.html?wpt_flags=h2]
@@ -266,15 +528,15 @@ FAIL=Create WebSocket - Pass a valid URL and a protocol string with non-ascii va
 [websockets/Create-nonAscii-protocol-string.any.html?wss]
 FAIL=Create WebSocket - Pass a valid URL and a protocol string with non-ascii values - SYNTAX_ERR is thrown
 [websockets/Create-nonAscii-protocol-string.any.worker.html?default]
-harness=TIMEOUT
+FAIL=Create WebSocket - Pass a valid URL and a protocol string with non-ascii values - SYNTAX_ERR is thrown
 [websockets/Create-nonAscii-protocol-string.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+FAIL=Create WebSocket - Pass a valid URL and a protocol string with non-ascii values - SYNTAX_ERR is thrown
 [websockets/Create-nonAscii-protocol-string.any.worker.html?wss]
-harness=TIMEOUT
+FAIL=Create WebSocket - Pass a valid URL and a protocol string with non-ascii values - SYNTAX_ERR is thrown
 [websockets/Create-on-worker-shutdown.any.html]
 harness=TIMEOUT
 [websockets/Create-on-worker-shutdown.any.worker.html]
-harness=TIMEOUT
+FAIL=WebSocket created after a worker self.close()
 [websockets/Create-protocol-with-space.any.html?default]
 FAIL=Create WebSocket - Pass a valid URL and a protocol string with a space in it - SYNTAX_ERR is thrown
 [websockets/Create-protocol-with-space.any.html?wpt_flags=h2]
@@ -282,11 +544,11 @@ FAIL=Create WebSocket - Pass a valid URL and a protocol string with a space in i
 [websockets/Create-protocol-with-space.any.html?wss]
 FAIL=Create WebSocket - Pass a valid URL and a protocol string with a space in it - SYNTAX_ERR is thrown
 [websockets/Create-protocol-with-space.any.worker.html?default]
-harness=TIMEOUT
+FAIL=Create WebSocket - Pass a valid URL and a protocol string with a space in it - SYNTAX_ERR is thrown
 [websockets/Create-protocol-with-space.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+FAIL=Create WebSocket - Pass a valid URL and a protocol string with a space in it - SYNTAX_ERR is thrown
 [websockets/Create-protocol-with-space.any.worker.html?wss]
-harness=TIMEOUT
+FAIL=Create WebSocket - Pass a valid URL and a protocol string with a space in it - SYNTAX_ERR is thrown
 [websockets/Create-protocols-repeated-case-insensitive.any.html?default]
 FAIL=Create WebSocket - Pass a valid URL and an array of protocol strings with repeated values but different case - SYNTAX_ERR is thrown
 [websockets/Create-protocols-repeated-case-insensitive.any.html?wpt_flags=h2]
@@ -294,11 +556,11 @@ FAIL=Create WebSocket - Pass a valid URL and an array of protocol strings with r
 [websockets/Create-protocols-repeated-case-insensitive.any.html?wss]
 FAIL=Create WebSocket - Pass a valid URL and an array of protocol strings with repeated values but different case - SYNTAX_ERR is thrown
 [websockets/Create-protocols-repeated-case-insensitive.any.worker.html?default]
-harness=TIMEOUT
+FAIL=Create WebSocket - Pass a valid URL and an array of protocol strings with repeated values but different case - SYNTAX_ERR is thrown
 [websockets/Create-protocols-repeated-case-insensitive.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+FAIL=Create WebSocket - Pass a valid URL and an array of protocol strings with repeated values but different case - SYNTAX_ERR is thrown
 [websockets/Create-protocols-repeated-case-insensitive.any.worker.html?wss]
-harness=TIMEOUT
+FAIL=Create WebSocket - Pass a valid URL and an array of protocol strings with repeated values but different case - SYNTAX_ERR is thrown
 [websockets/Create-protocols-repeated.any.html?default]
 FAIL=Create WebSocket - Pass a valid URL and an array of protocol strings with repeated values - SYNTAX_ERR is thrown
 [websockets/Create-protocols-repeated.any.html?wpt_flags=h2]
@@ -306,11 +568,11 @@ FAIL=Create WebSocket - Pass a valid URL and an array of protocol strings with r
 [websockets/Create-protocols-repeated.any.html?wss]
 FAIL=Create WebSocket - Pass a valid URL and an array of protocol strings with repeated values - SYNTAX_ERR is thrown
 [websockets/Create-protocols-repeated.any.worker.html?default]
-harness=TIMEOUT
+FAIL=Create WebSocket - Pass a valid URL and an array of protocol strings with repeated values - SYNTAX_ERR is thrown
 [websockets/Create-protocols-repeated.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+FAIL=Create WebSocket - Pass a valid URL and an array of protocol strings with repeated values - SYNTAX_ERR is thrown
 [websockets/Create-protocols-repeated.any.worker.html?wss]
-harness=TIMEOUT
+FAIL=Create WebSocket - Pass a valid URL and an array of protocol strings with repeated values - SYNTAX_ERR is thrown
 [websockets/Create-url-with-space.any.html?default]
 FAIL=Create WebSocket - Pass a URL with a space - SYNTAX_ERR should be thrown
 [websockets/Create-url-with-space.any.html?wpt_flags=h2]
@@ -318,11 +580,11 @@ FAIL=Create WebSocket - Pass a URL with a space - SYNTAX_ERR should be thrown
 [websockets/Create-url-with-space.any.html?wss]
 FAIL=Create WebSocket - Pass a URL with a space - SYNTAX_ERR should be thrown
 [websockets/Create-url-with-space.any.worker.html?default]
-harness=TIMEOUT
+FAIL=Create WebSocket - Pass a URL with a space - SYNTAX_ERR should be thrown
 [websockets/Create-url-with-space.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+FAIL=Create WebSocket - Pass a URL with a space - SYNTAX_ERR should be thrown
 [websockets/Create-url-with-space.any.worker.html?wss]
-harness=TIMEOUT
+FAIL=Create WebSocket - Pass a URL with a space - SYNTAX_ERR should be thrown
 [websockets/Create-url-with-windows-1252-encoding.html]
 FAIL=URL's percent-encoding is always in UTF-8 for WebSocket
 [websockets/Create-valid-url-array-protocols.any.html?default]
@@ -332,11 +594,11 @@ harness=TIMEOUT
 [websockets/Create-valid-url-array-protocols.any.html?wss]
 harness=TIMEOUT
 [websockets/Create-valid-url-array-protocols.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Create-valid-url-array-protocols.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Create-valid-url-array-protocols.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Create-valid-url-binaryType-blob.any.html?default]
 harness=TIMEOUT
 [websockets/Create-valid-url-binaryType-blob.any.html?wpt_flags=h2]
@@ -344,11 +606,11 @@ harness=TIMEOUT
 [websockets/Create-valid-url-binaryType-blob.any.html?wss]
 harness=TIMEOUT
 [websockets/Create-valid-url-binaryType-blob.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Create-valid-url-binaryType-blob.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Create-valid-url-binaryType-blob.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Create-valid-url-protocol-empty.any.html?default]
 FAIL=Create WebSocket - wsocket.protocol should be empty before connection is established
 [websockets/Create-valid-url-protocol-empty.any.html?wpt_flags=h2]
@@ -358,9 +620,9 @@ FAIL=Create WebSocket - wsocket.protocol should be empty before connection is es
 [websockets/Create-valid-url-protocol-empty.any.worker.html?default]
 harness=TIMEOUT
 [websockets/Create-valid-url-protocol-empty.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+FAIL=Create WebSocket - wsocket.protocol should be empty before connection is established
 [websockets/Create-valid-url-protocol-empty.any.worker.html?wss]
-harness=TIMEOUT
+FAIL=Create WebSocket - wsocket.protocol should be empty before connection is established
 [websockets/Create-valid-url-protocol-setCorrectly.any.html?default]
 harness=TIMEOUT
 [websockets/Create-valid-url-protocol-setCorrectly.any.html?wpt_flags=h2]
@@ -368,11 +630,11 @@ harness=TIMEOUT
 [websockets/Create-valid-url-protocol-setCorrectly.any.html?wss]
 harness=TIMEOUT
 [websockets/Create-valid-url-protocol-setCorrectly.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Create-valid-url-protocol-setCorrectly.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Create-valid-url-protocol-setCorrectly.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Create-valid-url-protocol-string.any.html?default]
 harness=TIMEOUT
 [websockets/Create-valid-url-protocol-string.any.html?wpt_flags=h2]
@@ -380,11 +642,11 @@ harness=TIMEOUT
 [websockets/Create-valid-url-protocol-string.any.html?wss]
 harness=TIMEOUT
 [websockets/Create-valid-url-protocol-string.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Create-valid-url-protocol-string.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Create-valid-url-protocol-string.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Create-valid-url-protocol.any.html?default]
 harness=TIMEOUT
 [websockets/Create-valid-url-protocol.any.html?wpt_flags=h2]
@@ -392,11 +654,11 @@ harness=TIMEOUT
 [websockets/Create-valid-url-protocol.any.html?wss]
 harness=TIMEOUT
 [websockets/Create-valid-url-protocol.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Create-valid-url-protocol.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Create-valid-url-protocol.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Create-valid-url.any.html?default]
 harness=TIMEOUT
 [websockets/Create-valid-url.any.html?wpt_flags=h2]
@@ -404,11 +666,11 @@ harness=TIMEOUT
 [websockets/Create-valid-url.any.html?wss]
 harness=TIMEOUT
 [websockets/Create-valid-url.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Create-valid-url.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Create-valid-url.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-0byte-data.any.html?default]
 harness=TIMEOUT
 [websockets/Send-0byte-data.any.html?wpt_flags=h2]
@@ -416,11 +678,11 @@ harness=TIMEOUT
 [websockets/Send-0byte-data.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-0byte-data.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-0byte-data.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-0byte-data.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-65K-data.any.html?default]
 harness=TIMEOUT
 [websockets/Send-65K-data.any.html?wpt_flags=h2]
@@ -428,23 +690,17 @@ harness=TIMEOUT
 [websockets/Send-65K-data.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-65K-data.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-65K-data.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-65K-data.any.worker.html?wss]
-harness=TIMEOUT
-[websockets/Send-before-open.any.html?default]
-FAIL=Send data on a WebSocket before connection is opened - INVALID_STATE_ERR is returned
-[websockets/Send-before-open.any.html?wpt_flags=h2]
-FAIL=Send data on a WebSocket before connection is opened - INVALID_STATE_ERR is returned
-[websockets/Send-before-open.any.html?wss]
-FAIL=Send data on a WebSocket before connection is opened - INVALID_STATE_ERR is returned
+harness=ERROR
 [websockets/Send-before-open.any.worker.html?default]
-harness=TIMEOUT
+FAIL=Send data on a WebSocket before connection is opened - INVALID_STATE_ERR is returned
 [websockets/Send-before-open.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+FAIL=Send data on a WebSocket before connection is opened - INVALID_STATE_ERR is returned
 [websockets/Send-before-open.any.worker.html?wss]
-harness=TIMEOUT
+FAIL=Send data on a WebSocket before connection is opened - INVALID_STATE_ERR is returned
 [websockets/Send-binary-65K-arraybuffer.any.html?default]
 harness=TIMEOUT
 [websockets/Send-binary-65K-arraybuffer.any.html?wpt_flags=h2]
@@ -452,11 +708,11 @@ harness=TIMEOUT
 [websockets/Send-binary-65K-arraybuffer.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-binary-65K-arraybuffer.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-65K-arraybuffer.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-65K-arraybuffer.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybuffer.any.html?default]
 harness=TIMEOUT
 [websockets/Send-binary-arraybuffer.any.html?wpt_flags=h2]
@@ -464,11 +720,11 @@ harness=TIMEOUT
 [websockets/Send-binary-arraybuffer.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-binary-arraybuffer.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybuffer.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybuffer.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-float16.any.html?default]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-float16.any.html?wpt_flags=h2]
@@ -476,11 +732,11 @@ harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-float16.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-float16.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-float16.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-float16.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-float32.any.html?default]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-float32.any.html?wpt_flags=h2]
@@ -488,11 +744,11 @@ harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-float32.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-float32.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-float32.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-float32.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-float64.any.html?default]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-float64.any.html?wpt_flags=h2]
@@ -500,11 +756,11 @@ harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-float64.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-float64.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-float64.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-float64.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-int16-offset.any.html?default]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-int16-offset.any.html?wpt_flags=h2]
@@ -512,11 +768,11 @@ harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-int16-offset.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-int16-offset.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-int16-offset.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-int16-offset.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-int32.any.html?default]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-int32.any.html?wpt_flags=h2]
@@ -524,11 +780,11 @@ harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-int32.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-int32.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-int32.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-int32.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-int8.any.html?default]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-int8.any.html?wpt_flags=h2]
@@ -536,11 +792,11 @@ harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-int8.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-int8.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-int8.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-int8.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-uint16-offset-length.any.html?default]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-uint16-offset-length.any.html?wpt_flags=h2]
@@ -548,11 +804,11 @@ harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-uint16-offset-length.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-uint16-offset-length.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-uint16-offset-length.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-uint16-offset-length.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-uint32-offset.any.html?default]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-uint32-offset.any.html?wpt_flags=h2]
@@ -560,11 +816,11 @@ harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-uint32-offset.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-uint32-offset.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-uint32-offset.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-uint32-offset.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-uint8-offset-length.any.html?default]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-uint8-offset-length.any.html?wpt_flags=h2]
@@ -572,11 +828,11 @@ harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-uint8-offset-length.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-uint8-offset-length.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-uint8-offset-length.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-uint8-offset-length.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-uint8-offset.any.html?default]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-uint8-offset.any.html?wpt_flags=h2]
@@ -584,11 +840,11 @@ harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-uint8-offset.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-binary-arraybufferview-uint8-offset.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-uint8-offset.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-arraybufferview-uint8-offset.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-blob.any.html?default]
 harness=TIMEOUT
 [websockets/Send-binary-blob.any.html?wpt_flags=h2]
@@ -596,11 +852,11 @@ harness=TIMEOUT
 [websockets/Send-binary-blob.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-binary-blob.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-blob.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-binary-blob.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-data.any.html?default]
 harness=TIMEOUT
 [websockets/Send-data.any.html?wpt_flags=h2]
@@ -608,17 +864,17 @@ harness=TIMEOUT
 [websockets/Send-data.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-data.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-data.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-data.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-data.worker.html?default]
-harness=TIMEOUT
+FAIL=Send data on a WebSocket in a Worker
 [websockets/Send-data.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+FAIL=Send data on a WebSocket in a Worker
 [websockets/Send-data.worker.html?wss]
-harness=TIMEOUT
+FAIL=Send data on a WebSocket in a Worker
 [websockets/Send-null.any.html?default]
 harness=TIMEOUT
 [websockets/Send-null.any.html?wpt_flags=h2]
@@ -626,11 +882,11 @@ harness=TIMEOUT
 [websockets/Send-null.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-null.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-null.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-null.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-paired-surrogates.any.html?default]
 harness=TIMEOUT
 [websockets/Send-paired-surrogates.any.html?wpt_flags=h2]
@@ -638,11 +894,11 @@ harness=TIMEOUT
 [websockets/Send-paired-surrogates.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-paired-surrogates.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-paired-surrogates.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-paired-surrogates.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-unicode-data.any.html?default]
 harness=TIMEOUT
 [websockets/Send-unicode-data.any.html?wpt_flags=h2]
@@ -650,11 +906,11 @@ harness=TIMEOUT
 [websockets/Send-unicode-data.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-unicode-data.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-unicode-data.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-unicode-data.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-unpaired-surrogates.any.html?default]
 harness=TIMEOUT
 [websockets/Send-unpaired-surrogates.any.html?wpt_flags=h2]
@@ -662,25 +918,25 @@ harness=TIMEOUT
 [websockets/Send-unpaired-surrogates.any.html?wss]
 harness=TIMEOUT
 [websockets/Send-unpaired-surrogates.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-unpaired-surrogates.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/Send-unpaired-surrogates.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/back-forward-cache-closes-open-websocket-connection.tentative.window.html]
-FAIL=Testing BFCache support for page with open WebSocket connection, where the WebSocket connection is closed on BFCache.
+harness=TIMEOUT
 [websockets/back-forward-cache-with-closed-websocket-connection-ccns.tentative.window.html]
-FAIL=Testing BFCache support for page with closed WebSocket connection and "Cache-Control: no-store" header.
+harness=TIMEOUT
 [websockets/back-forward-cache-with-closed-websocket-connection.window.html]
-FAIL=Testing BFCache support for page with closed WebSocket connection.
+harness=TIMEOUT
 [websockets/back-forward-cache-with-open-websocket-connection-and-close-it-in-pagehide.window.html]
-FAIL=Testing BFCache support for a page with an open WebSocket connection, but close it in pagehide.
+harness=TIMEOUT
 [websockets/back-forward-cache-with-open-websocket-connection-ccns.tentative.window.html]
-FAIL=Testing BFCache support for page with open WebSocket connection and "Cache-Control: no-store" header.
+harness=TIMEOUT
 [websockets/back-forward-cache-with-open-websocket-connection.window.html]
-FAIL=Testing BFCache support for page with open WebSocket connection.
+harness=TIMEOUT
 [websockets/basic-auth.any.html?wpt_flags=h2]
-FAIL=HTTP basic authentication should work with WebSockets
+harness=TIMEOUT
 [websockets/basic-auth.any.html?wss]
 FAIL=HTTP basic authentication should work with WebSockets
 [websockets/binary/001.html]
@@ -698,11 +954,11 @@ harness=TIMEOUT
 [websockets/binaryType-wrong-value.any.html?wss]
 harness=TIMEOUT
 [websockets/binaryType-wrong-value.any.worker.html?default]
-harness=TIMEOUT
+harness=ERROR
 [websockets/binaryType-wrong-value.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+harness=ERROR
 [websockets/binaryType-wrong-value.any.worker.html?wss]
-harness=TIMEOUT
+harness=ERROR
 [websockets/bufferedAmount-unchanged-by-sync-xhr.any.html?default]
 harness=TIMEOUT
 [websockets/bufferedAmount-unchanged-by-sync-xhr.any.html?wpt_flags=h2]
@@ -710,11 +966,11 @@ FAIL=bufferedAmount should not be updated during a sync XHR
 [websockets/bufferedAmount-unchanged-by-sync-xhr.any.html?wss]
 FAIL=bufferedAmount should not be updated during a sync XHR
 [websockets/bufferedAmount-unchanged-by-sync-xhr.any.worker.html?default]
-harness=TIMEOUT
+FAIL=bufferedAmount should not be updated during a sync XHR
 [websockets/bufferedAmount-unchanged-by-sync-xhr.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+FAIL=bufferedAmount should not be updated during a sync XHR
 [websockets/bufferedAmount-unchanged-by-sync-xhr.any.worker.html?wss]
-harness=TIMEOUT
+FAIL=bufferedAmount should not be updated during a sync XHR
 [websockets/close-invalid.any.html?default]
 FAIL=0 on a websocket
 FAIL=2**16+1000 on a websocket
@@ -723,15 +979,40 @@ FAIL=NaN on a websocket
 FAIL=String on a websocket
 FAIL=null on a websocket
 [websockets/close-invalid.any.html?wpt_flags=h2]
-harness=TIMEOUT
+FAIL=0 on a websocket
+FAIL=2**16+1000 on a websocket
+FAIL=500 on a websocket
+FAIL=NaN on a websocket
+FAIL=String on a websocket
+FAIL=null on a websocket
 [websockets/close-invalid.any.html?wss]
-harness=TIMEOUT
+FAIL=0 on a websocket
+FAIL=2**16+1000 on a websocket
+FAIL=500 on a websocket
+FAIL=NaN on a websocket
+FAIL=String on a websocket
+FAIL=null on a websocket
 [websockets/close-invalid.any.worker.html?default]
-harness=TIMEOUT
+FAIL=0 on a websocket
+FAIL=2**16+1000 on a websocket
+FAIL=500 on a websocket
+FAIL=NaN on a websocket
+FAIL=String on a websocket
+FAIL=null on a websocket
 [websockets/close-invalid.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+FAIL=0 on a websocket
+FAIL=2**16+1000 on a websocket
+FAIL=500 on a websocket
+FAIL=NaN on a websocket
+FAIL=String on a websocket
+FAIL=null on a websocket
 [websockets/close-invalid.any.worker.html?wss]
-harness=TIMEOUT
+FAIL=0 on a websocket
+FAIL=2**16+1000 on a websocket
+FAIL=500 on a websocket
+FAIL=NaN on a websocket
+FAIL=String on a websocket
+FAIL=null on a websocket
 [websockets/closing-handshake/002.html]
 harness=TIMEOUT
 [websockets/closing-handshake/003.html]
@@ -745,11 +1026,11 @@ FAIL=Calling the WebSocket constructor with too many arguments should not throw.
 [websockets/constructor.any.html?wss]
 FAIL=Calling the WebSocket constructor with too many arguments should not throw.
 [websockets/constructor.any.worker.html?default]
-harness=TIMEOUT
+FAIL=Calling the WebSocket constructor with too many arguments should not throw.
 [websockets/constructor.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+FAIL=Calling the WebSocket constructor with too many arguments should not throw.
 [websockets/constructor.any.worker.html?wss]
-harness=TIMEOUT
+FAIL=Calling the WebSocket constructor with too many arguments should not throw.
 [websockets/constructor/001.html]
 FAIL=WebSockets: new WebSocket() with no args
 [websockets/constructor/004.html]
@@ -980,15 +1261,21 @@ FAIL=Event handler for open should have [TreatNonCallableAsNull]
 [websockets/eventhandlers.any.worker.html?default]
 harness=TIMEOUT
 [websockets/eventhandlers.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+FAIL=Event handler for close should have [TreatNonCallableAsNull]
+FAIL=Event handler for error should have [TreatNonCallableAsNull]
+FAIL=Event handler for message should have [TreatNonCallableAsNull]
+FAIL=Event handler for open should have [TreatNonCallableAsNull]
 [websockets/eventhandlers.any.worker.html?wss]
-harness=TIMEOUT
+FAIL=Event handler for close should have [TreatNonCallableAsNull]
+FAIL=Event handler for error should have [TreatNonCallableAsNull]
+FAIL=Event handler for message should have [TreatNonCallableAsNull]
+FAIL=Event handler for open should have [TreatNonCallableAsNull]
 [websockets/extended-payload-length.html]
 harness=TIMEOUT
 [websockets/idlharness.any.html]
 FAIL=idl_test setup
 [websockets/idlharness.any.worker.html]
-harness=TIMEOUT
+FAIL=idl_test setup
 [websockets/interfaces/CloseEvent/clean-close.html]
 harness=TIMEOUT
 [websockets/interfaces/CloseEvent/constructor.html]
@@ -1023,11 +1310,11 @@ harness=TIMEOUT
 [websockets/interfaces/WebSocket/close/close-connecting-async.any.html?wss]
 harness=TIMEOUT
 [websockets/interfaces/WebSocket/close/close-connecting-async.any.worker.html?default]
-harness=TIMEOUT
+FAIL=close event should be fired asynchronously when WebSocket is connecting
 [websockets/interfaces/WebSocket/close/close-connecting-async.any.worker.html?wpt_flags=h2]
-harness=TIMEOUT
+FAIL=close event should be fired asynchronously when WebSocket is connecting
 [websockets/interfaces/WebSocket/close/close-connecting-async.any.worker.html?wss]
-harness=TIMEOUT
+FAIL=close event should be fired asynchronously when WebSocket is connecting
 [websockets/interfaces/WebSocket/close/close-connecting.html]
 FAIL=WebSockets: close() when connecting
 [websockets/interfaces/WebSocket/close/close-multiple.html]
@@ -1053,16 +1340,6 @@ FAIL=ws.CLOSED
 FAIL=ws.CLOSING
 FAIL=ws.CONNECTING
 FAIL=ws.OPEN
-[websockets/interfaces/WebSocket/constants/005.html]
-FAIL=defineProperty getter CLOSED
-FAIL=defineProperty getter CLOSING
-FAIL=defineProperty getter CONNECTING
-FAIL=defineProperty getter OPEN
-[websockets/interfaces/WebSocket/constants/006.html]
-FAIL=defineProperty setter CLOSED
-FAIL=defineProperty setter CLOSING
-FAIL=defineProperty setter CONNECTING
-FAIL=defineProperty setter OPEN
 [websockets/interfaces/WebSocket/events/003.html]
 FAIL=WebSockets: listening for events with onopen
 [websockets/interfaces/WebSocket/events/004.html]
@@ -1128,12 +1405,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [websockets/interfaces/WebSocket/send/001.html]
 FAIL=WebSockets: send() with no args
-[websockets/interfaces/WebSocket/send/003.html]
-FAIL=WebSockets: send() when readyState is CONNECTING
-[websockets/interfaces/WebSocket/send/004.html]
-FAIL=lone high surrogate
-FAIL=lone low surrogate
-FAIL=surrogates in wrong order
 [websockets/interfaces/WebSocket/send/005.html]
 harness=TIMEOUT
 [websockets/interfaces/WebSocket/send/006.html]
@@ -1178,7 +1449,7 @@ harness=TIMEOUT
 [websockets/opening-handshake/002.html]
 harness=TIMEOUT
 [websockets/opening-handshake/003-sets-origin.worker.html]
-harness=TIMEOUT
+FAIL=origin set in a Worker
 [websockets/opening-handshake/003.html]
 harness=TIMEOUT
 [websockets/opening-handshake/005.html]
@@ -1190,7 +1461,7 @@ harness=TIMEOUT
 [websockets/referrer.any.html]
 harness=TIMEOUT
 [websockets/referrer.any.worker.html]
-harness=TIMEOUT
+FAIL=Ensure no Referer header is included
 [websockets/remove-own-iframe-during-onerror.window.html?default]
 harness=TIMEOUT
 [websockets/remove-own-iframe-during-onerror.window.html?wpt_flags=h2]
@@ -1388,12 +1659,12 @@ FAIL=writing a resizable ArrayBuffer should be rejected
 FAIL=writing a value that cannot be stringified should cause a rejection
 FAIL=writing a view on a shared buffer should be rejected
 [websockets/unload-a-document/001.html]
-FAIL=WebSockets: navigating top-level browsing context
+harness=TIMEOUT
 [websockets/unload-a-document/002.html]
-FAIL=WebSockets: navigating top-level browsing context with closed websocket
+harness=TIMEOUT
 [websockets/unload-a-document/003.html]
 harness=TIMEOUT
 [websockets/unload-a-document/004.html]
 harness=TIMEOUT
 [websockets/unload-a-document/005.html]
-FAIL=WebSockets: navigating nested browsing context with a websocket in top-level
+harness=TIMEOUT
