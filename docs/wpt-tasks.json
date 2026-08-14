@@ -173,7 +173,8 @@
       "id": "D3", "milestone": "M-D", "title": "CSSOM", "area": "css/cssom/",
       "scope": "CSSStyleSheet, CSSRuleList, cssText round-trip, insertRule/deleteRule, document.styleSheets.",
       "check": "css/cssom/ >= 70%.", "depends": ["C1"], "target": "70%",
-      "status": "not_started", "agent": null, "adr": "", "notes": ""
+      "status": "not_started", "agent": null, "adr": "",
+      "notes": "**Measured 2026-08-14, and the single missing piece is named.** `document.styleSheets` does not exist -- neither it, nor `sheet.cssRules`, nor `insertRule`/`deleteRule`, nor the `CSSRule` hierarchy. `CSSStyleSheet` exists only as the *constructable* kind (`ConstructableStylesheets.cpp`), with `replaceSync` and `adoptedStyleSheets` and no rule list behind it.\n\n**227 test files under css/ and html/ touch `document.styleSheets`, `.cssRules` or `insertRule`**, 44 of them in `css/cssom/` alone, and `css/css-fonts/test_font_family_parsing.html` is 1,420 subtests that die on line one at `document.styleSheets[1]`.\n\nThe shape is decided by one fact: **the engine already keeps both halves**. `engine::DocumentResources` holds `author_sheet_slots` (the text) and `author_sheet_parsed` (the `css::StyleSheet`), positionally. So this is a `bindings::StyleSheetSource` seam like every other -- declared in `src/bindings`, implemented by `src/engine` -- rather than a re-parse in the binding layer. Do **not** build it by parsing `<style>` text on demand: that answers for `<style>` and silently returns an empty rule list for every `<link>`, which is the stub ADR 0012 forbids.\n\n`src/engine/Page.h` is at its module cap and this adds a seam to it; the note in `src/engine/MODULE.deps` about cutting the class is the thing to act on first."
     },
     {
       "id": "D4", "milestone": "M-D", "title": "CSSOM-View", "area": "css/cssom-view/",
