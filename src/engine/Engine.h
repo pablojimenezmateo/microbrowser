@@ -247,6 +247,12 @@ class Engine : private bindings::NetworkSource,
   void StartWorkerImportRequests();
   // Both worker completions, behind one question: the router asks "is this a worker's?" once.
   bool OnWorkerFetch(Loader::Completion completion);
+  // A worker's own `fetch`/XHR, which is the page's request path with the two ends moved. The two
+  // halves are shared with `StartFetch`/`OnScriptFetch` so that the policy in them is decided once.
+  Loader::RequestId StartScriptRequest(const bindings::ScriptRequest& request);
+  static bindings::ScriptResponse ScriptResponseFrom(Loader::Completion& completion);
+  void StartWorkerFetchRequests();
+  bool OnWorkerScriptRequestFetch(Loader::Completion completion);
   // One face's bytes. True when the provider took them and the page therefore
   // needs laying out again -- text measured before a face arrived was measured in
   // a different font, which is what `font-display: swap` looks like from inside.
@@ -521,6 +527,9 @@ class Engine : private bindings::NetworkSource,
   // than a flag on the one above, because the two answers do different things: a worker script starts
   // a thread, an import unblocks one.
   std::map<Loader::RequestId, std::uint64_t> worker_import_fetches_;
+  // A worker's own `fetch`/XHR in flight: loader id -> (worker, that worker's request id). The pair
+  // rather than one number because the promise lives in the *worker's* heap and is keyed there.
+  std::map<Loader::RequestId, std::pair<std::uint64_t, std::uint64_t>> worker_script_fetches_;
   // Back and forward, for this tab. ADR 0026 §1: it is here rather than in
   // `src/ui` because a `pushState` entry is a URL *plus a state object owned by a
   // document*, and the chrome cannot see a document.

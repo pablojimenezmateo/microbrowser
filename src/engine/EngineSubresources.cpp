@@ -423,6 +423,9 @@ bool Engine::OnWorkerFetch(Loader::Completion completion) {
   if (worker_fetches_.count(completion.id) != 0) {
     return OnWorkerScriptFetch(std::move(completion));
   }
+  if (worker_script_fetches_.count(completion.id) != 0) {
+    return OnWorkerScriptRequestFetch(std::move(completion));
+  }
   const auto found = worker_import_fetches_.find(completion.id);
   if (found == worker_import_fetches_.end()) {
     return false;

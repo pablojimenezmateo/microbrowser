@@ -197,6 +197,7 @@ bool Engine::Advance() {
   // happens along. It promotes nothing and starts nothing here.
   loader_.Advance(NowMilliseconds());
   StartWorkerImportRequests();  // a blocked worker; see the function, which says why it is here
+  StartWorkerFetchRequests();   // and its `fetch`, which is waiting rather than blocked
   // The page's sockets, before the early return: a socket has no completion in the
   // loader's queue, so nothing below this line would ever look at one. Its events run
   // script, which is why it is here and not inside the paint.
@@ -204,7 +205,8 @@ bool Engine::Advance() {
   socket_activity = AdvanceEventSources() || socket_activity;
   if (!load_.active && post_load_.images.empty() && post_load_.scripts.empty() && script_fetches_.empty() &&
       module_fetches_.empty() && font_fetches_.empty() && worker_fetches_.empty() &&
-      worker_import_fetches_.empty() && !page_.HasPendingModules()) {
+      worker_import_fetches_.empty() && worker_script_fetches_.empty() &&
+      !page_.HasPendingModules()) {
     if (socket_activity) {
       // A message ran a handler, which may have changed the document. Paint, for the
       // reason a timer callback paints: the page a user is looking at is now stale.
@@ -229,7 +231,9 @@ bool Engine::Advance() {
       }
       continue;
     }
-    if (worker_fetches_.count(completion.id) + worker_import_fetches_.count(completion.id) > 0) {
+    if (worker_fetches_.count(completion.id) + worker_import_fetches_.count(completion.id) +
+            worker_script_fetches_.count(completion.id) >
+        0) {
       moved = OnWorkerFetch(std::move(completion)) || moved;
       continue;
     }
@@ -320,7 +324,7 @@ bool Engine::HasRunnableWork() const {
   return (load_.active || !post_load_.images.empty() || !post_load_.scripts.empty() ||
           !script_fetches_.empty() ||
           !module_fetches_.empty() || !font_fetches_.empty() || !worker_fetches_.empty() ||
-          !worker_import_fetches_.empty() ||  // a worker thread is blocked on each of these
+          !worker_import_fetches_.empty() || !worker_script_fetches_.empty() ||
           page_.HasPendingModules()) &&
          loader_.HasRunnableWork();
 }

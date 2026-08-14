@@ -51,8 +51,11 @@ std::string BytesOf(const js::SerializedValue& serialized) {
 
 }  // namespace
 
-DomBindings::DomBindings(js::Interpreter& interpreter)
-    : interpreter_(&interpreter), document_(nullptr) {}
+DomBindings::DomBindings(js::Interpreter& interpreter, std::string url, NetworkSource* network)
+    : interpreter_(&interpreter),
+      document_(nullptr),
+      url_(std::move(url)),
+      network_(network) {}
 
 void DomBindings::InstallWorkerScope() {
   if (interpreter_ == nullptr) {
@@ -63,17 +66,21 @@ void DomBindings::InstallWorkerScope() {
   // what makes reusing them right rather than expedient: `new URL('a', b)` in a worker and on a page
   // are the same parser, so they cannot come to disagree.
   //
-  // What is *not* here is as deliberate. `fetch` and `XMLHttpRequest` need the engine's request
-  // queue, which lives on the main thread and is reached through a seam this side of the boundary
-  // does not have; `IndexedDB` and `localStorage` are the same shape. Each is absent rather than
-  // present-and-broken, because under ADR 0012's rule a script that finds `fetch` and gets a promise
-  // that never settles has no fallback left.
+  // What is *not* here is as deliberate. `IndexedDB` and `localStorage` want a store keyed by an
+  // origin and reached from the main thread; each is absent rather than present-and-broken, because
+  // under ADR 0012's rule a script that finds a name and gets something that never answers has no
+  // fallback left.
   InstallStructuredClone();
   InstallUrlConstructor();
   InstallUrlSearchParams();
   InstallTextEncoding();
   InstallCrypto();
   InstallBlob();
+  // `fetch`, `Headers`, `Request`, `Response`, `FormData`, `AbortController` and
+  // `XMLHttpRequest` -- **the same code the page runs**, over a `NetworkSource` whose other end is
+  // this worker's own thread. It installs nothing at all when there is no network behind it, which
+  // is the same absence-rather-than-stub rule it follows on a page.
+  InstallFetch();
 }
 
 void DomBindings::InstallStructuredClone() {

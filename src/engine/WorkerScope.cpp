@@ -25,6 +25,7 @@
 
 #include "bindings/Fingerprint.h"
 #include "js/Interpreter.h"
+#include "url/Url.h"
 #include "util/PerformanceCounters.h"
 #include "util/UserAgent.h"
 
@@ -64,6 +65,47 @@ double ClampDelay(const Value& value) {
 
 }  // namespace
 
+WorkerNetwork::WorkerNetwork(WorkerScopeHost& host, std::string base_url) noexcept
+    : host_(host), base_url_(std::move(base_url)) {}
+
+std::uint64_t WorkerNetwork::StartFetch(const bindings::ScriptRequest& request) {
+  // The id is allocated **here**, on the worker's thread, because the promise it will settle lives
+  // in this heap. The main thread keys its own loader request by (worker, request) and hands the
+  // pair back; nothing about the page's id space reaches in.
+  const std::uint64_t id = ++next_request_id_;
+  host_.StartFetch(id, request);
+  return id;
+}
+
+void WorkerNetwork::AbortFetch(std::uint64_t id) { host_.AbortFetch(id); }
+
+std::string WorkerNetwork::ResolveUrl(std::string_view relative, std::string_view base) const {
+  // The same two lines `Engine::ResolveUrl` is, and deliberately the same parser: a `new URL(...)`
+  // in a worker and one on the page must not be able to disagree about where a host ends.
+  const std::optional<url::Url> parsed_base = url::Url::Parse(base);
+  if (!parsed_base.has_value()) {
+    const std::optional<url::Url> absolute = url::Url::Parse(relative);
+    return absolute.has_value() ? absolute->Serialize() : std::string();
+  }
+  const std::optional<url::Url> resolved = url::Url::Parse(relative, *parsed_base);
+  return resolved.has_value() ? resolved->Serialize() : std::string();
+}
+
+std::string WorkerNetwork::ResolveDocumentUrl(std::string_view relative) const {
+  // A worker's base is its own script's URL. There is no `<base href>` here and no document
+  // encoding: a worker script is always UTF-8, which is why this takes no encoder where the page's
+  // version does.
+  return ResolveUrl(relative, base_url_);
+}
+
+std::string WorkerNetwork::RegisterBlobUrl(std::string body, std::string mime_type) {
+  (void)body;
+  (void)mime_type;
+  return {};
+}
+
+void WorkerNetwork::RevokeBlobUrl(const std::string& url) { (void)url; }
+
 WorkerScope::WorkerScope(js::Interpreter& interpreter, WorkerScopeHost& host, std::string name,
                          WorkerLocation location)
     : interpreter_(interpreter),
@@ -101,7 +143,8 @@ void WorkerScope::Install() {
   // And the document-free half of the binding layer, which is the larger half of what a worker sees.
   // Constructed here, on this thread, and destroyed with the scope -- the same rule the interpreter
   // follows, and for the same reason: there is no window in which two threads hold it.
-  bindings_ = std::make_unique<bindings::DomBindings>(interpreter_);
+  network_ = std::make_unique<WorkerNetwork>(host_, location_.href);
+  bindings_ = std::make_unique<bindings::DomBindings>(interpreter_, location_.href, network_.get());
   bindings_->InstallWorkerScope();
   started_ms_ = static_cast<std::int64_t>(NowMs());
   performance_.Install(interpreter_, started_ms_);
@@ -675,6 +718,13 @@ void WorkerScope::DeliverMessage(const js::SerializedValue& message) {
     event.object->Set("ports", ports);
   }
   Dispatch(event);
+}
+
+void WorkerScope::DeliverFetchResponse(std::uint64_t request_id,
+                                       const bindings::ScriptResponse& response) {
+  if (bindings_ != nullptr) {
+    bindings_->DeliverFetchResponse(request_id, response);
+  }
 }
 
 void WorkerScope::EndTurn() {

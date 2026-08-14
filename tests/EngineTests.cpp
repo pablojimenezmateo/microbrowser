@@ -4083,6 +4083,65 @@ document.addEventListener("DOMContentLoaded",async function(){var e=document.for
            "each message was delivered exactly once: " + log);
   });
 
+  AddTest(tests, "Worker/FetchGoesOutThroughTheSameRequestPathAsThePages", [] {
+    // **A worker's `fetch` is the page's `fetch`.** Same `bindings::NetworkSource`, same
+    // `privacy::Verdict`, same CORS check inside `net`, same connection pool keyed by the same
+    // partition -- only the two ends move: the request is queued from a second thread and the promise
+    // it settles lives in a second heap. A worker with a request path of its own would be a second
+    // place for every one of those decisions to be made differently.
+    //
+    // `URL` is asserted in the same worker for the reason the fetch is: it is the *page's* URL
+    // parser, reached from the worker's thread, rather than a copy written for workers.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("text/html",
+                   "<script>"
+                   "var w = new Worker('/w.js');"
+                   "w.onmessage = function(e) { console.log('got:' + e.data); };"
+                   "w.onerror = function(e) { console.log('error:' + e.message); };"
+                   "</" "script>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true,
+        OkResponse("application/javascript",
+                   "postMessage('url=' + new URL('../x?a=1', 'https://example.org/a/b/c').href +"
+                   "            ' enc=' + typeof TextEncoder + ' b64=' + btoa('hi'));"
+                   "fetch('/data.txt').then(function(r) { return r.text(); })"
+                   "  .then(function(t) { postMessage('body=' + t); })"
+                   "  .catch(function(e) { postMessage('threw=' + e); });")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "example.org", 443, true, OkResponse("text/plain", "from the network")});
+    session.engine.PageLoader().SetTransport(factory);
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://example.org/page.html"});
+
+    std::string log;
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+    while (std::chrono::steady_clock::now() < deadline) {
+      const bool advanced = session.engine.Advance();
+      const bool ran = session.engine.RunDueWork();
+      log.clear();
+      for (const std::string& line : session.engine.ConsoleOutput()) {
+        log += line + "|";
+      }
+      if (log.find("got:body=") != std::string::npos ||
+          log.find("got:threw=") != std::string::npos) {
+        break;
+      }
+      if (!advanced && !ran && !session.engine.HasRunnableWork()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      }
+    }
+    Expect(log.find("got:url=https://example.org/a/x?a=1 ") != std::string::npos,
+           "`new URL` in a worker is the one parser in src/url, resolving against a base: " + log);
+    Expect(log.find("enc=function b64=aGk=") != std::string::npos,
+           "and TextEncoder and btoa are the page's, not copies: " + log);
+    Expect(log.find("got:body=from the network") != std::string::npos,
+           "a worker's fetch went out on the main thread and its promise settled in the worker's "
+           "own heap: " + log);
+  });
+
   AddTest(tests, "Privacy/TheAnswerTableIsWhatADR0029SaysItIs", [] {
     // **ADR 0029 §6's table, asserted.** The values are one thing and the *absences* are the other, and
     // the absences are why this test exists: `navigator.deviceMemory` and its six siblings are things a

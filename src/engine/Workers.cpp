@@ -169,6 +169,12 @@ void Workers::Run(Worker& worker) {
       return owner.FetchForWorker(worker, url, body_out);
     }
     void RequestClose() override { closed = true; }
+    void StartFetch(std::uint64_t request_id, const bindings::ScriptRequest& request) override {
+      owner.QueueFetch(worker, request_id, request);
+    }
+    void AbortFetch(std::uint64_t request_id) override {
+      owner.QueueFetchAbort(worker, request_id);
+    }
   };
   Host host(*this, worker, post);
 
@@ -183,13 +189,16 @@ void Workers::Run(Worker& worker) {
 
   while (!worker.stop.load() && !host.closed) {
     std::vector<js::SerializedValue> batch;
+    std::vector<std::pair<std::uint64_t, bindings::ScriptResponse>> answers;
     {
       std::unique_lock<std::mutex> guard(worker.inbox_mutex);
       // **The block that keeps zero-idle-CPU true.** A worker with nothing to do waits here and costs
       // nothing; the predicate re-checks `stop` so that `terminate()` wakes it without a timeout. A
       // worker with a timer armed waits until that timer is due and not one millisecond of polling --
       // which is the same rule `IdleWaitState::next_deadline_ms` states for the main loop.
-      const auto ready = [&worker] { return worker.stop.load() || !worker.inbox.empty(); };
+      const auto ready = [&worker] {
+        return worker.stop.load() || !worker.inbox.empty() || !worker.responses.empty();
+      };
       const double delay_ms = scope.NextDelayMs();
       if (delay_ms < 0.0) {
         worker.inbox_ready.wait(guard, ready);
@@ -204,6 +213,10 @@ void Workers::Run(Worker& worker) {
         batch.push_back(std::move(worker.inbox.front()));
         worker.inbox.pop_front();
       }
+      while (!worker.responses.empty()) {
+        answers.push_back(std::move(worker.responses.front()));
+        worker.responses.pop_front();
+      }
     }
     // Timers first, then messages: a timer that came due while the thread was asleep is older than a
     // message that arrived to wake it, and running them the other way round reorders a page's own
@@ -212,6 +225,9 @@ void Workers::Run(Worker& worker) {
     for (const js::SerializedValue& message : batch) {
       scope.DeliverMessage(message);
       AddPerformanceCounter(PerfCounterId::WorkerMessagesHandled);
+    }
+    for (const auto& [request_id, response] : answers) {
+      scope.DeliverFetchResponse(request_id, response);
     }
     scope.EndTurn();
   }
@@ -243,6 +259,76 @@ bool Workers::FetchForWorker(Worker& worker, const std::string& specifier, std::
   *body_out = std::move(worker.sync.body);
   AddPerformanceCounter(PerfCounterId::WorkerScriptsImported);
   return true;
+}
+
+void Workers::QueueFetch(Worker& worker, std::uint64_t request_id,
+                         const bindings::ScriptRequest& request) {
+  {
+    std::lock_guard<std::mutex> guard(worker.requests_mutex);
+    if (worker.requests.size() >= kMaxQueuedMessages) {
+      // The same bound the message queues have, and dropped for the same reason: blocking here would
+      // block the *worker's* script inside `fetch`, which is the one thing this queue exists to
+      // avoid. A dropped request never settles, which a page sees as a hung promise -- so it is
+      // counted, and the bound is four thousand deep.
+      AddPerformanceCounter(PerfCounterId::WorkerMessagesDropped);
+      return;
+    }
+    worker.requests.push_back(FetchRequest{worker.id, request_id, request});
+  }
+  Wake(worker);
+}
+
+void Workers::QueueFetchAbort(Worker& worker, std::uint64_t request_id) {
+  {
+    std::lock_guard<std::mutex> guard(worker.requests_mutex);
+    worker.aborts.push_back(FetchAbort{worker.id, request_id});
+  }
+  Wake(worker);
+}
+
+std::vector<Workers::FetchRequest> Workers::TakeFetchRequests() {
+  std::vector<FetchRequest> out;
+  std::lock_guard<std::mutex> guard(workers_mutex_);
+  for (auto& [id, worker] : workers_) {
+    std::lock_guard<std::mutex> requests(worker->requests_mutex);
+    for (FetchRequest& request : worker->requests) {
+      out.push_back(std::move(request));
+    }
+    worker->requests.clear();
+  }
+  return out;
+}
+
+std::vector<Workers::FetchAbort> Workers::TakeFetchAborts() {
+  std::vector<FetchAbort> out;
+  std::lock_guard<std::mutex> guard(workers_mutex_);
+  for (auto& [id, worker] : workers_) {
+    std::lock_guard<std::mutex> requests(worker->requests_mutex);
+    for (const FetchAbort& abort : worker->aborts) {
+      out.push_back(abort);
+    }
+    worker->aborts.clear();
+  }
+  return out;
+}
+
+void Workers::DeliverFetch(std::uint64_t worker_id, std::uint64_t request_id,
+                           bindings::ScriptResponse response) {
+  std::lock_guard<std::mutex> guard(workers_mutex_);
+  const auto found = workers_.find(worker_id);
+  if (found == workers_.end()) {
+    return;
+  }
+  Worker& worker = *found->second;
+  {
+    std::lock_guard<std::mutex> inbox(worker.inbox_mutex);
+    if (worker.responses.size() >= kMaxQueuedMessages) {
+      AddPerformanceCounter(PerfCounterId::WorkerMessagesDropped);
+      return;
+    }
+    worker.responses.emplace_back(request_id, std::move(response));
+  }
+  worker.inbox_ready.notify_one();
 }
 
 std::vector<Workers::ImportRequest> Workers::TakeImportRequests() {
@@ -371,6 +457,14 @@ bool Workers::HasWork() const {
     {
       std::lock_guard<std::mutex> outbox(worker->outbox_mutex);
       if (!worker->outbox.empty()) {
+        return true;
+      }
+    }
+    {
+      // A `fetch` the worker started and this loop has not: nothing is blocked on it, but a promise
+      // is waiting and no other wakeup is coming.
+      std::lock_guard<std::mutex> requests(worker->requests_mutex);
+      if (!worker->requests.empty() || !worker->aborts.empty()) {
         return true;
       }
     }

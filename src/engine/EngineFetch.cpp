@@ -85,6 +85,19 @@ bool IsLocallyResolvedUrl(std::string_view url) {
 }  // namespace
 
 std::uint64_t Engine::StartFetch(const bindings::ScriptRequest& request) {
+  const Loader::RequestId id = StartScriptRequest(request);
+  if (id != 0) {
+    script_fetches_.insert(id);
+  }
+  return id;
+}
+
+// The request half, shared with a *worker's* `fetch`. One function rather than two, because
+// everything in it is a decision -- `connect-src`, the CORS mode, what a string body implies about
+// Content-Type -- and a second copy is a second place for one of them to be made differently. The
+// only thing the caller decides is which table the id goes in, which is which side settles the
+// promise.
+Loader::RequestId Engine::StartScriptRequest(const bindings::ScriptRequest& request) {
   // Resolved against the document, which is also the initiator and -- with no
   // frames -- the top-level site. `StartSubresource` does all of that and puts
   // the result through `privacy::PrivacyPolicy`, which is why a page's own
@@ -146,10 +159,67 @@ std::uint64_t Engine::StartFetch(const bindings::ScriptRequest& request) {
   options.cors.credentials = CredentialsFromScript(request.credentials);
   options.cors.origin = url::Origin::FromUrl(*base);
 
-  const Loader::RequestId id = loader_.StartSubresource(
-      request.url, *base, privacy::ResourceType::Xhr, NowSeconds(), options);
-  script_fetches_.insert(id);
-  return id;
+  return loader_.StartSubresource(request.url, *base, privacy::ResourceType::Xhr, NowSeconds(),
+                                  options);
+}
+
+// The response half, shared for the same reason. What arrives here has already been filtered by
+// `net` -- an opaque response is an empty one because the bytes were discarded, not hidden.
+bindings::ScriptResponse Engine::ScriptResponseFrom(Loader::Completion& completion) {
+  bindings::ScriptResponse response;
+  response.ok = completion.result.ok;
+  response.error = completion.result.error;
+  response.status = completion.result.status;
+  response.status_text = completion.result.status_text;
+  response.url = completion.result.final_url;
+  response.body = std::move(completion.result.body);
+  response.redirected = completion.result.redirected;
+  response.opaque = completion.result.opaque;
+  response.headers.reserve(completion.result.headers.size());
+  for (const auto& [name, value] : completion.result.headers) {
+    response.headers.push_back(bindings::ScriptHeader{name, value});
+  }
+  return response;
+}
+
+void Engine::StartWorkerFetchRequests() {
+  for (const Workers::FetchAbort& abort : page_.TakeWorkerFetchAborts()) {
+    // Abandoned before the answer arrived -- an `AbortController`, or the worker terminating. The
+    // loader request is cancelled and the mapping dropped, so no delivery follows: an aborted fetch
+    // that could still run its own `then` is the bug this is here to prevent.
+    for (auto it = worker_script_fetches_.begin(); it != worker_script_fetches_.end();) {
+      if (it->second.first == abort.worker_id && it->second.second == abort.request_id) {
+        loader_.Cancel(it->first);
+        it = worker_script_fetches_.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
+  for (const Workers::FetchRequest& pending : page_.TakeWorkerFetchRequests()) {
+    const Loader::RequestId id = StartScriptRequest(pending.request);
+    if (id == 0) {
+      // Refused before it went out -- an unparseable URL, the privacy layer, `connect-src`. The
+      // worker's promise has to be *rejected* rather than left, so a refusal is delivered as a
+      // failed response rather than as silence.
+      bindings::ScriptResponse refused;
+      refused.error = "the request was refused";
+      page_.DeliverWorkerFetch(pending.worker_id, pending.request_id, std::move(refused));
+      continue;
+    }
+    worker_script_fetches_[id] = {pending.worker_id, pending.request_id};
+  }
+}
+
+bool Engine::OnWorkerScriptRequestFetch(Loader::Completion completion) {
+  const auto found = worker_script_fetches_.find(completion.id);
+  if (found == worker_script_fetches_.end()) {
+    return false;
+  }
+  const auto [worker_id, request_id] = found->second;
+  worker_script_fetches_.erase(found);
+  page_.DeliverWorkerFetch(worker_id, request_id, ScriptResponseFrom(completion));
+  return true;
 }
 
 std::string Engine::ResolveDocumentUrl(std::string_view relative) const {
@@ -199,19 +269,7 @@ bool Engine::OnScriptFetch(Loader::Completion completion) {
   if (script_fetches_.erase(completion.id) == 0) {
     return false;
   }
-  bindings::ScriptResponse response;
-  response.ok = completion.result.ok;
-  response.error = completion.result.error;
-  response.status = completion.result.status;
-  response.status_text = completion.result.status_text;
-  response.url = completion.result.final_url;
-  response.body = std::move(completion.result.body);
-  response.redirected = completion.result.redirected;
-  response.opaque = completion.result.opaque;
-  response.headers.reserve(completion.result.headers.size());
-  for (const auto& [name, value] : completion.result.headers) {
-    response.headers.push_back(bindings::ScriptHeader{name, value});
-  }
+  const bindings::ScriptResponse response = ScriptResponseFrom(completion);
   if (!page_.DeliverFetchResponse(completion.id, response)) {
     return false;
   }

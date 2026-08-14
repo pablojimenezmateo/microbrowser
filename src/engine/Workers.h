@@ -127,6 +127,27 @@ class Workers {
   // The answer, which unblocks the worker's thread. `ok` false is the specification's `NetworkError`.
   void CompleteImport(std::uint64_t worker_id, bool ok, std::string body);
 
+  // A `fetch` or an `XMLHttpRequest` a worker started. Unlike `importScripts` this is **not**
+  // blocking: the worker gets an id immediately and its promise settles on a later turn, which is
+  // the same "started, never awaited" rule `bindings::NetworkSource` states for the page.
+  struct FetchRequest {
+    std::uint64_t worker_id = 0;
+    std::uint64_t request_id = 0;
+    bindings::ScriptRequest request;
+  };
+  struct FetchAbort {
+    std::uint64_t worker_id = 0;
+    std::uint64_t request_id = 0;
+  };
+  std::vector<FetchRequest> TakeFetchRequests();
+  std::vector<FetchAbort> TakeFetchAborts();
+
+  // The answer to one, queued for the worker's next turn. It goes through the *inbox* rather than a
+  // queue of its own so that one condition variable wakes the worker for either -- a response and a
+  // message are both "something happened for you".
+  void DeliverFetch(std::uint64_t worker_id, std::uint64_t request_id,
+                    bindings::ScriptResponse response);
+
   // The descriptors the platform wait should watch, so that a message from a worker wakes the loop.
   // One read end per worker, and nothing at all when there are no workers.
   void AppendDescriptors(util::WaitDescriptorList& out) const;
@@ -172,6 +193,14 @@ class Workers {
     mutable std::mutex inbox_mutex;
     std::condition_variable inbox_ready;
     std::deque<js::SerializedValue> inbox;
+    // Fetch answers, beside the messages and under the same mutex and condition variable: a worker
+    // waiting for either is waiting in one place.
+    std::deque<std::pair<std::uint64_t, bindings::ScriptResponse>> responses;
+    // Requests the worker has started that the main loop has not taken yet, and aborts likewise.
+    // Their own mutex, because the worker fills them while the loop may be draining the outbox.
+    mutable std::mutex requests_mutex;
+    std::vector<FetchRequest> requests;
+    std::vector<FetchAbort> aborts;
     mutable std::mutex outbox_mutex;
     std::vector<Delivery> outbox;
     // Set by the main thread, read by the worker. Atomic rather than mutex-guarded because the worker
@@ -192,6 +221,9 @@ class Workers {
   // The worker thread's side of `importScripts`: fills the request, wakes the loop, and blocks until
   // the answer or `stop`. False on either failure, which the scope turns into a `NetworkError`.
   bool FetchForWorker(Worker& worker, const std::string& specifier, std::string* body_out);
+  // The worker thread's side of `fetch`: queue and wake, never wait.
+  void QueueFetch(Worker& worker, std::uint64_t request_id, const bindings::ScriptRequest& request);
+  void QueueFetchAbort(Worker& worker, std::uint64_t request_id);
 
   mutable std::mutex workers_mutex_;
   std::map<std::uint64_t, std::unique_ptr<Worker>> workers_;

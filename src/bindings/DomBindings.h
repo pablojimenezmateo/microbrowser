@@ -81,7 +81,7 @@ class DomBindings {
 
   // A **worker's** global: an interpreter and no document at all. ADR 0022 §1, and the argument for
   // it is in WorkerBindings.cpp beside `InstallWorkerScope`.
-  explicit DomBindings(js::Interpreter& interpreter);
+  DomBindings(js::Interpreter& interpreter, std::string url, NetworkSource* network);
 
   // Declares `document` in the global scope. Separate from the constructor so
   // that a caller can decide *when* a page's script gains access to its tree,

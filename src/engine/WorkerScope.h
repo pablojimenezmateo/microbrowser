@@ -56,6 +56,16 @@ class WorkerScopeHost {
   // `close()`. The loop stops after the current turn rather than inside it, because a script that
   // calls `close()` and then keeps running is defined to keep running to the end of its task.
   virtual void RequestClose() = 0;
+
+  // A `fetch` or an `XMLHttpRequest`, **started and never awaited** -- the same rule
+  // `bindings::NetworkSource` states for the page's own requests, and the reason is the same one
+  // shape further out: the request goes on the main thread's queue, through the same privacy verdict,
+  // CORS and connection pool as an image, and the answer comes back through this worker's own turn.
+  //
+  // The id is the *worker's*, allocated here, because the promise it settles lives in this heap. The
+  // main thread keys its loader request by the pair.
+  virtual void StartFetch(std::uint64_t request_id, const bindings::ScriptRequest& request) = 0;
+  virtual void AbortFetch(std::uint64_t request_id) = 0;
 };
 
 // The components of the worker's own URL, computed on the main thread.
@@ -75,6 +85,35 @@ struct WorkerLocation {
   std::string hash;
 };
 
+// Where a *worker's* own requests go.
+//
+// The same `bindings::NetworkSource` a page's `fetch` is answered through -- which is what makes
+// `fetch` in a worker the same request path as `fetch` on a page rather than a second one: same
+// privacy verdict, same CORS check inside `net`, same connection pool keyed by the same partition.
+// Only the two ends move.
+//
+// The URL questions are answered *here* rather than forwarded, and that is safe for a reason worth
+// writing down: `src/url` is a pure parser over generated const tables, with no lazy initialisation
+// anywhere in it, so two threads may call it at once. It is the one module below this that is.
+class WorkerNetwork final : public bindings::NetworkSource {
+ public:
+  WorkerNetwork(WorkerScopeHost& host, std::string base_url) noexcept;
+
+  std::uint64_t StartFetch(const bindings::ScriptRequest& request) override;
+  void AbortFetch(std::uint64_t id) override;
+  std::string ResolveUrl(std::string_view relative, std::string_view base) const override;
+  std::string ResolveDocumentUrl(std::string_view relative) const override;
+  // Absent behaviour rather than a stub: `URL.createObjectURL` is not installed in a worker, so
+  // nothing can reach these. An empty answer is what an unreachable path returns.
+  std::string RegisterBlobUrl(std::string body, std::string mime_type) override;
+  void RevokeBlobUrl(const std::string& url) override;
+
+ private:
+  WorkerScopeHost& host_;
+  std::string base_url_;
+  std::uint64_t next_request_id_ = 0;
+};
+
 class WorkerScope {
  public:
   WorkerScope(js::Interpreter& interpreter, WorkerScopeHost& host, std::string name,
@@ -92,6 +131,10 @@ class WorkerScope {
 
   // One message from the page, deserialised into this heap and dispatched as a `message` event.
   void DeliverMessage(const js::SerializedValue& message);
+
+  // The answer to one request this worker started. Settles a `fetch` promise or drives an
+  // `XMLHttpRequest` readyState machine -- the binding layer decides which, from the same table.
+  void DeliverFetchResponse(std::uint64_t request_id, const bindings::ScriptResponse& response);
 
   // Milliseconds until the earliest timer is due, or -1 when there are none. Negative-but-not-minus-one
   // is impossible: an overdue timer answers zero, so the caller never sleeps on one.
@@ -152,6 +195,8 @@ class WorkerScope {
   // `URL`, `URLSearchParams`, `TextEncoder`, `atob`, `crypto` and `Blob` from the one implementation
   // the page already uses, rather than a second one written for workers that could disagree with it.
   std::unique_ptr<bindings::DomBindings> bindings_;
+  // This worker's own request path, handed to the binding layer as the `NetworkSource` it declares.
+  std::unique_ptr<WorkerNetwork> network_;
   // `performance.now()`, from this worker's own epoch. A worker-owned clock rather than the page's,
   // because the two are different agents and a shared origin would leak when the *page* started to a
   // script that has no other way to know.
