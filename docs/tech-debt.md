@@ -2603,3 +2603,40 @@ read the tree the way `DocumentBaseUrl` does — and then point `url_of` in `Url
 encoding worktree's version cannot pass the standard's setter vectors and the URL worktree's cannot
 pass `encoding/legacy-mb-*`'s href cases. Neither branch's tests cover the other's case, so **the
 suite is green either way** — check both before believing a change here.
+
+---
+
+## TD-0059 — A dynamically inserted inline script runs at the turn boundary, not at the insertion
+
+HTML's "prepare the script element" runs an inline classic script **during the insertion steps**:
+
+```js
+const s = document.createElement('script');
+s.textContent = 'window.ran = true;';
+document.body.appendChild(s);
+console.log(window.ran);   // true, in every browser
+```
+
+This engine collects inserted scripts through `SetTrustedInsertionFlush` and runs them on the
+loop's next turn, so the line after `appendChild` sees the old value. The deferral is deliberate --
+running script inside a DOM mutation is re-entrancy at the worst possible moment, and the flush is
+what keeps it at a turn boundary where a navigation is safe to act on.
+
+**Measured 2026-08-14.** `html/semantics/scripting-1/the-script-element/script-type-and-language-js.html`
+is 238 of 456, and **every one of the 218 failures is this and not the type rule**: the file's
+"should run" half inserts a script and asserts on the next line, and its "should not run" half
+passes for the wrong reason -- nothing ran because nothing runs. Its XHTML twin is another 218. The
+pattern (`createElement` + `appendChild` + assert) is common enough in the suite that the real
+figure is larger; those two files are what was counted.
+
+What the end state is: the insertion primitives in `src/bindings/TreeMutation.cpp` already know
+they are inserting into a document, and HTML already draws the line for us -- an inline script with
+no `src` executes immediately, an external one loads and runs later, and a *parser-inserted* script
+is not this path at all. So the change is a synchronous call at the one place a script element
+becomes connected, guarded by the same `parser_inserted` distinction HTML uses, rather than a
+general "run script during mutation" capability.
+
+The re-entrancy that the flush exists to avoid is real and does not go away: a script that runs
+during `appendChild` can navigate, and `FollowScriptNavigation` must still be the thing that acts
+on it at the turn boundary. That separation already exists for `element.click()`, which dispatches
+its event synchronously and *records* the activation for later; the same shape applies here.
