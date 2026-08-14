@@ -854,6 +854,7 @@ if(MICROBROWSER_FUZZ)
     microbrowser_html microbrowser_dom)
   microbrowser_fuzzer(xml_fuzzer fuzz/XmlFuzzer.cpp microbrowser_xml microbrowser_dom)
   microbrowser_fuzzer(css_fuzzer fuzz/CssFuzzer.cpp microbrowser_css microbrowser_dom)
+  microbrowser_fuzzer(color_text_fuzzer fuzz/ColorTextFuzzer.cpp microbrowser_gfx)
   microbrowser_fuzzer(image_selection_fuzzer fuzz/ImageSelectionFuzzer.cpp
     microbrowser_engine microbrowser_css microbrowser_html microbrowser_dom)
   microbrowser_fuzzer(root_margin_fuzzer fuzz/RootMarginFuzzer.cpp
