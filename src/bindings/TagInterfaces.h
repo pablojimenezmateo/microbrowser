@@ -128,13 +128,61 @@ constexpr TagInterface kTagInterfaces[] = {
     {"svg", "SVGElement", "Element"},
 };
 
+// The HTML elements whose interface is plain `HTMLElement`.
+//
+// This list is what makes `<foo>` an **HTMLUnknownElement** rather than an HTMLElement, which is
+// the distinction the header comment above said was owed. It is not cosmetic: HTML defines
+// `HTMLUnknownElement` precisely so that a page can tell an element the language knows from one it
+// invented, and a browser that answered `HTMLElement` for both would say `<blink>` is a real
+// element. `html/semantics/interfaces.html` asserts it for all 138 tags it knows.
+//
+// From the HTML Standard's element index. The deprecated ones that are *still* elements are here
+// (`center`, `big`, `strike`, `tt`, `acronym`, `nobr`, `plaintext`) and the ones that were removed
+// are deliberately not (`applet`, `bgsound`, `blink`, `command`, `directory`, `isindex`, `keygen`,
+// `nextid`, `spacer`) -- those are unknown, which is what every browser reports.
+constexpr std::string_view kPlainHtmlElements[] = {
+    "abbr", "acronym", "address", "article", "aside", "b", "basefont", "bdi", "bdo", "big",
+    "center", "cite", "code", "dd", "dfn", "dt", "em", "figcaption", "figure", "footer",
+    "header", "hgroup", "i", "kbd", "main", "mark", "nav", "nobr", "noembed", "noframes",
+    "noscript", "plaintext", "rb", "rp", "rt", "rtc", "ruby", "s", "samp", "search", "section",
+    "small", "strike", "strong", "sub", "summary", "sup", "tt", "u", "var", "wbr"
+};
+
+// A valid custom element name, which HTML gives `HTMLElement` rather than `HTMLUnknownElement`:
+// starts with a lowercase ASCII letter, contains a hyphen, and holds no uppercase. `foo-bar` is
+// one and `foo-BAR` is not -- the suite tests exactly that pair, because a name a page *cannot*
+// register must not answer as though it could.
+inline bool IsValidCustomElementName(std::string_view tag) {
+  if (tag.empty() || tag.front() < 'a' || tag.front() > 'z') {
+    return false;
+  }
+  bool hyphen = false;
+  for (const char c : tag) {
+    if (c == '-') {
+      hyphen = true;
+    }
+    if (c >= 'A' && c <= 'Z') {
+      return false;
+    }
+  }
+  return hyphen;
+}
+
+// The interface for `tag`, or `"HTMLUnknownElement"` when HTML defines no element by that name.
+// Never the empty string: the caller used to read one as "HTMLElement", which is the answer that
+// hid this whole distinction.
 const char* InterfaceForTag(std::string_view tag) {
   for (const TagInterface& entry : kTagInterfaces) {
     if (entry.tag == tag) {
       return entry.interface;
     }
   }
-  return "";
+  for (const std::string_view known : kPlainHtmlElements) {
+    if (known == tag) {
+      return "HTMLElement";
+    }
+  }
+  return IsValidCustomElementName(tag) ? "HTMLElement" : "HTMLUnknownElement";
 }
 
 }  // namespace microbrowser::bindings

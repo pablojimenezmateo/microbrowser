@@ -120,6 +120,18 @@ js::Value DomBindings::MakeInterface(const char* name, const js::Value& parent) 
   }
   constructor.object->Set("prototype", prototype);
   prototype.object->Set("constructor", constructor);
+  // **`Object.prototype.toString.call(el)` is `[object HTMLAnchorElement]`, not `[object Object]`.**
+  // Web IDL puts `@@toStringTag` on every interface prototype object with the interface's name, and
+  // `assert_class_string` -- which is how the suite asks "is this the right kind of object" when
+  // `instanceof` is not enough -- reads exactly that. Without it
+  // `html/semantics/interfaces.html` fails all 438 of its subtests on one missing property, and
+  // every `idlharness` file asks the same question of every object it is given.
+  //
+  // Hidden, because it is not enumerable in a browser either: a `for...in` over an element must not
+  // produce it.
+  if (js::Object* tag = interpreter_->SymbolToStringTag()) {
+    prototype.object->SetHidden(js::PropertyKey::Symbol(tag), Value::String(name));
+  }
   // A binding in the global scope *only*, not also an own property on the
   // global object. Builtins (Math, Object, …) are the same shape, and the
   // two spellings stay one namespace because GetProperty/SetProperty on the
@@ -926,8 +938,10 @@ js::Value DomBindings::PrototypeFor(const dom::Node& node) {
     return named(element.Namespace().Uri() == "http://www.w3.org/2000/svg" ? "SVGElement"
                                                                         : "Element");
   }
-  const char* interface = InterfaceForTag(element.TagName());
-  return *interface == '\0' ? named("HTMLElement") : named(interface);
+  // `InterfaceForTag` answers `HTMLUnknownElement` for a name HTML does not define, and it never
+  // answers the empty string any more -- reading one as `HTMLElement` is what made `<blink>` and
+  // `<div>` the same kind of object.
+  return named(InterfaceForTag(element.TagName()));
 }
 
 }  // namespace microbrowser::bindings
