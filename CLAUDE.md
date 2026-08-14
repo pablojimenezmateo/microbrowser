@@ -134,6 +134,34 @@ serializes the bitmap inline rather than naming it in a resource table. Roadmap 
 
 ## Where To Pick Up
 
+**2026-08-14 was a long session and its lesson is one sentence: three of the five largest causes in
+the WPT baseline were capabilities this browser already had that the tests could not reach, and two
+more were tables the code's own comments said were incomplete.** Nothing in this paragraph was a
+missing feature nobody had thought of. Before reading an area's failures as a specification gap,
+check whether the harness can reach the feature at all -- one `--verbose` run and a look at the
+*server's* log lines for 501s, and a grep of the output for `not implemented` and `is not defined`
+harness errors rather than subtest failures.
+
+| what it was | worth |
+|---|---|
+| a worker had **no global scope**, with a complete thread-and-heap implementation behind it | 1,763 files |
+| the input path existed and nothing exposed it to `testdriver.js` | 1,158 tests |
+| ADR 0040 §2's `.py` condition had been met, and ten files were most of it | 512 tests |
+| the named character reference table was **42 of 2,231** | 2,189 subtests |
+| no `@@toStringTag`, so every platform object was `[object Object]` | 438 in one file, `idlharness` everywhere |
+| `hsl()` computed to **black**, and `rgb(1 2 3 / 0.5)` was four components | `css/css-color/` 11.2% -> 45.4% |
+| CSSOM stored unparsed values and never canonicalised | `colors-007.html` 0 -> 100% |
+
+**And three tests in `tests/` asserted what the code did rather than what the specification says** --
+`element.click()` being trusted, `aria-checked=""` reflecting as `""`, `&notareference;` coming back
+untouched. When a WPT subtest disagrees with a local test, read the local test first, and look at
+whether its comment argues from the specification or from the old behaviour.
+
+**Two process rules learned the hard way, both in `docs/session-log.md`:** a re-record measures the
+binary it *started* with, so nothing that changes behaviour may land while one is in flight; and
+`grep -rl <data-file> third_party/wpt` before implementing from a WPT data table, because one of
+them turned out to be included only by a `.tentative` file that contradicts the shipped test.
+
 **Dedicated workers gained a global scope on 2026-08-14, and it is the largest single unblock the
 suite has had.** `engine::Workers` had owned a thread and a heap since session 38 and every test of
 it passed; what a script standing in that heap could *see* was `postMessage`, `self`, `name` and
