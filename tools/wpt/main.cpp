@@ -215,11 +215,163 @@ Report ParseReport(std::string_view text) {
 // Pumps the engine the way tools/snapshot does -- the real seam, no shortcuts --
 // until `predicate` says the page is finished or the deadline passes. Returns
 // false on the deadline.
+
+// --- testdriver -------------------------------------------------------------
+//
+// `test_driver.click()` and `test_driver.send_keys()` are how 1,146 of the tests
+// in scope ask for input, and without them each one is a `not implemented by
+// testdriver-vendor.js` rejection -- 1,158 tests by the baseline's count, the
+// second-largest single cause in the suite.
+//
+// The seam is `tools/wpt/harness/testdriver-vendor.js`, which queues a line on a
+// global; this drains it and drives the **real** input path -- the same
+// `PointerInputMessage` and `KeyInputMessage` a mouse and a keyboard arrive on.
+// It has to be the real one: ADR 0017 makes a page's own synthetic event
+// untrusted, so a click that did not follow a link would pass the half of a test
+// that counts handlers and fail the half that checks what the click did.
+
+// One field of a tab-separated command, or empty when there are fewer.
+std::string_view CommandField(std::string_view line, std::size_t index) {
+  std::size_t start = 0;
+  for (std::size_t i = 0; i < index; ++i) {
+    const std::size_t tab = line.find('\t', start);
+    if (tab == std::string_view::npos) {
+      return {};
+    }
+    start = tab + 1;
+  }
+  const std::size_t tab = line.find('\t', start);
+  return line.substr(start, tab == std::string_view::npos ? std::string_view::npos : tab - start);
+}
+
+double CommandNumber(std::string_view field) {
+  if (field.empty()) {
+    return 0.0;
+  }
+  return std::strtod(std::string(field).c_str(), nullptr);
+}
+
+// The pointer's last position, so a `pointerDown` lands where the `pointerMove`
+// before it left off. WebDriver's action sources model exactly this.
+struct DriverState {
+  float x = 0.0f;
+  float y = 0.0f;
+};
+
+// A key's three fields, from the one name the shim sends. `text` is what the key
+// inserts and is empty for everything that is not a single printable character,
+// which is what makes an ArrowDown a navigation rather than an insertion.
+microbrowser::ipc::KeyInputMessage KeyMessage(std::string_view name, bool down) {
+  microbrowser::ipc::KeyInputMessage message;
+  message.kind = down ? microbrowser::ipc::KeyInputMessage::Kind::Down
+                      : microbrowser::ipc::KeyInputMessage::Kind::Up;
+  message.key = std::string(name);
+  if (name.size() == 1 && static_cast<unsigned char>(name[0]) >= 0x20) {
+    message.text = std::string(name);
+    const char upper = static_cast<char>(std::toupper(static_cast<unsigned char>(name[0])));
+    message.code = (name[0] >= 'a' && name[0] <= 'z') || (name[0] >= 'A' && name[0] <= 'Z')
+                       ? std::string("Key") + upper
+                       : std::string();
+  } else if (name == " ") {
+    message.key = " ";
+    message.text = " ";
+    message.code = "Space";
+  } else {
+    message.code = std::string(name);
+  }
+  return message;
+}
+
+// Runs whatever the page has queued. Returns true when it ran anything, which
+// tells the loop the page has moved and is worth another turn.
+bool RunDriverCommands(microbrowser::engine::Engine& engine,
+                       microbrowser::ipc::UiEndpoint& ui, DriverState& state) {
+  if (engine.EvaluateScript(
+          "(typeof self.__wpt_driver_pending==='function'&&self.__wpt_driver_pending())?1:0") !=
+      "1") {
+    return false;
+  }
+  const std::string taken = engine.EvaluateScript("String(self.__wpt_driver_take())");
+  if (taken.empty()) {
+    return false;
+  }
+  std::size_t position = 0;
+  bool ran = false;
+  while (position <= taken.size()) {
+    const std::size_t end = taken.find('\n', position);
+    const std::string_view line =
+        std::string_view(taken).substr(position, end == std::string::npos ? std::string::npos
+                                                                          : end - position);
+    position = end == std::string::npos ? taken.size() + 1 : end + 1;
+    if (line.empty()) {
+      continue;
+    }
+    const std::string id(CommandField(line, 0));
+    const std::string_view type = CommandField(line, 1);
+    const auto send_pointer = [&](microbrowser::ipc::PointerInputMessage::Kind kind, float x,
+                                  float y, std::uint16_t buttons, std::uint8_t button) {
+      microbrowser::ipc::PointerInputMessage message;
+      message.kind = kind;
+      message.position = microbrowser::gfx::FloatPoint{x, y};
+      message.buttons = buttons;
+      message.button = button;
+      ui.Send(message);
+      engine.HandlePendingMessages();
+    };
+    if (type == "click") {
+      const auto x = static_cast<float>(CommandNumber(CommandField(line, 2)));
+      const auto y = static_cast<float>(CommandNumber(CommandField(line, 3)));
+      state.x = x;
+      state.y = y;
+      // Move, down, up -- the three a real click is, because a page that listens
+      // on `pointerdown` rather than `click` is ordinary and a bare click would
+      // never reach it.
+      send_pointer(microbrowser::ipc::PointerInputMessage::Kind::Move, x, y, 0, 0);
+      send_pointer(microbrowser::ipc::PointerInputMessage::Kind::Down, x, y, 1, 0);
+      send_pointer(microbrowser::ipc::PointerInputMessage::Kind::Up, x, y, 0, 0);
+    } else if (type == "pointerMove") {
+      state.x = static_cast<float>(CommandNumber(CommandField(line, 2)));
+      state.y = static_cast<float>(CommandNumber(CommandField(line, 3)));
+      send_pointer(microbrowser::ipc::PointerInputMessage::Kind::Move, state.x, state.y, 0, 0);
+    } else if (type == "pointerDown") {
+      const auto button = static_cast<std::uint8_t>(CommandNumber(CommandField(line, 2)));
+      send_pointer(microbrowser::ipc::PointerInputMessage::Kind::Down, state.x, state.y,
+                   static_cast<std::uint16_t>(1u << button), button);
+    } else if (type == "pointerUp") {
+      const auto button = static_cast<std::uint8_t>(CommandNumber(CommandField(line, 2)));
+      send_pointer(microbrowser::ipc::PointerInputMessage::Kind::Up, state.x, state.y, 0, button);
+    } else if (type == "keys") {
+      const std::string_view name = CommandField(line, 2);
+      ui.Send(KeyMessage(name, true));
+      engine.HandlePendingMessages();
+      ui.Send(KeyMessage(name, false));
+      engine.HandlePendingMessages();
+    } else if (type == "keyDown") {
+      ui.Send(KeyMessage(CommandField(line, 2), true));
+      engine.HandlePendingMessages();
+    } else if (type == "keyUp") {
+      ui.Send(KeyMessage(CommandField(line, 2), false));
+      engine.HandlePendingMessages();
+    } else if (type == "pause") {
+      // Nothing to do: the loop turns anyway and the page's own timers are what
+      // a pause is measured against. Sleeping here would stall the test process
+      // for a duration the test did not ask this side to honour.
+    }
+    // Settled whatever it was, including a type this build does not know: the
+    // promise must not be left pending, or the test hangs on a command rather
+    // than failing on it.
+    engine.EvaluateScript("self.__wpt_driver_settle(" + id + ",true)");
+    ran = true;
+  }
+  return ran;
+}
+
 bool PumpUntil(microbrowser::engine::Engine& engine, microbrowser::ipc::UiEndpoint& ui,
                microbrowser::gfx::DisplayList* last_frame,
                std::chrono::steady_clock::time_point deadline,
                const std::function<bool()>& finished) {
   auto next_poll = std::chrono::steady_clock::now();
+  DriverState driver;
   while (std::chrono::steady_clock::now() < deadline) {
     while (std::optional<microbrowser::ipc::EngineToUi> message = ui.TryReceive()) {
       if (auto* paint = std::get_if<microbrowser::ipc::PaintFrameMessage>(&*message);
@@ -242,6 +394,12 @@ bool PumpUntil(microbrowser::engine::Engine& engine, microbrowser::ipc::UiEndpoi
     // asked on a clock rather than on every turn of the loop.
     const auto now = std::chrono::steady_clock::now();
     if (now >= next_poll) {
+      // Input the page asked for, before the "are you finished" question: a
+      // command that ran may be the thing that finishes it.
+      if (RunDriverCommands(engine, ui, driver)) {
+        next_poll = now;
+        continue;
+      }
       if (finished()) {
         return true;
       }
