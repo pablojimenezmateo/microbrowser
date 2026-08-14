@@ -5955,3 +5955,17 @@ them: each is one property, and that is the long tail.
 
 Also corrected in `CLAUDE.md`: `min()`/`max()`/`clamp()` and the viewport units are **done** and
 have been for some time. That roadmap entry named them as the next thing for several sessions.
+
+### Addendum — ThreadSanitizer, on the first thread that runs page code
+
+`setarch -R ./build/microbrowser-tsan/microbrowser/microbrowser_tests`: **2132/2132, clean.** That
+covers the four worker tests, which between them exercise the thread's whole life -- the script
+running on it, both message queues, `importScripts` blocking on the main loop and being answered,
+a `fetch` crossing the boundary in each direction, an uncaught throw becoming an `error` event, and
+`terminate()` joining. ADR 0022 §1 calls this "the first thread in the browser that runs a page's
+code" and "the model for every thread after it"; a clean TSan run over it is the evidence for that
+claim rather than the design note being the evidence.
+
+The colour parser got the other half: `color_text_fuzzer`, **22,911,161 runs in 181 seconds** under
+AddressSanitizer and UndefinedBehaviorSanitizer, asserting the serialize/parse round trip as well
+as memory safety.
