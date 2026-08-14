@@ -182,4 +182,14 @@ class Reflector {
   DomBindings& bindings_;
 };
 
+// `HTMLElement.draggable`, which is a reflection the table above cannot express.
+//
+// It is enumerated -- `"true"` and `"false"` -- but its *missing value default* depends on the
+// element: true for `<img>` and for an `<a>` with an `href`, false for everything else. Every other
+// row in the table has one default for the whole column, so this one is a function rather than a
+// row. Installed on `HTMLElement`'s prototype, and a free function for the reason
+// `InstallListenerRegistration` is one: nothing in it asks a question about the document.
+void InstallDraggable(js::Interpreter& interpreter, const js::Value& html_element,
+                      DomBindings* owner);
+
 }  // namespace microbrowser::bindings

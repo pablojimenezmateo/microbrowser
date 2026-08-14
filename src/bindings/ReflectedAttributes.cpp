@@ -733,4 +733,59 @@ void Reflector::InstallDocumentReflections() {
   }
 }
 
+
+// --- `draggable` -------------------------------------------------------------------------------
+
+void InstallDraggable(js::Interpreter& interpreter, const js::Value& html_element,
+                      DomBindings* owner) {
+  if (!html_element.IsObject()) {
+    return;
+  }
+  // The element-dependent default, which is the whole reason this is not a table row: an `<img>`
+  // and an `<a href>` are draggable without saying so, because dragging one is how a user has moved
+  // an image or a link out of a page since before the attribute existed.
+  const auto default_for = [](const dom::Element& element) {
+    if (!element.Namespace().IsHtml()) {
+      return false;
+    }
+    if (element.LocalName() == "img") {
+      return true;
+    }
+    return element.LocalName() == "a" && element.HasAttribute("href");
+  };
+  const Value getter = interpreter.NewNativeValue("draggable", [default_for](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    if (self == nullptr || !self->IsElement()) {
+      return Value::Bool(false);
+    }
+    const auto& element = static_cast<const dom::Element&>(*self);
+    if (const std::string* value = element.GetAttribute("draggable"); value != nullptr) {
+      if (util::EqualsAsciiCaseInsensitive(*value, "true")) {
+        return Value::Bool(true);
+      }
+      if (util::EqualsAsciiCaseInsensitive(*value, "false")) {
+        return Value::Bool(false);
+      }
+      // Any other value is *invalid*, and an invalid value takes the missing value default rather
+      // than reading as true -- `draggable="yes"` is not draggable, which is the case a test names.
+    }
+    return Value::Bool(default_for(element));
+  });
+  const Value setter = interpreter.NewNativeValue("draggable", [](NativeCall& call) -> Value {
+    dom::Node* self = NodeOf(call.self);
+    if (self != nullptr && self->IsElement()) {
+      // The setter writes the *string*, not the presence: `el.draggable = false` is
+      // `draggable="false"`, and removing the attribute would mean the default instead.
+      static_cast<dom::Element*>(self)->SetAttribute(
+          "draggable", js::ToBoolean(Argument(call.arguments, 0)) ? "true" : "false");
+    }
+    return Value::Undefined();
+  });
+  if (getter.IsObject() && setter.IsObject()) {
+    getter.object->Set(kOwnerSlot, PointerValue(owner));
+    setter.object->Set(kOwnerSlot, PointerValue(owner));
+    html_element.object->DefineAccessor("draggable", getter.object, setter.object);
+  }
+}
+
 }  // namespace microbrowser::bindings

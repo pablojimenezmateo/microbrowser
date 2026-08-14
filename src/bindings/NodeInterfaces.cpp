@@ -258,6 +258,7 @@ void DomBindings::EnsureInterfaces() {
   // page feature-detects. Absent when no AnimationSource (ADR 0012 / TD-0021).
   InstallWaapi(element);
   const Value html_element = MakeInterface("HTMLElement", element);
+  InstallDraggable(*interpreter_, html_element, this);
   InstallElementInternals(*this, *interpreter_, html_element);
   // On HTMLElement rather than Element, which is where the specification puts
   // them: focus is an HTML concept, and an SVG element in this tree is an
