@@ -5889,3 +5889,69 @@ reads it reads it as a statement about a person.
   *before* the click event is dispatched and restored if the event is cancelled, where this engine
   records the activation and applies it after. Four of that file's six subtests are that one
   difference.
+
+## 2026-08-14 — `hsl()`, CSSOM's parse-before-store, and one wrong turn
+
+**Status:** done
+**Check:** `css/css-color/` **11.2% → 45.4%** (5,145 of 11,338 subtests).
+`css/CSS2/syntax/colors-007.html` **0 → 1,192 of 1,192**.
+`html/dom/aria-attribute-reflection.html` 41 of 41 (unchanged, after a revert).
+`microbrowser_tests` 2132/2132.
+**Landed:** `` `hsl()` did not exist… ``, `CSSOM parses before it stores…`, and a revert.
+
+### `hsl()` computed to black
+
+Not refused -- **black**. `ColorText.h`'s own comment says what that costs: "an invalid colour
+makes a declaration invalid, and a declaration that silently became black would be worse than one
+that was dropped." The function it describes was doing the second thing for an entire notation, and
+`hsl()` is how a stylesheet writes a colour it means to vary.
+
+The other half is the grammar split. CSS Color 4 gives `rgb()` and `hsl()` two forms that are
+**not** interchangeable — legacy uses commas throughout, modern uses spaces with a slash before the
+alpha — and this parser replaced every comma with a space and split on whitespace. That accepted
+`rgb(1, 2, 3 / 0.5)`, which no browser takes, and rejected every modern form with an alpha, because
+`/` came back as a fourth component. Telling them apart by *whether the body contains a comma* is
+what makes the mixed form fall out rather than needing a rule of its own.
+
+### The two systemic CSSOM bugs behind it, and both were one line
+
+- **`'color' in getComputedStyle(el)` was false.** A `Proxy` with only a `get` trap answers `in`
+  from its target, which is an empty object — and that expression is the *first assertion* of every
+  `css/**/parsing/*-computed.html` in the suite. `color-computed-hsl.html` alone is 3,753 subtests,
+  every one reporting that this browser does not support `color`. The failures behind it were real;
+  they were unreachable.
+- **`el.style.color = 'nonsense'` stored the word, and `'#000'` read back as `'#000'`.** CSSOM
+  parses before it stores and serializes on the way out. `css::CanonicaliseDeclaration` has three
+  answers and the third is the honest one: `Unknown` keeps the old behaviour for every property
+  whose grammar `src/css` cannot check, because a property wrongly canonicalised silently changes
+  what a page reads back where one left alone behaves as it always did. Only the `<color>`
+  properties are on the list, **by explicit name** -- a suffix test on `-color` would have been
+  wrong on its first member, since `border-color` is a shorthand of four.
+
+A named colour serializes as its *name* (`'red'` reads back `"red"`) and only the numeric notations
+collapse to `rgb()`. The computed value is `rgb(255, 0, 0)` either way, which is a different
+question asked in a different place -- and that place now uses the same serializer in `gfx` rather
+than its own copy of the spelling.
+
+### The wrong turn, written down because the check that would have caught it is ten seconds
+
+I implemented ARIA's enumerated reflection from `html/dom/elements-aria-enumerated.js` -- 21
+attributes, ~1,200 subtests -- and reverted it an hour later. **That data table is included by
+exactly one file and it is marked `.tentative`**, and the non-tentative
+`aria-attribute-reflection.html` says the opposite: these reflect as nullable strings whose missing
+value default is `null`, not as enumerations defaulting to `"false"`. The change traded 13 subtests
+of the shipped test for ~1,200 of an unshipped proposal.
+
+The check I skipped: **`grep -rl <data-file> third_party/wpt` and look for `tentative` in the
+names of the files that include it.** Ten seconds, before the first line of code.
+
+### What the measurement says to do next in `css/`, which is not what I expected
+
+The largest remaining files there are all `*-interpolation.html`, and they fail on
+`CSS.supports(property, from)` returning an **honest** false. `CSS.supports` works -- verified
+against seventeen property/value pairs -- and `translate`, `box-shadow`, `shape-outside` and
+`grid-template-rows` are genuinely not implemented. There is no systemic harness bug left behind
+them: each is one property, and that is the long tail.
+
+Also corrected in `CLAUDE.md`: `min()`/`max()`/`clamp()` and the viewport units are **done** and
+have been for some time. That roadmap entry named them as the next thing for several sessions.

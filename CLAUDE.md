@@ -319,16 +319,20 @@ reasoning; this is the queue.
    parse time, so a resize re-parses the author sheets. Keeping the condition on the rule and asking
    during the cascade is the end state.
 
-1. **`min()`, `max()` and `clamp()`.** Custom properties, `var()`, `calc()`, `@supports` and
-   `aspect-ratio` are all **done** (session 4). `calc()` holds one relative term plus an
-   absolute offset, so `calc(100% - 20px)` keeps both and `calc(100% - 1em)` is dropped rather
-   than rounded. `@supports` answers by *applying* the declaration to a scratch style and
-   reporting whether it took — there is no table of supported names to drift, which is what
-   ADR 0014 §3 asks for.
+1. **The CSS math functions and the viewport units are *done*, and this entry was stale for
+   several sessions.** `min()`, `max()`, `clamp()` and nested forms are in `src/css/Calc.h`;
+   `vw`/`vh`/`vmin`/`vmax` resolve through `AbsoluteLengthFromUnit` against the cascade's
+   `MediaContext`. Custom properties, `var()`, `calc()`, `@supports` and `aspect-ratio` were
+   already done in session 4. `@supports` answers by *applying* the declaration to a scratch
+   style and reporting whether it took -- there is no table of supported names to drift, and
+   `CSS.supports` is the same two functions, so a page probing cannot disagree with a
+   stylesheet's `@supports`. Verified 2026-08-14 by probing seventeen property/value pairs.
 
-   What is left of that family is the other math functions: on wikipedia's stylesheet, 45 of
-   54 `calc` declarations now apply and **eight of the nine failures need `max()`**. The ninth
-   needs `vh`, and the viewport units need a viewport size in the cascade, which is not there.
+   **What is actually left in `css/` is a long tail of unimplemented properties**, and the
+   measurement says so plainly: the largest remaining files are `*-interpolation.html`, and
+   they fail on `CSS.supports(property, from)` returning an *honest* false for `translate`,
+   `box-shadow`, `shape-outside`, `grid-template-rows` and the rest. There is no systemic
+   harness bug behind them -- each is one property.
 
 2. **The scroll model — `scrollTop`, and a scroll that is a paint.** `getBoundingClientRect`,
    `offsetWidth`/`offsetHeight`, `clientWidth`/`clientHeight` and `getComputedStyle` are **done**
