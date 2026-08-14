@@ -23,6 +23,7 @@
 #include "css/MediaQuery.h"
 #include "dom/FlatTree.h"
 #include "engine/Page.h"
+#include "gfx/ColorText.h"
 #include "util/PerformanceCounters.h"
 #include "util/PerformanceTrace.h"
 #include "util/StringUtil.h"
@@ -182,18 +183,10 @@ std::string Number(float value) {
 
 std::string Pixels(float value) { return Number(value) + "px"; }
 
-// A colour as `getComputedStyle` reports one: `rgb()` when opaque, `rgba()`
-// otherwise. Every engine agrees on this form, and a page that compares against
-// a hex string is comparing against something no browser returns.
-std::string ColorText(const gfx::Color& color) {
-  const std::string channels = std::to_string(static_cast<int>(color.Red())) + ", " +
-                               std::to_string(static_cast<int>(color.Green())) + ", " +
-                               std::to_string(static_cast<int>(color.Blue()));
-  if (color.IsOpaque()) {
-    return "rgb(" + channels + ")";
-  }
-  return "rgba(" + channels + ", " + Number(static_cast<float>(color.Alpha()) / 255.0f) + ")";
-}
+// A colour as `getComputedStyle` reports one, from the one place that knows how a colour is written
+// down. It used to be a copy here; the inline-style setter needs the same spelling, and two of them
+// would be two answers to the same question.
+std::string ColorText(const gfx::Color& color) { return gfx::SerializeColorText(color); }
 
 // A computed length. `em` and `rem` are folded into pixels because that is what
 // the computed value of a length *is*; a percentage is carried because it has

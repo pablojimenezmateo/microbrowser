@@ -81,6 +81,24 @@ void RegisterColorTextTests(std::vector<TestCase>& tests) {
     ExpectColor("rgb(none, none, none)", "-");
   });
 
+  AddTest(tests, "ColorText/HexHasFourLengthsAndANumberMayBeSigned", [] {
+    ExpectColor("#abc", "170,187,204,255");
+    // `#abcd` is the four-digit form with alpha, doubled rather than shifted for the reason `#abc`
+    // is: `#ffff` has to be exactly opaque white.
+    ExpectColor("#ffff", "255,255,255,255");
+    ExpectColor("#0000", "0,0,0,0");
+    ExpectColor("#abcdef", "171,205,239,255");
+    ExpectColor("#abcdef80", "171,205,239,128");
+    ExpectColor("#00", "-");
+    ExpectColor("#00000", "-");
+    // CSS's `<number>` allows a leading `+` and `std::from_chars` does not, which is right for
+    // `util::ParseDouble` and wrong here. Dropped once, so `++0` is still nonsense.
+    ExpectColor("rgb(+0, +0, +0)", "0,0,0,255");
+    ExpectColor("rgb(+0%, +0%, +0%)", "0,0,0,255");
+    ExpectColor("hsl(+0, +100%, +50%)", "255,0,0,255");
+    ExpectColor("rgb(++0, 0, 0)", "-");
+  });
+
   AddTest(tests, "ColorText/OutOfRangeIsClampedAndNonsenseIsRefused", [] {
     // Clamped rather than refused: the specification says a component out of range is clamped, and a
     // page that wrote `rgb(300, -20, 0)` gets what every other browser gives it.

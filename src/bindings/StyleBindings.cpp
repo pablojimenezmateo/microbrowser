@@ -1,4 +1,5 @@
 #include "bindings/BindingSupport.h"
+#include "css/DeclarationText.h"
 #include "bindings/DomBindings.h"
 
 #include <string>
@@ -288,7 +289,27 @@ js::Value DomBindings::MakeStyle(dom::Element& element) {
       target_element.SetAttribute("style", value);
       return Value::Bool(true);
     }
-    PutDeclaration(target_element, ToCssName(written), value);
+    // **CSSOM parses before it stores, and serializes on the way out.** An assignment that does not
+    // parse does *nothing* -- `el.style.color = 'nonsense'` leaves the declaration as it was -- and
+    // a valid one reads back canonically, so `#000` becomes `rgb(0, 0, 0)`. This engine stored the
+    // text and handed it back, which is wrong in both directions and invisible until something asks.
+    // `css/CSS2/syntax/colors-007.html` is 904 subtests of exactly that.
+    //
+    // `Unknown` is a property whose grammar `src/css` does not check, and it keeps the old
+    // behaviour deliberately: a property wrongly canonicalised silently changes what a page reads,
+    // where one left alone behaves as it always did.
+    const std::string property = ToCssName(written);
+    std::string canonical;
+    switch (css::CanonicaliseDeclaration(property, value, &canonical)) {
+      case css::DeclarationValidity::Invalid:
+        return Value::Bool(true);
+      case css::DeclarationValidity::Canonical:
+        PutDeclaration(target_element, property, canonical);
+        return Value::Bool(true);
+      case css::DeclarationValidity::Unknown:
+        break;
+    }
+    PutDeclaration(target_element, property, value);
     return Value::Bool(true);
   });
 

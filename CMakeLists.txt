@@ -268,6 +268,7 @@ microbrowser_module(css
     src/css/BoxDeclarations.cpp
     src/css/Calc.cpp
     src/css/Declarations.cpp
+  src/css/DeclarationText.cpp
     src/css/MediaQuery.cpp
     src/css/SelectorMatch.cpp
     src/css/SelectorNth.cpp

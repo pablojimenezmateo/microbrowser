@@ -105,12 +105,23 @@ struct Component {
   bool is_none = false;
 };
 
+// CSS's `<number>` allows a leading `+` and `std::from_chars` does not -- it is documented as not
+// accepting one, which is right for `util::ParseDouble`'s other callers and wrong here. Dropped
+// exactly once, so `++0` stays invalid.
+std::string_view DropLeadingPlus(std::string_view text) {
+  if (!text.empty() && text.front() == '+') {
+    text.remove_prefix(1);
+  }
+  return text;
+}
+
 std::optional<Component> ParseComponent(std::string_view text) {
   Component component;
   if (text == "none") {
     component.is_none = true;
     return component;
   }
+  text = DropLeadingPlus(text);
   if (text.ends_with('%')) {
     const std::optional<double> percent = util::ParseDouble(text.substr(0, text.size() - 1));
     if (!percent.has_value()) {
@@ -135,6 +146,7 @@ std::optional<double> ParseHue(std::string_view text) {
   if (text == "none") {
     return 0.0;
   }
+  text = DropLeadingPlus(text);
   double scale = 1.0;
   if (text.ends_with("deg")) {
     text.remove_suffix(3);
@@ -305,6 +317,26 @@ std::optional<Color> ParseHslFunction(std::string_view body) {
 
 }  // namespace
 
+std::string SerializeColorText(const Color& color) {
+  const std::string channels = std::to_string(static_cast<int>(color.Red())) + ", " +
+                               std::to_string(static_cast<int>(color.Green())) + ", " +
+                               std::to_string(static_cast<int>(color.Blue()));
+  if (color.IsOpaque()) {
+    return "rgb(" + channels + ")";
+  }
+  // The alpha is a fraction with no trailing zeros: `rgba(0, 0, 0, 0.5)`, never `0.500000`. It is
+  // computed from the byte rather than remembered, because a Color *is* eight bits per channel and
+  // reporting more precision than it holds would be a number no round trip could reproduce.
+  std::string alpha = std::to_string(static_cast<double>(color.Alpha()) / 255.0);
+  if (alpha.find('.') != std::string::npos) {
+    alpha.erase(alpha.find_last_not_of('0') + 1);
+    if (!alpha.empty() && alpha.back() == '.') {
+      alpha.pop_back();
+    }
+  }
+  return "rgba(" + channels + ", " + (alpha.empty() ? "0" : alpha) + ")";
+}
+
 std::optional<Color> ParseColorText(std::string_view text) {
   const std::string lowered = util::AsciiLowerCase(Trim(text));
   if (lowered.empty()) {
@@ -325,6 +357,14 @@ std::optional<Color> ParseColorText(std::string_view text) {
       return Color::Rgb(static_cast<std::uint8_t>(nibble(0) * 17),
                              static_cast<std::uint8_t>(nibble(1) * 17),
                              static_cast<std::uint8_t>(nibble(2) * 17));
+    }
+    if (digits.size() == 4) {
+      // `#abcd` is `#aabbccdd`, the four-digit form with alpha -- doubled rather than shifted, for
+      // the reason `#abc` is.
+      return Color::Rgba(static_cast<std::uint8_t>(nibble(0) * 17),
+                         static_cast<std::uint8_t>(nibble(1) * 17),
+                         static_cast<std::uint8_t>(nibble(2) * 17),
+                         static_cast<std::uint8_t>(nibble(3) * 17));
     }
     if (digits.size() == 6) {
       return Color::Rgb(static_cast<std::uint8_t>(nibble(0) * 16 + nibble(1)),

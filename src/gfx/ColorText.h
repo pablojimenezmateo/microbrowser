@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <string>
 #include <string_view>
 
 #include "gfx/Color.h"
@@ -24,5 +25,14 @@ namespace microbrowser::gfx {
 // declaration invalid, and a declaration that silently became black would be
 // worse than one that was dropped.
 std::optional<Color> ParseColorText(std::string_view text);
+
+// The other direction: `rgb(r, g, b)` when opaque, `rgba(r, g, b, a)` otherwise.
+//
+// This is what CSSOM calls a colour's serialization and what `getComputedStyle` reports, and every
+// engine agrees on the form -- a page that compares against a hex string is comparing against
+// something no browser returns. Here rather than beside either caller because there are two of them
+// (the computed-style query and the inline-style setter) and two spellings of a colour would be two
+// answers to the same question, which is the whole argument for this header.
+std::string SerializeColorText(const Color& color);
 
 }  // namespace microbrowser::gfx

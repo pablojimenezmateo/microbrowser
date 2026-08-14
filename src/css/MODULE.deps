@@ -6,7 +6,7 @@ purpose: CSS tokenizing, parsing, selectors. Spec-literal, because CSS error rec
 # font or a document, so nothing about layout can reach the cascade through it.
 allow: util dom gfx text
 
-public: Token.h Tokenizer.h StyleSheet.h ComputedStyle.h Length.h Transform.h Timing.h Animation.h StyleResolver.h MediaQuery.h
+public: Token.h Tokenizer.h StyleSheet.h ComputedStyle.h Length.h Transform.h Timing.h Animation.h StyleResolver.h MediaQuery.h DeclarationText.h
 
 extern:
 
