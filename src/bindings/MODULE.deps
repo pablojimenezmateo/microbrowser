@@ -449,7 +449,11 @@ budget: Reflect header_lines=90 public_methods=0 members=0
 # and the per-kind parameters HTML states outright (a keyword list, a default,
 # a clamp). Members rise when a kind needs a parameter no other kind has, which
 # is the moment to ask whether it is a kind at all.
-budget: Reflection header_lines=35 public_methods=0 members=10
+# +1 for the enumerated `empty` default, which is appended rather than placed beside `invalid`
+# where it belongs: these rows are aggregate-initialised positionally, so a field inserted in the
+# middle silently re-reads every existing one -- and the compiler only catches it where the types
+# happen to differ.
+budget: Reflection header_lines=40 public_methods=0 members=11
 budget: DocumentReflection header_lines=10 public_methods=0 members=2
 # The algorithms themselves. Zero members but the reference it is constructed
 # from: a Reflector is built at the point of use and the accessors it installs

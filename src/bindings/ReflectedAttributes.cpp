@@ -251,6 +251,9 @@ Value EnumeratedValue(const Reflection& entry, const std::string* attribute) {
       return Value::String(std::string(keyword));
     }
   }
+  if (attribute->empty() && entry.empty != nullptr) {
+    return KeywordValue(entry.empty);
+  }
   return KeywordValue(InvalidDefault(entry));
 }
 

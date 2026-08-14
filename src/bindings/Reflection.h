@@ -121,11 +121,18 @@ struct Reflection {
   const char* missing = "";
   const char* invalid = nullptr;
   bool nullable = false;
+  // Enumerated: what the *empty* attribute maps to, when that is neither the invalid value nor a
+  // keyword. Two of ARIA's reflected enums need it and no HTML one does: `aria-current=""` is
+  // `"false"` while `aria-current="nonsense"` is `"true"`, and `aria-invalid` is the same shape.
+  // `nullptr` means "whatever an invalid value maps to", which is every other row. **After
+  // `nullable` rather than beside `invalid`**, because the rows are aggregate-initialised
+  // positionally, so a field inserted anywhere but the end silently re-reads every existing row.
 
   // Numeric: the default value, and the range a clamped attribute reads into.
   double fallback = 0;
   double minimum = 0;
   double maximum = 0;
+  const char* empty = nullptr;
 };
 
 // The handful of reflections that live on `Document` and describe an element
