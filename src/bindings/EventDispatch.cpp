@@ -454,7 +454,7 @@ bool IsPointerEventType(std::string_view type) {
 }  // namespace
 
 bool DomBindings::DispatchPointerMouse(dom::Element& target, std::string_view type,
-                                       const PointerInput& pointer) {
+                                       const PointerInput& pointer, bool trusted) {
   if (interpreter_ == nullptr) {
     return false;
   }
@@ -465,7 +465,7 @@ bool DomBindings::DispatchPointerMouse(dom::Element& target, std::string_view ty
   // preventDefault — without the raised ceiling the SPA never stamps and the
   // engine follows a#thumbnail as a full navigation.
   const js::Interpreter::InputTaskBudget input_budget(*interpreter_);
-  const Value event = MakeEvent(std::string(type), true, true, true);
+  const Value event = MakeEvent(std::string(type), true, true, trusted);
   if (!event.IsObject()) {
     return false;
   }
@@ -486,8 +486,8 @@ bool DomBindings::DispatchPointerMouse(dom::Element& target, std::string_view ty
   return DispatchEventTo(target, event);
 }
 
-bool DomBindings::DispatchClick(dom::Element& target, const PointerInput& pointer) {
-  return DispatchPointerMouse(target, "click", pointer);
+bool DomBindings::DispatchClick(dom::Element& target, const PointerInput& pointer, bool trusted) {
+  return DispatchPointerMouse(target, "click", pointer, trusted);
 }
 
 

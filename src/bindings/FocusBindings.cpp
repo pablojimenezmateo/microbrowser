@@ -163,7 +163,13 @@ void DomBindings::InstallFocus(const js::Value& target) {
     // Only when nothing cancelled: `preventDefault` in a handler is what
     // stops the default action, and that is the whole contract of a
     // cancelable click.
-    if (!owner->DispatchClick(element, pointer)) {
+    // **Untrusted, and the activation still runs.** HTML's `click()` fires an event whose
+    // `isTrusted` is false and *then* runs the activation behaviour -- a scripted click on a
+    // checkbox does toggle it. This engine dispatched a trusted one, which is a page being able to
+    // manufacture the user's consent: every gate that will ever read `isTrusted` -- opening a
+    // window, entering fullscreen, reading the clipboard -- reads it as a statement about a person.
+    // `html/semantics/forms/the-input-element/checkbox.html` says so in as many words.
+    if (!owner->DispatchClick(element, pointer, /*trusted=*/false)) {
       // Bounded: a page can call `click()` in a loop, and this list is drained
       // once per turn. Past the bound the activation is dropped rather than
       // the list grown, which is the same choice the live-range ring makes.

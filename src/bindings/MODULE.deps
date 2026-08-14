@@ -343,7 +343,7 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # buy is a deletion that did not have to be written: `URL`, `URLSearchParams`, `TextEncoder`, `atob`,
 # `crypto` and `Blob` in a worker are the same implementation the page uses rather than a second one
 # written against `src/url` and `src/text` for the worker's sake.
-budget: DomBindings header_lines=937 public_methods=49 members=29
+budget: DomBindings header_lines=939 public_methods=49 members=29
 # ADR 0038's `indexedDB` seam: a database/store/key/version question this module
 # declares and `src/engine` answers, the same inversion StorageSource uses. Four
 # extra "methods" over what reads as the API (16) are the deleted copy ops and

@@ -2305,10 +2305,25 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                    "inner:click:true outer:true:true", "both ran, target first");
   });
 
-  AddTest(tests, "DomBindings/HtmlElementClickDispatchesTrustedClick", [] {
+  AddTest(tests, "DomBindings/HtmlElementClickDispatchesAnUntrustedClick", [] {
     // HTMLElement.click() is the activation API consent UIs and form scripts
-    // call. Absent, `btn.click` is undefined and feature detection throws;
-    // present but untrusted would send youtube's handlers down a no-op path.
+    // call, and it must dispatch an **untrusted** event: HTML fires one whose
+    // `isTrusted` is false and *then* runs the activation behaviour, so a
+    // scripted click on a checkbox does toggle it while remaining a statement
+    // about a script rather than about a person.
+    //
+    // This test asserted the opposite until 2026-08-14, on the reasoning that
+    // "present but untrusted would send youtube's handlers down a no-op path".
+    // That reasoning was wrong twice over. A page's handlers see the same
+    // event either way -- what `isTrusted` gates is what the *engine* does
+    // afterwards, and the activation still runs. And ADR 0017 §3 is explicit
+    // that there must be no way for a page to make it true, because every gate
+    // that reads it -- opening a window, entering fullscreen, reading the
+    // clipboard -- reads it as a statement about the user. A page that could
+    // manufacture one could manufacture consent.
+    //
+    // `html/semantics/forms/the-input-element/checkbox.html` is where it was
+    // caught: "click()-initiated click event should not be trusted".
     Bound bound = Bind("<button id=b type=button>go</button>");
     const js::Result ran = bound.interpreter->Run(
         "globalThis.seen = [];"
@@ -2319,8 +2334,8 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
         "b.click();"
         "seen.join('|')");
     Expect(!ran.IsAbrupt(), "click() ran: " + js::ToString(ran.value));
-    ExpectEqString(js::ToString(ran.value), "click:true:function",
-                   "trusted click from HTMLElement.click()");
+    ExpectEqString(js::ToString(ran.value), "click:false:function",
+                   "an untrusted click from HTMLElement.click(), and the method is still there");
   });
 
   AddTest(tests, "DomBindings/HtmlElementClickSkipsDisabled", [] {

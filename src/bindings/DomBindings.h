@@ -103,12 +103,14 @@ class DomBindings {
   // A C++ entry point rather than something script can reach, because the only
   // thing allowed to say a click happened is the thing that saw one. A page
   // that could dispatch its own trusted events could make a form submit itself.
-  bool DispatchClick(dom::Element& target, const PointerInput& pointer);
+  // `trusted` is false for `element.click()`. Only `isTrusted` differs: HTML runs the activation
+  // behaviour for a scripted click too. See the note at the call site in FocusBindings.cpp.
+  bool DispatchClick(dom::Element& target, const PointerInput& pointer, bool trusted = true);
   // Trusted `pointerdown`/`pointerup`/`mousedown`/`mouseup`, synthesized from
   // a real `PointerInputMessage`. youtube's player listens on `pointerdown`
   // rather than `click`, which is why this exists beside DispatchClick.
   bool DispatchPointerMouse(dom::Element& target, std::string_view type,
-                            const PointerInput& pointer);
+                            const PointerInput& pointer, bool trusted = true);
 
   // A socket's four events, from the engine. C++ entry points for the reason
   // DispatchClick is one: the only thing allowed to say a message arrived is the thing
