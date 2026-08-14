@@ -137,8 +137,18 @@ void RegisterTokenizerTests(std::vector<TestCase>& tests) {
     ExpectEqString(TextOf("&#x41;"), "A", "hexadecimal");
     ExpectEqString(TextOf("&#X41;"), "A", "with either case of x");
     ExpectEqString(TextOf("&nbsp;"), "\xC2\xA0", "expanded as UTF-8");
-    ExpectEqString(TextOf("&notareference;"), "&notareference;",
-                   "an unknown name is left alone rather than partially expanded");
+    // **`&notareference;` is `¬areference;`**, and this test asserted the opposite until the full
+    // 2,231-entry table landed: `&not` *is* a reference -- one of the specification's historical
+    // unterminated ones -- so the longest match consumes it and the rest is text. The HTML Standard
+    // uses `&notit;` as its own example of exactly this. The old expectation was not a decision; it
+    // was what a 42-entry table happened to produce, written down as though it were one.
+    ExpectEqString(TextOf("&notareference;"), "\xC2\xAC" "areference;",
+                   "`&not` is a reference, so the longest match takes it and the rest is text");
+    ExpectEqString(TextOf("&notin;"), "\xE2\x88\x89",
+                   "and `&notin;` is a *longer* one, which is why the match is longest-first: "
+                   "first-match would have made it `U+00AC` followed by `in;`");
+    ExpectEqString(TextOf("&nosuchname;"), "&nosuchname;",
+                   "a name with no reference in it at all is left alone");
   });
 
   AddTest(tests, "Tokenizer/NormalizesDangerousNumericReferences", [] {

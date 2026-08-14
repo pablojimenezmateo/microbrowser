@@ -9,6 +9,12 @@ namespace microbrowser::html {
 
 namespace {
 
+// The HTML Standard's 2,231 named character references, generated from the same `entities.json`
+// the suite's own entity tests are written against. `tools/html/generate_entities.py` writes it;
+// an `.inc` rather than a header because it is a table included once, inside this anonymous
+// namespace, and because that is the shape `src/text`'s generated Unicode tables already have.
+#include "html/NamedCharacterReferences.inc"
+
 using util::AddPerformanceCounter;
 using util::PerfCounterId;
 
@@ -29,39 +35,6 @@ bool IsAsciiAlphanumeric(int c) {
 bool IsWhitespace(int c) {
   return c == '\t' || c == '\n' || c == '\f' || c == ' ';
 }
-
-// The named references actually used by real documents, plus the ones whose
-// absence changes meaning. The full table is 2231 entries and is generated
-// data; this is the working subset, and it is a data change to grow it.
-//
-// Entries without a trailing semicolon are legal in the spec's "historical"
-// list and appear unterminated in the wild, which is why the lookup is longest
-// match rather than "read until a semicolon".
-struct NamedEntity {
-  std::string_view name;
-  std::string_view replacement;
-};
-
-constexpr std::array<NamedEntity, 42> kNamedEntities = {{
-    {"amp;", "&"},      {"amp", "&"},        {"lt;", "<"},        {"lt", "<"},
-    {"gt;", ">"},       {"gt", ">"},         {"quot;", "\""},     {"quot", "\""},
-    {"apos;", "'"},     {"nbsp;", "\xC2\xA0"}, {"nbsp", "\xC2\xA0"},
-    {"copy;", "\xC2\xA9"}, {"copy", "\xC2\xA9"}, {"reg;", "\xC2\xAE"}, {"reg", "\xC2\xAE"},
-    {"trade;", "\xE2\x84\xA2"}, {"hellip;", "\xE2\x80\xA6"},
-    {"mdash;", "\xE2\x80\x94"}, {"ndash;", "\xE2\x80\x93"},
-    {"lsquo;", "\xE2\x80\x98"}, {"rsquo;", "\xE2\x80\x99"},
-    {"ldquo;", "\xE2\x80\x9C"}, {"rdquo;", "\xE2\x80\x9D"},
-    {"bull;", "\xE2\x80\xA2"},  {"dagger;", "\xE2\x80\xA0"},
-    {"laquo;", "\xC2\xAB"},     {"raquo;", "\xC2\xBB"},
-    {"deg;", "\xC2\xB0"},       {"plusmn;", "\xC2\xB1"},
-    {"frac12;", "\xC2\xBD"},    {"times;", "\xC3\x97"},
-    {"divide;", "\xC3\xB7"},    {"euro;", "\xE2\x82\xAC"},
-    {"pound;", "\xC2\xA3"},     {"yen;", "\xC2\xA5"},
-    {"cent;", "\xC2\xA2"},      {"sect;", "\xC2\xA7"},
-    {"para;", "\xC2\xB6"},      {"middot;", "\xC2\xB7"},
-    {"eacute;", "\xC3\xA9"},    {"egrave;", "\xC3\xA8"},
-    {"agrave;", "\xC3\xA0"},
-}};
 
 // Windows-1252 replacements for the C1 range. Not a compatibility nicety: the
 // spec *requires* it, because a decade of documents declared UTF-8 and emitted
@@ -93,13 +66,28 @@ void AppendUtf8(std::uint32_t code_point, std::string& out) {
 
 NamedReference LookUpNamedCharacterReference(std::string_view input) {
   NamedReference best;
-  for (const NamedEntity& entity : kNamedEntities) {
-    if (entity.name.size() <= input.size() &&
-        input.compare(0, entity.name.size(), entity.name) == 0 &&
-        entity.name.size() > best.consumed) {
-      best.replacement = std::string(entity.replacement);
-      best.consumed = entity.name.size();
+  if (input.empty()) {
+    return best;
+  }
+  // One letter's run rather than all 2,231. The table is sorted, so every name beginning with the
+  // same byte is contiguous, and the generator writes the bounds out. The largest run is 168.
+  //
+  // **Longest match, not first match**, and the difference is not academic: `&not` and `&notin;`
+  // are both references, so `&notin;` read first-match becomes `¬in;`. The specification's own
+  // wording is "the longest sequence of characters that is one of the identifiers".
+  for (const NamedCharacterReferenceBucket& bucket : kNamedCharacterReferenceBuckets) {
+    if (bucket.first != input.front()) {
+      continue;
     }
+    for (std::size_t i = bucket.begin; i < bucket.end; ++i) {
+      const NamedCharacterReference& entity = kNamedCharacterReferences[i];
+      if (entity.name.size() <= input.size() && entity.name.size() > best.consumed &&
+          input.compare(0, entity.name.size(), entity.name) == 0) {
+        best.replacement = std::string(entity.replacement);
+        best.consumed = entity.name.size();
+      }
+    }
+    break;
   }
   return best;
 }
