@@ -70,9 +70,14 @@ class WorkerScopeHost {
 
 // The components of the worker's own URL, computed on the main thread.
 //
-// Strings rather than a `url::Url`, and that is deliberate: the URL parser has lazily-initialised
-// tables behind it (IDNA, the public suffix list), so parsing on a second thread is a data race
-// waiting to be found. The main thread parses once, at `new Worker`, and the worker holds the answers.
+// Strings rather than a `url::Url`, and the reason is the value-not-pointer rule every other crossing
+// in this feature follows: the worker holds nine strings and no reference to anything the main thread
+// owns, so there is nothing for a navigation to invalidate under it.
+//
+// It is *not* because the parser would be unsafe to call from here. `src/url` is a pure parser over
+// generated const tables with no lazy initialisation anywhere in it, which is what lets `WorkerNetwork`
+// below resolve URLs on the worker's own thread. `src/dom` is the module that is not, and the note on
+// `bindings_` says how that is kept structural.
 struct WorkerLocation {
   std::string href;
   std::string origin;
@@ -189,14 +194,18 @@ class WorkerScope {
 
   js::Interpreter& interpreter_;
   WorkerScopeHost& host_;
+  // This worker's own request path, handed to the binding layer as the `NetworkSource` it declares.
+  //
+  // **Declared before `bindings_` and therefore destroyed after it**, because `bindings_` holds a
+  // raw pointer to it: members are destroyed in reverse declaration order, so the other order would
+  // leave the binding layer holding a dangling `NetworkSource*` through its own destructor.
+  std::unique_ptr<WorkerNetwork> network_;
   // The document-free half of the binding layer, on this thread and owning nothing shared. It is
   // constructed with no document at all, which is what makes it *unable* to touch `src/dom` -- whose
   // namespace intern table is process-wide and would be a data race from here. What it buys is
   // `URL`, `URLSearchParams`, `TextEncoder`, `atob`, `crypto` and `Blob` from the one implementation
   // the page already uses, rather than a second one written for workers that could disagree with it.
   std::unique_ptr<bindings::DomBindings> bindings_;
-  // This worker's own request path, handed to the binding layer as the `NetworkSource` it declares.
-  std::unique_ptr<WorkerNetwork> network_;
   // `performance.now()`, from this worker's own epoch. A worker-owned clock rather than the page's,
   // because the two are different agents and a shared origin would leak when the *page* started to a
   // script that has no other way to know.
