@@ -4142,6 +4142,55 @@ document.addEventListener("DOMContentLoaded",async function(){var e=document.for
            "own heap: " + log);
   });
 
+  AddTest(tests, "Activation/PreClickStepsToggleBeforeTheEventAndUndoOnCancel", [] {
+    // **HTML's pre-click activation steps, which are four separate facts and each was false.**
+    //
+    // A page reads all of them in one place -- its own click handler -- which is why the ordering
+    // matters at all: this engine used to toggle *after* the dispatch, so `checked` inside the
+    // handler answered the old value and `preventDefault` worked by never toggling rather than by
+    // undoing. The two are indistinguishable from outside until a page looks, and
+    // `html/semantics/forms/the-input-element/checkbox.html` looks.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    page.Load(
+        "<input type=checkbox id=a>"
+        "<input type=checkbox id=b>"
+        "<script>"
+        "var a = document.getElementById('a'), b = document.getElementById('b');"
+        "var order = [];"
+        "a.onclick = function(e) { order.push('click:' + a.checked + ':' + a.indeterminate); };"
+        "a.oninput = function(e) { order.push('input:' + a.checked + ':' + e.bubbles); };"
+        "a.onchange = function(e) { order.push('change:' + a.checked); };"
+        "a.indeterminate = true;"
+        "a.click();"
+        // Read on the line *after* the click: the events are part of the activation behaviour and
+        // run inside it, not at the turn boundary.
+        "console.log('a=' + order.join('|') + ' after=' + a.checked);"
+        "b.onclick = function(e) { order.push('b-in-handler:' + b.checked); e.preventDefault(); };"
+        "b.click();"
+        "console.log('b=' + b.checked);"
+        "console.log('order=' + order.join('|'));"
+        "</" "script>",
+        "https://example.org/");
+    page.RunScripts(0);
+    std::string log;
+    for (const std::string& line : page.ConsoleOutput()) {
+      log += line + "|";
+    }
+    Expect(log.find("a=click:true:false") != std::string::npos,
+           "the checkbox is already toggled when the page's own click handler runs, and the "
+           "pre-click steps have cleared `indeterminate`: " + log);
+    Expect(log.find("input:true:true") != std::string::npos,
+           "`input` fires with the new value and **bubbles**: " + log);
+    Expect(log.find("change:true after=true") != std::string::npos,
+           "`change` follows it, and both ran before the line after `click()`: " + log);
+    Expect(log.find("b-in-handler:true") != std::string::npos,
+           "a handler that will call preventDefault still sees the toggled value, because the "
+           "canceled activation steps run after every handler has: " + log);
+    Expect(log.find("b=false") != std::string::npos,
+           "and preventDefault puts it back rather than never having toggled it: " + log);
+  });
+
   AddTest(tests, "Privacy/TheAnswerTableIsWhatADR0029SaysItIs", [] {
     // **ADR 0029 §6's table, asserted.** The values are one thing and the *absences* are the other, and
     // the absences are why this test exists: `navigator.deviceMemory` and its six siblings are things a
