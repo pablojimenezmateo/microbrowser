@@ -5969,3 +5969,60 @@ claim rather than the design note being the evidence.
 The colour parser got the other half: `color_text_fuzzer`, **22,911,161 runs in 181 seconds** under
 AddressSanitizer and UndefinedBehaviorSanitizer, asserting the serialize/parse round trip as well
 as memory safety.
+
+## 2026-08-14 — two tables and a symbol: 2,627 subtests in three commits
+
+**Status:** done
+**Check:** `html/syntax/parsing/named-character-references.html` **45 → 2,232 of 2,234 (99.9%)**;
+`html/semantics/interfaces.html` **0 → 438 of 438 (100%)**. `dom/nodes/` unchanged at 7,994 of
+9,750, which is the regression check. `microbrowser_tests` 2132/2132.
+**Landed:** `The named character reference table was 42 of 2,231`, `Every platform object said
+[object Object]…`.
+
+### Both were things the code already knew it was missing
+
+`Tokenizer.cpp` carried 42 of the HTML Standard's 2,231 named character references, with a comment
+saying the rest was "a data change to grow it". `TagInterfaces.h` said "a tag *not* here is an
+HTMLElement, which is right for `<abbr>` and wrong for `<foo>` -- an unknown tag is an
+HTMLUnknownElement. That distinction needs a list of the tags HTML defines at all."
+
+Both notes were written by somebody who knew exactly what was owed and moved on. Each was worth
+between four hundred and two thousand subtests, and the second one was **one property**.
+
+- **`@@toStringTag`.** Web IDL puts it on every interface prototype object with the interface's
+  name, and `Object.prototype.toString.call(el)` was `[object Object]` for every node in the
+  document without it. `assert_class_string` is how the suite asks "is this the right kind of
+  object" when `instanceof` is not enough, and every `idlharness` file asks it of every object it
+  is given -- so this one property is not worth 438 subtests, it is worth 438 *in one file* and an
+  unknown number everywhere else. The engine already honoured the symbol in
+  `Object.prototype.toString`; nothing set it.
+- **The entity table** came from the `entities.json` already in the WPT checkout, through a
+  generator in the shape `tools/unicode/generate.py` established. Reading it from there rather than
+  fetching it means the table this browser expands and the table the tests check are provably the
+  same bytes. `.inc` rather than `.h`, included once inside an anonymous namespace, which is why
+  2,300 lines of data did not need a module cap raised.
+
+### And a test in `tests/` that was never a decision
+
+`&notareference;` was expected to come back untouched. It is `¬areference;` in every browser,
+because `&not` is one of the specification's historical unterminated references and the HTML
+Standard uses `&notit;` as its own example. **The expectation was what a 42-entry table happened to
+produce, written down as though it were a rule** -- the third time this session that a test in
+`tests/` pinned an accident. The other two were `element.click()` being trusted and
+`aria-checked=""` reflecting as `""`.
+
+That is worth a habit rather than three notes: when a WPT subtest disagrees with a test in `tests/`,
+the local test is the thing to read first, and what to look for is whether its comment argues from
+the specification or from what the code did.
+
+### The measurement tooling bit back, twice
+
+`--summary-state` was ignored unless `--summary` was also given -- so a three-hour run over
+thirty-nine areas updated its expectations correctly and saved none of its counts, silently, with
+the flag accepted and the file never created. That is exactly the shard-one case the flag exists
+for. Fixed.
+
+And the ordering rule this session had to learn the hard way: **a re-record measures the binary it
+started with**, so anything landed while one is in flight makes it stale. Batch A's expectations are
+committed with the four commits that came after them named in the message, and a full-suite run
+against a pinned commit is what replaces them.
