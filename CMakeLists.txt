@@ -209,6 +209,7 @@ microbrowser_module(util
     src/util/Env.cpp
     src/util/Inflate.cpp
     src/util/LoadTimeline.cpp
+    src/util/MimeType.cpp
     src/util/Parse.cpp
     src/util/PercentEncoding.cpp
     src/util/Random.cpp
@@ -656,6 +657,16 @@ target_compile_definitions(microbrowser_urlconf PRIVATE
   MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(microbrowser_urlconf PRIVATE microbrowser_url)
 
+# MIME type parse/serialize against the MIME Sniffing Standard's own vectors.
+# Same shape as urlconf, and for the same reason: the table is pinned in
+# third_party/wpt and running it through the whole browser reports "subtest
+# failed" three minutes later. See tools/mimeconf/main.cpp.
+add_executable(microbrowser_mimeconf tools/mimeconf/main.cpp tools/urlconf/Json.cpp)
+target_include_directories(microbrowser_mimeconf PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tools")
+target_compile_definitions(microbrowser_mimeconf PRIVATE
+  MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(microbrowser_mimeconf PRIVATE microbrowser_util)
+
 # web-platform-tests: the server, the runner, and the expectations. See
 # docs/adr/0036-web-platform-tests.md. The checkout itself is not vendored --
 # tools/wpt/fetch.sh pins it -- so this target builds whether or not it is
@@ -697,6 +708,7 @@ add_executable(microbrowser_tests
   tests/ImageSelectionTests.cpp
   tests/MediaQueryTests.cpp
   tests/DigestTests.cpp
+  tests/MimeTypeTests.cpp
   tests/DirtyRegionPolicyTests.cpp
   tests/DirtyRegionTests.cpp
   tests/DisplayListTests.cpp
@@ -857,6 +869,7 @@ if(MICROBROWSER_FUZZ)
   microbrowser_fuzzer(http2_fuzzer fuzz/Http2Fuzzer.cpp microbrowser_net)
   microbrowser_fuzzer(csp_fuzzer fuzz/CspFuzzer.cpp microbrowser_csp)
   microbrowser_fuzzer(url_fuzzer fuzz/UrlFuzzer.cpp microbrowser_url)
+  microbrowser_fuzzer(mime_type_fuzzer fuzz/MimeTypeFuzzer.cpp microbrowser_util)
   microbrowser_fuzzer(html_fuzzer fuzz/HtmlFuzzer.cpp microbrowser_html microbrowser_dom)
   microbrowser_fuzzer(html_fragment_fuzzer fuzz/HtmlFragmentFuzzer.cpp
     microbrowser_html microbrowser_dom)
