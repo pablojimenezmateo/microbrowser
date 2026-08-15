@@ -285,6 +285,8 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
                    "a pair is one character");
     ExpectEqString(Decode(std::string("\x34\xD8", 2), Encoding::Utf16Le), kReplacement,
                    "an unpaired high surrogate is a replacement");
+    ExpectEqString(Decode(std::string("\x00\xD8\x00", 3), Encoding::Utf16Le), kReplacement,
+                   "and a high plus an odd byte is still one replacement, not two");
     ExpectEqString(Decode(std::string("\x1E\xDD", 2), Encoding::Utf16Le), kReplacement,
                    "and so is a lone low surrogate");
     // An odd trailing byte is a replacement rather than a silently dropped half-unit.

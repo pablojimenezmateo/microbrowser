@@ -331,13 +331,12 @@ bool DecodeUtf16(std::string_view bytes, bool little_endian, std::string& out, s
         if (fatal) {
           return false;
         }
+        // Encoding Standard: end-of-queue with a leading surrogate, a leading
+        // byte, or both is *one* error. A high plus an odd trailing byte is
+        // U+FFFD, not two. Consume the leftover byte so the odd-length check
+        // below does not emit a second replacement.
         AppendReplacement(out);
-        if (at < bytes.size()) {
-          if (fatal) {
-            return false;
-          }
-          AppendReplacement(out);
-        }
+        at = bytes.size();
         break;
       }
       const std::uint8_t third = static_cast<std::uint8_t>(bytes[at]);

@@ -449,8 +449,6 @@ FAIL=fatal stream: iso-2022-jp
 FAIL=gb18030 version and ranges
 FAIL=gbk version and ranges
 FAIL=specific: big5
-FAIL=utf-16be does not produce more chars than truncated
-FAIL=utf-16le does not produce more chars than truncated
 [encoding/textdecoder-mistakes.any.worker.html]
 FAIL=Concatenating two ISO-2022-JP outputs is not always valid
 FAIL=Replacement, push back ASCII characters: big5
@@ -471,8 +469,6 @@ FAIL=fatal stream: iso-2022-jp
 FAIL=gb18030 version and ranges
 FAIL=gbk version and ranges
 FAIL=specific: big5
-FAIL=utf-16be does not produce more chars than truncated
-FAIL=utf-16le does not produce more chars than truncated
 [encoding/textdecoder-streaming.any.html]
 FAIL=Streaming decode: UTF-8 chunk tests (SharedArrayBuffer)
 FAIL=Streaming decode: utf-16be, 1 byte window (SharedArrayBuffer)
