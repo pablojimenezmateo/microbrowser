@@ -2923,3 +2923,44 @@ drops the element before it becomes a slot, so the insertion gate was never the 
 `PageScript::RunInsertedNow` makes the same CSP check in the same order and runs the text; only the
 inline classic case moved, because an external script and a module both finish on a later turn
 whatever this does. `script-type-and-language-js.html` 238 -> 455 of 456.
+
+## TD-0064 — Ten tests decide OK-or-TIMEOUT on how busy the machine is, and eight are one file
+
+**Measured 2026-08-15**, by doing what CLAUDE.md now says to do: re-record an area, then verify it
+with `--update-expectations` *omitted*, which is the only mode whose counter counts. Across
+`cors/`, `resource-timing/`, `url/`, `fetch/`, `xhr/`, `dom/` and `encoding/` -- 2,031 tests,
+521,775 subtests -- the verification reported **10 unexpected results, every one of them
+`expected OK, got TIMEOUT`**. Not one was a behaviour difference.
+
+They split into two kinds, and the split is the useful part:
+
+- **Load-flaky, and the expectation is right.** `cors/basic.htm`,
+  `encoding/unsupported-labels.window.html`, `encoding/utf-32.html` and
+  `fetch/http-cache/split-cache.html` run together in **514 ms** with 161 of 172 subtests passing
+  when nothing else is on the machine. `encoding/api-invalid-label.any.worker.html?1001-2000` is
+  2,946 of 2,946 in 1.3 seconds alone. These timed out only because the verification run was itself
+  2,031 tests wide. Re-recording them to TIMEOUT would bake a machine artifact into the record and
+  then report an unexpected *pass* on every quiet machine -- the same trap facing the other way.
+- **Genuinely at the boundary, and this is the entry's subject.**
+  `encoding/textdecoder-fatal-single-byte.any.worker.html` is `// META: timeout=long` with eight
+  `?N-M` variants of ~4,159 subtests each, in a worker. Run **entirely alone** on an idle machine,
+  `?1-1000` takes **121,796 ms and times out** -- past the long timeout, with 0 of 4,159 subtests
+  reported. It was recorded OK because the recording run happened to get under the wire. Eight of
+  the ten unexpected results are this one file.
+
+**Why this is debt rather than a flaky-test list.** A test whose result depends on machine load
+makes every re-record a coin flip, and the failure is silent in both directions: recorded OK it
+reports a spurious failure on a busy machine, recorded TIMEOUT it reports a spurious pass on an idle
+one. `docs/wpt-baseline.md`'s numbers inherit the flip. The suite has no concept of a flaky
+expectation and should not grow one -- "expected to be unreliable" is how a real regression hides.
+
+**The end state is a per-test budget rather than a global multiplier.** The runner has one timeout
+and a `--timeout-multiplier`; what this file needs is a longer one *for itself*, because 4,159
+subtests in a worker is not the same job as `cors/basic.htm`. The variants exist precisely so the
+work is chunked, so the honest fix is either smaller chunks (a `?N-M` grid the upstream file
+controls, not us) or a per-test timeout the expectation file can carry. The second is the smaller
+change and is where to start.
+
+**Until then**: run the verification pass on an idle machine, and treat a bare
+`expected OK, got TIMEOUT` on one of these ten as the machine talking, not the browser. Check by
+re-running the one test alone -- 514 ms against 121 seconds is not a subtle difference.
