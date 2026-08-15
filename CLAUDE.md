@@ -755,6 +755,17 @@ silently deleted from the measurement, reading exactly like a slow machine. **Co
 count against the previous record before committing a re-record**; that check has now caught two
 different causes of the same failure (see `docs/wpt-baseline.md`).
 
+**`--update-expectations` prints `0 unexpected` and it is not a measurement.** The counter is
+guarded by `&& !options.update_expectations` (`tools/wpt/main.cpp`), so a recording run *cannot*
+report anything else -- it is recording, so nothing it sees is unexpected by construction. A
+re-record that scrolls past with `860/860 tests, 0 unexpected` is saying only that it finished.
+This was read as evidence twice on 2026-08-15 before anyone opened the source, and it is the same
+shape as the `font.lookup_hits` lesson further down this file: **a number on the half of an
+operation that cannot fail is worse than no number, because it reads as proof the operation is
+fine.** The real check is a second run over the same areas with `--update-expectations` *omitted* --
+that is the mode `ctest` uses, it is the mode that counts, and its exit status is non-zero when the
+count is not zero. Re-record, then verify; the two are different runs.
+
 **Use the perf build.** The expectations were recorded there, and a WPT result is
 timing-sensitive in one specific way — a page that has not reported inside testharness.js's own
 ten seconds is a `TIMEOUT` whatever the reason, and the Debug build is four to seven times
