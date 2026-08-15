@@ -350,6 +350,9 @@ dom::ElementState StateForPseudoClass(std::string_view name) {
   if (name == "placeholder-shown") {
     return dom::ElementState::PlaceholderShown;
   }
+  if (name == "popover-open") {
+    return dom::ElementState::PopoverOpen;
+  }
   if (name == "focus") {
     return dom::ElementState::Focus;
   }

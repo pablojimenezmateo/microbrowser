@@ -192,4 +192,21 @@ class Reflector {
 void InstallDraggable(js::Interpreter& interpreter, const js::Value& html_element,
                       DomBindings* owner);
 
+// `showPopover()`, `hidePopover()` and `togglePopover()`.
+//
+// The showing state is a bit on the element (`dom::ElementState::PopoverOpen`) and the *rendering*
+// is one UA rule -- `[popover]:not(:popover-open) { display: none }` -- so all three methods are
+// state changes plus the two events HTML fires around them. There is no top layer here yet, so a
+// shown popover lays out where it is written rather than above everything: a positioning gap
+// rather than a wrong answer about whether it is showing.
+void InstallPopover(js::Interpreter& interpreter, const js::Value& html_element,
+                    DomBindings* owner);
+
+// A popover opened or closed. `Element::SetState` deliberately does not mark a tree mutation -- a
+// mouse move that changed `:hover` would otherwise look like a DOM edit to every cache -- but a
+// popover toggle decides whether the element generates a box at all, through the UA rule that reads
+// `:popover-open`. So the document is marked here, at the one caller that needs it, rather than by
+// widening `SetState` for all of them.
+void NotePopoverStateChanged(dom::Element& element);
+
 }  // namespace microbrowser::bindings

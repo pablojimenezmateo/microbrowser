@@ -351,7 +351,7 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # +1 method and the two members behind it for HTML's pre-click activation steps: a checkbox is
 # toggled *before* the click event and put back when the event is cancelled, and both halves have
 # to bracket the dispatch -- which happens here while the toggle belongs to the engine.
-budget: DomBindings header_lines=946 public_methods=50 members=32
+budget: DomBindings header_lines=953 public_methods=52 members=32
 # ADR 0038's `indexedDB` seam: a database/store/key/version question this module
 # declares and `src/engine` answers, the same inversion StorageSource uses. Four
 # extra "methods" over what reads as the API (16) are the deleted copy ops and

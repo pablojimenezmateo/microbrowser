@@ -49,6 +49,11 @@ input[type=hidden] { display: none !important }
    same element must lose, or Polymer/boolean `hidden` is a no-op against a
    component stylesheet (youtube's `#content` inside expandable metadata). */
 [hidden] { display: none !important }
+/* HTML's popover rule, and it is where the whole feature's *rendering* lives: a popover that is not
+   showing is `display: none`, and showing one is a state change the cascade turns into a box. There
+   is no top layer here yet, so a shown popover lays out where it is written rather than above
+   everything -- which is a positioning gap rather than a wrong answer about whether it is visible. */
+[popover]:not(:popover-open) { display: none }
 body { margin: 8px }
 p { margin: 1em 0 }
 h1 { font-size: 2em; font-weight: bold; margin: 0.67em 0 }

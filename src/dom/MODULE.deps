@@ -37,7 +37,7 @@ extern:
 # Raised by four for `ElementState::Indeterminate` and the sentence saying what makes it different
 # from every other bit here: it is IDL-only state with no attribute behind it, so unlike `:checked`
 # it cannot be derived from the tree and has to be stored.
-max_tu_lines: 870
+max_tu_lines: 875
 
 # Twenty-one, for `IsDocumentFragment`. It sits beside IsElement and IsText
 # for the same reason those do: the kind is a switch a caller would

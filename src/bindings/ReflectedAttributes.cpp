@@ -788,4 +788,116 @@ void InstallDraggable(js::Interpreter& interpreter, const js::Value& html_elemen
   }
 }
 
+
+// --- Popover -----------------------------------------------------------------------------------
+
+void NotePopoverStateChanged(dom::Element& element) {
+  if (dom::Document* document = element.ConnectedDocument()) {
+    document->NoteTreeMutation();
+  }
+}
+
+namespace {
+
+// The `popover` attribute's state, which is *not* the same question as `el.popover`: an element
+// with no attribute is not a popover at all, and one with any value is -- `popover=""` and
+// `popover="nonsense"` are both `manual`.
+bool IsPopover(const dom::Element& element) {
+  return element.HasAttribute("popover");
+}
+
+// HTML fires `beforetoggle` before the state changes and `toggle` after, both with `oldState` and
+// `newState`. `beforetoggle` is **cancelable on show** and not on hide, which is the whole of what
+// a page can do about a popover opening.
+bool FireToggle(DomBindings& owner, dom::Element& element, const char* type, const char* old_state,
+                const char* new_state, bool cancelable) {
+  return owner.DispatchToggleEvent(element, type, old_state, new_state, cancelable);
+}
+
+}  // namespace
+
+void InstallPopover(js::Interpreter& interpreter, const js::Value& html_element,
+                    DomBindings* owner) {
+  if (!html_element.IsObject() || owner == nullptr) {
+    return;
+  }
+  const auto method = [&](const char* name, js::NativeFunction function) {
+    const Value native = interpreter.NewNativeValue(name, std::move(function));
+    if (native.IsObject()) {
+      native.object->Set(kOwnerSlot, PointerValue(owner));
+      html_element.object->Set(name, native);
+    }
+  };
+
+  // `show` and `hide` share everything except direction, so they are one function with a flag --
+  // the alternative is two copies of the same three checks and the same two events.
+  const auto set_showing = [](NativeCall& call, bool wanted, bool force) -> Value {
+    DomBindings* self = OwnerOf(call);
+    dom::Node* node = NodeOf(call.self);
+    if (self == nullptr || node == nullptr || !node->IsElement()) {
+      return Value::Undefined();
+    }
+    auto& element = static_cast<dom::Element&>(*node);
+    // "Not a popover" is an `InvalidStateError`, and it is the check a page relies on to feature-
+    // detect: `showPopover` exists on every HTMLElement, so the *throw* is what says this one is
+    // not a popover.
+    if (!IsPopover(element)) {
+      // `NotSupportedError`, not `InvalidStateError`: the suite checks the DOMException *code*,
+      // and HTML uses the two for different failures -- "this element is not a popover at all"
+      // against "it is one, in the wrong state".
+      return ThrowDom(call, "NotSupportedError", "the element does not have a popover attribute");
+    }
+    const bool showing = element.HasState(dom::ElementState::PopoverOpen);
+    if (showing == wanted) {
+      // Already in the requested state: `showPopover()` on a showing popover throws, `hidePopover()`
+      // on a hidden one does nothing. HTML distinguishes them and so does the suite.
+      if (!force && wanted) {
+        return ThrowDom(call, "InvalidStateError", "the popover is already showing");
+      }
+      return Value::Undefined();
+    }
+    const char* old_state = showing ? "open" : "closed";
+    const char* new_state = wanted ? "open" : "closed";
+    // Cancelable only on the way in. A page that could cancel a *hide* could pin a popover open,
+    // which is why HTML does not let it.
+    if (FireToggle(*self, element, "beforetoggle", old_state, new_state, wanted)) {
+      return Value::Undefined();  // preventDefault
+    }
+    element.SetState(dom::ElementState::PopoverOpen, wanted);
+    NotePopoverStateChanged(element);
+    FireToggle(*self, element, "toggle", old_state, new_state, false);
+    return Value::Undefined();
+  };
+
+  method("showPopover", [set_showing](NativeCall& call) { return set_showing(call, true, false); });
+  method("hidePopover", [set_showing](NativeCall& call) { return set_showing(call, false, true); });
+  method("togglePopover", [set_showing](NativeCall& call) -> Value {
+    dom::Node* node = NodeOf(call.self);
+    if (node == nullptr || !node->IsElement()) {
+      return Value::Bool(false);
+    }
+    auto& element = static_cast<dom::Element&>(*node);
+    // The optional argument, which is `(boolean or TogglePopoverOptions)`: a bare boolean says
+    // "make it match this", a dictionary carries the same under `force`, and *absent* -- including
+    // a dictionary that does not have the member -- means flip.
+    //
+    // `Object::Get` answers `nullptr` for a property that is not there, and dereferencing that is a
+    // null read. It segfaulted on four files in `html/semantics/popovers/` and on nothing else,
+    // which is what a missing dictionary member looks like from outside.
+    const Value forced = Argument(call.arguments, 0);
+    const bool showing = element.HasState(dom::ElementState::PopoverOpen);
+    const Value* member = forced.IsObject() ? forced.object->Get("force") : nullptr;
+    const bool has_force = forced.IsObject() ? (member != nullptr && !member->IsUndefined())
+                                             : !forced.IsUndefined();
+    const bool wanted = !has_force              ? !showing
+                        : forced.IsObject()     ? js::ToBoolean(*member)
+                                                : js::ToBoolean(forced);
+    set_showing(call, wanted, true);
+    if (call.HasThrown()) {
+      return Value::Undefined();
+    }
+    return Value::Bool(element.HasState(dom::ElementState::PopoverOpen));
+  });
+}
+
 }  // namespace microbrowser::bindings

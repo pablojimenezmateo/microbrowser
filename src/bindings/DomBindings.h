@@ -126,6 +126,9 @@ class DomBindings {
   // therefore a C++ entry point: a page that could fire `canplay` at its own element could make
   // a player believe data arrived.
   bool DispatchMediaEvent(dom::Element& element, const std::string& type);
+  // `beforetoggle`/`toggle`: `oldState` and `newState`, and only the first is ever cancelable.
+  bool DispatchToggleEvent(dom::Element& element, const char* type, const char* old_state,
+                           const char* new_state, bool cancelable);
 
   bool DeliverEventSourceOpen(std::uint64_t id);
   bool DeliverEventSourceMessage(std::uint64_t id, const std::string& type,

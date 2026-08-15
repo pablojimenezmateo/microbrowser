@@ -311,6 +311,10 @@ enum class ElementState : std::uint16_t {
   // to be stored. HTML clears it as part of a checkbox's pre-click activation steps, which is the
   // only thing besides the setter that writes it.
   Indeterminate = 1u << 10,
+  // `:popover-open`, which is what the UA stylesheet's `[popover]:not(:popover-open)` rule reads to
+  // hide a popover that is not showing. Like `Indeterminate` it has no attribute behind it -- HTML
+  // keeps the showing state on the element itself -- so it is stored rather than derived.
+  PopoverOpen = 1u << 11,
 };
 
 constexpr ElementState operator|(ElementState a, ElementState b) {
@@ -327,7 +331,7 @@ constexpr bool Any(ElementState state) { return state != ElementState::None; }
 inline constexpr ElementState kStoredElementStates =
     ElementState::Hover | ElementState::Active | ElementState::Target | ElementState::Checked |
     ElementState::Disabled | ElementState::Required | ElementState::PlaceholderShown |
-    ElementState::Indeterminate;
+    ElementState::Indeterminate | ElementState::PopoverOpen;
 
 // What a shadow root remembers about how it was attached.
 //

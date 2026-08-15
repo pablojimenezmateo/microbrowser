@@ -234,6 +234,27 @@ void DomBindings::InstallMediaElement(const js::Value& target) {
   }
 }
 
+bool DomBindings::DispatchToggleEvent(dom::Element& element, const char* type,
+                                      const char* old_state, const char* new_state,
+                                      bool cancelable) {
+  if (interpreter_ == nullptr) {
+    return false;
+  }
+  // Trusted and bubbling-free, like every other event the browser produces at an element: a page
+  // that could fire `beforetoggle` at its own popover could cancel an opening it did not cause.
+  const Value event = MakeEvent(type, false, cancelable, true);
+  if (!event.IsObject()) {
+    return false;
+  }
+  event.object->Set("oldState", Value::String(old_state));
+  event.object->Set("newState", Value::String(new_state));
+  const Value wrapper = WrapperFor(&element);
+  event.object->Set("target", wrapper);
+  DispatchEventTo(element, event);
+  const Value* prevented = event.object->Get("defaultPrevented");
+  return prevented != nullptr && js::ToBoolean(*prevented);
+}
+
 bool DomBindings::DispatchMediaEvent(dom::Element& element, const std::string& type) {
   if (interpreter_ == nullptr) {
     return false;

@@ -46,6 +46,10 @@ constexpr std::string_view kReferrerPolicyKeywords[] = {"",
                                                         "strict-origin-when-cross-origin",
                                                         "unsafe-url"};
 constexpr std::string_view kCrossOriginKeywords[] = {"anonymous", "use-credentials"};
+// `popover`, which is nullable *and* enumerated: absent is `null`, an empty attribute or any value
+// the list does not contain is `"manual"`, and `popover=""` therefore means a manual popover rather
+// than none. The three keywords are the whole feature's vocabulary.
+constexpr std::string_view kPopoverKeywords[] = {"auto", "manual", "hint"};
 constexpr std::string_view kEncTypeKeywords[] = {"application/x-www-form-urlencoded",
                                                  "multipart/form-data", "text/plain"};
 constexpr std::string_view kFormMethodKeywords[] = {"get", "post", "dialog"};
@@ -154,6 +158,8 @@ constexpr Reflection kReflections[] = {
     // Without a setter that reaches the content attribute the assignment was an
     // expando, the cascade never saw `[hidden]`, and search rows grew to ~900px.
     {"HTMLElement", "hidden", "hidden", Reflect::Boolean},
+    {"HTMLElement", "popover", "popover", Reflect::Enumerated, kPopoverKeywords, nullptr, "manual",
+     true},
     {"HTMLElement", "tabIndex", "tabindex", Reflect::Long},
     {"HTMLElement", "enterKeyHint", "enterkeyhint", Reflect::Enumerated, kEnterKeyHintKeywords},
     {"HTMLElement", "inputMode", "inputmode", Reflect::Enumerated, kInputModeKeywords},

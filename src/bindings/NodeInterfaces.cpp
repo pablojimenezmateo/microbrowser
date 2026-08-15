@@ -259,6 +259,7 @@ void DomBindings::EnsureInterfaces() {
   InstallWaapi(element);
   const Value html_element = MakeInterface("HTMLElement", element);
   InstallDraggable(*interpreter_, html_element, this);
+  InstallPopover(*interpreter_, html_element, this);
   InstallElementInternals(*this, *interpreter_, html_element);
   // On HTMLElement rather than Element, which is where the specification puts
   // them: focus is an HTML concept, and an SVG element in this tree is an
