@@ -4069,18 +4069,13 @@ FAIL=e.style['align-content'] = "unsafe" should not set the property value
 [css/css-align/parsing/align-content-valid.html]
 FAIL=e.style['align-content'] = "first baseline" should set the property value
 [css/css-align/parsing/align-items-computed.html]
-FAIL=Property align-items value 'baseline'
-FAIL=Property align-items value 'center'
 FAIL=Property align-items value 'end'
-FAIL=Property align-items value 'flex-end'
-FAIL=Property align-items value 'flex-start'
 FAIL=Property align-items value 'last baseline'
 FAIL=Property align-items value 'normal'
 FAIL=Property align-items value 'safe self-end'
 FAIL=Property align-items value 'self-end'
 FAIL=Property align-items value 'self-start'
 FAIL=Property align-items value 'start'
-FAIL=Property align-items value 'stretch'
 FAIL=Property align-items value 'unsafe center'
 [css/css-align/parsing/align-items-invalid.html]
 FAIL=e.style['align-items'] = "anchor-center" should not set the property value
@@ -4107,19 +4102,13 @@ FAIL=e.style['align-items'] = "unsafe" should not set the property value
 [css/css-align/parsing/align-items-valid.html]
 FAIL=e.style['align-items'] = "first baseline" should set the property value
 [css/css-align/parsing/align-self-computed.html]
-FAIL=Property align-self value 'auto'
-FAIL=Property align-self value 'baseline'
-FAIL=Property align-self value 'center'
 FAIL=Property align-self value 'end'
-FAIL=Property align-self value 'flex-end'
-FAIL=Property align-self value 'flex-start'
 FAIL=Property align-self value 'last baseline'
 FAIL=Property align-self value 'normal'
 FAIL=Property align-self value 'safe self-end'
 FAIL=Property align-self value 'self-end'
 FAIL=Property align-self value 'self-start'
 FAIL=Property align-self value 'start'
-FAIL=Property align-self value 'stretch'
 FAIL=Property align-self value 'unsafe center'
 [css/css-align/parsing/align-self-invalid.html]
 FAIL=e.style['align-self'] = "baseline last" should not set the property value
@@ -4256,18 +4245,11 @@ FAIL=e.style['grid-row-gap'] = "normal 10px" should not set the property value
 [css/css-align/parsing/grid-row-gap-valid.html]
 FAIL=e.style['grid-row-gap'] = "0" should set the property value
 [css/css-align/parsing/justify-content-computed.html]
-FAIL=Property justify-content value 'center'
 FAIL=Property justify-content value 'end'
-FAIL=Property justify-content value 'flex-end'
-FAIL=Property justify-content value 'flex-start'
 FAIL=Property justify-content value 'left'
 FAIL=Property justify-content value 'normal'
 FAIL=Property justify-content value 'safe flex-start'
-FAIL=Property justify-content value 'space-around'
-FAIL=Property justify-content value 'space-between'
-FAIL=Property justify-content value 'space-evenly'
 FAIL=Property justify-content value 'start'
-FAIL=Property justify-content value 'stretch'
 FAIL=Property justify-content value 'unsafe end'
 FAIL=Property justify-content value 'unsafe right'
 [css/css-align/parsing/justify-content-invalid.html]
@@ -5605,7 +5587,21 @@ FAIL=e.style['animation-direction'] = "initial, reverse" should not set the prop
 FAIL=e.style['animation-direction'] = "normal reverse" should not set the property value
 FAIL=e.style['animation-direction'] = "reverse, initial" should not set the property value
 [css/css-animations/parsing/animation-duration-computed.html]
-harness=ERROR
+FAIL=Property animation-duration value '20s, 10s'
+FAIL=Property animation-duration value '500ms'
+FAIL=Property animation-duration value 'auto'
+FAIL=Property animation-duration value 'auto, auto'
+FAIL=Property animation-duration value 'calc(10s + (sign(2cqw - 10px) * 5s))'
+FAIL=Property animation-duration value 'calc(2 * 3s)'
+FAIL=Resolved value of animation-duration:0s with animation-timeline:auto
+FAIL=Resolved value of animation-duration:0s with animation-timeline:auto, auto
+FAIL=Resolved value of animation-duration:auto with animation-timeline:--t
+FAIL=Resolved value of animation-duration:auto with animation-timeline:--t, --t2
+FAIL=Resolved value of animation-duration:auto with animation-timeline:auto
+FAIL=Resolved value of animation-duration:auto with animation-timeline:auto, auto
+FAIL=Resolved value of animation-duration:auto with animation-timeline:none
+FAIL=Resolved value of animation-duration:auto with animation-timeline:scroll()
+FAIL=Resolved value of animation-duration:auto with animation-timeline:view()
 [css/css-animations/parsing/animation-duration-invalid.html]
 FAIL=e.style['animation-duration'] = "-3s" should not set the property value
 FAIL=e.style['animation-duration'] = "0" should not set the property value
@@ -11061,13 +11057,7 @@ FAIL=e.style['background-clip'] = "view-box" should not set the property value
 [css/css-backgrounds/parsing/background-clip-valid.html]
 FAIL=e.style['background-clip'] = "text border-area" should set the property value
 [css/css-backgrounds/parsing/background-color-computed.html]
-FAIL=Property background-color value '#00FF00'
 FAIL=Property background-color value 'currentcolor'
-FAIL=Property background-color value 'hsl(120, 100%, 50%)'
-FAIL=Property background-color value 'red'
-FAIL=Property background-color value 'rgb(0, 0, 255)'
-FAIL=Property background-color value 'rgb(100%, 100%, 0%)'
-FAIL=Property background-color value 'transparent'
 [css/css-backgrounds/parsing/background-color-invalid.html]
 FAIL=e.style['background-color'] = "black white" should not set the property value
 FAIL=e.style['background-color'] = "black, white" should not set the property value
@@ -11089,7 +11079,6 @@ FAIL=Property background-clip value 'content-box, border-box'
 FAIL=Property background-clip value 'content-box, border-box, border-area'
 FAIL=Property background-clip value 'content-box, border-box, padding-box'
 FAIL=Property background-clip value 'content-box, border-box, padding-box, content-box'
-FAIL=Property background-color value 'rgb(255, 0, 0)'
 FAIL=Property background-origin value 'border-box'
 FAIL=Property background-origin value 'border-box, padding-box, content-box'
 FAIL=Property background-origin value 'content-box, border-box'
@@ -12361,21 +12350,14 @@ harness=TIMEOUT
 [css/css-box/margin-trim/computed-margin-values/grid-inline-start.html]
 harness=TIMEOUT
 [css/css-box/parsing/clear-computed.html]
-FAIL=Property clear value 'both'
 FAIL=Property clear value 'inline-end'
 FAIL=Property clear value 'inline-start'
-FAIL=Property clear value 'left'
-FAIL=Property clear value 'none'
-FAIL=Property clear value 'right'
 [css/css-box/parsing/clear-invalid.html]
 FAIL=e.style['clear'] = "auto" should not set the property value
 FAIL=e.style['clear'] = "left right" should not set the property value
 [css/css-box/parsing/float-computed.html]
 FAIL=Property float value 'inline-end'
 FAIL=Property float value 'inline-start'
-FAIL=Property float value 'left'
-FAIL=Property float value 'none'
-FAIL=Property float value 'right'
 [css/css-box/parsing/float-invalid.html]
 FAIL=e.style['float'] = "auto" should not set the property value
 FAIL=e.style['float'] = "right bottom" should not set the property value
@@ -12396,10 +12378,6 @@ FAIL=Property margin value '10px 20px 30px 40px'
 FAIL=Property margin value '10px'
 FAIL=Property margin value '30%'
 FAIL=Property margin value 'calc(0.5em + 10px)'
-FAIL=Property margin-bottom value '30px'
-FAIL=Property margin-left value '40px'
-FAIL=Property margin-right value '20px'
-FAIL=Property margin-top value '10px'
 [css/css-box/parsing/margin-invalid.html]
 FAIL=e.style['margin'] = "1% 2% 3% 4% 5%" should not set the property value
 FAIL=e.style['margin'] = "10px border-box" should not set the property value
@@ -12508,14 +12486,9 @@ FAIL=Property padding value '10px 20% 30% 40px'
 FAIL=Property padding value '10px 20px 30px 40px'
 FAIL=Property padding value '10px'
 FAIL=Property padding value '20%'
-FAIL=Property padding-bottom value '30px'
 FAIL=Property padding-bottom value 'calc(10px - 0.5em)'
-FAIL=Property padding-left value '40px'
-FAIL=Property padding-left value 'calc(10px + 0.5em)'
 FAIL=Property padding-right value '20%'
-FAIL=Property padding-right value '20px'
 FAIL=Property padding-right value 'calc(10% + 40px)'
-FAIL=Property padding-top value '10px'
 FAIL=Property padding-top value 'calc(10% - 40px)'
 [css/css-box/parsing/padding-invalid.html]
 FAIL=e.style['padding'] = "10px 20px 30px 40px 50px" should not set the property value
@@ -12549,8 +12522,6 @@ FAIL=e.style['padding'] = "1px" should set padding-top
 FAIL=e.style['padding-right'] = "calc(2em + 3%)" should set the property value
 [css/css-box/parsing/visibility-computed.html]
 FAIL=Property visibility value 'collapse'
-FAIL=Property visibility value 'hidden'
-FAIL=Property visibility value 'visible'
 [css/css-box/parsing/visibility-invalid.html]
 FAIL=e.style['visibility'] = "auto" should not set the property value
 FAIL=e.style['visibility'] = "hidden collapse" should not set the property value
@@ -20465,12 +20436,10 @@ FAIL=Property display value 'block list-item flow-root'
 FAIL=Property display value 'block list-item'
 FAIL=Property display value 'block ruby'
 FAIL=Property display value 'block table'
-FAIL=Property display value 'block'
 FAIL=Property display value 'contents'
 FAIL=Property display value 'flex block'
 FAIL=Property display value 'flex inline'
 FAIL=Property display value 'flex run-in'
-FAIL=Property display value 'flex'
 FAIL=Property display value 'flow block list-item'
 FAIL=Property display value 'flow block'
 FAIL=Property display value 'flow inline list-item'
@@ -20508,9 +20477,6 @@ FAIL=Property display value 'inline list-item flow-root'
 FAIL=Property display value 'inline list-item'
 FAIL=Property display value 'inline ruby'
 FAIL=Property display value 'inline table'
-FAIL=Property display value 'inline'
-FAIL=Property display value 'inline-block'
-FAIL=Property display value 'inline-flex'
 FAIL=Property display value 'inline-grid'
 FAIL=Property display value 'inline-table'
 FAIL=Property display value 'list-item block flow'
@@ -20530,8 +20496,6 @@ FAIL=Property display value 'list-item inline'
 FAIL=Property display value 'list-item run-in flow'
 FAIL=Property display value 'list-item run-in flow-root'
 FAIL=Property display value 'list-item run-in'
-FAIL=Property display value 'list-item'
-FAIL=Property display value 'none'
 FAIL=Property display value 'ruby block'
 FAIL=Property display value 'ruby inline'
 FAIL=Property display value 'ruby run-in'
@@ -20553,15 +20517,6 @@ FAIL=Property display value 'run-in'
 FAIL=Property display value 'table block'
 FAIL=Property display value 'table inline'
 FAIL=Property display value 'table run-in'
-FAIL=Property display value 'table'
-FAIL=Property display value 'table-caption'
-FAIL=Property display value 'table-cell'
-FAIL=Property display value 'table-column'
-FAIL=Property display value 'table-column-group'
-FAIL=Property display value 'table-footer-group'
-FAIL=Property display value 'table-header-group'
-FAIL=Property display value 'table-row'
-FAIL=Property display value 'table-row-group'
 FAIL=float left affects computed display
 FAIL=float right affects computed display
 FAIL=position absolute affects computed display
@@ -21712,11 +21667,8 @@ FAIL=e.style['flex-line-count'] = "wrap" should not set the property value
 FAIL=Property flex-wrap value 'balance wrap'
 FAIL=Property flex-wrap value 'balance wrap-reverse'
 FAIL=Property flex-wrap value 'balance'
-FAIL=Property flex-wrap value 'nowrap'
 FAIL=Property flex-wrap value 'wrap balance'
-FAIL=Property flex-wrap value 'wrap'
 FAIL=Property flex-wrap value 'wrap-reverse balance'
-FAIL=Property flex-wrap value 'wrap-reverse'
 [css/css-flexbox/balance/flex-wrap-invalid.html]
 FAIL=e.style['flex-wrap'] = "2 balance wrap" should not set the property value
 FAIL=e.style['flex-wrap'] = "auto" should not set the property value
@@ -22119,13 +22071,7 @@ harness=TIMEOUT
 [css/css-flexbox/overflow-auto-006.html]
 harness=TIMEOUT
 [css/css-flexbox/parsing/flex-basis-computed.html]
-FAIL=Property flex-basis value '1px'
-FAIL=Property flex-basis value '400%'
-FAIL=Property flex-basis value 'auto'
 FAIL=Property flex-basis value 'calc(0% + 10px)'
-FAIL=Property flex-basis value 'calc(10% + 0px)'
-FAIL=Property flex-basis value 'calc(10%)'
-FAIL=Property flex-basis value 'calc(10px + 0.5em)'
 FAIL=Property flex-basis value 'calc(10px - 0.5em)'
 FAIL=Property flex-basis value 'content'
 FAIL=Property flex-basis value 'fit-content'
@@ -22154,11 +22100,6 @@ FAIL=Property flex value 'calc(10 + (sign(20cqw - 10px) * 5)) calc(10 + (sign(20
 FAIL=Property flex value 'calc(10px + 0.5em)'
 FAIL=Property flex value 'calc(10px - 0.5em)'
 FAIL=Property flex value 'none'
-[css/css-flexbox/parsing/flex-direction-computed.html]
-FAIL=Property flex-direction value 'column'
-FAIL=Property flex-direction value 'column-reverse'
-FAIL=Property flex-direction value 'row'
-FAIL=Property flex-direction value 'row-reverse'
 [css/css-flexbox/parsing/flex-direction-invalid.html]
 FAIL=e.style['flex-direction'] = "auto" should not set the property value
 FAIL=e.style['flex-direction'] = "column row-reverse" should not set the property value
@@ -22180,11 +22121,6 @@ FAIL=e.style['flex-flow'] = "nowrap" should set the property value
 FAIL=e.style['flex-flow'] = "row nowrap" should set the property value
 FAIL=e.style['flex-flow'] = "row wrap" should set the property value
 FAIL=e.style['flex-flow'] = "wrap row-reverse" should set the property value
-[css/css-flexbox/parsing/flex-grow-computed.html]
-FAIL=Property flex-grow value '0'
-FAIL=Property flex-grow value '1'
-FAIL=Property flex-grow value '2.34e+06'
-FAIL=Property flex-grow value '6.78e+08'
 [css/css-flexbox/parsing/flex-grow-invalid.html]
 FAIL=e.style['flex-grow'] = "-+5" should not set the property value
 FAIL=e.style['flex-grow'] = "1." should not set the property value
@@ -22234,11 +22170,6 @@ FAIL=e.style['flex'] = "content" should set flex-shrink
 FAIL=e.style['flex'] = "none" should set flex-basis
 FAIL=e.style['flex'] = "none" should set flex-grow
 FAIL=e.style['flex'] = "none" should set flex-shrink
-[css/css-flexbox/parsing/flex-shrink-computed.html]
-FAIL=Property flex-shrink value '0'
-FAIL=Property flex-shrink value '1'
-FAIL=Property flex-shrink value '2.34e+06'
-FAIL=Property flex-shrink value '6.78e+08'
 [css/css-flexbox/parsing/flex-shrink-invalid.html]
 FAIL=e.style['flex-shrink'] = "-+5" should not set the property value
 FAIL=e.style['flex-shrink'] = "1." should not set the property value
@@ -22261,17 +22192,9 @@ FAIL=e.style['flex'] = "calc(-1) calc(-1) 0" should set the property value
 FAIL=e.style['flex'] = "calc(1) calc(2 + 1) calc(3px)" should set the property value
 FAIL=e.style['flex'] = "calc(10 + (sign(20cqw - 10px) * 5)) calc(10 + (sign(20cqw - 10px) * 5)) 1px" should set the property value
 FAIL=e.style['flex'] = "none" should set the property value
-[css/css-flexbox/parsing/flex-wrap-computed.html]
-FAIL=Property flex-wrap value 'nowrap'
-FAIL=Property flex-wrap value 'wrap'
-FAIL=Property flex-wrap value 'wrap-reverse'
 [css/css-flexbox/parsing/flex-wrap-invalid.html]
 FAIL=e.style['flex-wrap'] = "auto" should not set the property value
 FAIL=e.style['flex-wrap'] = "nowrap wrap" should not set the property value
-[css/css-flexbox/parsing/order-computed.html]
-FAIL=Property order value '-45'
-FAIL=Property order value '0'
-FAIL=Property order value '123'
 [css/css-flexbox/parsing/order-invalid.html]
 FAIL=e.style['order'] = "123 45" should not set the property value
 FAIL=e.style['order'] = "123.45" should not set the property value
@@ -26166,15 +26089,7 @@ harness=TIMEOUT
 harness=TIMEOUT
 [css/css-fonts/parsing/font-family-computed.html]
 FAIL=Property font-family value '"21st Century", fantasy'
-FAIL=Property font-family value '"New Century Schoolbook", serif'
 FAIL=Property font-family value '"inherit", "serif"'
-FAIL=Property font-family value 'Helvetica, Verdana, sans-serif'
-FAIL=Property font-family value 'cursive'
-FAIL=Property font-family value 'fantasy'
-FAIL=Property font-family value 'monospace'
-FAIL=Property font-family value 'sans-serif'
-FAIL=Property font-family value 'serif'
-FAIL=Property font-family value 'serif, sans-serif, cursive, fantasy, monospace'
 [css/css-fonts/parsing/font-family-invalid.html]
 FAIL=e.style['font-family'] = "#POUND, sans-serif" should not set the property value
 FAIL=e.style['font-family'] = "Ahem!, sans-serif" should not set the property value
@@ -26354,11 +26269,7 @@ FAIL=<font size="4"> is font-size: large
 FAIL=<font size="5"> is font-size: x-large
 FAIL=<font size="6"> is font-size: xx-large
 FAIL=<font size="7"> is font-size: xxx-large
-FAIL=Property font-size value '10px'
-FAIL=Property font-size value '20%'
-FAIL=Property font-size value 'calc(10px + 0.5em)'
 FAIL=Property font-size value 'calc(10px - 0.5em)'
-FAIL=Property font-size value 'calc(30% + 40px)'
 FAIL=Property font-size value 'calc(30% - 40px)'
 [css/css-fonts/parsing/font-size-invalid.html]
 FAIL=e.style['font-size'] = "-10px" should not set the property value
@@ -26368,8 +26279,6 @@ FAIL=e.style['font-size'] = "medium small" should not set the property value
 [css/css-fonts/parsing/font-stretch-alias.html]
 FAIL=font-stretch is a legacy name alias for font-width
 [css/css-fonts/parsing/font-style-computed.html]
-FAIL=Property font-style value 'italic'
-FAIL=Property font-style value 'normal'
 FAIL=Property font-style value 'oblique -10deg'
 FAIL=Property font-style value 'oblique -14deg'
 FAIL=Property font-style value 'oblique -90deg'
@@ -26970,26 +26879,12 @@ FAIL=800 made bolder computes to 900
 FAIL=800 made lighter computes to 700
 FAIL=900 made lighter computes to 700
 FAIL=950 made lighter computes to 700
-FAIL=Property font-weight value '1'
-FAIL=Property font-weight value '100'
-FAIL=Property font-weight value '1000'
-FAIL=Property font-weight value '101'
 FAIL=Property font-weight value '150.25'
-FAIL=Property font-weight value '200'
-FAIL=Property font-weight value '300'
-FAIL=Property font-weight value '400'
-FAIL=Property font-weight value '500'
-FAIL=Property font-weight value '600'
-FAIL=Property font-weight value '700'
-FAIL=Property font-weight value '800'
-FAIL=Property font-weight value '900'
-FAIL=Property font-weight value 'bold'
 FAIL=Property font-weight value 'calc(-100)'
 FAIL=Property font-weight value 'calc(0)'
 FAIL=Property font-weight value 'calc(100 + (sign(20cqw - 10px) * 5))'
 FAIL=Property font-weight value 'calc(100 + 100)'
 FAIL=Property font-weight value 'calc(100)'
-FAIL=Property font-weight value 'normal'
 [css/css-fonts/parsing/font-weight-invalid.html]
 FAIL=e.style['font-weight'] = "auto" should not set the property value
 FAIL=e.style['font-weight'] = "bold 900" should not set the property value
@@ -38906,7 +38801,10 @@ FAIL=Property column-fill value 'balance-all'
 FAIL=e.style['column-fill'] = "auto balance" should not set the property value
 FAIL=e.style['column-fill'] = "none" should not set the property value
 [css/css-multicol/parsing/column-pseudo-computed.html]
-harness=TIMEOUT
+FAIL=::column font-size applied
+FAIL=::column scroll-snap-align
+FAIL=::column scroll-snap-margin
+FAIL=::column scroll-snap-stop
 [css/css-multicol/parsing/column-pseudo-invalid.html]
 FAIL="::column::before" should be an invalid selector
 FAIL="::column::first-letter" should be an invalid selector
@@ -39327,7 +39225,6 @@ FAIL=e.style['overflow-clip-margin'] = "padding-box" should set the property val
 FAIL=Property overflow value 'auto auto'
 FAIL=Property overflow value 'auto clip'
 FAIL=Property overflow value 'auto visible'
-FAIL=Property overflow value 'auto'
 FAIL=Property overflow value 'clip auto'
 FAIL=Property overflow value 'clip clip'
 FAIL=Property overflow value 'clip hidden'
@@ -39336,28 +39233,20 @@ FAIL=Property overflow value 'clip visible'
 FAIL=Property overflow value 'clip'
 FAIL=Property overflow value 'hidden clip'
 FAIL=Property overflow value 'hidden visible'
-FAIL=Property overflow value 'hidden'
 FAIL=Property overflow value 'scroll auto'
 FAIL=Property overflow value 'scroll clip'
 FAIL=Property overflow value 'scroll visible'
-FAIL=Property overflow value 'scroll'
 FAIL=Property overflow value 'visible auto'
 FAIL=Property overflow value 'visible clip'
 FAIL=Property overflow value 'visible hidden'
 FAIL=Property overflow value 'visible scroll'
 FAIL=Property overflow value 'visible visible'
-FAIL=Property overflow value 'visible'
 FAIL=Property overflow-block value 'clip'
 FAIL=Property overflow-block value 'hidden'
 FAIL=Property overflow-block value 'visible'
 FAIL=Property overflow-inline value 'scroll'
 FAIL=Property overflow-inline value 'visible'
-FAIL=Property overflow-x value 'hidden'
-FAIL=Property overflow-x value 'scroll'
-FAIL=Property overflow-x value 'visible'
-FAIL=Property overflow-y value 'auto'
 FAIL=Property overflow-y value 'clip'
-FAIL=Property overflow-y value 'visible'
 [css/css-overflow/parsing/overflow-invalid.html]
 FAIL=e.style['overflow'] = "none" should not set the property value
 FAIL=e.style['overflow'] = "visible clip auto" should not set the property value
@@ -40916,10 +40805,6 @@ FAIL=HTML elements should have overlay:none !important from the user-agent.
 FAIL=Null namespace elements should have overlay:none !important from the user-agent.
 FAIL=SVG elements should have overlay:none !important from the user-agent.
 [css/css-position/parsing/bottom-computed.html]
-FAIL=Property bottom value '-40%'
-FAIL=Property bottom value 'auto'
-FAIL=Property bottom value 'calc(10px + 0.5em)'
-FAIL=Property bottom value 'calc(10px - 0.5em)'
 FAIL=Property bottom value 'calc(50% + 60px)'
 [css/css-position/parsing/bottom-invalid.html]
 FAIL=e.style['bottom'] = "10px 20%" should not set the property value
@@ -40981,47 +40866,27 @@ FAIL=e.style['inset-inline'] = "auto auto" should set the property value
 FAIL=e.style['inset-inline-end'] = "0" should set the property value
 FAIL=e.style['inset-inline-start'] = "0" should set the property value
 [css/css-position/parsing/left-computed.html]
-FAIL=Property left value '-40%'
-FAIL=Property left value 'auto'
-FAIL=Property left value 'calc(10px + 0.5em)'
-FAIL=Property left value 'calc(10px - 0.5em)'
 FAIL=Property left value 'calc(50% + 60px)'
 [css/css-position/parsing/left-invalid.html]
 FAIL=e.style['left'] = "10px 20%" should not set the property value
 FAIL=e.style['left'] = "60" should not set the property value
 FAIL=e.style['left'] = "min-content" should not set the property value
-[css/css-position/parsing/position-computed.html]
-FAIL=Property position value 'absolute'
-FAIL=Property position value 'fixed'
-FAIL=Property position value 'relative'
-FAIL=Property position value 'static'
-FAIL=Property position value 'sticky'
 [css/css-position/parsing/position-invalid.html]
 FAIL=e.style['position'] = "auto" should not set the property value
 FAIL=e.style['position'] = "static relative" should not set the property value
 [css/css-position/parsing/right-computed.html]
-FAIL=Property right value '-40%'
-FAIL=Property right value 'auto'
-FAIL=Property right value 'calc(10px + 0.5em)'
-FAIL=Property right value 'calc(10px - 0.5em)'
 FAIL=Property right value 'calc(50% + 60px)'
 [css/css-position/parsing/right-invalid.html]
 FAIL=e.style['right'] = "10px 20%" should not set the property value
 FAIL=e.style['right'] = "60" should not set the property value
 FAIL=e.style['right'] = "min-content" should not set the property value
 [css/css-position/parsing/top-computed.html]
-FAIL=Property top value '-40%'
-FAIL=Property top value 'auto'
-FAIL=Property top value 'calc(10px + 0.5em)'
-FAIL=Property top value 'calc(10px - 0.5em)'
 FAIL=Property top value 'calc(50% + 60px)'
 [css/css-position/parsing/top-invalid.html]
 FAIL=e.style['top'] = "10px 20%" should not set the property value
 FAIL=e.style['top'] = "60" should not set the property value
 FAIL=e.style['top'] = "min-content" should not set the property value
 [css/css-position/parsing/z-index-computed.html]
-FAIL=Property z-index value '-1'
-FAIL=Property z-index value 'auto'
 FAIL=Property z-index value 'calc(3 - 2)'
 [css/css-position/parsing/z-index-invalid.html]
 FAIL=e.style['z-index'] = "0.5" should not set the property value
@@ -41029,8 +40894,6 @@ FAIL=e.style['z-index'] = "10px" should not set the property value
 FAIL=e.style['z-index'] = "auto 123" should not set the property value
 FAIL=e.style['z-index'] = "none" should not set the property value
 [css/css-position/parsing/z-index-positioned-computed.html]
-FAIL=Property z-index value '-1'
-FAIL=Property z-index value 'auto'
 FAIL=Property z-index value 'calc(3 - 2)'
 [css/css-position/position-absolute-chrome-bug-002.html]
 FAIL=#target position is recalculated correctly.
@@ -48192,7 +48055,6 @@ FAIL=Property aspect-ratio value '16.3 / 9.5'
 FAIL=Property aspect-ratio value '16/9'
 FAIL=Property aspect-ratio value 'auto 1 / 1'
 FAIL=Property aspect-ratio value 'auto 1'
-FAIL=Property aspect-ratio value 'auto'
 [css/css-sizing/aspect-ratio/parsing/aspect-ratio-invalid.html]
 FAIL=e.style['aspect-ratio'] = "1 invalid" should not set the property value
 FAIL=e.style['aspect-ratio'] = "16 / -9" should not set the property value
@@ -48904,9 +48766,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [css/css-sizing/min-width-max-width-precedence.html]
 FAIL=When used value is resolved, min-width should win over max-width
-[css/css-sizing/parsing/box-sizing-computed.html]
-FAIL=Property box-sizing value 'border-box'
-FAIL=Property box-sizing value 'content-box'
 [css/css-sizing/parsing/box-sizing-invalid.html]
 FAIL=e.style['box-sizing'] = "content-box border-box" should not set the property value
 FAIL=e.style['box-sizing'] = "content-box, border-box" should not set the property value
@@ -48923,10 +48782,7 @@ FAIL=e.style['height'] = "none" should not set the property value
 [css/css-sizing/parsing/height-valid.html]
 FAIL=e.style['height'] = "0" should set the property value
 [css/css-sizing/parsing/max-height-computed.html]
-FAIL=Property max-height value '10px'
-FAIL=Property max-height value '20%'
 FAIL=Property max-height value 'calc(10% + 40px)'
-FAIL=Property max-height value 'calc(10px + 0.5em)'
 FAIL=Property max-height value 'calc(10px - 0.5em)'
 FAIL=Property max-height value 'fit-content(10px)'
 FAIL=Property max-height value 'fit-content(20%)'
@@ -48934,7 +48790,6 @@ FAIL=Property max-height value 'fit-content(calc(10% + 40px))'
 FAIL=Property max-height value 'fit-content(calc(10px + 0.5em))'
 FAIL=Property max-height value 'max-content'
 FAIL=Property max-height value 'min-content'
-FAIL=Property max-height value 'none'
 [css/css-sizing/parsing/max-height-invalid.html]
 FAIL=e.style['max-height'] = "-0.5em" should not set the property value
 FAIL=e.style['max-height'] = "-10%" should not set the property value
@@ -48943,10 +48798,7 @@ FAIL=e.style['max-height'] = "min-content max-content" should not set the proper
 [css/css-sizing/parsing/max-height-valid.html]
 FAIL=e.style['max-height'] = "0" should set the property value
 [css/css-sizing/parsing/max-width-computed.html]
-FAIL=Property max-width value '10px'
-FAIL=Property max-width value '20%'
 FAIL=Property max-width value 'calc(10% + 40px)'
-FAIL=Property max-width value 'calc(10px + 0.5em)'
 FAIL=Property max-width value 'calc(10px - 0.5em)'
 FAIL=Property max-width value 'fit-content(10px)'
 FAIL=Property max-width value 'fit-content(20%)'
@@ -48954,7 +48806,6 @@ FAIL=Property max-width value 'fit-content(calc(10% + 40px))'
 FAIL=Property max-width value 'fit-content(calc(10px + 0.5em))'
 FAIL=Property max-width value 'max-content'
 FAIL=Property max-width value 'min-content'
-FAIL=Property max-width value 'none'
 [css/css-sizing/parsing/max-width-invalid.html]
 FAIL=e.style['max-width'] = "-0.5em" should not set the property value
 FAIL=e.style['max-width'] = "-10%" should not set the property value
@@ -48963,10 +48814,7 @@ FAIL=e.style['max-width'] = "min-content max-content" should not set the propert
 [css/css-sizing/parsing/max-width-valid.html]
 FAIL=e.style['max-width'] = "0" should set the property value
 [css/css-sizing/parsing/min-height-computed.html]
-FAIL=Property min-height value '10px'
-FAIL=Property min-height value '20%'
 FAIL=Property min-height value 'calc(10% + 40px)'
-FAIL=Property min-height value 'calc(10px + 0.5em)'
 FAIL=Property min-height value 'calc(10px - 0.5em)'
 FAIL=Property min-height value 'fit-content(10px)'
 FAIL=Property min-height value 'fit-content(20%)'
@@ -48989,10 +48837,7 @@ FAIL=e.style['min-height'] = "none" should not set the property value
 [css/css-sizing/parsing/min-height-valid.html]
 FAIL=e.style['min-height'] = "0" should set the property value
 [css/css-sizing/parsing/min-width-computed.html]
-FAIL=Property min-width value '10px'
-FAIL=Property min-width value '20%'
 FAIL=Property min-width value 'calc(10% + 40px)'
-FAIL=Property min-width value 'calc(10px + 0.5em)'
 FAIL=Property min-width value 'calc(10px - 0.5em)'
 FAIL=Property min-width value 'fit-content(10px)'
 FAIL=Property min-width value 'fit-content(20%)'
@@ -53729,13 +53574,7 @@ FAIL=e.style['text-align-all'] = "left right" should not set the property value
 FAIL=e.style['text-align-all'] = "match-parent match-parent" should not set the property value
 FAIL=e.style['text-align-all'] = "start end" should not set the property value
 [css/css-text/parsing/text-align-computed.html]
-FAIL=Property text-align value 'center'
-FAIL=Property text-align value 'end'
-FAIL=Property text-align value 'justify'
-FAIL=Property text-align value 'left'
 FAIL=Property text-align value 'match-parent'
-FAIL=Property text-align value 'right'
-FAIL=Property text-align value 'start'
 [css/css-text/parsing/text-align-invalid.html]
 FAIL=e.style['text-align'] = "auto" should not set the property value
 FAIL=e.style['text-align'] = "center justify" should not set the property value
@@ -54089,11 +53928,7 @@ FAIL=e.style['white-space-collapse'] = "none" should not set the property value
 FAIL=e.style['white-space-collapse'] = "preserve preserve-breaks" should not set the property value
 [css/css-text/parsing/white-space-computed.html]
 FAIL=Property white-space value 'break-spaces'
-FAIL=Property white-space value 'normal'
-FAIL=Property white-space value 'nowrap'
-FAIL=Property white-space value 'pre'
 FAIL=Property white-space value 'pre-line'
-FAIL=Property white-space value 'pre-wrap'
 [css/css-text/parsing/white-space-invalid.html]
 FAIL=e.style['white-space'] = "auto" should not set the property value
 FAIL=e.style['white-space'] = "balance" should not set the property value
@@ -61732,9 +61567,6 @@ FAIL=2.75px
 FAIL=2.99px
 FAIL=2px
 FAIL=3px
-[css/css-ui/parsing/box-sizing-computed.html]
-FAIL=Property box-sizing value 'border-box'
-FAIL=Property box-sizing value 'content-box'
 [css/css-ui/parsing/box-sizing-invalid.html]
 FAIL=e.style['box-sizing'] = "auto" should not set the property value
 FAIL=e.style['box-sizing'] = "content-box border-box" should not set the property value
@@ -61972,6 +61804,10 @@ FAIL=Property outline-width value '10px'
 FAIL=Property outline-width value '2.5px'
 FAIL=Property outline-width value 'calc(10px + 0.5em)'
 FAIL=Property outline-width value 'calc(10px - 0.5em)'
+FAIL=Property outline-width value 'medium'
+FAIL=Property outline-width value 'thick'
+FAIL=Property outline-width value 'thin'
+FAIL=outline-width is independent of the value of outline-style
 [css/css-ui/parsing/outline-width-invalid.html]
 FAIL=e.style['outline-width'] = "1%" should not set the property value
 FAIL=e.style['outline-width'] = "auto" should not set the property value
@@ -69402,6 +69238,7 @@ FAIL=Property font-family value 'random-item(fixed 0, { Times, serif }, { Arial,
 FAIL=Property font-family value 'random-item(fixed 0, {Times, serif}, {Arial, sans-serif})'
 FAIL=Property font-family value 'random-item(fixed 0.999, { Times, serif }, { Arial, sans-serif })'
 FAIL=Property font-family value 'random-item(fixed 0.999, {Times, serif}, {Arial, sans-serif})'
+FAIL=Selecting an empty item is invalid at computed-value time
 FAIL=random() and random-item() using auto in one declaration both resolve
 FAIL=random-item() into a registered <length>
 FAIL=random-item() into a registered <number>
