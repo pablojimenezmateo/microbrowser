@@ -59,6 +59,14 @@ inline constexpr const char* kClassListSlot = "#classList";
 // A heap-allocated `std::shared_ptr<std::string>` holding the parsed text.
 // Shared by every root that adopts the sheet; `replaceSync` mutates it in place.
 inline constexpr const char* kCSSSheetStorageSlot = "#cssSheetStorage";
+// Where an element's wrapper keeps the CSSStyleSheet CSSOM associates with it,
+// so `style.sheet === document.styleSheets[0]`. Identity, not a cache.
+inline constexpr const char* kAssociatedSheetSlot = "#associatedSheet";
+// The `<style>` / `<link>` a document-associated CSSStyleSheet belongs to.
+// Separate from kNodeSlot so Node methods `.call`'d on a sheet do not find one.
+inline constexpr const char* kSheetOwnerSlot = "#sheetOwner";
+// Where a document or shadow root wrapper keeps its live StyleSheetList.
+inline constexpr const char* kStyleSheetListSlot = "#styleSheetList";
 
 // A C++ pointer, as a value script can hold but not usefully forge. It travels
 // as a double, which holds a 53-bit integer exactly -- more than any address on

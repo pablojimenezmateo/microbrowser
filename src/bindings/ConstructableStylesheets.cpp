@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -15,7 +16,9 @@
 #include "css/StyleResolver.h"
 #include "css/StyleSheet.h"
 #include "dom/Node.h"
+#include "url/Url.h"
 #include "util/PerformanceCounters.h"
+#include "util/StringUtil.h"
 
 namespace microbrowser::bindings {
 
@@ -80,6 +83,78 @@ const std::vector<dom::SharedConstructableSheet>& AdoptedStyleSheetsOf(const dom
   return static_cast<const dom::DocumentFragment&>(root).AdoptedStyleSheets();
 }
 
+bool RelHasStylesheet(const dom::Element& element) {
+  const std::string* rel = element.GetAttribute("rel");
+  if (rel == nullptr) {
+    return false;
+  }
+  std::size_t i = 0;
+  while (i < rel->size()) {
+    while (i < rel->size() && ((*rel)[i] == ' ' || (*rel)[i] == '\t' || (*rel)[i] == '\n' ||
+                               (*rel)[i] == '\r' || (*rel)[i] == '\f')) {
+      ++i;
+    }
+    const std::size_t start = i;
+    while (i < rel->size() && (*rel)[i] != ' ' && (*rel)[i] != '\t' && (*rel)[i] != '\n' &&
+           (*rel)[i] != '\r' && (*rel)[i] != '\f') {
+      ++i;
+    }
+    if (i > start &&
+        util::EqualsAsciiCaseInsensitive(std::string_view(rel->data() + start, i - start),
+                                         "stylesheet")) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool IsAssociatedStyleSheetElement(const dom::Element& element) {
+  if (element.TagName() == "style") {
+    return true;
+  }
+  return element.TagName() == "link" && RelHasStylesheet(element);
+}
+
+bool IsInDocumentOrShadowTree(const dom::Node& node) {
+  const dom::Node* current = &node;
+  while (current != nullptr) {
+    if (current->GetKind() == dom::Node::Kind::Document) {
+      return true;
+    }
+    if (current->IsDocumentFragment() &&
+        static_cast<const dom::DocumentFragment&>(*current).Host() != nullptr) {
+      return true;
+    }
+    current = current->Parent();
+  }
+  return false;
+}
+
+std::vector<dom::Element*> AssociatedStyleSheetElements(dom::Node& root) {
+  std::vector<dom::Element*> out;
+  root.ForEachDescendant([&](const dom::Node& node) {
+    if (!node.IsElement()) {
+      return;
+    }
+    auto& element = const_cast<dom::Element&>(static_cast<const dom::Element&>(node));
+    if (IsAssociatedStyleSheetElement(element)) {
+      out.push_back(&element);
+    }
+  });
+  return out;
+}
+
+dom::Element* SheetOwnerOf(const Value& sheet) {
+  if (!sheet.IsObject()) {
+    return nullptr;
+  }
+  const Value* slot = sheet.object->GetOwn(kSheetOwnerSlot);
+  if (slot == nullptr || !slot->IsNumber()) {
+    return nullptr;
+  }
+  return reinterpret_cast<dom::Element*>(static_cast<std::uintptr_t>(slot->number));
+}
+
 }  // namespace
 
 void DomBindings::InstallConstructableStylesheets(const js::Value& document_interface,
@@ -112,6 +187,45 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
     replace_sync.object->Set(kOwnerSlot, OwnerValue(this));
     prototype.object->Set("replaceSync", replace_sync);
   }
+
+  const auto accessor = [this, &prototype](const char* name, js::NativeFunction getter) {
+    const Value native = interpreter_->NewNativeValue(name, std::move(getter));
+    if (native.IsObject()) {
+      native.object->Set(kOwnerSlot, OwnerValue(this));
+      prototype.object->DefineAccessor(name, native.object, nullptr);
+    }
+  };
+  accessor("type", [](NativeCall&) { return Value::String("text/css"); });
+  accessor("parentStyleSheet", [](NativeCall&) { return Value::Null(); });
+  accessor("ownerNode", [this](NativeCall& call) {
+    return WrapperFor(SheetOwnerOf(call.self));
+  });
+  accessor("href", [this](NativeCall& call) -> Value {
+    const dom::Element* owner = SheetOwnerOf(call.self);
+    if (owner == nullptr || owner->TagName() != "link") {
+      return Value::Null();
+    }
+    const std::string* href = owner->GetAttribute("href");
+    if (href == nullptr) {
+      return Value::Null();
+    }
+    const std::optional<url::Url> base = url::Url::Parse(url_);
+    const std::optional<url::Url> resolved =
+        base.has_value() ? url::Url::Parse(*href, *base) : url::Url::Parse(*href);
+    return Value::String(resolved.has_value() ? resolved->Serialize() : *href);
+  });
+  accessor("title", [](NativeCall& call) -> Value {
+    const dom::Element* owner = SheetOwnerOf(call.self);
+    if (owner == nullptr) {
+      return Value::String("");
+    }
+    const std::string* title = owner->GetAttribute("title");
+    return Value::String(title == nullptr ? "" : *title);
+  });
+  accessor("disabled", [](NativeCall& call) -> Value {
+    const dom::Element* owner = SheetOwnerOf(call.self);
+    return Value::Bool(owner != nullptr && owner->GetAttribute("disabled") != nullptr);
+  });
 
   const Value replace = interpreter_->NewNativeValue("replace", [](NativeCall& call) {
     SheetStorage* storage = SheetStoragePtr(call.self);
@@ -223,6 +337,182 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
 
   install_adopted(document_interface);
   install_adopted(shadow_root_interface);
+
+  // document.styleSheets / shadowRoot.styleSheets: the associated sheets of
+  // `<style>` and `<link rel=stylesheet>` in tree order. Adopted sheets are
+  // not in this list -- the tests that say so are why. cssRules is still
+  // absent: a short rule list from flattened `@media` would be a wrong answer
+  // (ADR 0012), and retaining at-rules is the next slice.
+  const auto associated_sheet = [this](dom::Element& element) -> Value {
+    const Value owner_wrapper = WrapperFor(&element);
+    if (owner_wrapper.IsObject()) {
+      if (const Value* cached = owner_wrapper.object->GetOwn(kAssociatedSheetSlot)) {
+        return *cached;
+      }
+    }
+    const Value sheet = interpreter_->NewObjectValue();
+    if (!sheet.IsObject()) {
+      return sheet;
+    }
+    if (const Value* style_sheet_proto = interfaces_.object->GetOwn("StyleSheet")) {
+      sheet.object->SetPrototype(style_sheet_proto->object);
+    }
+    sheet.object->SetHidden(kCSSStyleSheetMarkerSlot, Value::Bool(true));
+    sheet.object->SetHidden(kSheetOwnerSlot, PointerValue(&element));
+    if (owner_wrapper.IsObject()) {
+      owner_wrapper.object->SetHidden(kAssociatedSheetSlot, sheet);
+    }
+    return sheet;
+  };
+
+  const Value list_prototype = interpreter_->NewObjectValue();
+  if (list_prototype.IsObject() && interfaces_.IsObject()) {
+    interfaces_.object->Set("StyleSheetList", list_prototype);
+  }
+  if (list_prototype.IsObject()) {
+    const Value length = interpreter_->NewNativeValue("length", [](NativeCall& call) {
+      dom::Node* root = NodeOf(call.self);
+      if (root == nullptr) {
+        return Value::Number(0);
+      }
+      return Value::Number(static_cast<double>(AssociatedStyleSheetElements(*root).size()));
+    });
+    if (length.IsObject()) {
+      length.object->Set(kOwnerSlot, OwnerValue(this));
+      list_prototype.object->DefineAccessor("length", length.object, nullptr);
+    }
+    const Value item = interpreter_->NewNativeValue("item", [this, associated_sheet](NativeCall& call) {
+      dom::Node* root = NodeOf(call.self);
+      if (root == nullptr) {
+        return Value::Null();
+      }
+      const std::vector<dom::Element*> sheets = AssociatedStyleSheetElements(*root);
+      const std::size_t index = static_cast<std::size_t>(js::ToNumber(Argument(call.arguments, 0)));
+      if (index >= sheets.size()) {
+        return Value::Null();
+      }
+      return associated_sheet(*sheets[index]);
+    });
+    if (item.IsObject()) {
+      item.object->Set(kOwnerSlot, OwnerValue(this));
+      list_prototype.object->Set("item", item);
+    }
+  }
+
+  const auto make_list = [this, list_prototype, associated_sheet](dom::Node& root) -> Value {
+    const Value host = WrapperFor(&root);
+    if (host.IsObject()) {
+      if (const Value* cached = host.object->GetOwn(kStyleSheetListSlot)) {
+        return *cached;
+      }
+    }
+    const Value target = interpreter_->NewObjectValue();
+    if (!target.IsObject()) {
+      return target;
+    }
+    if (list_prototype.IsObject()) {
+      target.object->SetPrototype(list_prototype.object);
+    }
+    target.object->SetHidden(kNodeSlot, PointerValue(&root));
+
+    const Value handler = interpreter_->NewObjectValue();
+    if (!handler.IsObject()) {
+      return target;
+    }
+    const auto trap = [this, &handler](const char* name, js::NativeFunction function) {
+      const Value native = interpreter_->NewNativeValue(name, std::move(function));
+      if (native.IsObject()) {
+        native.object->Set(kOwnerSlot, OwnerValue(this));
+        handler.object->Set(name, native);
+      }
+    };
+    trap("get", [this, associated_sheet](NativeCall& call) -> Value {
+      const Value proxy_target = Argument(call.arguments, 0);
+      const js::PropertyKey key = KeyOfTrapArgument(Argument(call.arguments, 1));
+      if (!key.IsSymbol()) {
+        if (const std::size_t index = ArrayIndexOf(key.Text()); index != kNotAnIndex) {
+          dom::Node* tree = NodeOf(proxy_target);
+          if (tree == nullptr) {
+            return Value::Undefined();
+          }
+          const std::vector<dom::Element*> sheets = AssociatedStyleSheetElements(*tree);
+          return index < sheets.size() ? associated_sheet(*sheets[index]) : Value::Undefined();
+        }
+      }
+      return call.interpreter.GetPropertyValue(proxy_target, key);
+    });
+    trap("has", [](NativeCall& call) -> Value {
+      const Value proxy_target = Argument(call.arguments, 0);
+      const js::PropertyKey key = KeyOfTrapArgument(Argument(call.arguments, 1));
+      if (!key.IsSymbol()) {
+        if (const std::size_t index = ArrayIndexOf(key.Text()); index != kNotAnIndex) {
+          dom::Node* tree = NodeOf(proxy_target);
+          const std::size_t count =
+              tree == nullptr ? 0 : AssociatedStyleSheetElements(*tree).size();
+          return Value::Bool(index < count);
+        }
+      }
+      return Value::Bool(proxy_target.IsObject() &&
+                         proxy_target.object->GetProperty(key) != nullptr);
+    });
+    js::Value* proxy_ctor = interpreter_->GlobalScope()->Lookup("Proxy");
+    if (proxy_ctor == nullptr || !proxy_ctor->IsObject()) {
+      return target;
+    }
+    const js::Result made =
+        interpreter_->CallFunction(*proxy_ctor, Value::Undefined(), {target, handler});
+    const Value list = made.IsAbrupt() ? target : made.value;
+    if (host.IsObject()) {
+      host.object->SetHidden(kStyleSheetListSlot, list);
+    }
+    return list;
+  };
+
+  const auto install_style_sheets = [this, make_list](const Value& target) {
+    if (!target.IsObject()) {
+      return;
+    }
+    const Value getter = interpreter_->NewNativeValue("styleSheets", [this, make_list](NativeCall& call) {
+      dom::Node* root = NodeOf(call.self);
+      if (root == nullptr) {
+        root = document_;
+      }
+      if (root == nullptr) {
+        return call.interpreter.NewArrayValue({});
+      }
+      return make_list(*root);
+    });
+    if (getter.IsObject()) {
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
+      target.object->DefineAccessor("styleSheets", getter.object, nullptr);
+    }
+  };
+  install_style_sheets(document_interface);
+  install_style_sheets(shadow_root_interface);
+
+  const auto install_element_sheet = [this, associated_sheet](const char* interface) {
+    const Value* proto = interfaces_.IsObject() ? interfaces_.object->GetOwn(interface) : nullptr;
+    if (proto == nullptr || !proto->IsObject()) {
+      return;
+    }
+    const Value getter = interpreter_->NewNativeValue("sheet", [this, associated_sheet](NativeCall& call) {
+      dom::Node* node = NodeOf(call.self);
+      if (node == nullptr || !node->IsElement()) {
+        return Value::Null();
+      }
+      auto& element = static_cast<dom::Element&>(*node);
+      if (!IsAssociatedStyleSheetElement(element) || !IsInDocumentOrShadowTree(element)) {
+        return Value::Null();
+      }
+      return associated_sheet(element);
+    });
+    if (getter.IsObject()) {
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
+      proto->object->DefineAccessor("sheet", getter.object, nullptr);
+    }
+  };
+  install_element_sheet("HTMLStyleElement");
+  install_element_sheet("HTMLLinkElement");
 }
 
 void DomBindings::InstallCssOm() {

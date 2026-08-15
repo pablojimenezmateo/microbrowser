@@ -3763,6 +3763,34 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     Expect(html.find("<span class=\"added\">from script</span>") != std::string::npos,
            "the document itself changed: " + html);
   });
+
+  AddTest(tests, "DomBindings/DocumentStyleSheetsListsStyleAndLinkInTreeOrder", [] {
+    static constexpr const char* kPage =
+        "<html><head>"
+        "<style id=a>p{color:red}</style>"
+        "<link rel=stylesheet href=/b.css>"
+        "<link rel=preload href=/skip.css>"
+        "</head><body></body></html>";
+    ExpectScript(kPage, "document.styleSheets.length", "2");
+    ExpectScript(kPage, "document.styleSheets[0] === document.getElementById('a').sheet",
+                 "true");
+    ExpectScript(kPage, "document.styleSheets[0].ownerNode.id", "a");
+    ExpectScript(kPage, "document.styleSheets[0].href", "null");
+    ExpectScript(kPage, "document.styleSheets[1].href", "https://example.org/b.css");
+    ExpectScript(kPage, "document.styleSheets.item(1) === document.styleSheets[1]", "true");
+    ExpectScript(kPage, "document.styleSheets.item(9)", "null");
+    ExpectScript(kPage, "document.styleSheets[9]", "undefined");
+    ExpectScript(kPage, "new CSSStyleSheet().ownerNode", "null");
+    ExpectScript(kPage,
+                 "const s = document.createElement('style');"
+                 "s.sheet === null",
+                 "true");
+    ExpectScript(kPage,
+                 "const s = document.createElement('style');"
+                 "document.body.appendChild(s);"
+                 "document.styleSheets.length",
+                 "3");
+  });
 }
 
 }  // namespace microbrowser::tests
