@@ -401,7 +401,17 @@ void DomBindings::InstallTextEncoding() {
 
     std::string text;
     if (!html::DecodeBytesStreaming(leftover, bytes, encoding, text, stream, fatal)) {
-      call.self.object->SetHidden(kDecoderLeftover, Value::Undefined());
+      // ISO-2022-JP is the one decoder whose state survives a streamed error -- Roman after
+      // `ESC ( J` plus a bad byte is still Roman on the next call. The other encodings have
+      // nothing to keep: a hole consumes its bytes and leftover is empty.
+      if (stream && !leftover.empty()) {
+        const Value held = BytesToUint8Array(call.interpreter, leftover);
+        if (held.IsObject()) {
+          call.self.object->SetHidden(kDecoderLeftover, held);
+        }
+      } else {
+        call.self.object->SetHidden(kDecoderLeftover, Value::Undefined());
+      }
       return call.Throw("TypeError", "The encoded data was not valid.");
     }
     if (leftover.empty()) {

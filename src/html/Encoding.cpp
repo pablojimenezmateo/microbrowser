@@ -599,12 +599,17 @@ Encoding SniffEncoding(std::string_view bytes, std::string_view content_type) {
 
 bool DecodeBytesStreaming(std::string& leftover, std::string_view bytes, Encoding encoding,
                           std::string& out, bool stream, bool fatal) {
+  out.clear();
+  // ISO-2022-JP's leftover is decoder *state*, not unconsumed input. Prepending it as bytes
+  // would inject NULs. The other encodings hold a prefix of the byte stream.
+  if (encoding == Encoding::Iso2022Jp) {
+    return DecodeMultiByteStreaming(bytes, encoding, out, leftover, stream, fatal);
+  }
   std::string input;
   input.reserve(leftover.size() + bytes.size());
   input.append(leftover);
   input.append(bytes.data(), bytes.size());
   leftover.clear();
-  out.clear();
   switch (encoding) {
     case Encoding::Utf8:
       return DecodeUtf8(input, out, leftover, stream, fatal);
@@ -618,7 +623,6 @@ bool DecodeBytesStreaming(std::string& leftover, std::string_view bytes, Encodin
     case Encoding::Big5:
     case Encoding::Gb18030:
     case Encoding::Gbk:
-    case Encoding::Iso2022Jp:
       return DecodeMultiByteStreaming(input, encoding, out, leftover, stream, fatal);
     default:
       return DecodeSingleByte(input, encoding, out, fatal);

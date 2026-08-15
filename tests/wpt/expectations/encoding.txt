@@ -419,16 +419,6 @@ harness=TIMEOUT
 FAIL=Fatal flag, non-streaming cases
 [encoding/textdecoder-fatal-streaming.any.worker.html]
 FAIL=Fatal flag, non-streaming cases
-[encoding/textdecoder-mistakes.any.html]
-FAIL=Concatenating two ISO-2022-JP outputs is not always valid
-FAIL=Replacement, push back ASCII characters: iso-2022-jp
-FAIL=Sticky multibyte state: iso-2022-jp
-FAIL=fatal stream: iso-2022-jp
-[encoding/textdecoder-mistakes.any.worker.html]
-FAIL=Concatenating two ISO-2022-JP outputs is not always valid
-FAIL=Replacement, push back ASCII characters: iso-2022-jp
-FAIL=Sticky multibyte state: iso-2022-jp
-FAIL=fatal stream: iso-2022-jp
 [encoding/textdecoder-streaming.any.html]
 FAIL=Streaming decode: UTF-8 chunk tests (SharedArrayBuffer)
 FAIL=Streaming decode: utf-16be, 1 byte window (SharedArrayBuffer)

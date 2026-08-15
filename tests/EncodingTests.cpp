@@ -437,6 +437,27 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
     // looks like redundancy.
     ExpectEqString(Decode("\x1B(B\x1B(B" "A", Encoding::Iso2022Jp), kReplacement + "A",
                    "a redundant escape is an error");
+    // Concatenating two encoder outputs is not always valid: the second `ESC ( J` arrives while
+    // `ISO-2022-JP output` is still set from the first stream's return to ASCII.
+    const std::string yen = "\x1B(J" "\x5C" "\x1B(B";
+    ExpectEqString(Decode(yen + yen, Encoding::Iso2022Jp), "¥" + kReplacement + "¥",
+                   "two yen encodings concatenated");
+    std::string fatal_out;
+    Expect(!html::DecodeBytes(yen + yen, Encoding::Iso2022Jp, fatal_out, true),
+           "and fatal refuses that concatenation");
+    ExpectEqString(Decode("\x1B$", Encoding::Iso2022Jp), kReplacement + "$",
+                   "a truncated escape restores the byte after ESC");
+    std::string leftover;
+    std::string streamed;
+    Expect(html::DecodeBytesStreaming(leftover, "\x7E", Encoding::Iso2022Jp, streamed, false, true),
+           "ASCII tilde");
+    ExpectEqString(streamed, "~", "in ASCII");
+    Expect(!html::DecodeBytesStreaming(leftover, "\x1B(J\xFF", Encoding::Iso2022Jp, streamed, true,
+                                       true),
+           "streamed Roman then a bad byte is fatal");
+    Expect(html::DecodeBytesStreaming(leftover, "\x7E", Encoding::Iso2022Jp, streamed, false, true),
+           "and the next decode is still Roman");
+    ExpectEqString(streamed, "‾", "so 0x7E is the overline");
   });
 
   AddTest(tests, "Encoding/TheEncodersAreNotTheDecodersBackwards", [] {

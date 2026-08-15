@@ -605,8 +605,17 @@ std::string DecodeGb18030(std::string_view bytes, std::string* leftover, bool fa
 // pushback queue rather than an index: a partial escape sequence is *restored* to the input and
 // decoded as text, so `ESC (` followed by `X` produces the replacement character and then `(` and
 // `X`, and nothing is swallowed.
-std::string DecodeIso2022Jp(std::string_view bytes) {
-  enum class State { Ascii, Roman, Katakana, LeadByte, TrailingByte, EscapeStart, Escape };
+std::string DecodeIso2022Jp(std::string_view bytes, std::string* leftover = nullptr,
+                            bool stream = false, bool fatal = false, bool* failed = nullptr) {
+  enum class State : std::uint8_t {
+    Ascii,
+    Roman,
+    Katakana,
+    LeadByte,
+    TrailingByte,
+    EscapeStart,
+    Escape
+  };
   std::string out;
   State state = State::Ascii;
   // Where an unrecognised escape sequence falls back to, which is not the same as `state`: the
@@ -617,6 +626,30 @@ std::string DecodeIso2022Jp(std::string_view bytes) {
   // is *already* in is an error rather than a no-op -- `ESC ( B ESC ( B` is a document trying to
   // hide something in what looks like a redundant escape.
   bool output = false;
+  if (leftover != nullptr && leftover->size() >= 4) {
+    const auto loaded = static_cast<State>(static_cast<std::uint8_t>((*leftover)[0]));
+    if (loaded <= State::Escape) {
+      state = loaded;
+      output_state = static_cast<State>(static_cast<std::uint8_t>((*leftover)[1]));
+      lead = static_cast<std::uint8_t>((*leftover)[2]);
+      output = (*leftover)[3] != 0;
+    }
+  }
+  if (leftover != nullptr) {
+    leftover->clear();
+  }
+  const auto save = [&] {
+    if (leftover == nullptr || !stream) {
+      return;
+    }
+    leftover->push_back(static_cast<char>(state));
+    leftover->push_back(static_cast<char>(output_state));
+    leftover->push_back(static_cast<char>(lead));
+    leftover->push_back(output ? 1 : 0);
+  };
+  const auto fail = [&] {
+    return !EmitError(out, fatal, failed);
+  };
 
   std::size_t at = 0;
   std::uint8_t pushback[2] = {0, 0};
@@ -646,10 +679,14 @@ std::string DecodeIso2022Jp(std::string_view bytes) {
           output = false;
           out.push_back(static_cast<char>(byte));
         } else if (byte < 0) {
+          save();
           return out;
         } else {
           output = false;
-          AppendReplacement(out);
+          if (fail()) {
+            save();
+            return out;
+          }
         }
         break;
 
@@ -666,10 +703,14 @@ std::string DecodeIso2022Jp(std::string_view bytes) {
           output = false;
           out.push_back(static_cast<char>(byte));
         } else if (byte < 0) {
+          save();
           return out;
         } else {
           output = false;
-          AppendReplacement(out);
+          if (fail()) {
+            save();
+            return out;
+          }
         }
         break;
 
@@ -680,10 +721,14 @@ std::string DecodeIso2022Jp(std::string_view bytes) {
           output = false;
           util::AppendUtf8(out, 0xFF61u - 0x21u + static_cast<std::uint32_t>(byte));
         } else if (byte < 0) {
+          save();
           return out;
         } else {
           output = false;
-          AppendReplacement(out);
+          if (fail()) {
+            save();
+            return out;
+          }
         }
         break;
 
@@ -695,17 +740,24 @@ std::string DecodeIso2022Jp(std::string_view bytes) {
           lead = static_cast<std::uint8_t>(byte);
           state = State::TrailingByte;
         } else if (byte < 0) {
+          save();
           return out;
         } else {
           output = false;
-          AppendReplacement(out);
+          if (fail()) {
+            save();
+            return out;
+          }
         }
         break;
 
       case State::TrailingByte:
         if (byte == 0x1B) {
           state = State::EscapeStart;
-          AppendReplacement(out);
+          if (fail()) {
+            save();
+            return out;
+          }
         } else if (byte >= 0x21 && byte <= 0x7E) {
           state = State::LeadByte;
           const std::size_t pointer = (static_cast<std::size_t>(lead) - 0x21u) * 94u +
@@ -713,15 +765,26 @@ std::string DecodeIso2022Jp(std::string_view bytes) {
           std::uint32_t code = 0;
           if (IndexLookup(kJis0208, std::size(kJis0208), pointer, kHole, code)) {
             util::AppendUtf8(out, code);
-          } else {
-            AppendReplacement(out);
+          } else if (fail()) {
+            save();
+            return out;
           }
         } else if (byte < 0) {
+          if (stream) {
+            save();
+            return out;
+          }
           state = State::LeadByte;
-          AppendReplacement(out);
+          if (fail()) {
+            save();
+            return out;
+          }
         } else {
           state = State::LeadByte;
-          AppendReplacement(out);
+          if (fail()) {
+            save();
+            return out;
+          }
         }
         break;
 
@@ -729,13 +792,19 @@ std::string DecodeIso2022Jp(std::string_view bytes) {
         if (byte == 0x24 || byte == 0x28) {
           lead = static_cast<std::uint8_t>(byte);
           state = State::Escape;
+        } else if (byte < 0 && stream) {
+          save();
+          return out;
         } else {
           if (byte >= 0) {
             restore(static_cast<std::uint8_t>(byte));
           }
           output = false;
           state = output_state;
-          AppendReplacement(out);
+          if (fail()) {
+            save();
+            return out;
+          }
         }
         break;
 
@@ -757,13 +826,20 @@ std::string DecodeIso2022Jp(std::string_view bytes) {
           output_state = *next;
           const bool had_output = output;
           output = true;
-          if (had_output) {
-            AppendReplacement(out);
+          if (had_output && fail()) {
+            save();
+            return out;
           }
           break;
         }
         // Not an escape sequence at all: both bytes go back and are decoded as whatever the
         // character set in force says they are.
+        if (byte < 0 && stream) {
+          lead = leading;
+          state = State::Escape;
+          save();
+          return out;
+        }
         if (byte < 0) {
           restore(leading);
         } else {
@@ -773,7 +849,10 @@ std::string DecodeIso2022Jp(std::string_view bytes) {
         }
         output = false;
         state = output_state;
-        AppendReplacement(out);
+        if (fail()) {
+          save();
+          return out;
+        }
         break;
       }
     }
@@ -1112,9 +1191,14 @@ std::string DecodeMultiByte(std::string_view bytes, Encoding encoding) {
 
 bool DecodeMultiByteStreaming(std::string_view bytes, Encoding encoding, std::string& out,
                               std::string& leftover, bool stream, bool fatal) {
+  bool failed = false;
+  if (encoding == Encoding::Iso2022Jp) {
+    // Leftover is decoder state; clearing it first would drop Roman after `ESC ( J`.
+    out = DecodeIso2022Jp(bytes, &leftover, stream, fatal, &failed);
+    return !failed;
+  }
   leftover.clear();
   std::string* hold = stream ? &leftover : nullptr;
-  bool failed = false;
   switch (encoding) {
     case Encoding::ShiftJis:
       out = DecodeShiftJis(bytes, hold, fatal, &failed);
@@ -1132,9 +1216,6 @@ bool DecodeMultiByteStreaming(std::string_view bytes, Encoding encoding, std::st
     case Encoding::Gbk:
       out = DecodeGb18030(bytes, hold, fatal, &failed);
       return !failed;
-    case Encoding::Iso2022Jp:
-      out = DecodeIso2022Jp(bytes);
-      return true;
     default:
       out.clear();
       return true;
