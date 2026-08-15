@@ -1,11 +1,9 @@
 [url/data-uri-fragment.html]
 harness=TIMEOUT
-[url/historical.any.worker.html]
-harness=TIMEOUT
 [url/idlharness.any.html]
 FAIL=idl_test setup
 [url/idlharness.any.worker.html]
-harness=TIMEOUT
+FAIL=idl_test setup
 [url/javascript-urls.window.html]
 harness=TIMEOUT
 [url/percent-encoding.window.html]
@@ -25,57 +23,9 @@ FAIL=Input U+a2 with encoding utf-8
 FAIL=Input U+e1| with encoding utf-8
 FAIL=Input U+e5e5 with encoding gb18030
 FAIL=Input U+e5e5 with encoding utf-8
-[url/url-constructor.any.worker.html?exclude=(file|javascript|mailto)]
-harness=TIMEOUT
-[url/url-constructor.any.worker.html?include=file]
-harness=TIMEOUT
-[url/url-constructor.any.worker.html?include=javascript]
-harness=TIMEOUT
-[url/url-constructor.any.worker.html?include=mailto]
-harness=TIMEOUT
-[url/url-origin.any.worker.html]
-harness=TIMEOUT
 [url/url-searchparams.any.html]
 FAIL=URL.searchParams setter, invalid values
 [url/url-searchparams.any.worker.html]
-harness=TIMEOUT
-[url/url-setters-stripping.any.worker.html]
-harness=TIMEOUT
-[url/url-setters.any.worker.html?exclude=(file|javascript|mailto)]
-harness=TIMEOUT
-[url/url-setters.any.worker.html?include=file]
-harness=TIMEOUT
-[url/url-setters.any.worker.html?include=javascript]
-harness=TIMEOUT
-[url/url-setters.any.worker.html?include=mailto]
-harness=TIMEOUT
-[url/url-statics-canparse.any.worker.html]
-harness=TIMEOUT
-[url/url-statics-parse.any.worker.html]
-harness=TIMEOUT
-[url/url-tojson.any.worker.html]
-harness=TIMEOUT
-[url/urlencoded-parser.any.worker.html]
-harness=TIMEOUT
-[url/urlsearchparams-append.any.worker.html]
-harness=TIMEOUT
+FAIL=URL.searchParams setter, invalid values
 [url/urlsearchparams-constructor.any.worker.html]
-harness=TIMEOUT
-[url/urlsearchparams-delete.any.worker.html]
-harness=TIMEOUT
-[url/urlsearchparams-foreach.any.worker.html]
-harness=TIMEOUT
-[url/urlsearchparams-get.any.worker.html]
-harness=TIMEOUT
-[url/urlsearchparams-getall.any.worker.html]
-harness=TIMEOUT
-[url/urlsearchparams-has.any.worker.html]
-harness=TIMEOUT
-[url/urlsearchparams-set.any.worker.html]
-harness=TIMEOUT
-[url/urlsearchparams-size.any.worker.html]
-harness=TIMEOUT
-[url/urlsearchparams-sort.any.worker.html]
-harness=TIMEOUT
-[url/urlsearchparams-stringifier.any.worker.html]
-harness=TIMEOUT
+FAIL=URLSearchParams constructor, DOMException as argument

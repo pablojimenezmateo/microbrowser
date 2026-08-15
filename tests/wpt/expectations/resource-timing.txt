@@ -78,7 +78,7 @@ FAIL=Verify that a redirected cross-origin resources' timings aren't exposed whe
 FAIL=Verify that cross-origin resources' timings are exposed when the TAO check succeeds. Also verify that secureConnectionStart is 0 since the original request was over HTTP.
 FAIL=Verify that cross-origin resources' timings aren't exposed through HTTP redirects.
 [resource-timing/cross-origin-start-end-time-with-redirects.html]
-harness=TIMEOUT
+FAIL=Verify that cross-origin resources don't implicitly expose their redirect timings
 [resource-timing/decoded-body-size-compressed.https.html]
 harness=TIMEOUT
 [resource-timing/delivery-type.tentative.any.html]
@@ -103,7 +103,7 @@ FAIL=Test fetching through a same-origin redirect URL
 FAIL=Test a font's timestamps
 FAIL=Test a font's timestamps with delays
 [resource-timing/idlharness.any.html]
-harness=TIMEOUT
+FAIL=idl_test setup
 [resource-timing/idlharness.any.worker.html]
 FAIL=idl_test setup
 [resource-timing/iframe-failed-commit.html]
@@ -122,8 +122,6 @@ FAIL=Test iframe redirecting to non-existent host gets reported
 [resource-timing/iframe-redirect-without-location.html]
 FAIL=Iframes should report resource timing for redirect responses without a location
 [resource-timing/iframe-sequence-of-events.html]
-harness=TIMEOUT
-[resource-timing/iframe-with-download.html]
 harness=TIMEOUT
 [resource-timing/image-sequence-of-events.html]
 harness=TIMEOUT
@@ -158,7 +156,8 @@ FAIL=The initiator type for <use> in an <svg> must be 'other'
 [resource-timing/initiator-type/video.html]
 harness=TIMEOUT
 [resource-timing/initiator-type/workers.html]
-harness=TIMEOUT
+FAIL=The initiator type for classic worker must be 'other'
+FAIL=The initiator type for module worker must be 'script'
 [resource-timing/input-sequence-of-events.html]
 harness=TIMEOUT
 [resource-timing/interim-response-times.h2.html]
@@ -270,8 +269,8 @@ harness=TIMEOUT
 [resource-timing/supported_resource_type.any.worker.html]
 harness=ERROR
 [resource-timing/tentative/initiator-url/direct.any.worker.html]
-FAIL=The initiator Url for /images/blue.png?initiator_url_direct_worker initiatorUrl from worker thread must be 'http://localhost:43183/resource-timing/tentative/initiator-url/direct.any.worker.js'
-FAIL=The initiator Url for resource-timing/resources/loading-resource-lib.js?direct_any initiatorUrl from worker thread must be 'http://localhost:43183/resource-timing/tentative/initiator-url/direct.any.worker.js'
+FAIL=The initiator Url for /images/blue.png?initiator_url_direct_worker initiatorUrl from worker thread must be 'http://localhost:{{port[0]}}/resource-timing/tentative/initiator-url/direct.any.worker.js'
+FAIL=The initiator Url for resource-timing/resources/loading-resource-lib.js?direct_any initiatorUrl from worker thread must be 'http://localhost:{{port[0]}}/resource-timing/tentative/initiator-url/direct.any.worker.js'
 [resource-timing/tentative/initiator-url/event-handler-overwritten.html]
 FAIL=The initiator Url for /images/red.png?initiator_url_eventhandler initiatorUrl from event handlers must be 'http://localhost:{{port[0]}}/resource-timing/tentative/initiator-url/event-handler-overwritten.html'
 [resource-timing/tentative/initiator-url/event-handler.html]
@@ -304,11 +303,11 @@ harness=ERROR
 [resource-timing/tentative/initiator-url/post-task.html]
 harness=TIMEOUT
 [resource-timing/tentative/initiator-url/promise.any.worker.html]
-FAIL=The initiator Url for /images/blue.png?initiator_url_promise_worker initiatorUrl from promise in worker thread must be 'http://localhost:43183/resource-timing/tentative/initiator-url/promise.any.worker.js'
+FAIL=The initiator Url for /images/blue.png?initiator_url_promise_worker initiatorUrl from promise in worker thread must be 'http://localhost:{{port[0]}}/resource-timing/tentative/initiator-url/promise.any.worker.js'
 [resource-timing/tentative/initiator-url/promise.html]
 FAIL=The initiator Url for /images/blue.png?initiator_url_promise initiatorUrl from fullfilled promise must be 'http://localhost:{{port[0]}}/resource-timing/tentative/initiator-url/promise.html'
 [resource-timing/tentative/initiator-url/queue-microtask.any.worker.html]
-FAIL=The initiator Url for /images/blue.png?initiator_url_queuemicrotask_worker initiatorUrl from queueMicrotask() in worker thread must be 'http://localhost:43183/resource-timing/tentative/initiator-url/queue-microtask.any.worker.js'
+FAIL=The initiator Url for /images/blue.png?initiator_url_queuemicrotask_worker initiatorUrl from queueMicrotask() in worker thread must be 'http://localhost:{{port[0]}}/resource-timing/tentative/initiator-url/queue-microtask.any.worker.js'
 [resource-timing/tentative/initiator-url/queue-microtask.html]
 FAIL=The initiator Url for /images/blue.png?initiator_url_queuemicrotask initiatorUrl from queueMicrotask() must be 'http://localhost:{{port[0]}}/resource-timing/tentative/initiator-url/queue-microtask.html'
 [resource-timing/tentative/initiator-url/request-animation-frame.html]
@@ -316,11 +315,11 @@ FAIL=The initiator Url for /images/blue.png?initiator_url_requestanimationframe 
 [resource-timing/tentative/initiator-url/request-idle-callback.html]
 FAIL=The initiator Url for function test() { [source unavailable] } initiatorUrl from requestIdleCallback() must be 'http://localhost:{{port[0]}}/resource-timing/tentative/initiator-url/request-idle-callback.html'
 [resource-timing/tentative/initiator-url/set-interval.any.worker.html]
-FAIL=The initiator Url for /images/blue.png?initiator_url_setinterval_worker initiatorUrl from setInterval() in worker thread must be 'http://localhost:43183/resource-timing/tentative/initiator-url/set-interval.any.worker.js'
+FAIL=The initiator Url for /images/blue.png?initiator_url_setinterval_worker initiatorUrl from setInterval() in worker thread must be 'http://localhost:{{port[0]}}/resource-timing/tentative/initiator-url/set-interval.any.worker.js'
 [resource-timing/tentative/initiator-url/set-interval.html]
 FAIL=The initiator Url for /images/blue.png?initiator_url_setinterval initiatorUrl from setInterval() must be 'http://localhost:{{port[0]}}/resource-timing/tentative/initiator-url/set-interval.html'
 [resource-timing/tentative/initiator-url/set-timeout.any.worker.html]
-FAIL=The initiator Url for /images/blue.png?initiator_url_settimeout_worker initiatorUrl from setTimeout() in worker thread must be 'http://localhost:43183/resource-timing/tentative/initiator-url/set-timeout.any.worker.js'
+FAIL=The initiator Url for /images/blue.png?initiator_url_settimeout_worker initiatorUrl from setTimeout() in worker thread must be 'http://localhost:{{port[0]}}/resource-timing/tentative/initiator-url/set-timeout.any.worker.js'
 [resource-timing/tentative/initiator-url/set-timeout.html]
 FAIL=The initiator Url for /images/blue.png?initiator_url_settimeout initiatorUrl from setTimeout() must be 'http://localhost:{{port[0]}}/resource-timing/tentative/initiator-url/set-timeout.html'
 [resource-timing/tentative/initiator-url/static-resource.html]

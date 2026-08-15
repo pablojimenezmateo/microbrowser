@@ -4182,7 +4182,6 @@ FAIL=Privileged header not allowed for guard type: request-no-cors
 harness=TIMEOUT
 [fetch/range/non-matching-range-response.html]
 harness=TIMEOUT
-[fetch/range/non-matching-range-response.html]
 FAIL=Range requests ignored (200 status) should succeed
 FAIL=Range requests with no rewrites should succeed
 FAIL=Range response out of range of request should succeed
