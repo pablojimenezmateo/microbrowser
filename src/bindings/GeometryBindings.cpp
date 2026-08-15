@@ -595,7 +595,10 @@ js::Value DomBindings::MakeComputedStyle(dom::Element& element) {
     return Value::Bool(owner->geometry_->QueryUsedValue(*self, to_css_name(written)).has_value());
   });
   if (has.IsObject()) {
-    has.object->Set(kOwnerSlot, PointerValue(this));
+    // OwnerValue, not PointerValue: OwnerOf reads the serial, and a raw pointer
+    // in this slot is indistinguishable from a dead layer. That is why the trap
+    // existed and every `*-computed.html` still reported `color` as unsupported.
+    has.object->Set(kOwnerSlot, OwnerValue(this));
     handler.object->Set("has", has);
   }
 

@@ -374,6 +374,26 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
                    "a property this engine does not have reads back empty, not invented");
   });
 
+  AddTest(tests, "Geometry/ComputedStyleHasTrapAnswersIn", [] {
+    // Every `css/**/parsing/*-computed.html` starts with
+    // `'color' in getComputedStyle(target)`. A Proxy has-trap that could not
+    // recover its bindings layer answered false for every name, so those files
+    // never reached a colour assertion.
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    const std::vector<std::string> output = RunAndCollect(
+        page,
+        "<body><div id='a'></div>"
+        "<script>var s = getComputedStyle(document.getElementById('a'));"
+        "console.log('color' in s);"
+        "console.log('getPropertyValue' in s);"
+        "console.log('not-a-property' in s);"
+        "</script></body>");
+    ExpectEqString(Line(output, 0), "true", "a supported property is an own property");
+    ExpectEqString(Line(output, 1), "true", "and so is the method form");
+    ExpectEqString(Line(output, 2), "false", "an unknown name is not invented");
+  });
+
   AddTest(tests, "Geometry/ComputedStyleMaxSizeInitialIsNone", [] {
     // CSS: `max-width` / `max-height` initial is `none`. iron-fit (and Polymer
     // overlays generally) gate `constrain()` on `maxHeight !== "none"`; answering
