@@ -2775,6 +2775,27 @@ want rebuilding.
 The audit is the reason to read this entry after it is closed: it names which files share a name,
 which is exactly what a path-keyed entry has to get right when it is added.
 
+**Measured 2026-08-15, after the merge, and the number is bigger than the missing names suggest.**
+Re-recording `cors/`, `fetch/` and `xhr/` against the merged tree moved **585 subtests from passing
+to failing**, against 46 the other way. The causes are two, and the second is the one to plan
+against:
+
+1. **Handlers that are absent.** `expose-headers.py` is not in the path-keyed table, and the ten
+   `cors/access-control-expose-headers-parsing.window.html` subtests fail on exactly that. This is
+   the visible half, and a rebuilt request report would rank it.
+2. **Handlers that are present and *thinner*.** `xhr/resources/content.py` is on the path-keyed
+   table and answers 200, so nothing about it looks missing -- but it does not echo the request's
+   `Content-Type` or its method, and the dropped transcription of the same file did both.
+   `xhr/send-redirect.htm` reports `expected "application/x-pony" but got "NO"` and
+   `expected "HEAD" but got "GET"`, which reads as a browser bug in redirect handling and is not
+   one.
+
+**So the work is not "add the seventeen missing names".** It is "port the dropped table's handler
+*bodies*", one file at a time, against the original Python. A handler that answers with less than
+its original said is invisible to any report that counts requests, invisible to a 501 count, and
+mis-attributed by whoever next reads the failure -- which is strictly worse than the absence this
+entry was originally about, and is the reason this closed entry is worth keeping open on the shelf.
+
 **Audited 2026-08-12** by hashing every copy of every implemented name in the checkout:
 
 | name | files | distinct bodies |
