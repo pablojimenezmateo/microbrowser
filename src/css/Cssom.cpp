@@ -1,6 +1,7 @@
 #include "css/Cssom.h"
 
 #include "css/CssText.h"
+#include "css/DeclarationText.h"
 #include "css/Tokenizer.h"
 
 namespace microbrowser::css {
@@ -188,6 +189,22 @@ std::vector<CssomRule> ParseRuleList(const std::vector<Token>& tokens, std::size
       continue;
     }
     rule.declarations = ParseDeclarationList(ReconstructTokens(tokens, block_start, block_end));
+    std::vector<Declaration> kept;
+    kept.reserve(rule.declarations.size());
+    for (Declaration& declaration : rule.declarations) {
+      std::string canonical;
+      switch (CanonicaliseDeclaration(declaration.property, declaration.value, &canonical)) {
+        case DeclarationValidity::Invalid:
+          continue;
+        case DeclarationValidity::Canonical:
+          declaration.value = std::move(canonical);
+          break;
+        case DeclarationValidity::Unknown:
+          break;
+      }
+      kept.push_back(std::move(declaration));
+    }
+    rule.declarations = std::move(kept);
     rule.css_text = StyleCssText(rule.prelude, rule.declarations);
     rules.push_back(std::move(rule));
   }

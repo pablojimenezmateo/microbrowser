@@ -3812,6 +3812,18 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "s.insertRule('@media print { a { color: green; } }', 1);"
                  "s.cssRules.length + ' ' + s.cssRules[1].type",
                  "2 4");
+    ExpectScript(kPage,
+                 "const s = document.styleSheets[0];"
+                 "s.deleteRule(0);"
+                 "s.insertRule('.x { font-family: #simple; }', 0);"
+                 "s.cssRules[0].cssText",
+                 ".x { }");
+    ExpectScript("<html><body><p></p></body></html>",
+                 "const p = document.querySelector('p');"
+                 "p.style.fontFamily = 'onelittlepiggywenttomarket';"
+                 "p.style.fontFamily = '#simple';"
+                 "p.style.fontFamily",
+                 "onelittlepiggywenttomarket");
   });
 }
 
