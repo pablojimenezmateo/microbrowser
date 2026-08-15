@@ -49,6 +49,26 @@ bool HoldIncomplete(std::string_view bytes, std::size_t at, std::string* leftove
   return true;
 }
 
+// TextDecoder's fatal flag: a replacement is a failure rather than U+FFFD.
+bool EmitError(std::string& out, bool fatal, bool* failed) {
+  if (fatal) {
+    if (failed != nullptr) {
+      *failed = true;
+    }
+    return false;
+  }
+  AppendReplacement(out);
+  return true;
+}
+
+// A failed two-byte sequence consumes the lead; an ASCII trail is restored.
+void AdvanceAfterTwoByteError(std::size_t& at, std::uint8_t trail) {
+  ++at;
+  if (trail > 0x7F) {
+    ++at;
+  }
+}
+
 // An index lookup that cannot read past the end and cannot return a hole as a character. Every
 // decoder below goes through it, so the bound is stated once -- a pointer computed from two bytes a
 // stranger wrote is exactly the arithmetic that overruns a table.
@@ -73,7 +93,8 @@ bool IndexLookup(const Table& table, std::size_t count, std::size_t pointer, std
 // index: pointers 8836 and above are the "extension" area, which the standard maps to a private-use
 // range rather than to the index. Those are the characters a Japanese vendor added and a page may
 // legitimately contain.
-std::string DecodeShiftJis(std::string_view bytes, std::string* leftover) {
+std::string DecodeShiftJis(std::string_view bytes, std::string* leftover, bool fatal = false,
+                           bool* failed = nullptr) {
   std::string out;
   std::size_t at = 0;
   while (at < bytes.size()) {
@@ -98,7 +119,9 @@ std::string DecodeShiftJis(std::string_view bytes, std::string* leftover) {
       continue;
     }
     if ((byte < 0x81 || byte > 0x9F) && (byte < 0xE0 || byte > 0xFC)) {
-      AppendReplacement(out);
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
       ++at;
       continue;
     }
@@ -106,15 +129,19 @@ std::string DecodeShiftJis(std::string_view bytes, std::string* leftover) {
       if (HoldIncomplete(bytes, at, leftover)) {
         break;
       }
-      AppendReplacement(out);
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
       break;
     }
     const std::uint8_t trail = static_cast<std::uint8_t>(bytes[at + 1]);
     if ((trail < 0x40 || trail > 0x7E) && (trail < 0x80 || trail > 0xFC)) {
       // The trail is not a trail, so the sequence is one byte long and this byte starts whatever
       // comes next -- which may be an ASCII `<`.
-      AppendReplacement(out);
-      ++at;
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
+      AdvanceAfterTwoByteError(at, trail);
       continue;
     }
     const std::size_t lead_offset = byte < 0xA0 ? 0x81u : 0xC1u;
@@ -128,8 +155,10 @@ std::string DecodeShiftJis(std::string_view bytes, std::string* leftover) {
       // standard says and what keeps a vendor character from becoming U+FFFD.
       code = 0xE000u + static_cast<std::uint32_t>(pointer) - 8836u;
     } else if (!IndexLookup(kJis0208, std::size(kJis0208), pointer, kHole, code)) {
-      AppendReplacement(out);
-      at += 2;
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
+      AdvanceAfterTwoByteError(at, trail);
       continue;
     }
     util::AppendUtf8(out, code);
@@ -142,7 +171,8 @@ std::string DecodeShiftJis(std::string_view bytes, std::string* leftover) {
 // set -- a second index, and the only one of the six that is *decode only*: no encoder in the
 // standard produces a 0x8F sequence, so a document containing one was written by something older
 // than the web.
-std::string DecodeEucJp(std::string_view bytes, std::string* leftover) {
+std::string DecodeEucJp(std::string_view bytes, std::string* leftover, bool fatal = false,
+                        bool* failed = nullptr) {
   std::string out;
   std::size_t at = 0;
   while (at < bytes.size()) {
@@ -157,7 +187,9 @@ std::string DecodeEucJp(std::string_view bytes, std::string* leftover) {
         if (HoldIncomplete(bytes, at, leftover)) {
           break;
         }
-        AppendReplacement(out);
+        if (!EmitError(out, fatal, failed)) {
+          return out;
+        }
         ++at;
         continue;
       }
@@ -167,8 +199,10 @@ std::string DecodeEucJp(std::string_view bytes, std::string* leftover) {
         at += 2;
         continue;
       }
-      AppendReplacement(out);
-      ++at;
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
+      AdvanceAfterTwoByteError(at, katakana);
       continue;
     }
     if (byte == 0x8F) {
@@ -176,39 +210,62 @@ std::string DecodeEucJp(std::string_view bytes, std::string* leftover) {
       // tidiness: consuming blindly would let `8F 3C` delete a `<`, and a decoder that deletes a `<`
       // hides the character a sanitiser was looking for. When the trail bytes are not trail bytes,
       // one byte is consumed and everything after it is decoded as text, which is what the
-      // standard's pushback does.
+      // standard's pushback does. End-of-queue with a 0x8F prefix still in flight is one error for
+      // the whole remainder -- `8F A1` at flush is one U+FFFD, not two.
+      if (at + 1 >= bytes.size()) {
+        if (HoldIncomplete(bytes, at, leftover)) {
+          break;
+        }
+        if (!EmitError(out, fatal, failed)) {
+          return out;
+        }
+        at = bytes.size();
+        continue;
+      }
+      const std::uint8_t first_trail = static_cast<std::uint8_t>(bytes[at + 1]);
+      if (first_trail < 0xA1 || first_trail > 0xFE) {
+        if (!EmitError(out, fatal, failed)) {
+          return out;
+        }
+        AdvanceAfterTwoByteError(at, first_trail);
+        continue;
+      }
       if (at + 2 >= bytes.size()) {
         if (HoldIncomplete(bytes, at, leftover)) {
           break;
         }
-        AppendReplacement(out);
-        ++at;
+        if (!EmitError(out, fatal, failed)) {
+          return out;
+        }
+        at = bytes.size();
         continue;
       }
-      const bool shaped = at + 2 < bytes.size() &&
-                          static_cast<std::uint8_t>(bytes[at + 1]) >= 0xA1 &&
-                          static_cast<std::uint8_t>(bytes[at + 1]) <= 0xFE &&
-                          static_cast<std::uint8_t>(bytes[at + 2]) >= 0xA1 &&
-                          static_cast<std::uint8_t>(bytes[at + 2]) <= 0xFE;
-      if (!shaped) {
-        AppendReplacement(out);
-        ++at;
+      const std::uint8_t second_trail = static_cast<std::uint8_t>(bytes[at + 2]);
+      if (second_trail < 0xA1 || second_trail > 0xFE) {
+        if (!EmitError(out, fatal, failed)) {
+          return out;
+        }
+        at += 2;
+        if (second_trail > 0x7F) {
+          ++at;
+        }
         continue;
       }
-      const std::size_t pointer =
-          (static_cast<std::size_t>(static_cast<std::uint8_t>(bytes[at + 1])) - 0xA1u) * 94u +
-          (static_cast<std::size_t>(static_cast<std::uint8_t>(bytes[at + 2])) - 0xA1u);
+      const std::size_t pointer = (static_cast<std::size_t>(first_trail) - 0xA1u) * 94u +
+                                  (static_cast<std::size_t>(second_trail) - 0xA1u);
       std::uint32_t code = 0;
       if (IndexLookup(kJis0212, std::size(kJis0212), pointer, kHole, code)) {
         util::AppendUtf8(out, code);
-      } else {
-        AppendReplacement(out);
+      } else if (!EmitError(out, fatal, failed)) {
+        return out;
       }
       at += 3;
       continue;
     }
     if (byte < 0xA1 || byte > 0xFE) {
-      AppendReplacement(out);
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
       ++at;
       continue;
     }
@@ -216,22 +273,28 @@ std::string DecodeEucJp(std::string_view bytes, std::string* leftover) {
       if (HoldIncomplete(bytes, at, leftover)) {
         break;
       }
-      AppendReplacement(out);
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
       ++at;
       continue;
     }
     const std::uint8_t trail = static_cast<std::uint8_t>(bytes[at + 1]);
     if (trail < 0xA1 || trail > 0xFE) {
-      AppendReplacement(out);
-      ++at;
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
+      AdvanceAfterTwoByteError(at, trail);
       continue;
     }
     const std::size_t pointer = (static_cast<std::size_t>(byte) - 0xA1u) * 94u +
                                 (static_cast<std::size_t>(trail) - 0xA1u);
     std::uint32_t code = 0;
     if (!IndexLookup(kJis0208, std::size(kJis0208), pointer, kHole, code)) {
-      AppendReplacement(out);
-      at += 2;
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
+      AdvanceAfterTwoByteError(at, trail);
       continue;
     }
     util::AppendUtf8(out, code);
@@ -242,7 +305,8 @@ std::string DecodeEucJp(std::string_view bytes, std::string* leftover) {
 
 // EUC-KR. One index, one range, and the widest trail range of the five: 0x41-0xFE, which is why its
 // index is 23,750 entries for a 94x94 character set.
-std::string DecodeEucKr(std::string_view bytes, std::string* leftover) {
+std::string DecodeEucKr(std::string_view bytes, std::string* leftover, bool fatal = false,
+                        bool* failed = nullptr) {
   std::string out;
   std::size_t at = 0;
   while (at < bytes.size()) {
@@ -253,7 +317,9 @@ std::string DecodeEucKr(std::string_view bytes, std::string* leftover) {
       continue;
     }
     if (byte < 0x81 || byte > 0xFE) {
-      AppendReplacement(out);
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
       ++at;
       continue;
     }
@@ -261,22 +327,28 @@ std::string DecodeEucKr(std::string_view bytes, std::string* leftover) {
       if (HoldIncomplete(bytes, at, leftover)) {
         break;
       }
-      AppendReplacement(out);
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
       ++at;
       continue;
     }
     const std::uint8_t trail = static_cast<std::uint8_t>(bytes[at + 1]);
     if (trail < 0x41 || trail > 0xFE) {
-      AppendReplacement(out);
-      ++at;
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
+      AdvanceAfterTwoByteError(at, trail);
       continue;
     }
     const std::size_t pointer = (static_cast<std::size_t>(byte) - 0x81u) * 190u +
                                 (static_cast<std::size_t>(trail) - 0x41u);
     std::uint32_t code = 0;
     if (!IndexLookup(kEucKr, std::size(kEucKr), pointer, kHole, code)) {
-      AppendReplacement(out);
-      at += 2;
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
+      AdvanceAfterTwoByteError(at, trail);
       continue;
     }
     util::AppendUtf8(out, code);
@@ -289,7 +361,8 @@ std::string DecodeEucKr(std::string_view bytes, std::string* leftover) {
 // which is the one place in these five where one sequence is not one character. Handled explicitly
 // because a decoder that emitted only the base would silently drop a tone mark, and Taiwanese
 // Mandarin transcription is exactly what those four are for.
-std::string DecodeBig5(std::string_view bytes, std::string* leftover) {
+std::string DecodeBig5(std::string_view bytes, std::string* leftover, bool fatal = false,
+                       bool* failed = nullptr) {
   std::string out;
   std::size_t at = 0;
   while (at < bytes.size()) {
@@ -300,7 +373,9 @@ std::string DecodeBig5(std::string_view bytes, std::string* leftover) {
       continue;
     }
     if (byte < 0x81 || byte > 0xFE) {
-      AppendReplacement(out);
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
       ++at;
       continue;
     }
@@ -310,14 +385,18 @@ std::string DecodeBig5(std::string_view bytes, std::string* leftover) {
         leftover->assign(bytes.substr(at));
         break;
       }
-      AppendReplacement(out);
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
       ++at;
       continue;
     }
     const std::uint8_t trail = static_cast<std::uint8_t>(bytes[at + 1]);
     if ((trail < 0x40 || trail > 0x7E) && (trail < 0xA1 || trail > 0xFE)) {
       // Pointer stays null. An ASCII trail is restored; a non-ASCII one is consumed.
-      AppendReplacement(out);
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
       ++at;
       if (trail > 0x7F) {
         ++at;
@@ -356,7 +435,9 @@ std::string DecodeBig5(std::string_view bytes, std::string* leftover) {
     if (!IndexLookup(kBig5, std::size(kBig5), pointer, kWideHole, code)) {
       // Encoding Standard: a hole is an error, and an ASCII trail is restored so it is
       // decoded on its own. `0x81 0x40` is U+FFFD then `@`, not a swallowed `@`.
-      AppendReplacement(out);
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
       ++at;
       if (trail > 0x7F) {
         ++at;
@@ -396,7 +477,8 @@ std::optional<std::uint32_t> Gb18030RangesCodePoint(std::size_t pointer) {
 // two-byte form covers the BMP, and the four-byte form covers everything else, including every code
 // point above it. The four-byte form is what makes this the only legacy encoding that can say
 // anything Unicode can.
-std::string DecodeGb18030(std::string_view bytes, std::string* leftover) {
+std::string DecodeGb18030(std::string_view bytes, std::string* leftover, bool fatal = false,
+                         bool* failed = nullptr) {
   std::string out;
   std::size_t at = 0;
   while (at < bytes.size()) {
@@ -412,7 +494,9 @@ std::string DecodeGb18030(std::string_view bytes, std::string* leftover) {
       continue;
     }
     if (byte == 0xFF) {
-      AppendReplacement(out);
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
       ++at;
       continue;
     }
@@ -420,7 +504,9 @@ std::string DecodeGb18030(std::string_view bytes, std::string* leftover) {
       if (HoldIncomplete(bytes, at, leftover)) {
         break;
       }
-      AppendReplacement(out);
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
       ++at;
       continue;
     }
@@ -430,36 +516,63 @@ std::string DecodeGb18030(std::string_view bytes, std::string* leftover) {
       // reason EUC-JP's 0x8F path states: the third and fourth bytes of a *malformed* four-byte
       // sequence are ordinary text, and `81 30 3C 3C` consumed blindly deletes a `<`. Only a
       // sequence whose four bytes are all in range is taken as one unit; anything else costs one
-      // byte, and the rest is decoded.
-      const bool shaped = at + 3 < bytes.size() &&
-                          static_cast<std::uint8_t>(bytes[at + 2]) >= 0x81 &&
-                          static_cast<std::uint8_t>(bytes[at + 2]) <= 0xFE &&
-                          static_cast<std::uint8_t>(bytes[at + 3]) >= 0x30 &&
-                          static_cast<std::uint8_t>(bytes[at + 3]) <= 0x39;
-      if (!shaped) {
-        if (at + 3 >= bytes.size() && HoldIncomplete(bytes, at, leftover)) {
+      // byte, and the rest is decoded. End-of-queue with first/second/third still set is one error
+      // for the remainder -- `81 30` and `81 30 FE` at flush are each one U+FFFD. A third byte out
+      // of range is not that: restore second and third, so `A0 30 2B` is U+FFFD then `0+`.
+      if (at + 2 >= bytes.size()) {
+        if (HoldIncomplete(bytes, at, leftover)) {
           break;
         }
-        AppendReplacement(out);
+        if (!EmitError(out, fatal, failed)) {
+          return out;
+        }
+        at = bytes.size();
+        continue;
+      }
+      const std::uint8_t third = static_cast<std::uint8_t>(bytes[at + 2]);
+      if (third < 0x81 || third > 0xFE) {
+        if (!EmitError(out, fatal, failed)) {
+          return out;
+        }
+        ++at;
+        continue;
+      }
+      if (at + 3 >= bytes.size()) {
+        if (HoldIncomplete(bytes, at, leftover)) {
+          break;
+        }
+        if (!EmitError(out, fatal, failed)) {
+          return out;
+        }
+        at = bytes.size();
+        continue;
+      }
+      const std::uint8_t fourth = static_cast<std::uint8_t>(bytes[at + 3]);
+      if (fourth < 0x30 || fourth > 0x39) {
+        if (!EmitError(out, fatal, failed)) {
+          return out;
+        }
         ++at;
         continue;
       }
       const std::size_t pointer =
           (static_cast<std::size_t>(byte) - 0x81u) * (10u * 126u * 10u) +
           (static_cast<std::size_t>(second) - 0x30u) * (10u * 126u) +
-          (static_cast<std::size_t>(static_cast<std::uint8_t>(bytes[at + 2])) - 0x81u) * 10u +
-          (static_cast<std::size_t>(static_cast<std::uint8_t>(bytes[at + 3])) - 0x30u);
+          (static_cast<std::size_t>(third) - 0x81u) * 10u +
+          (static_cast<std::size_t>(fourth) - 0x30u);
       if (const std::optional<std::uint32_t> code = Gb18030RangesCodePoint(pointer)) {
         util::AppendUtf8(out, *code);
-      } else {
-        AppendReplacement(out);
+      } else if (!EmitError(out, fatal, failed)) {
+        return out;
       }
       at += 4;
       continue;
     }
     if (second == 0x7F || second < 0x40 || second > 0xFE) {
-      AppendReplacement(out);
-      ++at;
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
+      AdvanceAfterTwoByteError(at, second);
       continue;
     }
     const std::size_t offset = second < 0x7F ? 0x40u : 0x41u;
@@ -467,8 +580,10 @@ std::string DecodeGb18030(std::string_view bytes, std::string* leftover) {
                                 (static_cast<std::size_t>(second) - offset);
     std::uint32_t code = 0;
     if (!IndexLookup(kGb18030, std::size(kGb18030), pointer, kHole, code)) {
-      AppendReplacement(out);
-      at += 2;
+      if (!EmitError(out, fatal, failed)) {
+        return out;
+      }
+      AdvanceAfterTwoByteError(at, second);
       continue;
     }
     util::AppendUtf8(out, code);
@@ -996,26 +1111,27 @@ std::string DecodeMultiByte(std::string_view bytes, Encoding encoding) {
 }
 
 bool DecodeMultiByteStreaming(std::string_view bytes, Encoding encoding, std::string& out,
-                              std::string& leftover, bool stream) {
+                              std::string& leftover, bool stream, bool fatal) {
   leftover.clear();
   std::string* hold = stream ? &leftover : nullptr;
+  bool failed = false;
   switch (encoding) {
     case Encoding::ShiftJis:
-      out = DecodeShiftJis(bytes, hold);
-      return true;
+      out = DecodeShiftJis(bytes, hold, fatal, &failed);
+      return !failed;
     case Encoding::EucJp:
-      out = DecodeEucJp(bytes, hold);
-      return true;
+      out = DecodeEucJp(bytes, hold, fatal, &failed);
+      return !failed;
     case Encoding::EucKr:
-      out = DecodeEucKr(bytes, hold);
-      return true;
+      out = DecodeEucKr(bytes, hold, fatal, &failed);
+      return !failed;
     case Encoding::Big5:
-      out = DecodeBig5(bytes, hold);
-      return true;
+      out = DecodeBig5(bytes, hold, fatal, &failed);
+      return !failed;
     case Encoding::Gb18030:
     case Encoding::Gbk:
-      out = DecodeGb18030(bytes, hold);
-      return true;
+      out = DecodeGb18030(bytes, hold, fatal, &failed);
+      return !failed;
     case Encoding::Iso2022Jp:
       out = DecodeIso2022Jp(bytes);
       return true;

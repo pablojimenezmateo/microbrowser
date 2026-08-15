@@ -103,7 +103,7 @@ std::string DecodeMultiByte(std::string_view bytes, Encoding encoding);
 // The same decoders with TextDecoder's leftover: an incomplete lead at the end of `bytes` is
 // written to `leftover` when `stream` is true rather than becoming U+FFFD.
 bool DecodeMultiByteStreaming(std::string_view bytes, Encoding encoding, std::string& out,
-                              std::string& leftover, bool stream);
+                              std::string& leftover, bool stream, bool fatal);
 
 // The multi-byte encoders, in the same translation unit and for the same reason -- and `state` is
 // ISO-2022-JP's, threaded through rather than kept in a static, because two encodings running at

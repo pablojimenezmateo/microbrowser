@@ -619,7 +619,7 @@ bool DecodeBytesStreaming(std::string& leftover, std::string_view bytes, Encodin
     case Encoding::Gb18030:
     case Encoding::Gbk:
     case Encoding::Iso2022Jp:
-      return DecodeMultiByteStreaming(input, encoding, out, leftover, stream);
+      return DecodeMultiByteStreaming(input, encoding, out, leftover, stream, fatal);
     default:
       return DecodeSingleByte(input, encoding, out, fatal);
   }

@@ -194,16 +194,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [encoding/legacy-mb-korean/euc-kr/euckr-encode-form.html]
 harness=TIMEOUT
-[encoding/legacy-mb-schinese/gb18030/gb18030-decoder.any.html]
-FAIL=gb18030 decoder: three bytes 0x81 0x30 0xFE
-FAIL=gb18030 decoder: two bytes 0x81 0x30
-FAIL=gb18030 decoder: two bytes 0x81 0xFF
-FAIL=gb18030 decoder: two bytes 0xFE 0xFF
-[encoding/legacy-mb-schinese/gb18030/gb18030-decoder.any.worker.html]
-FAIL=gb18030 decoder: three bytes 0x81 0x30 0xFE
-FAIL=gb18030 decoder: two bytes 0x81 0x30
-FAIL=gb18030 decoder: two bytes 0x81 0xFF
-FAIL=gb18030 decoder: two bytes 0xFE 0xFF
 [encoding/legacy-mb-tchinese/big5/big5-decode-big5-hkscs.html]
 harness=TIMEOUT
 [encoding/legacy-mb-tchinese/big5/big5-decode-cn-big5.html]
@@ -431,44 +421,14 @@ FAIL=Fatal flag, non-streaming cases
 FAIL=Fatal flag, non-streaming cases
 [encoding/textdecoder-mistakes.any.html]
 FAIL=Concatenating two ISO-2022-JP outputs is not always valid
-FAIL=Replacement, push back ASCII characters: big5
-FAIL=Replacement, push back ASCII characters: euc-jp
-FAIL=Replacement, push back ASCII characters: euc-kr
-FAIL=Replacement, push back ASCII characters: gb18030
-FAIL=Replacement, push back ASCII characters: gbk
 FAIL=Replacement, push back ASCII characters: iso-2022-jp
-FAIL=Replacement, push back ASCII characters: shift_jis
-FAIL=Sticky multibyte state: big5
-FAIL=Sticky multibyte state: euc-jp
-FAIL=Sticky multibyte state: euc-kr
-FAIL=Sticky multibyte state: gb18030
-FAIL=Sticky multibyte state: gbk
 FAIL=Sticky multibyte state: iso-2022-jp
-FAIL=Sticky multibyte state: shift_jis
 FAIL=fatal stream: iso-2022-jp
-FAIL=gb18030 version and ranges
-FAIL=gbk version and ranges
-FAIL=specific: big5
 [encoding/textdecoder-mistakes.any.worker.html]
 FAIL=Concatenating two ISO-2022-JP outputs is not always valid
-FAIL=Replacement, push back ASCII characters: big5
-FAIL=Replacement, push back ASCII characters: euc-jp
-FAIL=Replacement, push back ASCII characters: euc-kr
-FAIL=Replacement, push back ASCII characters: gb18030
-FAIL=Replacement, push back ASCII characters: gbk
 FAIL=Replacement, push back ASCII characters: iso-2022-jp
-FAIL=Replacement, push back ASCII characters: shift_jis
-FAIL=Sticky multibyte state: big5
-FAIL=Sticky multibyte state: euc-jp
-FAIL=Sticky multibyte state: euc-kr
-FAIL=Sticky multibyte state: gb18030
-FAIL=Sticky multibyte state: gbk
 FAIL=Sticky multibyte state: iso-2022-jp
-FAIL=Sticky multibyte state: shift_jis
 FAIL=fatal stream: iso-2022-jp
-FAIL=gb18030 version and ranges
-FAIL=gbk version and ranges
-FAIL=specific: big5
 [encoding/textdecoder-streaming.any.html]
 FAIL=Streaming decode: UTF-8 chunk tests (SharedArrayBuffer)
 FAIL=Streaming decode: utf-16be, 1 byte window (SharedArrayBuffer)

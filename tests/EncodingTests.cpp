@@ -365,6 +365,34 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
     // `81 30 3C 3C` costs only the 0x81 and the `<<` after it is text.
     ExpectEqString(Decode("\x81\x30\x3C\x3C", Encoding::Gb18030), kReplacement + "0<<",
                    "a malformed four-byte sequence does not eat the text after it");
+    // Encoding Standard: a two-byte hole restores an ASCII trail; a non-ASCII trail is consumed.
+    // Incomplete four-byte GB18030 at end-of-queue is one error for the remainder.
+    ExpectEqString(Decode("\x41\xC7\x41", Encoding::EucKr), "A" + kReplacement + "A",
+                   "EUC-KR hole then ASCII");
+    ExpectEqString(Decode("\xAD\xAD", Encoding::EucKr), kReplacement, "EUC-KR hole consumes both");
+    ExpectEqString(Decode("\x8E\x8E", Encoding::EucJp), kReplacement,
+                   "EUC-JP 0x8E with a non-katakana trail consumes both");
+    ExpectEqString(Decode("\x8F\xA1", Encoding::EucJp), kReplacement,
+                   "EUC-JP 0x8F prefix at flush is one error");
+    ExpectEqString(Decode("\xA0\x30\x2B", Encoding::Gb18030), kReplacement + "0+",
+                   "GB18030 restores a 4-byte prefix whose third byte is out of range");
+    ExpectEqString(Decode("\x81\x31", Encoding::Gb18030), kReplacement,
+                   "incomplete GB18030 four-byte at flush is one error");
+    ExpectEqString(Decode("\x81\x30\xFE", Encoding::Gb18030), kReplacement,
+                   "and so is three bytes of a four-byte sequence");
+    ExpectEqString(Decode("\x81\xFF", Encoding::Gb18030), kReplacement,
+                   "GB18030 0xFF trail is consumed, not restored");
+    ExpectEqString(Decode("\x81\x3A", Encoding::Gb18030), kReplacement + ":",
+                   "GB18030 restores an ASCII byte that is not a trail");
+    std::string fatal_out;
+    Expect(!html::DecodeBytes("\xC7\x41", Encoding::EucKr, fatal_out, true),
+           "fatal refuses an EUC-KR hole");
+    Expect(!html::DecodeBytes("\x81\x40", Encoding::Big5, fatal_out, true),
+           "and a Big5 hole");
+    Expect(!html::DecodeBytes("\x85\x85", Encoding::ShiftJis, fatal_out, true),
+           "and a Shift_JIS hole");
+    Expect(!html::DecodeBytes("\x81\x31", Encoding::Gb18030, fatal_out, true),
+           "and an incomplete GB18030 four-byte");
   });
 
   AddTest(tests, "Encoding/TheDecodeOnlyIndexesAndTheFourByteForm", [] {
