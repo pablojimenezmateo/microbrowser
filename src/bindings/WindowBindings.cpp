@@ -3,6 +3,7 @@
 #include "url/Url.h"
 
 #include <cstddef>
+#include <optional>
 #include <string>
 
 #include "util/UserAgent.h"
@@ -21,6 +22,25 @@ namespace {
 
 using js::NativeCall;
 using js::Value;
+
+// The URL a `location` write names, resolved against the document, or nothing
+// when it does not parse.
+//
+// **A failure here is a `SyntaxError`, not a navigation to nowhere.** HTML's
+// "location-object navigate" begins by parsing, and "if that fails, throw a
+// SyntaxError DOMException" -- which is the whole of `url/failure.html`'s
+// third case, 188 subtests of exactly this and nothing else. Silently doing
+// nothing is worse than either answer: a page that expects the throw carries on
+// as though the navigation were under way.
+std::optional<std::string> ResolveLocationTarget(const std::string& input, const std::string& base) {
+  const std::optional<url::Url> parsed_base = url::Url::Parse(base);
+  const std::optional<url::Url> target =
+      parsed_base.has_value() ? url::Url::Parse(input, *parsed_base) : url::Url::Parse(input);
+  if (!target.has_value()) {
+    return std::nullopt;
+  }
+  return target->Serialize();
+}
 
 }  // namespace
 
@@ -135,8 +155,8 @@ void DomBindings::SyncNamedAccess() {
           return Value::Undefined();
         });
     if (getter.IsObject() && setter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
-      setter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
+      setter.object->Set(kOwnerSlot, OwnerValue(this));
       global->DefineAccessor(name, getter.object, setter.object);
     }
   });
@@ -154,7 +174,12 @@ void DomBindings::InstallWindow() {
   // `frameElement` is null. youtube's player reads `window.top.location` (and
   // `window === window.top`) on every load; without these the access throws
   // and reporting / bevasr / deid probes abort into catch paths.
-  // Nested contexts are ADR 0027 — until they exist, every Window is top-level.
+  // **The default, not the answer.** `PublishFrameWindows` overwrites `top`,
+  // `parent` and the indexed `window[i]` once the engine knows the shape of the
+  // tree, which is after this runs -- a child realm exists only once its
+  // document has arrived. So what is written here is what a *top-level*
+  // document keeps: it is its own parent and its own top, which is what every
+  // `while (w !== w.parent)` walk terminates on. See BrowsingContexts.h.
   global->Set("top", window);
   global->Set("parent", window);
   global->Set("frames", window);
@@ -196,7 +221,7 @@ void DomBindings::InstallWindow() {
       return Value::String(href_of(call));
     });
     if (to_string.IsObject()) {
-      to_string.object->Set(kOwnerSlot, PointerValue(this));
+      to_string.object->Set(kOwnerSlot, OwnerValue(this));
       location_prototype.object->Set("toString", to_string);
     }
 
@@ -215,11 +240,15 @@ void DomBindings::InstallWindow() {
         if (!CoerceToString(call, Argument(call.arguments, 0), url)) {
           return call.ThrownValue();
         }
-        owner->history_->RequestNavigation(url, replace);
+        const std::optional<std::string> target = ResolveLocationTarget(url, owner->url_);
+        if (!target.has_value()) {
+          return ThrowDom(call, "SyntaxError", "could not parse '" + url + "' as a URL");
+        }
+        owner->history_->RequestNavigation(*target, replace);
         return Value::Undefined();
       });
       if (method.IsObject()) {
-        method.object->Set(kOwnerSlot, PointerValue(this));
+        method.object->Set(kOwnerSlot, OwnerValue(this));
         location_prototype.object->Set(name, method);
       }
     };
@@ -237,7 +266,7 @@ void DomBindings::InstallWindow() {
       return Value::Undefined();
     });
     if (reload.IsObject()) {
-      reload.object->Set(kOwnerSlot, PointerValue(this));
+      reload.object->Set(kOwnerSlot, OwnerValue(this));
       location_prototype.object->Set("reload", reload);
     }
 
@@ -253,8 +282,12 @@ void DomBindings::InstallWindow() {
       if (!CoerceToString(call, Argument(call.arguments, 0), url)) {
         return call.ThrownValue();
       }
+      const std::optional<std::string> target = ResolveLocationTarget(url, owner->url_);
+      if (!target.has_value()) {
+        return ThrowDom(call, "SyntaxError", "could not parse '" + url + "' as a URL");
+      }
       if (owner->history_ != nullptr) {
-        owner->history_->RequestNavigation(url, false);
+        owner->history_->RequestNavigation(*target, false);
       } else if (call.self.IsObject()) {
         // No history source (unit tests): update the slot in place so reads
         // still agree with what script wrote.
@@ -263,13 +296,41 @@ void DomBindings::InstallWindow() {
       return Value::Undefined();
     });
     if (href_get.IsObject() && href_set.IsObject()) {
-      href_get.object->Set(kOwnerSlot, PointerValue(this));
-      href_set.object->Set(kOwnerSlot, PointerValue(this));
+      href_get.object->Set(kOwnerSlot, OwnerValue(this));
+      href_set.object->Set(kOwnerSlot, OwnerValue(this));
       location_prototype.object->DefineAccessor("href", href_get.object, href_set.object);
     }
 
     WriteLocationFields(location);
-    global->Set("location", location);
+    // **`window.location = x` is a *navigation*, not an assignment.** HTML makes
+    // it an accessor on Window whose setter runs "location-object navigate" --
+    // the same algorithm `location.href = x` runs, throw and all. Installed as a
+    // plain property it was a page overwriting the property: the object went
+    // away, nothing navigated, and nothing threw. `frame.contentWindow.location
+    // = badUrl` is how `url/failure.html` asks for the throw, and it silently
+    // succeeded 188 times.
+    const Value window_location_get =
+        interpreter_->NewNativeValue("location", [location](NativeCall&) { return location; });
+    const Value window_location_set =
+        interpreter_->NewNativeValue("location", [location](NativeCall& call) -> Value {
+          if (!location.IsObject()) {
+            return Value::Undefined();
+          }
+          // Through the same setter rather than beside it, so there is one
+          // implementation of "navigate this context to a string" and it cannot
+          // come to disagree with itself about which strings are URLs.
+          const js::Result assigned = call.interpreter.SetProperty(
+              location, js::PropertyKey("href"), Argument(call.arguments, 0));
+          if (assigned.IsAbrupt()) {
+            return call.ThrowValue(assigned.value);
+          }
+          return Value::Undefined();
+        });
+    if (window_location_get.IsObject() && window_location_set.IsObject()) {
+      global->DefineAccessor("location", window_location_get.object, window_location_set.object);
+    } else {
+      global->Set("location", location);
+    }
     interpreter_->GlobalScope()->Declare("location", location, false);
     // `document.location` is the same object as `window.location`, which is
     // what it is in a browser and what a page checks by identity. reddit's
@@ -333,7 +394,7 @@ void DomBindings::InstallWindow() {
     return Value::Null();
   });
   if (open_window.IsObject()) {
-    open_window.object->Set(kOwnerSlot, PointerValue(this));
+    open_window.object->Set(kOwnerSlot, OwnerValue(this));
     global->Set("open", open_window);
     interpreter_->GlobalScope()->Declare("open", open_window, false);
   }
@@ -350,7 +411,7 @@ void DomBindings::InstallWindow() {
     return Value::Undefined();
   });
   if (post_message.IsObject()) {
-    post_message.object->Set(kOwnerSlot, PointerValue(this));
+    post_message.object->Set(kOwnerSlot, OwnerValue(this));
     global->Set("postMessage", post_message);
     interpreter_->GlobalScope()->Declare("postMessage", post_message, false);
   }

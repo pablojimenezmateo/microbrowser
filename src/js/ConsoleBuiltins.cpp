@@ -160,7 +160,7 @@ void Interpreter::InstallConsole() {
     state->group_depth = 0;
     return Value::Undefined();
   });
-  global_scope_->Declare("console", Value::Obj(console), false);
+  realm_->global_scope->Declare("console", Value::Obj(console), false);
 }
 
 }  // namespace microbrowser::js

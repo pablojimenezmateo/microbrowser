@@ -182,7 +182,7 @@ void Interpreter::InstallCollections() {
     }
     constructor->Set("prototype", Value::Obj(prototype));
     prototype->SetHidden("constructor", Value::Obj(constructor));
-    global_scope_->Declare(name, Value::Obj(constructor), false);
+    realm_->global_scope->Declare(name, Value::Obj(constructor), false);
 
     // `size` is a getter, not a stored count: a stored one is a second thing
     // that can disagree with the entries, and it would have to be right after
@@ -320,7 +320,7 @@ void Interpreter::InstallCollections() {
       weak_ref->Set("prototype", Value::Obj(prototype));
       prototype->SetHidden("constructor", Value::Obj(weak_ref));
     }
-    global_scope_->Declare("WeakRef", Value::Obj(weak_ref), false);
+    realm_->global_scope->Declare("WeakRef", Value::Obj(weak_ref), false);
   }
 
   // --- FinalizationRegistry -------------------------------------------------
@@ -359,7 +359,7 @@ void Interpreter::InstallCollections() {
       registry->Set("prototype", Value::Obj(prototype));
       prototype->SetHidden("constructor", Value::Obj(registry));
     }
-    global_scope_->Declare("FinalizationRegistry", Value::Obj(registry), false);
+    realm_->global_scope->Declare("FinalizationRegistry", Value::Obj(registry), false);
   }
 
   Object* map_prototype = build("Map", true);
@@ -488,10 +488,10 @@ void Interpreter::InstallCollections() {
     if (constructor == nullptr) {
       return;
     }
-    prototype->SetPrototype(well_known_.object_prototype);
+    prototype->SetPrototype(intrinsics().object_prototype);
     constructor->Set("prototype", Value::Obj(prototype));
     prototype->SetHidden("constructor", Value::Obj(constructor));
-    global_scope_->Declare(name, Value::Obj(constructor), false);
+    realm_->global_scope->Declare(name, Value::Obj(constructor), false);
 
     // A key must be an object. A primitive has no identity to be weak about --
     // there is nothing for the collector to notice the death of -- so the spec
@@ -615,8 +615,8 @@ void Interpreter::InstallCollections() {
   // `for...of` over a Map yields pairs and over a Set yields members, which is
   // exactly `entries` and `values`. Aliased rather than reimplemented, so the
   // two can never drift apart.
-  if (well_known_.symbol_iterator != nullptr) {
-    const PropertyKey hook = PropertyKey::Symbol(well_known_.symbol_iterator);
+  if (shared_.symbol_iterator != nullptr) {
+    const PropertyKey hook = PropertyKey::Symbol(shared_.symbol_iterator);
     if (const Value* entries = map_prototype->GetOwn("entries")) {
       map_prototype->Set(hook, *entries);
     }

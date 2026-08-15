@@ -579,7 +579,8 @@ microbrowser_module(js
     src/js/Iteration.cpp
     src/js/JsonBuiltins.cpp
     src/js/NumberBuiltins.cpp
-    src/js/Promises.cpp
+    src/js/Realms.cpp
+  src/js/Promises.cpp
     src/js/RegExp.cpp
     src/js/RegExpBuiltins.cpp
     src/js/RegExpMatcher.cpp
@@ -679,6 +680,9 @@ add_executable(microbrowser_tests
   tests/WptExpectationsTests.cpp
   tests/WptHandlerTests.cpp
   tools/wpt/Expectations.cpp
+  # The handler table itself, compiled into the test binary. It names nothing but its own header, so
+  # this costs no dependency -- and until it was here the only way to exercise a transcription was to
+  # run the whole suite, which is the better part of a day.
   tools/wpt/Handlers.cpp
   tests/architecture/ModuleManifest.cpp
   tests/architecture/SourceScan.cpp
@@ -704,6 +708,7 @@ add_executable(microbrowser_tests
   tests/BrowserChromeTests.cpp
   tests/DisplayListDiffTests.cpp
   tests/EngineTests.cpp
+  tests/FrameTests.cpp
   tests/FloatTests.cpp
   tests/FocusTests.cpp
   tests/FontCatalogTests.cpp
@@ -754,6 +759,7 @@ add_executable(microbrowser_tests
   tests/JsLexerTests.cpp
   tests/JsRegExpTests.cpp
   tests/JsParserTests.cpp
+  tests/JsRealmTests.cpp
   tests/JsVmTests.cpp
   tests/DomBindingsTests.cpp
   tests/FlexLayoutTests.cpp

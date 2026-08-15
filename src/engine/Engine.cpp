@@ -120,6 +120,9 @@ Engine::Engine(ipc::EngineEndpoint& endpoint, gfx::FontProvider& fonts)
   // `csrf_token` from here; Wikipedia's inline script calls `.match` on it.
   page_.SetCookieSource(this);
   loader_.SetBlobRegistry(&page_.BlobUrls());
+  // `iframe.contentWindow` on a frame the running script just appended. ADR 0027 §1: the context
+  // exists on insertion, so the answer cannot wait for the next turn of the loop.
+  page_.ScriptHalf()->FrameWindows().SetSettleHook([this]() { SettleFrameContexts(); });
   page_.SetTrustedInsertionFlush([this](const dom::Element& element) {
     // The inline half first, and **synchronously**: HTML runs an inline classic script during the
     // insertion steps, so the line after `appendChild` reads what it set (TD-0059). It is not
@@ -212,7 +215,8 @@ bool Engine::Advance() {
   // script, which is why it is here and not inside the paint.
   bool socket_activity = AdvanceSockets();
   socket_activity = AdvanceEventSources() || socket_activity;
-  if (!load_.active && post_load_.images.empty() && post_load_.scripts.empty() && script_fetches_.empty() &&
+  if (!load_.active && post_load_.images.empty() && post_load_.scripts.empty() &&
+      post_load_.frames.empty() && script_fetches_.empty() &&
       module_fetches_.empty() && font_fetches_.empty() && worker_fetches_.empty() &&
       worker_import_fetches_.empty() && worker_script_fetches_.empty() &&
       !page_.HasPendingModules()) {
@@ -223,64 +227,14 @@ bool Engine::Advance() {
     }
     return socket_activity;
   }
-  std::vector<Loader::Completion> completions = loader_.TakeCompletions();
+  // Everything the loader answered this turn, routed to whoever asked for it. In its own
+  // translation unit with the rest of the subresource routing: which table an id is in *is* the
+  // question that file exists to answer, and Advance's job is the turn rather than the answer.
   bool moved = false;
-  bool font_changed = false;
-  for (Loader::Completion& completion : completions) {
-    if (post_load_.images.find(completion.id) != post_load_.images.end()) {
-      moved = OnLateImage(std::move(completion)) || moved;
-      continue;
-    }
-    if (post_load_.scripts.find(completion.id) != post_load_.scripts.end()) {
-      if (OnLateScript(std::move(completion))) {
-        moved = true;
-        if (FollowScriptNavigation()) {
-          return true;
-        }
-      }
-      continue;
-    }
-    if (worker_fetches_.count(completion.id) + worker_import_fetches_.count(completion.id) +
-            worker_script_fetches_.count(completion.id) >
-        0) {
-      moved = OnWorkerFetch(std::move(completion)) || moved;
-      continue;
-    }
-    if (font_fetches_.find(completion.id) != font_fetches_.end()) {
-      if (OnFontFetch(std::move(completion))) {
-        moved = true;
-        font_changed = true;
-      }
-      continue;
-    }
-    if (module_fetches_.find(completion.id) != module_fetches_.end()) {
-      moved = OnModuleFetch(std::move(completion)) || moved;
-      continue;
-    }
-    if (script_fetches_.find(completion.id) != script_fetches_.end()) {
-      moved = OnScriptFetch(std::move(completion)) || moved;
-      // A `then` handler can navigate, and a navigation from inside one leaves
-      // every id in this batch belonging to a document that is gone.
-      if (FollowScriptNavigation()) {
-        return true;
-      }
-      continue;
-    }
-    if (!load_.active) {
-      // A completion for a load that is gone. Only a late image outlives one.
-      continue;
-    }
-    OnCompletion(std::move(completion));
-    if (!load_.active) {
-      // The document failed, or a navigation replaced this one from inside a
-      // completion. Anything still in the batch belongs to a load that is gone.
-      return true;
-    }
+  if (DrainCompletionBatch(moved)) {
+    return true;
   }
-  if (font_changed) {
-    LayoutAndPaint();
-  }
-  moved = moved || !completions.empty();
+
   // The module graph, after the completions and before the load is carried
   // forward: a settled `import()` runs a page's `then`, and that is a script turn
   // like any other.
@@ -331,7 +285,7 @@ bool Engine::HasRunnableWork() const {
     return true;
   }
   return (load_.active || !post_load_.images.empty() || !post_load_.scripts.empty() ||
-          !script_fetches_.empty() ||
+          !post_load_.frames.empty() || !script_fetches_.empty() ||
           !module_fetches_.empty() || !font_fetches_.empty() || !worker_fetches_.empty() ||
           !worker_import_fetches_.empty() || !worker_script_fetches_.empty() ||
           page_.HasPendingModules()) &&
@@ -352,6 +306,7 @@ std::string Engine::LoadingReason() const {
   note(load_.active, "load");
   note(!post_load_.images.empty(), "late_images");
   note(!post_load_.scripts.empty(), "late_scripts");
+  note(!post_load_.frames.empty(), "late_frames");
   if (!script_fetches_.empty()) {
     note(true, "script_fetches");
     out << "(n=" << script_fetches_.size() << ')';
@@ -359,13 +314,37 @@ std::string Engine::LoadingReason() const {
   note(!module_fetches_.empty(), "module_fetches");
   note(!font_fetches_.empty(), "font_fetches");
   note(page_.HasPendingModules(), "pending_modules");
-  note(page_.HasOutstandingScriptFetches(), "outstanding_scripts");
+  note(page_.ScriptHalf()->HasOutstandingScriptFetches(), "outstanding_scripts");
   return out.str();
+}
+
+// The soonest a child context has asked to be woken, over the whole subtree.
+//
+// Without it, a `setTimeout` in a frame fires only when something else happens to wake the loop --
+// which on a settled page is never. Zero idle CPU is a *bound on waking*, not an excuse for a
+// deadline nobody watches, and a frame's timer is a deadline the page chose exactly as its own is.
+static std::optional<std::uint32_t> FrameWakeDelay(const Page& parent, std::int64_t now_ms) {
+  std::optional<std::uint32_t> soonest;
+  for (const Frame& frame : parent.Frames().Frames()) {
+    if (frame.page == nullptr || !frame.loaded) {
+      continue;
+    }
+    for (const std::optional<std::uint32_t> candidate :
+         {frame.page->NextWakeDelay(now_ms), FrameWakeDelay(*frame.page, now_ms)}) {
+      if (candidate.has_value()) {
+        soonest = soonest.has_value() ? std::min(*soonest, *candidate) : candidate;
+      }
+    }
+  }
+  return soonest;
 }
 
 std::optional<std::uint32_t> Engine::NextDeadlineMs() const {
   const std::int64_t now_ms = NowMilliseconds();
-  const std::optional<std::uint32_t> timers = page_.NextWakeDelay(now_ms);
+  std::optional<std::uint32_t> timers = page_.NextWakeDelay(now_ms);
+  if (const std::optional<std::uint32_t> frames = FrameWakeDelay(page_, now_ms)) {
+    timers = timers.has_value() ? std::min(*timers, *frames) : frames;
+  }
   // Not gated on `load_.active` any more: with nothing loading the loader still
   // answers when it holds an idle connection, and that deadline is the only
   // thing that will ever close it.
@@ -401,6 +380,16 @@ bool Engine::RunDueWork() {
   }
   bool script_ran = false;
   const Page::DueWorkKind due = page_.RunDueWork(NowMilliseconds(), &script_ran);
+  // The frames too, and `script_ran` picks it up so a child timer that touched the tree still
+  // reaches the recollection below.
+  if (RunFrameDueWork(page_, NowMilliseconds())) {
+    script_ran = true;
+  }
+  // A timer that appended an `<iframe>` made a browsing context. Gated on `script_ran` because
+  // nothing else can have: a video frame and an animation tick cannot append an element.
+  if (script_ran) {
+    (void)ProcessDynamicFrames();
+  }
   if (due == Page::DueWorkKind::None) {
     return from_workers;
   }
@@ -493,10 +482,10 @@ void Engine::OnCompletion(Loader::Completion completion) {
       // Which counter this came off decides whether the first paint was
       // waiting for it. `async` says the page is not, and honouring that is
       // the whole of what the attribute means.
-      const bool is_async = page_.PendingScriptIsAsync(resource.index);
+      const bool is_async = page_.ScriptHalf()->IsAsync(resource.index);
       --(is_async ? load_.async_scripts_outstanding : load_.scripts_outstanding);
       if (completion.result.ok &&
-          !IntegrityHolds(page_.PendingScripts(), resource.index, completion.result.body)) {
+          !IntegrityHolds(page_.ScriptHalf()->PendingUrls(), resource.index, completion.result.body)) {
         // Refused to execute. The slot stays empty and the scripts after it
         // still run, which is what a failed script load already did.
         AddPerformanceCounter(PerfCounterId::EngineScriptsFailed);
@@ -511,7 +500,7 @@ void Engine::OnCompletion(Loader::Completion completion) {
               return;
             }
           }
-        } else if (is_async && page_.RunReadyAsyncScripts()) {
+        } else if (is_async && page_.ScriptHalf()->RunReadyAsync()) {
           // It landed after the page was already up. Running it can have
           // changed the tree, so the page is laid out again -- which is what
           // an async script arriving late looks like in every browser.
@@ -674,6 +663,14 @@ void Engine::AdvanceLoad() {
       (void)page_.EvaluateScript(script_prelude_);
       script_prelude_.clear();
     }
+    // **Before the document's own scripts, and this is not the same call as the one in
+    // `ProcessDynamicFrames`.** An `<iframe>` with no `src` -- and one with `srcdoc` -- is handed
+    // its document synchronously during the subresource pass, so by the time the parser's scripts
+    // run it already exists and `iframe.contentWindow` has to answer with it. That is how most of
+    // the suite builds a second realm: `<iframe></iframe>` followed by an inline script that reads
+    // `contentWindow` on its first line. Without this the window is null there and the page fails
+    // at the *first* thing it does.
+    RunFrameScripts(page_, /*run_scripts=*/false);
     page_.RunScripts(NowMilliseconds());
     load_.scripts_ran = true;
     post_load_.document_interactive = true;

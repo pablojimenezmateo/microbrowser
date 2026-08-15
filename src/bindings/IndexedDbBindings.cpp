@@ -412,7 +412,7 @@ void DomBindings::InstallIndexedDb() {
     const auto method = [this, &database_interface](const char* name, js::NativeFunction fn) {
       const Value native = interpreter_->NewNativeValue(name, std::move(fn));
       if (native.IsObject()) {
-        native.object->Set(kOwnerSlot, PointerValue(this));
+        native.object->Set(kOwnerSlot, OwnerValue(this));
         database_interface.object->Set(name, native);
       }
     };
@@ -473,12 +473,12 @@ void DomBindings::InstallIndexedDb() {
           return MakeDomStringList(call.interpreter, names);
         });
     if (store_names_getter.IsObject()) {
-      store_names_getter.object->Set(kOwnerSlot, PointerValue(this));
+      store_names_getter.object->Set(kOwnerSlot, OwnerValue(this));
       database_interface.object->DefineAccessor("objectStoreNames", store_names_getter.object, nullptr);
     }
     for (const char* name : {"createObjectStore", "transaction", "close"}) {
       if (const Value* fn = database_interface.object->GetOwn(name); fn != nullptr && fn->IsObject()) {
-        fn->object->Set(kOwnerSlot, PointerValue(this));
+        fn->object->Set(kOwnerSlot, OwnerValue(this));
       }
     }
   }
@@ -492,7 +492,7 @@ void DomBindings::InstallIndexedDb() {
           return self->MakeIdbObjectStore(db, store, call.self);
         });
     if (object_store_method.IsObject()) {
-      object_store_method.object->Set(kOwnerSlot, PointerValue(this));
+      object_store_method.object->Set(kOwnerSlot, OwnerValue(this));
       transaction_interface.object->Set("objectStore", object_store_method);
     }
     const Value abort_method = interpreter_->NewNativeValue("abort", [](NativeCall&) {
@@ -529,7 +529,7 @@ void DomBindings::InstallIndexedDb() {
     const auto method = [this, &store_interface](const char* name, js::NativeFunction fn) {
       const Value native = interpreter_->NewNativeValue(name, std::move(fn));
       if (native.IsObject()) {
-        native.object->Set(kOwnerSlot, PointerValue(this));
+        native.object->Set(kOwnerSlot, OwnerValue(this));
         store_interface.object->Set(name, native);
       }
     };
@@ -691,7 +691,7 @@ void DomBindings::InstallIndexedDb() {
           return call.interpreter.NewArrayValue(std::move(parts));
         });
     if (key_path_getter.IsObject()) {
-      key_path_getter.object->Set(kOwnerSlot, PointerValue(this));
+      key_path_getter.object->Set(kOwnerSlot, OwnerValue(this));
       store_interface.object->DefineAccessor("keyPath", key_path_getter.object, nullptr);
     }
     const Value index_names_getter = interpreter_->NewNativeValue(
@@ -704,7 +704,7 @@ void DomBindings::InstallIndexedDb() {
           return MakeDomStringList(call.interpreter, names);
         });
     if (index_names_getter.IsObject()) {
-      index_names_getter.object->Set(kOwnerSlot, PointerValue(this));
+      index_names_getter.object->Set(kOwnerSlot, OwnerValue(this));
       store_interface.object->DefineAccessor("indexNames", index_names_getter.object, nullptr);
     }
   }
@@ -801,7 +801,7 @@ void DomBindings::InstallIndexedDb() {
         return request;
       });
   if (open_method.IsObject()) {
-    open_method.object->Set(kOwnerSlot, PointerValue(this));
+    open_method.object->Set(kOwnerSlot, OwnerValue(this));
     factory.object->Set("open", open_method);
   }
   const Value delete_method = interpreter_->NewNativeValue(
@@ -814,7 +814,7 @@ void DomBindings::InstallIndexedDb() {
         return request;
       });
   if (delete_method.IsObject()) {
-    delete_method.object->Set(kOwnerSlot, PointerValue(this));
+    delete_method.object->Set(kOwnerSlot, OwnerValue(this));
     factory.object->Set("deleteDatabase", delete_method);
   }
   interpreter_->Global()->Set("indexedDB", factory);

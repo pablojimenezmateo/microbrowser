@@ -264,7 +264,7 @@ void DomBindings::InstallTreeWalkers(const js::Value& document) {
                              js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject() && target.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->Set(name, native);
     }
   };
@@ -363,8 +363,8 @@ void DomBindings::InstallTreeWalkers(const js::Value& document) {
           return Value::Undefined();
         });
     if (get_current.IsObject() && set_current.IsObject()) {
-      get_current.object->Set(kOwnerSlot, PointerValue(this));
-      set_current.object->Set(kOwnerSlot, PointerValue(this));
+      get_current.object->Set(kOwnerSlot, OwnerValue(this));
+      set_current.object->Set(kOwnerSlot, OwnerValue(this));
       cursor.object->DefineAccessor(iterator ? "referenceNode" : "currentNode",
                                     get_current.object,
                                     iterator ? nullptr : set_current.object);

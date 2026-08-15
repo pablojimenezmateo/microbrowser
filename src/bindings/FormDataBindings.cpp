@@ -122,7 +122,7 @@ void DomBindings::InstallFormData() {
   const auto method = [this, &prototype](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       prototype.object->Set(name, native);
     }
   };
@@ -313,7 +313,7 @@ void DomBindings::InstallFormData() {
         return made;
       });
   if (constructor.IsObject()) {
-    constructor.object->Set(kOwnerSlot, PointerValue(this));
+    constructor.object->Set(kOwnerSlot, OwnerValue(this));
     constructor.object->Set("prototype", prototype);
     prototype.object->SetHidden("constructor", constructor);
     interpreter_->Global()->Set("FormData", constructor);
@@ -371,7 +371,7 @@ void DomBindings::InstallBodyFormData(const js::Value& prototype, const char* bo
                               owner->MakeFormData(util::ParseUrlEncoded(bytes)), false);
       });
   if (form_data.IsObject()) {
-    form_data.object->Set(kOwnerSlot, PointerValue(this));
+    form_data.object->Set(kOwnerSlot, OwnerValue(this));
     prototype.object->Set("formData", form_data);
   }
 }

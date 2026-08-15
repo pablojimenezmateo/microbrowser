@@ -7,6 +7,58 @@ sequences is `docs/wpt-plan.md`.
 
 WPT revision: `4120ac0deb573634d8b7cd74c38ae9d647eebdb5`
 
+**Five areas re-measured 2026-08-13, after ADR 0042 §5's host half (a same-origin `<iframe>` runs
+script in its own realm). Trust these over every row in the table below.** Merged in by hand for the
+reason four paragraphs down.
+
+| area | before | after | note |
+|---|--:|--:|---|
+| `url/` | 97.9% (9,696/9,909) | **99.8%** (9,884/9,903) | all 188 are `failure.html`'s `frame.contentWindow.location = badUrl` third case |
+| `dom/` | 38,589/46,530, **1 crash** | 38,596/46,531, **0 crashes** | the crash was a use-after-free three lines of script could reach |
+| `custom-elements/` + `shadow-dom/` + `domparsing/` | — | 10,094/15,261 | **+141 subtests, 0 lost**, against the 2026-08-12 record |
+| `fetch/` | 1,093/5,772, 176 timeouts | 1,091/5,772, 174 timeouts | three `dangling-markup` tests went 20,000ms -> 45ms |
+
+`fetch/`'s two-subtest fall is worth reading rather than the rate: those three tests stopped timing
+out and started *reporting*, so subtests that never executed now execute, and some of them fail.
+That is the same shape the handler work produced on 2026-08-12 and the same warning applies --
+**judge frame work by the harness column, not the subtest net.**
+
+**`encoding/` 0.9% → 52.8%** the same day (3,829 → 220,631 of 417,520 subtests, 40 unexpected tests
+→ 1), and **read why before trusting any other row in this file**: those ~217,000 subtests were
+broken by the five-worktree merge of 2026-08-12 and *nothing said so*, because the expectation file
+had been recorded by the branch that owned the area before the merge that broke it. A regression is
+only visible where an expectation file is newer than the change. **Re-record every area a merge
+touched, not just the ones its branch named.** TD-0058 has the whole account.
+
+**`html/semantics/` re-recorded 2026-08-13**: 2,196 tests, 17,558 subtests, 3,355 passing (19.1%),
+**613 subtests newly passing and 195 newly failing** against the M-B baseline. The failures are
+overwhelmingly `document.write`, deliberately unimplemented (ADR 0011), recorded as PASS by a
+baseline that predates the area being run at all.
+
+`docs/session-log.md`'s C12 and C13 entries have what is left, and the findings worth more than the
+features: a `DomBindings` can now be outlived by its own natives (so the owner slot is a never-reused
+serial, not an address), `js::kMaxRealms` was bounding realms *ever made* rather than realms alive,
+and the merge lesson above.
+
+**`dom/` re-measured 2026-08-12, after the `<iframe>` lifecycle landed, and it is the row below to
+trust.** 667 tests, **46,530 subtests, 38,589 passed (82.9%)**, 132 timeouts. Merged in by hand for
+the reason four paragraphs down. **35 tests went from reporting nothing at all to reporting**, and
+what they are worth is the number to quote: run alone, those tests are **9,874 subtests of which
+4,996 pass** — every one of which was previously invisible in both the numerator and the
+denominator, because a harness that never reaches `done()` contributes neither. The remaining 134
+harness failures are 37 `.any.worker.html` and 97 others, and the largest identifiable group in the
+second is cross-realm (`Event-dispatch-throwing-multiple-globals`,
+`Event-timestamp-cross-realm-getter`, the seven `Range-*.html`) — which is **TD-0059**, not more
+frame work.
+
+**Do not pass `--long-timeout 20000` when re-recording this area, whatever the command in
+`CLAUDE.md` says.** The default is 60,000 and the flag *shortens* it. Two runs of the same binary
+recorded 46,530 subtests and 39,837 subtests, and the only difference was that flag: `dom/`'s
+`timeout=long` tests are its biggest, so cutting their deadline silently deletes ~6,700 subtests
+from the measurement and looks like a slow machine. It was caught by the denominator falling
+between two runs, which is the same check the `html/dom/` note below records — twice now, and the
+lesson is the same both times: **compare the subtest count before believing a re-record**.
+
 **`url/` re-measured 2026-08-12, and it is the one row below that is current.** 21.7% -> **97.9%**
 (9,696 of 9,909), 32 timeouts -> 31. Merged in by hand for the reason the next-but-one paragraph
 gives. **What is left of that area is not URL work**, and it is worth knowing before picking it up:

@@ -3819,7 +3819,7 @@ IndexedDB + `BroadcastChannel` (Woffle `g.D8` / `plI`); page sends
 
 ---
 
-## 2026-08-09 — `crypto.subtle` subset (ADR 0037)
+## 2026-08-09 — `crypto.subtle` subset (ADR 0041)
 
 **Status:** landed; `au()` sees subtle; PES still undefined; facade open
 
@@ -5693,6 +5693,541 @@ silently: the request never reaches the network and nothing anywhere says why. A
 it looked exactly like a frame whose URL did not parse. `Subdocument` is the right type and is what
 every blocklist means by a frame load, but the silence is worth a look — it is the second
 "refused with no way to see it" in this area in two sessions.
+
+## 2026-08-12 — ADR 0027, second increment: the frame lifecycle, and the ranked measurement behind what is next
+
+**Status:** in_progress. A child browsing context now loads when a script makes one, re-navigates
+when a script assigns `src`, parses `srcdoc`, and fires `load` at its element. **31 `dom/` tests
+went from "the harness never reported" to OK.** Nested layout, nested display lists, hit-test
+descent, and the whole cross-origin half are still absent, and `contentWindow` is still not a
+window — that last one now has a name and a measurement: **TD-0059**.
+
+### The measurement, because it is the part that does not follow from a diff
+
+The question this session opened with was "is `<iframe>` the biggest remaining item". It is second,
+and knowing what is first changes what the next session should do. Against the 2026-08-12
+expectations, **8,417 tests report no subtests at all** — the harness never got to `done()`, so
+every one of them is invisible in the pass rate. Bucketed by what the test file actually needs:
+
+| tests | needs |
+|--:|---|
+| 2,446 | a worker global that can run testharness (`.any.worker.html`) |
+| 1,083 | an `<iframe>` |
+| 226 | the module loader |
+| 83 | canvas |
+| 4,337 | something else, ranked below |
+
+**Workers are bigger by count and smaller by information.** A `.any.worker.html` is the same
+assertions as its `.any.html` twin, and the twin mostly passes already — so it is real score and
+duplicate coverage. An iframe test is the only place its behaviour is tested at all, which is why
+three independent areas name it: TD-0057 from `url/` (188 subtests, all
+`frame.contentWindow.location = badUrl`), C6 from `dom/` (~4,176 subtests behind two `<iframe>`s),
+and now this.
+
+**And a third thing outranks both, which nobody had written down: our own server.** A sample of 599
+of the "something else" tests, re-run against the current tree, found `Error: Python handlers are
+not implemented` in 26 of them — and across the whole in-scope checkout, **2,214 test files
+reference a `.py` handler** (976 in `css/`, 434 in `html/`, 203 in `xhr/`, 171 in `fetch/`). 308
+distinct handlers, but the head is short: `slow.py` 216, `stash.py` 199, `redirect.py` 182,
+`serve-custom-response.py` 71, `report.py` 57, `content.py` 57. ADR 0040 rules out running Python,
+and rightly; it does not rule out a table of built-in handlers in `tools/wpt/Server.cpp`, which is
+the only item of the three that is entirely our code and needs no browser feature at all. It is
+unclaimed and it is probably the cheapest points in the tree.
+
+**Also learned from that sample: the expectation files are stale in the pessimistic direction.**
+599 tests recorded as harness failures re-ran as 8,283 subtests with 6,327 passing. Re-measure
+before planning against any number in `docs/wpt-baseline.md` that is not dated today.
+
+### What landed, and the one ordering that is the whole feature
+
+Two gaps compounded. `Page::CollectFrames` was called exactly once, from `Page::Load` — so a frame
+a script appended never loaded — and nothing ever fired `load`, so a frame that did load could not
+be observed. `iframe.onload = f; document.body.appendChild(iframe)` produced an empty box and
+silence, and that is the shape almost every test in the suite uses to make a second document.
+
+**`load` must fire from a task, not from where the document was set.** An `<iframe srcdoc>` is
+handed its document *synchronously*, inside the subresource pass, which is over before the page's
+own scripts have run — so dispatching there fires the event before the line assigning the handler
+exists. Every `assert_unreached` in the suite's iframe tests is that ordering. The queue of owed
+events is `FrameTree::TakePendingLoadEvents` and it is drained at a turn boundary.
+
+**The collection gate cannot be the structure version alone.** `iframe.src = other` is an attribute
+write: it moves `MutationVersion` and leaves `StructureVersion` untouched, so a structure-only gate
+made renavigation silently do nothing. `NeedsCollect` asks two questions — has the structure moved,
+and does any *existing* frame's element now ask for something other than what was requested — and
+the second is a loop over the frames rather than a walk of the document, so a page with no frames
+still pays one integer comparison. The recorded key (`Frame::requested_source`) is written when the
+request goes out rather than when it lands, and that ordering is load-bearing: recorded at delivery,
+a frame in flight differs from its element for the whole round trip, and every collection pass in
+that window reads it as a fresh navigation and re-requests. A request per turn, to whoever the
+frame points at.
+
+**A frame that 404s still fires `load`, with an empty document.** That is what every browser does —
+a 404 in an `<iframe>` is a rendered error document, not a failed subresource — and the difference
+is a hang: a page that waits on `onload` before reading `contentDocument` never proceeds otherwise,
+and the hang is caused by a server the page does not control.
+
+### One bug written and caught here, because the shape recurs
+
+`FrameTree::Collect` called `Clear`, and `Clear` empties the owed-`load` queue. The collection pass
+runs in exactly the window between a frame being handed its document and the event being dispatched,
+so **every `<iframe srcdoc>` silently lost its `load`** — the feature looked implemented and the
+event never arrived. Split into `DropFrames` (the frames) and `Clear` (the frames *and* the queue);
+`Collect` uses the first and then forgets only the queue entries naming elements that just died.
+This is the third time in this area that a correct-looking path has failed silently.
+
+### Where the code went, and why the lint was right
+
+`Page` was at its member budget with `frames_` alone, and a pass that runs every turn needs two
+fields more. The frames left for a `FrameTree` — which is ADR 0027's "`Page` stops meaning *the
+document*" arriving as a lint failure rather than as a refactor somebody chose. `Engine::Advance`'s
+completion drain moved to `EngineSubresources.cpp` in the same spirit (which table an id is in is
+the question that file exists to answer), so `Engine.cpp` came out **sixty lines shorter** than it
+went in despite the feature. Only `Engine`'s header budget was raised, and it gained no member and
+no public method.
+
+### Left
+
+- **TD-0059** is the next thing in this ADR and the largest: `js::Interpreter` has one global and
+  one set of intrinsics, so `contentWindow` is a plain object with a `.document`, the child's
+  scripts do not run, and `parent`/`top`/`postMessage` are absent. The fix is a `Realm` in
+  `src/js` (151 uses of `well_known_` to move), after which same-origin contexts share one heap and
+  cross-origin ones do not — which makes ADR 0027 §2 structural and is strictly stronger than the
+  check `Engine::OnFrameFetch` performs today.
+- **A child still lays out and paints nothing**, which the previous entry already called a hole
+  ADR 0012 would name a stub. Unchanged.
+- **A child's own subresources are never fetched**, because `Engine` drives one `Page`. A frame
+  inside a frame therefore never loads, even though `FrameTree::AllLoaded` recurses for it.
+
+## 2026-08-12 — the test server's own 501, and the HEAD request that hung the browser
+
+**Status:** in_progress (task A2). 21 of WPT's 308 `.py` handlers are native, POST works, and a
+browser bug the handlers exposed is fixed. `xhr/` 135 → 120 harness failures, `cors/` 7 → 8,
+`fetch/` 204 → 192; **672 recorded subtest failures became passes**.
+
+### The point of this task, which is not the handlers
+
+`tools/wpt/Server.cpp` answered 501 to every `.py` handler and to every method that is not GET or
+HEAD. 2,214 in-scope test files reference a handler. It went unnoticed for as long as it did
+because it does not look like a browser problem — and that is exactly why it was worth doing
+first: **it is the only large blocker in the tree that is entirely our own code**, so nothing had
+to be designed, only transcribed.
+
+POST needed real work rather than a case label. `ReadFrom` framed a request at the blank line and
+left the entity in the buffer, where the next pass read it as a request line — so the server could
+not have answered a POST even if the dispatch had let it. It frames by `Content-Length` now, and
+`Respond` takes the head and the body as two arguments.
+
+**An unimplemented handler is still an honest 501, and that is a decision.** Answering an empty 200
+would convert "nobody has written this handler yet" into "this test fails for an unknown reason",
+which removes it from the ranked-cause table in `docs/wpt-baseline.md` — and that table is how the
+next handler gets chosen. Same trade ADR 0012 makes for a web API, for the same reason.
+
+### What the handlers found within minutes, which is the real result
+
+`xhr/send-usp.any.html` timed out at 20 seconds on its very first subtest: *"HEAD sends neither a
+body nor a Content-Type"*. RFC 9110 §6.4.1 — **a response to HEAD carries no body whatever its
+`Content-Length` says**; the header describes what a GET would have returned. `net::ResponseParser`
+has no way to see the request, so it sat waiting for five bytes no server would ever send.
+
+**Every HEAD request against every server that sets `Content-Length` hung this browser, forever,
+with no error anywhere.** It had survived because no page this browser has ever loaded sent a HEAD:
+a document, a stylesheet, a script and an image are all GETs, and `fetch`/XHR only reached a real
+HEAD when a test asked for one. `ResponseParser::SetHeadRequest` is the fix, set at all three
+places `Fetch` resets the parser — including the retry path, because a retry that forgot would hang
+exactly the request that had already been slow once. That test is now 114ms.
+
+Three tests in `tests/NetTests.cpp` cover it. The second one is the one worth keeping: a kept
+connection carries the next response immediately after, and a parser that consumed five bytes of it
+as a body would desynchronise the connection permanently — so "no body" has to mean *complete at
+the blank line*, not "stop reading and hope".
+
+### Two tests went OK → TIMEOUT, and neither is a regression
+
+`cors/preflight-cache-partitioning.sub.window.html` and
+`fetch/api/redirect/redirect-keepalive.any.html` used to fail fast because the handler 501'd. They
+now run far enough to block on a cross-origin `postMessage` — **TD-0059**, the same wall the frame
+work stopped at, reached from a third direction. They cost 20 seconds each of run time to fail
+where they used to cost none, which is the honest price of the 26 that started reporting.
+
+### Left
+
+- 287 handlers unwritten. The head of the distribution is done; pick the next from the ranked-cause
+  table rather than from the reference counts, because a reference is not a request.
+- **`slow.py`, `delay.py` and `trickle.py` answer immediately.** The server is single-threaded and
+  forked before anything else exists (ADR 0040), so sleeping in it stops every other test in the
+  run. A test that genuinely measures lateness will fail, and should, until the server grows a
+  timer queue — which is a real change to its loop and wants deciding rather than sneaking in.
+- Nothing here touched the `.asis` files or the `.sub.py` variants, both of which appear in the
+  same directories and neither of which is handled.
+
+## 2026-08-12 — An interpreter holds many globals now (ADR 0042, TD-0059's language half)
+
+**The item was picked by counting rather than by reading a roadmap.** Of the 8,417 harness-silent
+tests, 1,083 use an `<iframe>` — second to workers by count, and unlike workers not duplicate
+coverage, because a `.any.worker.html` is the same assertions as an `.any.html` twin that mostly
+passes while an iframe test is the only place its behaviour is tested at all. `url/` reached the same
+conclusion from its last 188 subtests (TD-0057) and `dom/` from ~4,176 behind seven `Range-*.html`
+files. Three areas, one missing concept: `js::Interpreter` had one global object and one set of
+intrinsics, so a second document with its own `window` had nowhere to be.
+
+### The split was decided by asking what breaks if a cell is duplicated
+
+That question, not tidiness, is what put the line where it is. `js::Intrinsics` — the prototypes — is
+per realm because `frames[0].Array === Array` answering **false** is the observable that tells a page
+it is looking at a second global, and it is what every library uses to decide whether a value came
+from somewhere else. `js::SharedCells` is the well-known symbols and the two internal signals, and
+they are shared because duplicating them breaks something silently: a `for...of` compiled in one realm
+has to find the *same* `Symbol.iterator` cell as an array made in another, and with two cells,
+spreading a cross-realm array produces an empty array and throws nothing. Both structs are in
+`js/Realm.h` together, because "what is per realm" is only readable next to "what is not".
+
+### Two implementation decisions are load-bearing and neither is obvious
+
+**The realm follows the callee, and the guard is the callee.** `RunFrames` re-derives the realm when
+`frame->function` changes rather than when the frame *depth* changes — a pop followed by a push inside
+one turn is a generator resuming, which leaves the depth equal and the callee different, so a
+depth-keyed guard would run a function in its caller's realm.
+
+**The realm is stamped by `Heap::AllocateObject`, not at the six places a callable is made.** A
+function carrying the wrong realm is not a wrong answer; it is a child frame's code running against
+the parent's global. Six sites that each have to remember is six chances at that, and the allocator
+cannot forget. It costs one store per allocation and `Object` grew a `std::uint16_t` that fits in
+padding two bools already left — 2 bytes rather than 8, deliberately an index rather than a `Realm*`,
+so it also survives the realm list growing when a page appends a frame.
+
+### The bug worth keeping: it reproduced only in Release
+
+A top-level program frame has no function object, so the sync dereferenced null on the way *into* one
+— and on the way *out* of a callee in another realm it would have left the program running in its
+callee's realm. One bug, two symptoms, and they need two fields: `current_realm_` follows calls and
+`host_realm_` must not.
+
+**2126 Debug tests passed straight over it and `microbrowser_bench js` segfaulted.** The reason is
+worth remembering: the tests reached that line with the sync guard already null and took the early
+return, while the benchmark reached it with a real function cached. A guard whose *own* initial state
+hides the case it guards is invisible to any test that starts fresh — so the Debug suite was not a
+weaker check here, it was checking a different state. Realms.cpp says this where the next person will
+be tempted to merge the two fields back together.
+
+### The cost was measured by interleaving, and accepted
+
++2.9% total on the machine benchmarks, worst row `js/array-index` at +10.2%, recorded as **TD-0060**
+with both candidate fixes and the reason neither was taken. The method matters more than the number:
+two binaries built from one tree and run **alternately** six times each, min-of-six per row. A
+sequential before-then-after would have been worthless — the first run of one binary read 82ms against
+a steady-state 30ms while a link was still finishing, and the baseline's own four runs spread
+`name-0-reads` over 105 to 305 ns.
+
+Accepted because correctness and security come before speed here, and because it is 2.9% of the wrong
+quantity: Hacker News spends 1.21s of a 1.41s load blocked on a socket against 58ms of scoped CPU.
+The part that makes it *debt* rather than a cost of the feature is that a page with no `<iframe>` pays
+it in full — the extra load is on every intrinsic read, not on the realm switch.
+
+### Verified against the correctness signal, and one pre-existing red test found
+
+`dom/nodes/` re-run: 330 tests, 13,060 subtests, 10,177 passed, **0 unexpected results attributable to
+this change**. Two showed up and both were checked against a *genuine* pre-realm build rather than
+assumed — `Document-createElement-namespace.html` is a load-order flake (it passes run alone), and
+`dom/nodes/remove-from-shadow-host-and-adopt-into-iframe.html` fails identically on master.
+
+That second one is worth flagging: **it is red while the expectation file claims it passes**, and what
+it needs is `iframe.contentWindow.document.body.appendChild(...)` — which makes it the smallest
+end-to-end check for the half that has not landed.
+
+The tree-walker differential is unchanged at 54 failures, measured against master rather than assumed.
+
+### Diffing that list against a run, rather than reading it, found a real bug
+
+The list at the top of `tests/JsVmTests.cpp` documented 40 failures and the run produced 54. The list
+was accurate about its 40 — none of them passes — and silent about fourteen more, which made that
+file's own closing rule ("anything else appearing in that list is a difference nobody decided on")
+false. Thirteen were decided-and-unwritten, in three groups: strict-mode `this` (already explained in
+`CallFunction`, just not listed), two things only a compiled program has, and seven whose *fixture* is
+an `async function` so the deliberate refusal means the test observes nothing.
+
+**The fourteenth was a bug.** `super(...xs)` on the tree-walker evaluated each argument node as an
+ordinary expression, so a spread reached `case NodeKind::Spread` and returned
+`Throw("SyntaxError", "unsupported expression")` — at run time, from inside a constructor, for syntax
+the parser had accepted. The `New` case immediately above it in the same file already carries exactly
+this fix, with a comment saying exactly this; `super(...)` never got it.
+
+That is the shape Lit and every transpiler emits, which is why the three `ShadowDom` super-upgrade
+tests were the ones complaining. **And the machine has always compiled it, so spread-`super` had no
+differential at all** — which is the point: two engines agreeing is the only evidence here that either
+is right, and this was a constructor path real pages take with no second opinion on it. 54 → 50, and
+the list is now re-verified against a run rather than against itself: 50 documented, 50 produced,
+nothing listed that passes.
+
+Thirteen known-noise lines in a differential is worse than none, for the same reason a counter on the
+cheap half of an operation is worse than no counter: a genuinely new difference stops standing out.
+
+### Left, and read ADR 0042 §5 before starting it
+
+The host half. `PageScript` owns an interpreter per `Page`, a same-origin child must borrow its
+parent's, and every one of ~40 host entry points must then run in the child's realm. **A missed one is
+a same-origin escape rather than a bug** — the child's script would see the embedder's `window`, which
+is worse than the stub it replaces. §5 argues for a realm-bound handle whose `operator->` carries the
+guard for the full expression, rather than `RealmScope` at 40 call sites, which would be correct the
+day it was written and silently wrong at the first new entry point.
+
+Also unlanded and named in §5: `DomBindings` caches a wrapper per node, so two of them over one heap
+gives a node two wrappers, and `parent.document.body === parent.document.body` from a child has to
+stay true. Decide whether the cache is shared or realm-keyed before writing either.
+
+## 2026-08-12 — A2 continued: nine handlers, the instrument that ranks them, and a segfault a page could cause
+
+### The ranking everyone was using was wrong, and no amount of grep fixed it
+
+A2's remaining work is "pick the next handler to write", and `Handlers.h` ranks the
+unimplemented ones by how many test files *name* them. Re-counting that today puts
+`gentest.py` first at 3,766 files, `generate.py` second at 2,085 and
+`build-compute-kind-widget-fallback-props.py` third at 802. **None of the three is ever
+fetched.** They are the generator scripts that produced the tests, named in a header comment in
+every file they generated. The previous session's log already said "a reference is not a request"
+— and then there was no table, because nothing recorded which handler a 501 was for.
+
+`MICROBROWSER_WPT_HANDLER_REPORT=1` records it. Over `xhr/` + `fetch/` + `cors/`: **79
+unimplemented handlers, requested 2,877 times**, and the head bears no resemblance to the grep
+list — `dispatcher.py` at 1,091 requests does not appear in the grep top thirty at all.
+
+Two details of it are deliberate. It prints "(none in the tests this run selected)" rather than an
+empty table, because silence reads as the much stronger claim that nothing is missing. And the
+SIGTERM handler that lets `Serve` return — the runner ends a run by killing the server, so a report
+after the loop would never print — is installed **only when the report is asked for**: an
+instrument that changes how the server shuts down is measuring a different server.
+
+### Nine handlers, and the audit that mattered more than the handlers
+
+Picked from the report: `dispatcher.py` (1,091), `record-headers.py` (442), `image.py` (113),
+`content-length.py` (36), `corsenabled.py` (32), `status-code.py` (32+16), `nosniff.py` (15),
+`expose-headers.py` (15), `method.py` (15). `HandlerResponse` grew a `raw` mode because a family of
+these is *about* the bytes — `fetch/h1-parsing/`'s `status-code.py` writes a status line the test
+supplied with bare LF and no framing — and the ordinary path would have added `Content-Length`,
+`Cache-Control` and `Connection`, repairing precisely the malformation under test.
+
+**Then: a handler is dispatched by file name, and a name is not unique.** `image.py` exists four
+times with four different bodies — a PNG with nosniff, a different PNG with CORP, a BMP generated
+in Python, and one alternating green and red to test an ETag. Hashing every copy of every
+implemented name found that **ten of the twenty-one pre-existing handlers are ambiguous too**,
+`redirect.py` with eight files and eight distinct bodies. Serving the transcribed one for a path it
+was not transcribed from is worse than a 501 in exactly the way `Handlers.h` argues: a 501 names its
+own cause and gets ranked, a plausible wrong answer moves the failure somewhere else and says
+nothing.
+
+The three introduced today are scoped by directory. The pre-existing ten are **TD-0061 with the
+audit table, not blanket-fixed**, and the reason is the interesting part: it is not uniformly a bug.
+The four-line `redirect.py` under `html/browsers/` is a compatible *subset* of `common/redirect.py`,
+so scoping it would turn a working answer into a 501; `xhr/resources/redirect.py` is a genuinely
+different handler. Which copies are subsets needs deciding one at a time.
+
+### The handler table had no tests, and that is why a wrong transcription cost a day
+
+Seventeen now. A handler was only reachable by running the suite, so a transcription that got a
+header name or a default wrong surfaced as a mysterious failure in an unrelated test hours later.
+They are pure functions; the table is checkable in milliseconds. Verified the tests test something
+by reintroducing the `image.py` scoping bug and watching the right one go red.
+
+### What the re-record actually bought, and the shape to expect
+
+    unimplemented handler requests   2877 -> 1609   (-1268)
+    harness-level failures            267 ->  260   (fetch -3, resource-timing -4)
+    recorded failure lines           6047 -> 6020   (-27)
+
+**Subtest-level movement is close to flat — 162 newly passing against 159 newly failing — and that
+is the expected shape.** A handler that starts answering lets a test run *further*, so subtests that
+never executed now execute and some fail. The signal for handler work is the harness column and the
+request count, not the subtest net.
+
+### The find: a page could segfault the browser by filling the heap
+
+`fetch/metadata/generated/element-video-poster.sub.html` crashed — and only because
+`record-headers.py` landed, which let it get past the 501 it used to die on. It polls
+`new Promise(r => step_timeout(r, 0)).then(poll)` for a condition that never becomes true,
+allocating each turn. `Interpreter::NewNative` used `heap_.AllocateObject`'s result without checking
+it, so when the heap hit its ADR 0034 bound **the bound working correctly became a null
+dereference** — the opposite of what a bound is for. Every other caller in that chain already
+checked, including `ResolvePromise` immediately above it.
+
+**Both sanitizers were clean, which is the part worth keeping.** ASan does not crash here: it is
+slow enough that the test times out before the heap fills, while the perf build reaches the limit in
+five seconds. Raising the stack to 64MB changed nothing, ruling out the obvious theory. **UBSan
+found it in one run and named the line**, because "member call on null pointer" is a thing it checks
+and a segfault is not. Audited the class afterwards: zero other sites in `src/js` or `src/bindings`
+dereference an allocation unchecked.
+
+### Two measurement mistakes I made, both caught, both worth more than the fixes
+
+**I discarded a good measurement as noise.** The first re-record ran while I was building and
+running the test suite, so I assumed its 361 timeouts were machine load and threw it away. Re-run on
+an idle machine it produced *identical* totals. The suspicion was reasonable and the conclusion was
+wrong; the check that settled it was cheap.
+
+**I reported a sample as a total.** The port-normalization commit claims ~250 of `fetch/`'s 292
+changed lines were port churn. The real figure is **22**, and 65 across all four areas. I had
+sampled the top of a diff where the port lines happened to sort first. One `grep -c` counts the
+whole file. `Expectations.h` carries the correction and how it happened.
+
+### Left
+
+- **74 unimplemented handlers still requested, 1,609 times.** The head is now `stale-script.py`
+  (806), `http-cache.py` (140), `cache.py` (103), `clear-site-data.py` (91), `header-link.py` (74).
+  `stale-script.py` grew from 401 to 806 precisely *because* tests get further now and retry.
+- TD-0061's ten ambiguous names, one decision each.
+- `dispatcher.py` answers but its tests still need somewhere to send *from* — a popup, an iframe
+  with a realm, a worker. That is ADR 0042 §5 and ADR 0022. Implementing it was still right: it
+  converts "fails because the server refused" into "fails for the reason it actually needs", which
+  is the only thing that makes the ranked table mean anything.
+
+## C12 — ADR 0042 §5, the host half: a frame runs script, and `url/` reaches 99.8% · 2026-08-13
+
+**Status:** in_progress (steps 1-4 landed; step 5's `postMessage` and the child's engine services
+are not)
+**Check:** `url/` **97.9% → 99.8%** (9,696 → 9,884 of 9,903 subtests, 71 tests, 0 crashes).
+`dom/` 46,531 subtests, 38,589 → **38,596**, **1 crash → 0**. `custom-elements/` + `shadow-dom/` +
+`domparsing/` together: **141 subtests newly passing, 0 newly failing**. `microbrowser_tests`
+2,158/2,158.
+**Landed:** the realm guard as a type; a same-origin frame running its own script;
+`contentWindow` as the child's real global; the owner-slot use-after-free; realm retirement;
+`window.location = x` as a navigation.
+
+### The realm guard is a type, and that was the whole design decision
+
+ADR 0042 §5 says a missed realm guard is a same-origin escape rather than a bug, and says not to
+solve it with a `RealmScope` at each of ~40 entry points. What landed is `RealmBoundScript`:
+`PageScript`'s constructor is private, that class is its one friend, and its `operator->` returns a
+proxy holding the scope for the full expression. **A method added to `PageScript` tomorrow is
+guarded because there is no other way to call it.** The 76 call sites went from `script_.` to
+`script_->` and nothing else moved.
+
+The lint pushed back usefully twice. It refused a nested class called `Impl` (no budget, and the
+name is not one) -- which is what made the outer/inner split land the *other* way round, with the
+big class keeping its name. And `Page.h` going over the module cap is what turned six new
+forwarders into one accessor plus **eight deletions**: `Page` had been a pass-through for its own
+script half.
+
+### The crash, which is the finding
+
+`f.src = other` replaces a frame's `Page` and destroys the `DomBindings` that installed the old
+realm's natives -- while the realm, the heap and every function object in it live on, because they
+belong to the embedder's interpreter now. `kOwnerSlot` held that layer's **address**, so
+`f.contentWindow.postMessage(...)` after a renavigation reached freed memory. Three lines of script.
+Found as a segfault in `dom/events/scrolling/scroll-cross-origin-iframes.html`.
+
+**A liveness check on the address would not have been enough**, and this is the part worth keeping:
+the allocator reuses addresses, so a stale native could find a *live* binding layer belonging to
+another document -- a same-origin escape rather than a crash. The slot now holds a serial that is
+never reused (`OwnerIdentity`, RAII, one entry per live document), and a stale native resolves to
+null, which every one of those natives already handled.
+
+This bug class did not exist before this session and could not have: a `DomBindings` could only die
+with its heap until a child started borrowing its parent's interpreter.
+
+### Three things that each hid the next, and cost `url/` 188 subtests
+
+`url/failure.html`'s third case is `frame.contentWindow.location = input` must throw. Fixing it
+needed all three, in this order, and each was invisible until the one before it landed:
+
+1. **A frame's window did not exist until the next turn of the loop.** HTML creates the context on
+   *insertion*. The suite writes `const f = document.body.appendChild(document.createElement("iframe"));
+   f.contentWindow.location = x` -- one script turn. `contentWindow` now asks the engine to settle
+   the tree (`FrameGlobals::SetSettleHook`), and deliberately does **not** dispatch the `load` those
+   frames are owed: that is a task, and firing it inside `appendChild` would beat the line that
+   assigns `onload`.
+2. **The realm bound counted realms ever made, not realms alive.** That file appends, reads and
+   removes one `<iframe>` 188 times -- one live frame throughout -- and past the 64th, `CreateRealm`
+   refused and none ran script. `js::Interpreter::RetireRealm` gives the slot back.
+3. **`window.location = x` was an assignment.** Installed as a plain property, the page was
+   *overwriting* `location`: nothing navigated and nothing threw.
+
+### Left, and the first two are the same shape
+
+- **A child has script but not the engine's services.** No `NetworkSource`, `HistorySource`,
+  `StorageSource` or `CookieSource` is handed to a child `Page`, so a frame's `fetch` is undeclared.
+  `fetch/api/abort/keepalive.html` times out for exactly that. Wiring them is **not** a one-liner:
+  `Engine::StartFetch` resolves against `page_.Policy()`, so a child's relative URL would resolve
+  against the embedder's base and its `connect-src` would be checked against the embedder's policy.
+- **A form inside a frame fires `submit` and never navigates.** `Engine::RunFrameScripts` drains a
+  child's queued activations -- without that, a child's `element.click()` recorded an activation
+  nobody performed and every promise waiting on it hung, which is how three
+  `fetch/security/dangling-markup/` tests went from OK to a 20-second TIMEOUT. The submission it
+  produces is dropped, because a child navigation the engine drives is not built.
+- **`postMessage` between realms** (§5 step 5) and `frameElement` are absent.
+- **A wrapper made before an adoption keeps the realm it was made in.** `WrapperFor` now delegates
+  to the node document's layer, and cross-document `appendChild` works at all (the node's
+  `unique_ptr` was parked in the layer that made it, so the insertion silently did nothing) -- but
+  `node-creation-realm.html` and `node-realm-mixed-across-adoption.html` still fail on a wrapper
+  that predates the adoption. Those two were passing before only because `contentWindow.document`
+  was the *embedder's* document and nothing ever crossed a realm.
+- **Four cap raises**, each recorded in its `MODULE.deps` with what it bought. `bindings`' is the
+  one to read: that note has asked for a class split for six raises now, and a class that cannot
+  take a two-line member without a raise is the argument finishing itself.
+
+## C13 — TD-0058, and the merge regression nobody could see · 2026-08-13
+
+**Status:** done
+**Check:** `encoding/` **0.9% → 52.8%** (3,829 → 220,631 of 417,520 subtests; 40 unexpected tests
+→ 1). `url/` **held at 99.8%** with 0 unexpected, which is the pair TD-0058 named as the thing to
+check. `microbrowser_tests` 2,158/2,158.
+**Landed:** TD-0058 and TD-0059 closed; XML documents default to UTF-8; the child-context lifetime
+fix that removed 15 segfaults from `encoding/`.
+
+### The finding is the process, not the patch
+
+TD-0058 said two worktrees implemented `<a href>` against the same base, each got a different half
+of "encoding-parse a URL" right, and the merge kept one. It ended with **"the suite is green either
+way — check both before believing a change here."**
+
+That sentence was wrong in a way that cost ~217,000 subtests. The expectation files were recorded by
+the encoding worktree *before* the merge, so they still claimed those subtests passed. The merge
+broke them and nothing said so. **A regression is only visible where an expectation file is newer
+than the change** — and a merge is exactly the event that makes every file older than every change.
+
+Twenty thousand subtests would have been noticed by someone running the area. Two hundred thousand
+were not, because nobody re-ran it: the branch that owned that area had already recorded it, and the
+four branches that broke it had no reason to. **Re-record every area a merge touched, not just the
+ones its branch named.**
+
+### The fix, which is smaller than the entry predicted
+
+Both halves belong in `url_of` and neither needs the other's owner. `src/bindings` may see
+`src/html`, so `html::DocumentQueryEncoder` is reachable and nothing had to move; the live base
+stays. The debt entry's own proposal — point this at `Engine::ResolveDocumentUrl` — would have
+traded the failure back the other way, because that function resolves against
+`DocumentPolicy::Base()`, computed once and blind to a script appending a `<base>`.
+
+The document's character set reaches the binding layer **on the realm's global**
+(`src/bindings/DocumentFacts.h`), not as a `DomBindings` member. A character set is per-document,
+and since ADR 0042 §5 a same-origin `<iframe>` is a realm with a global of its own, so the global is
+the object that is one-per-document. It also costs `DomBindings` nothing, at 1,000 of its 1,000
+permitted lines.
+
+### One correctness fix fell out of it, and it was invisible before
+
+`url/a-element-xhtml.xhtml` declares its encoding **only** in `<?xml version="1.0"
+encoding="UTF-8"?>`. `html::SniffEncoding` did not read that, so it fell back to windows-1252 —
+harmless while nothing consulted the charset, and five subtests wide the moment `<a href>` started
+to. An XML document with no declaration is UTF-8; the windows-1252 fallback is HTML's and HTML's
+alone.
+
+### Left
+
+- **`encoding/` is 52.8%, and the rest is one feature.** The `*-encode-form-*` files need a form
+  whose `target` names an `<iframe>` to submit *into that frame*. Today the target is ignored and
+  the top-level page navigates — which is also what made those 15 tests segfault before the
+  lifetime fix. That is the same "a child navigation the engine drives is not built" item C12 left.
+- **`html/semantics/` is stale in the optimistic direction** and re-recorded here: 613 subtests
+  newly passing, 195 newly failing, 2,196 tests. The failures are overwhelmingly `document.write`
+  (deliberately unimplemented, ADR 0011) recorded as PASS by a baseline that predates the area
+  being run.
+- **`window.open` returns null**, and several areas now fail in their *cleanup* rather than their
+  body because of it (`mimesniff/sniffing/*`, `webstorage/*window_open*`,
+  `custom-elements/registries/*`). That is task J6, and after C12 it is much cheaper than it was:
+  a popup wants the realm, loading and lifetime machinery a child frame already has.
+- **Do not restrict cross-origin children from running script.** I tried it on the theory that a
+  document with no engine services behind it is worse than none, measured it, and it changed
+  nothing — reverted rather than kept, because it makes the browser less correct and the evidence
+  was absent.
 
 ## 2026-08-14 — G5: a worker had no global scope, and it cost 1,763 test files
 

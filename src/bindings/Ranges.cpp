@@ -134,14 +134,14 @@ void DomBindings::InstallRange() {
   const auto method = [this, &range_interface](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       range_interface.object->Set(name, native);
     }
   };
   const auto accessor = [this, &range_interface](const char* name, js::NativeFunction get) {
     const Value native = interpreter_->NewNativeValue(name, std::move(get));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       range_interface.object->DefineAccessor(name, native.object, nullptr);
     }
   };
@@ -589,7 +589,7 @@ void DomBindings::InstallRange() {
     return made.value;
   });
   if (create.IsObject()) {
-    create.object->Set(kOwnerSlot, PointerValue(this));
+    create.object->Set(kOwnerSlot, OwnerValue(this));
     const Value document_interface = DocumentInterface();
     if (document_interface.IsObject()) {
       document_interface.object->Set("createRange", create);
@@ -648,7 +648,7 @@ void DomBindings::InstallStaticRange() {
           return owner == nullptr || node == nullptr ? Value::Null() : owner->WrapperFor(node);
         });
     if (getter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
       prototype.object->DefineAccessor(endpoint.property, getter.object, nullptr);
     }
   }

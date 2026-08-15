@@ -398,7 +398,7 @@ void DomBindings::InstallWaapi(const js::Value& element_interface) {
       return Value::Undefined();
     });
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       native.object->Set("#waapi-method", Value::String(name));
       animation_proto.object->Set(name, native);
     }
@@ -422,7 +422,7 @@ void DomBindings::InstallWaapi(const js::Value& element_interface) {
             std::string(PlayStateName(owner->animations_->AnimationPlayState(IdOf(call.self)))));
       });
   if (play_state_get.IsObject()) {
-    play_state_get.object->Set(kOwnerSlot, PointerValue(this));
+    play_state_get.object->Set(kOwnerSlot, OwnerValue(this));
     animation_proto.object->DefineAccessor("playState", play_state_get.object, nullptr);
   }
 
@@ -461,8 +461,8 @@ void DomBindings::InstallWaapi(const js::Value& element_interface) {
         return Value::Undefined();
       });
   if (current_get.IsObject() && current_set.IsObject()) {
-    current_get.object->Set(kOwnerSlot, PointerValue(this));
-    current_set.object->Set(kOwnerSlot, PointerValue(this));
+    current_get.object->Set(kOwnerSlot, OwnerValue(this));
+    current_set.object->Set(kOwnerSlot, OwnerValue(this));
     animation_proto.object->DefineAccessor("currentTime", current_get.object, current_set.object);
   }
 
@@ -528,7 +528,7 @@ void DomBindings::InstallWaapi(const js::Value& element_interface) {
         return MakeAnimationObject(*owner, call.interpreter, 0, true);
       });
   if (animation_ctor.IsObject()) {
-    animation_ctor.object->Set(kOwnerSlot, PointerValue(this));
+    animation_ctor.object->Set(kOwnerSlot, OwnerValue(this));
     animation_ctor.object->Set("prototype", animation_proto);
     animation_proto.object->Set("constructor", animation_ctor);
     interpreter_->Global()->Set("Animation", animation_ctor);
@@ -568,7 +568,7 @@ void DomBindings::InstallWaapi(const js::Value& element_interface) {
     return MakeAnimationObject(*owner, call.interpreter, id, false);
   });
   if (animate.IsObject()) {
-    animate.object->Set(kOwnerSlot, PointerValue(this));
+    animate.object->Set(kOwnerSlot, OwnerValue(this));
     element_interface.object->Set("animate", animate);
   }
 }

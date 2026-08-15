@@ -127,7 +127,7 @@ void DomBindings::InstallShadowDom(const js::Value& element_interface) {
     return WrapperFor(root);
   });
   if (attach.IsObject()) {
-    attach.object->Set(kOwnerSlot, PointerValue(this));
+    attach.object->Set(kOwnerSlot, OwnerValue(this));
     element_interface.object->Set("attachShadow", attach);
   }
 
@@ -144,7 +144,7 @@ void DomBindings::InstallShadowDom(const js::Value& element_interface) {
     return WrapperFor(element.ShadowRoot());
   });
   if (shadow_root.IsObject()) {
-    shadow_root.object->Set(kOwnerSlot, PointerValue(this));
+    shadow_root.object->Set(kOwnerSlot, OwnerValue(this));
     element_interface.object->DefineAccessor("shadowRoot", shadow_root.object, nullptr);
   }
 
@@ -182,7 +182,7 @@ void DomBindings::InstallShadowDom(const js::Value& element_interface) {
     return found;
   });
   if (assigned_slot.IsObject()) {
-    assigned_slot.object->Set(kOwnerSlot, PointerValue(this));
+    assigned_slot.object->Set(kOwnerSlot, OwnerValue(this));
     element_interface.object->DefineAccessor("assignedSlot", assigned_slot.object, nullptr);
   }
 
@@ -211,7 +211,7 @@ void DomBindings::InstallShadowDom(const js::Value& element_interface) {
           return call.interpreter.NewArrayValue(std::move(out));
         });
     if (method.IsObject()) {
-      method.object->Set(kOwnerSlot, PointerValue(this));
+      method.object->Set(kOwnerSlot, OwnerValue(this));
       element_interface.object->Set(name, method);
     }
   };
@@ -355,14 +355,14 @@ void InstallElementInternals(DomBindings& owner_bindings, js::Interpreter& inter
           return root == nullptr ? Value::Null() : bindings->WrapperFor(root);
         });
     if (shadow_root.IsObject()) {
-      shadow_root.object->Set(kOwnerSlot, PointerValue(owner));
+      shadow_root.object->Set(kOwnerSlot, OwnerValue(owner));
       internals.object->DefineAccessor("shadowRoot", shadow_root.object, nullptr);
     }
     call.self.object->SetHidden(kInternalsSlot, internals);
     return internals;
   });
   if (attach.IsObject()) {
-    attach.object->Set(kOwnerSlot, PointerValue(&owner_bindings));
+    attach.object->Set(kOwnerSlot, OwnerValue(&owner_bindings));
     html_element_interface.object->Set("attachInternals", attach);
   }
 }
@@ -377,8 +377,8 @@ void InstallTemplateShadowReflection(DomBindings& owner_bindings, js::Interprete
     const Value getter = interpreter.NewNativeValue(name, std::move(get));
     const Value setter = interpreter.NewNativeValue(name, std::move(set));
     if (getter.IsObject() && setter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(&owner_bindings));
-      setter.object->Set(kOwnerSlot, PointerValue(&owner_bindings));
+      getter.object->Set(kOwnerSlot, OwnerValue(&owner_bindings));
+      setter.object->Set(kOwnerSlot, OwnerValue(&owner_bindings));
       template_interface.object->DefineAccessor(name, getter.object, setter.object);
     }
   };

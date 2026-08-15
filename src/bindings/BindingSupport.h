@@ -412,24 +412,69 @@ inline js::PropertyKey KeyOfTrapArgument(const js::Value& value) {
   return js::PropertyKey(js::ToString(value));
 }
 
-// The bindings instance a native belongs to. Carried on the function object
-// rather than captured, because a capture is invisible to the collector and a
-// raw pointer in one is a lifetime nobody is tracking.
-inline DomBindings* OwnerOf(const js::NativeCall& call) {
-  const js::Value* slot = call.callee == nullptr ? nullptr : call.callee->GetOwn(kOwnerSlot);
-  if (slot == nullptr || !slot->IsNumber()) {
-    return nullptr;
-  }
-  return reinterpret_cast<DomBindings*>(static_cast<std::uintptr_t>(slot->number));
-}
+// What goes in `kOwnerSlot`: a binding layer's **serial number**, not its
+// address.
+//
+// It used to be the address, and that was safe only while no `DomBindings`
+// could ever be destroyed before the heap holding its natives -- which was true
+// until a same-origin `<iframe>` started borrowing its embedder's interpreter
+// (ADR 0042 §5). Now a frame that renavigates destroys one binding layer and
+// builds another *in the same heap*, so every native the old one stamped is
+// still callable and still names it. `f.contentWindow.postMessage(...)` after
+// `f.src = other` reaches one, which is a use-after-free three lines of script
+// can cause; it was found as a segfault in
+// `dom/events/scrolling/scroll-cross-origin-iframes.html`.
+//
+// A liveness check on the address would not be enough, and the reason is worth
+// stating: the allocator reuses addresses, so a stale native could find a
+// *live* binding layer for another document at the same place. That is a
+// same-origin escape rather than a crash, which is strictly worse. A serial is
+// never reused, so a stale native finds nothing -- and `OwnerOf` answering null
+// is a case every one of these natives already handles, because it is what a
+// call with no owner slot at all has always produced.
+js::Value OwnerValue(const DomBindings* owner);
+
+// One binding layer's serial, and its entry in the list `OwnerOf` resolves
+// against. A member of `DomBindings` rather than a destructor on it, for two
+// reasons: RAII makes the entry exist for exactly the object's lifetime with
+// nothing to remember, and being non-copyable it deletes that class's copy and
+// move for free -- which they had to be anyway, since two of them registered
+// under one serial is the bug this whole mechanism exists to stop.
+class OwnerIdentity {
+ public:
+  explicit OwnerIdentity(DomBindings* owner);
+  ~OwnerIdentity();
+  OwnerIdentity(const OwnerIdentity&) = delete;
+  OwnerIdentity& operator=(const OwnerIdentity&) = delete;
+
+  std::uint64_t Serial() const { return serial_; }
+
+ private:
+  std::uint64_t serial_ = 0;
+};
+
+// The bindings instance a native belongs to, or null when the one that stamped
+// it is gone. Carried on the function object rather than captured, because a
+// capture is invisible to the collector and a raw pointer in one is a lifetime
+// nobody is tracking.
+DomBindings* OwnerOf(const js::NativeCall& call);
+
+// The binding layer a document belongs to, or null when it has none. What makes
+// a node's wrapper come from its *node document's* realm rather than from
+// whichever layer was asked -- ADR 0042 §5 step 3. Same list as `OwnerOf`, for
+// the same reason: one entry per live document.
+DomBindings* BindingsForDocument(const dom::Document& document);
 
 // `addEventListener` and `removeEventListener` on an object, in
 // EventListeners.cpp. Free functions rather than members of DomBindings
 // because a listener list lives on the receiver and nothing in either asks a
 // question about the document -- which is what lets `new EventTarget()` be an
 // ordinary object with a prototype and no special case anywhere.
+// `owner` is the binding layer the natives belong to, and it is a `DomBindings*`
+// rather than the `const void*` it used to be: the owner slot now carries that
+// layer's serial, which only it can produce. See `OwnerValue`.
 void InstallListenerRegistration(js::Interpreter& interpreter, const js::Value& wrapper,
-                                 const void* owner);
+                                 const DomBindings* owner);
 
 // Whether a listener entry is still in the list it was taken from. The
 // dispatch loop runs over a *copy* -- the set that existed when the event

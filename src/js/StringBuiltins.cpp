@@ -131,7 +131,7 @@ bool ReplacementFor(NativeCall& call, const Value& replacement, const std::strin
 
 void Interpreter::InstallStringPrototype(Object* string_constructor) {
   const auto method = [this](const char* name, NativeFunction function) {
-    InstallNative(well_known_.string_prototype, name, std::move(function));
+    InstallNative(intrinsics().string_prototype, name, std::move(function));
   };
 
   // --- Identity -------------------------------------------------------------
@@ -518,7 +518,7 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
                                   : name == "toLocaleLowerCase" ? "toLowerCase"
                                   : name == "trimLeft"          ? "trimStart"
                                                                 : "trimEnd";
-    InstallNative(well_known_.string_prototype, pair,
+    InstallNative(intrinsics().string_prototype, pair,
                   [canonical](NativeCall& call) {
                     const Value method_value =
                         call.interpreter.GetPropertyValue(call.self, canonical);
@@ -529,8 +529,8 @@ void Interpreter::InstallStringPrototype(Object* string_constructor) {
   }
 
   // --- The constructor's own properties -------------------------------------
-  string_constructor->Set("prototype", Value::Obj(well_known_.string_prototype));
-  well_known_.string_prototype->SetHidden("constructor", Value::Obj(string_constructor));
+  string_constructor->Set("prototype", Value::Obj(intrinsics().string_prototype));
+  intrinsics().string_prototype->SetHidden("constructor", Value::Obj(string_constructor));
   InstallNative(string_constructor, "fromCharCode", [](NativeCall& call) {
     // The exact inverse of charCodeAt: one *code unit* per argument, masked to
     // sixteen bits the way the spec masks. A high surrogate is held so that a

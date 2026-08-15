@@ -75,7 +75,7 @@ void Page::FailWorkerLoad(std::uint64_t id, const std::string& reason) {
   // Delivered here rather than through the worker's outbox: the worker never started, so its pipe is
   // closed before the loop's next turn and a queued delivery would be lost. A page's `onerror` is how it
   // finds out that its worker script 404'd, so losing it would make the failure invisible.
-  script_.DeliverWorkerMessage(id, bindings::WorkerDelivery::Error, std::string(), reason);
+  script_->DeliverWorkerMessage(id, bindings::WorkerDelivery::Error, std::string(), reason);
 }
 
 bool Page::PostToWorker(std::uint64_t id, const std::string& serialized) {
@@ -115,7 +115,7 @@ bool Page::DeliverWorkerMessages() {
     // which is the whole of ADR 0022's "messages cross by value".
     const std::string bytes(reinterpret_cast<const char*>(delivery.message.bytes.data()),
                            delivery.message.bytes.size());
-    ran = script_.DeliverWorkerMessage(delivery.worker_id, delivery.kind, bytes, delivery.text) ||
+    ran = script_->DeliverWorkerMessage(delivery.worker_id, delivery.kind, bytes, delivery.text) ||
           ran;
   }
   return ran;

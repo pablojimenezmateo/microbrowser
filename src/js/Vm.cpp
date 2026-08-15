@@ -55,6 +55,12 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
     }
 
     Frame* frame = &vm_.frames.back();
+    // ADR 0042 §2: a builtin allocates from the realm of the function, so the
+    // running realm follows the callee. One compare in the common case -- the
+    // guard is `frame->function`, which is already the load above's cache line,
+    // and deliberately not the frame *depth*: a pop and a push inside one turn
+    // (resuming a generator) leaves the depth equal and the callee different.
+    SyncRealm(frame->function);
     if (frame->ip >= frame->code->code.size()) {
       // A body that fell off its own end. Every compiled function ends in a
       // Return, so this is a compiler bug rather than a program one -- and
@@ -184,9 +190,9 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         // matching note in Statements.cpp. An accessor the host installed on the
         // global object has no stored value, so `GetOwn` missed it and the bare
         // name threw.
-        if (global_->HasOwn(name)) {
+        if (realm_->global->HasOwn(name)) {
           Result accessor = Result::Normal(Value::Undefined());
-          const Value value = GetProperty(Value::Obj(global_), name, &accessor);
+          const Value value = GetProperty(Value::Obj(realm_->global), name, &accessor);
           if (accessor.completion == Completion::Throw) {
             pending = accessor;
             threw = true;
@@ -216,7 +222,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
             // An assignment to an undeclared name creates a global. Sloppy mode,
             // and the web depends on it. On the global *object*, so that
             // `globalThis.x` and `x` name the same thing.
-            global_->Set(name, vm_.stack.back());
+            realm_->global->Set(name, vm_.stack.back());
             break;
         }
         break;
@@ -232,7 +238,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
       case Op::TypeofName: {
         const std::string& name = code.names[instruction.a];
         Value* binding = CurrentScope()->Lookup(name);
-        const Value* property = binding == nullptr ? global_->GetOwn(name) : nullptr;
+        const Value* property = binding == nullptr ? realm_->global->GetOwn(name) : nullptr;
         if (binding == nullptr && property == nullptr) {
           vm_.stack.push_back(Value::String("undefined"));
           break;
@@ -848,7 +854,7 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         }
         const CompiledFunction& target = *code.functions[instruction.a];
         const bool arrow = instruction.op == Op::ClosureArrow;
-        function->SetPrototype(well_known_.function_prototype);
+        function->SetPrototype(intrinsics().function_prototype);
         function->MakeCompiled(&target, CurrentScope(), arrow);
         function->SetHidden("name", Value::String(target.name));
         function->Set("length", Value::Number(static_cast<double>(target.parameter_count)));

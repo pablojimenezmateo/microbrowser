@@ -53,7 +53,13 @@ budget: Http2Session   header_lines=205 public_methods=18 members=20
 # three are what decides whether a connection can carry a second request. The
 # alternative was for Fetch to keep its own copy of the framing, which is two
 # answers to one question.
-budget: ResponseParser header_lines=70 public_methods=16 members=10
+# 78 for `SetHeadRequest`, and the comment on it is why it is worth a raise rather than a
+# workaround. A response to HEAD carries no body whatever its Content-Length says (RFC 9110
+# s6.4.1), and the parser cannot see the request -- so without this it waits for bytes no server
+# will ever send and **every HEAD request hangs the browser, forever, with no error anywhere**.
+# The alternative was for Fetch to stop feeding the parser once the headers were in, which is Fetch
+# keeping its own copy of the framing: the exact two-answers-to-one-question the note above rejects.
+budget: ResponseParser header_lines=78 public_methods=17 members=11
 budget: Cookie         header_lines=50 public_methods=10 members=10
 budget: CookieJar      header_lines=60 public_methods=18 members=2
 budget: HttpCache      header_lines=45 public_methods=14 members=3

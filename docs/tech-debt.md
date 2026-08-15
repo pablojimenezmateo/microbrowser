@@ -1130,7 +1130,7 @@ on that click — consent dialog first.
 | progressive `streamingData.formats` | **[]** (adaptive-only / SABR) |
 | click → `Page::Play` | still works (`paused=false`, `currentTime≈2`) |
 | `AudioContext` | absent (ADR 0028 §4 — deliberate; not this error code) |
-| `crypto.subtle` | **present** (importKey / encrypt AES-CTR / sign HMAC-SHA-256; ADR 0037) |
+| `crypto.subtle` | **present** (importKey / encrypt AES-CTR / sign HMAC-SHA-256; ADR 0041) |
 | `indexedDB` / `BroadcastChannel` | **absent** (Woffle offline store `g.D8` / `plI`; importKey never reached) |
 
 So the facade is not a single missing binding: it is youtube's player stuck in
@@ -1145,7 +1145,7 @@ encoder cannot import AES-CTR keys, and without IndexedDB/BroadcastChannel the
 offline store never opens — both still open platform gaps (survey: 2 and 7 uses).
 
 **Update** (2026-08-09, late). `TextEncoder`/`TextDecoder` and `crypto.subtle`
-(ADR 0037) landed. Watch still reports `Woffle: PES is undefined` and
+(ADR 0041) landed. Watch still reports `Woffle: PES is undefined` and
 `fmt.unplayable`. Diagnosis of the Woffle half:
 
 | piece | role | status |
@@ -2571,7 +2571,7 @@ Neither is a stub away. A `contentWindow` that was a plain object, or an `import
 resolved nothing, is exactly what ADR 0012 forbids: the test would still fail and a real page
 would fail later and further away.
 
-## TD-0058 — `<a href>` reflection resolves its query as UTF-8, and two base URLs disagree
+## TD-0058 — `<a href>` reflection resolves its query as UTF-8, and two base URLs disagree — **CLOSED 2026-08-13**
 
 **Created by a merge, not by a session**, which is why it is worth writing down: two worktrees
 implemented HTMLHyperlinkElementUtils against the same base and each got a different half right.
@@ -2597,16 +2597,269 @@ The merge kept the first. So today:
   does not move when a script appends a `<base>`. `Engine::ResolveDocumentUrl` uses the second.
   Two answers to that question is the same shape of bug the deleted `HrefParts.cpp` was.
 
-**The fix is one thing, not two**: give `DocumentPolicy` a live base — or have `ResolveDocumentUrl`
-read the tree the way `DocumentBaseUrl` does — and then point `url_of` in `UrlObject.cpp` at
-`ResolveDocumentUrl`. Doing it in the other order regresses `url/`, which is how it was found: the
-encoding worktree's version cannot pass the standard's setter vectors and the URL worktree's cannot
-pass `encoding/legacy-mb-*`'s href cases. Neither branch's tests cover the other's case, so **the
-suite is green either way** — check both before believing a change here.
+**Closed 2026-08-13, and it cost more than this entry estimated.** The fix is not either of the two
+proposed above: both halves belong in `url_of`, and neither needs the other's owner. It now builds a
+`html::DocumentQueryEncoder` from the document's character set *and* resolves against
+`DocumentBaseUrl`, which still re-reads `<base href>` from the tree. `src/bindings` may see
+`src/html`, so nothing had to move.
 
----
+The document's character set reaches the binding layer **on the realm's global** rather than as a
+member of `DomBindings` — `src/bindings/DocumentFacts.h`. Two reasons, and the second is the one
+worth keeping: a character set is per *document*, and since ADR 0042 §5 a same-origin `<iframe>` is
+a realm of the same interpreter with a global of its own, so the global is exactly the object that
+is one-per-document; and `DomBindings.h` is at 1,000 of its 1,000 permitted lines, so a fact that
+was never a member does not get to become one.
 
-## TD-0059 — A dynamically inserted inline script runs at the turn boundary — **fixed 2026-08-14**
+One more thing had to change with it. `url/a-element-xhtml.xhtml` declares its encoding **only** in
+`<?xml version="1.0" encoding="UTF-8"?>`, which `html::SniffEncoding` did not read — so it fell back
+to windows-1252 and, once the query started honouring the document's charset, five of its subtests
+started reporting `?q=%26%238995%3B` where a browser reports `?q=%E2%8C%A3`. An XML document with no
+declaration is UTF-8, never windows-1252; that fallback is HTML's and HTML's alone. `SniffEncoding`
+now reads the XML declaration and defaults XML content types to UTF-8.
+
+**The measurement, and it is the reason this entry is worth reading after it is closed.**
+`encoding/` went **0.9% → 52.8%** (3,829 → 220,631 of 417,520 subtests; 40 unexpected tests → 1),
+and `url/` stayed at 99.8% with 0 unexpected — which is exactly the pair this entry said to check.
+
+**But the suite was not "green either way", and that sentence was the expensive mistake.** The
+expectation files were recorded by the encoding worktree *before* the merge, so they still claimed
+those ~217,000 subtests passed. The merge broke them and nothing said so: a regression is only
+visible where an expectation file is newer than the change. Twenty thousand subtests would have
+been noticed; two hundred thousand were not, because nobody re-ran the area. **Re-record every area
+a merge touched, not just the ones its branch named.**
+
+## TD-0059 — `contentWindow` is not a window, because a browsing context is a realm and `src/js` has one — **CLOSED 2026-08-13**
+
+**Status update.** ADR 0042 landed the concept: `js::Interpreter` now holds up to `kMaxRealms`
+realms, each with its own global, global scope and `js::Intrinsics`; a callable records its realm and
+the running realm follows the *callee*, so a builtin allocates from the realm its function came from.
+`tests/JsRealmTests.cpp` is the proof -- two globals that do not see each other's `var`, a function
+that gets its own `window` rather than its caller's, a cross-realm `map` whose array carries the
+child's `Array.prototype`, well-known symbols shared so a protocol crosses, and every realm walked by
+the collector. Cost recorded as TD-0060.
+
+**The binding and engine halves landed 2026-08-13 (ADR 0042 §5 steps 1-4), and the table below is
+now history rather than status.** `iframe.contentWindow` is the child realm's real global,
+`contentDocument` is that window's own `document` so the two are one object, a same-origin child
+runs its own script, and `parent`/`top`/`window[i]`/`window.length` answer. What is still absent is
+`postMessage` between realms, `frameElement`, and the engine's services inside a child (its `fetch`
+is undeclared) — see `docs/session-log.md` C12 and CLAUDE.md, which carry the current list.
+
+
+Landed 2026-08-12 with the rest of ADR 0027 §1's first half: a child browsing context now fetches
+its document, parses it, fires `load` at its element, re-navigates when a script assigns `src`, and
+answers `contentDocument` when it is same-origin. **What it does not do is run the child's script,
+and it cannot, and the reason is one sentence:** `js::Interpreter` has exactly one global object and
+one set of intrinsics, so "a second document with its own `window`" has nowhere to be.
+
+What that costs today, in the order a page notices:
+
+| symptom | what a page sees |
+|---|---|
+| `iframe.contentWindow` | an object with a `.document` and nothing else — no `location`, no globals the child set, not an instance of `Window` |
+| a `<script>` in the child | never runs; the child's document is inert markup |
+| `parent`, `top`, `frames`, `postMessage` | absent |
+| `childDoc.defaultView` | absent |
+| cross-realm `instanceof` | wrong by construction: there is one `Array`, one `HTMLDivElement`, one of everything |
+
+`src/bindings/FrameBindings.cpp` says this at the point where it matters, and the plain object it
+returns instead is **the stub ADR 0012 forbids** — it is here only because returning nothing broke
+more than returning something. It should be read as a debt with a name rather than as an API.
+
+**The fix is a realm, and it belongs in `src/js`.** `Interpreter` grows N globals rather than one:
+`global_`, `global_scope_` and `WellKnown` become a `Realm`, the interpreter holds a vector of them,
+and a compiled function records which realm it belongs to so a builtin allocates from its own
+`Array.prototype` rather than from whichever one ran last. The well-known *symbols* stay on the
+interpreter, because the specification shares those across realms and a per-realm
+`Symbol.iterator` would break every protocol that crosses one.
+
+**Same-origin contexts then share one interpreter and one heap; cross-origin ones get their own.**
+That is not a convenience — it is ADR 0027 §2 becoming structural. A cross-origin child in a
+separate heap cannot hand an object to its embedder even by accident, which is the property ADR 0027
+§5 needs for the process split to be an extraction, and it is strictly stronger than the check
+`Engine::OnFrameFetch` performs today.
+
+**Measured, so the priority is arguable rather than asserted.** Of the 8,417 web-platform-tests
+whose harness never reported (2026-08-12 expectations), **1,083 use an `<iframe>`** — 1,022 alone,
+plus 61 that also want a worker, a module or a canvas. That is second only to the 2,446 that want a
+worker global, and unlike those it is not duplicate coverage: a `.any.worker.html` is the same
+assertions as a `.any.html` twin that mostly passes already, while an iframe test is the only place
+its behaviour is tested at all. TD-0057 has the same conclusion reached from `url/` (188 subtests,
+all of them `frame.contentWindow.location = badUrl`) and `docs/session-log.md`'s C6 entry has it
+from `dom/` (~4,176 subtests behind two `<iframe>`s). Three independent areas, one feature.
+
+**Do not approximate it.** A `contentWindow` that proxied a few names onto the parent's global would
+make `iframe.contentWindow.document === iframe.contentDocument` true and `frames[0].Array === Array`
+true, and both are the observable that tells a page it is in one realm. The tests that would start
+passing are the ones that check the shallow answer; the pages that would break are the ones that
+feature-detect and take the native path.
+
+## TD-0060 — Reading an intrinsic costs one more load than it did, because it is behind a realm pointer
+
+ADR 0042 moved the intrinsics off `Interpreter` and into `js::Realm`, so every builtin that used to
+read `well_known_.array_prototype` -- a member access, `this + offset`, no load -- now reads
+`realm_->intrinsics.array_prototype`, which is one dependent load first. Same for `global_` and
+`global_scope_`, which are now `realm_->global` and `realm_->global_scope` and are read by
+`Op::LoadName`, `Op::StoreName` and `CurrentScope`. And `RunFrames` gained one load and one compare
+per instruction, to notice when the running callee changed.
+
+**Measured** (Release+LTO, `microbrowser_bench js`, the two binaries built from the same tree and run
+*alternately* six times each in one window -- interleaving is the method, because the same binary read
+3x slower here while something else was linking; min-of-six per row):
+
+| benchmark | before | after | delta |
+|---|--:|--:|--:|
+| js/array-index | 30.59 | 33.72 | **+10.2%** |
+| js/class-methods | 37.78 | 39.83 | +5.4% |
+| js/method-calls | 37.41 | 39.20 | +4.8% |
+| js/loop-arithmetic | 41.56 | 43.19 | +3.9% |
+| js/property-reads | 30.19 | 31.03 | +2.8% |
+| js/closures | 35.33 | 36.22 | +2.5% |
+| js/class-super | 25.89 | 26.32 | +1.7% |
+| js/name-4-reads-near | 36.98 | 37.44 | +1.3% |
+| js/fib | 30.28 | 30.53 | +0.8% |
+| js/string-build | 7.22 | 7.27 | +0.7% |
+| js/name-4-reads-far | 46.35 | 46.53 | +0.4% |
+| js/try-catch | 10.04 | 9.98 | -0.7% |
+| js/name-0-reads | 21.33 | 20.86 | -2.2% |
+| **total** | **390.94** | **402.10** | **+2.9%** |
+
+**This was accepted rather than missed, and the priority order is the argument.** Correctness and
+security come before speed here, and what the 2.9% bought is a browsing context that can run script
+in its own global -- 1,083 harness-silent tests, and the removal of a stub that handed a child
+frame's code the parent's `window`. It is also 2.9% of the wrong quantity: Hacker News spends 1.21s
+of a 1.41s load blocked on a socket against 58ms of scoped CPU, so a JS microbenchmark is not where
+a user's time goes on any page in ADR 0007.
+
+**What it is not**: it is not the two counters. `js.realm_switches` is near zero on a page with no
+frames, and the `frame->function` compare that guards it is the cheap half. The expensive half is the
+extra load on *every* intrinsic read, which happens whether or not a second realm exists -- so a page
+with no `<iframe>` pays this in full, which is the part that makes it debt rather than a cost of the
+feature.
+
+**The end state, and why neither fix was taken now.** Two candidates:
+
+1. **Denormalise the current realm's `Intrinsics` into the interpreter by value**, copied in and out
+   by `EnterRealm`. 13 pointers, 104 bytes, twice per switch -- and switches are rare and counted. It
+   restores the original zero-load access exactly. The cost is that there would then be two copies of
+   every prototype pointer with a flush/load pairing between them, which is precisely the drift the
+   `Roots()`-next-to-the-fields rule exists to prevent: a write that landed in the copy after the
+   flush would be a prototype the collector cannot see.
+2. **Hoist the per-instruction sync out of the dispatch loop**, keying on the frame pointer plus a
+   push/pop generation counter rather than on `frame->function`. Cheaper per instruction, and wrong
+   in one case that has to be handled explicitly rather than fallen into -- a pop followed by a push
+   in one turn, which is resuming a generator, leaves both the pointer and any naive counter equal.
+
+Neither is worth doing against a 2.9% microbenchmark delta before there is a page-level measurement
+that names it. `array-index` at +10.2% is the row to re-measure first if one ever does: it is the
+only one large enough to be a mechanism rather than noise, and no prototype lookup is on that path,
+so what it is actually measuring is not yet understood.
+
+## TD-0061 — A WPT handler is dispatched by file name, and ten names mean more than one handler — **CLOSED 2026-08-15, by deleting the dispatcher**
+
+**Closed by the merge rather than by a fix, and the audit below is kept because it is still the data
+a new handler is written against.** Two worktrees implemented ADR 0040 §2's handler table off the
+same base: one keyed by file name (this entry's subject, with directory scoping for the three names
+it knew were ambiguous), one keyed by the whole repo-relative path. The merge kept the path-keyed
+one, so the class of bug this entry describes cannot occur -- `wpt::RunHandler` matches
+`fetch/api/resources/redirect.py` and the other seven `redirect.py` files stay a visible 501.
+
+What was given up with the name-keyed table is coverage, not correctness: roughly seventeen
+transcribed handlers, a `raw` response field for the `fetch/h1-parsing/` family (which needs a
+malformed status line no valid response can express), a directory-scoped stash, and the ranked
+report of handlers that were *requested* and are missing. Each is worth re-adding to the path-keyed
+table on its own terms; none of them is a reason to key dispatch on a name again. The report in
+particular was the thing that told a session which handler to write next, and it is the first to
+want rebuilding.
+
+The audit is the reason to read this entry after it is closed: it names which files share a name,
+which is exactly what a path-keyed entry has to get right when it is added.
+
+**Audited 2026-08-12** by hashing every copy of every implemented name in the checkout:
+
+| name | files | distinct bodies |
+|---|--:|--:|
+| `redirect.py` | 8 | **8** |
+| `slow.py` | 3 | 3 |
+| `trickle.py` | 3 | 3 |
+| `preflight.py` | 3 | 3 |
+| `status.py` | 3 | 2 |
+| `inspect-headers.py` | 2 | 2 |
+| `echo-headers.py` | 2 | 2 |
+| `delay.py` | 2 | 2 |
+| `stash-take.py` | 2 | 2 |
+| `content-type.py` | 2 | 2 |
+
+**Why this is worse than a 501, which is the whole argument of `Handlers.h`.** A 501 says "nobody has
+written this handler" and puts the name in the ranked report, so the next session can pick it. A
+plausible wrong answer says nothing, and moves the failure to wherever the test first notices --
+which for a redirect handler means a test failing on a URL comparison three redirects later.
+
+**It is not uniformly a bug, which is why it was recorded rather than fixed under time pressure.**
+Several copies are compatible *subsets* of the transcription: the four-line
+`html/browsers/browsing-the-web/navigating-across-documents/resources/redirect.py` sets `Location`
+and status 302, which is exactly what `common/redirect.py` does with fewer parameters, so serving the
+transcription is correct there. Others are not subsets at all: `xhr/resources/redirect.py` defaults
+`location` to `<path>?followed`, appends `&code=` when the target is itself, and answers
+`MAGIC HAPPENED` for the followed request -- none of which `common/redirect.py` does. A blanket
+directory match would turn the working cases into 501s and the score would fall for no correctness
+gain.
+
+**So the fix is per-copy and needs a decision each time**: for each of the ~40 copies, either it is a
+subset of what is implemented (allow the name to match it, and say so) or it is a different handler
+(match on the directory, leave it a 501, and let the report rank it). That is an afternoon of reading
+small Python files, and the report added on 2026-08-12 is what makes the result checkable -- a copy
+that is refused shows up in it by name.
+
+**Three names were scoped on 2026-08-12** because they were introduced that day and were unambiguously
+wrong without it, and they are the worked example for the rest:
+
+- `image.py`, four files: a PNG with `nosniff`, a *different* PNG with `Cross-Origin-Resource-Policy`,
+  a BMP generated in Python, and one that alternates green and red across two requests to test an
+  ETag. Nothing subsets anything.
+- `status-code.py`, two files, both now implemented and *both kept*, which is the shape to aim for:
+  `fetch/h1-parsing/`'s writes a raw malformed status line and `resource-timing/`'s sets an ordinary
+  status plus `Timing-Allow-Origin`. Two handlers, one name, one directory match each.
+- `corsenabled.py`, three files: `xhr/resources/`'s echoes the request; the two under `auth*/`
+  delegate to `authentication.py` and are HTTP-auth handlers.
+
+## TD-0062 — Host state hung off a JS object has no owner, so the collector cannot free it
+
+`new CSSStyleSheet()` allocated a `std::shared_ptr<std::string>` on the C++ heap, released it out of
+its `unique_ptr`, and stored the raw pointer on the JS object as `kCSSSheetStorageSlot` — because a
+JS object cannot hold a C++ member. **Nothing ever freed it.** A page could grow that without bound:
+
+    for (let i = 0; i < 1e6; i++) new CSSStyleSheet();
+
+**Measured** by LeakSanitizer on the test suite, 2026-08-12: 368 bytes in 12 allocations, all from
+`ConstructableStylesheets.cpp:148`, from the handful of sheets the tests construct. Nothing else
+would have found it — the leak is sixteen bytes plus a string per sheet, and no test asserts on
+memory. It is in this file rather than merely fixed because the fix is partial.
+
+**Fixed to the extent it can be locally**: `DomBindings::sheet_texts_` owns them now, a `std::deque`
+so the pointer on the JS object survives a later insertion, and everything is freed when the document
+goes. LeakSanitizer is clean.
+
+**What remains is the shape rather than the leak.** The lifetime is now the *document's*, not the
+object's, so a page that constructs a million sheets holds a million strings until it navigates.
+There is no way for the collector to tell the binding layer that a sheet died, which is the actual
+missing concept.
+
+**The end state is a host-data side table in `js::Heap`, freed in the sweep.** That is not a new
+mechanism: `Heap::generators_` and `Heap::weak_tables_` are both
+`unordered_map<const Object*, ...>` dropped when the cell that keys them is swept, for exactly this
+reason — object-keyed state that must not outlive its object. A third, generic one
+(`host_data_`, holding a type-erased owner) would let `src/bindings` attach owned C++ state to a
+wrapper and have it die with the wrapper, and would retire this entry and the pattern behind it.
+
+Two sites exist today, both in `ConstructableStylesheets.cpp`, so this is contained rather than
+systemic — `grep -rn "\.release()" src/bindings/` is the check, and it should stay at zero once the
+side table exists. The reason to write it down anyway is that the next binding to need per-object host
+state will reach for `release()` again, because there is currently nothing better to reach for.
+
+## TD-0063 — A dynamically inserted inline script runs at the turn boundary — **fixed 2026-08-14**
+
+*Numbered 0063 rather than 0059 on 2026-08-15: two worktrees off one base each claimed 0059, and the other claimed 0060 through 0062 as well. This is the third time entries have collided that way — `docs/tech-debt.md` is the authority on a number, never a number you remember.*
 
 HTML's "prepare the script element" runs an inline classic script **during the insertion steps**:
 

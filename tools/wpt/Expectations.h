@@ -1,10 +1,44 @@
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace microbrowser::wpt {
+
+// Replaces this run's port numbers in a subtest name with the *index* of the port
+// they refer to: `http://localhost:40289/x` becomes `http://localhost:{{port[0]}}/x`.
+//
+// **A subtest name is a string the page chose, and a great many pages build one out
+// of their own origin.** The server binds ephemeral ports -- it asks the kernel for
+// a free one, because a fixed port makes two runs on one machine collide -- so those
+// names differ on every run, and an expectation file full of them churns entirely
+// for free. Counted on 2026-08-12: **65 recorded lines across `fetch/`, `cors/` and
+// `resource-timing/` carry a port** -- 22, 4 and 39 -- and every one of them changes on
+// every run in both directions at once. The diff of these files is what a session
+// delivers, so churn that is guaranteed and meaningless is worth removing even at that
+// size.
+//
+// (An earlier version of this comment said ~250 lines in `fetch/` alone. That was wrong,
+// and wrong in the way worth recording: it came from *sampling* the top of a 292-line
+// diff, where the port lines happened to sort first, and then reporting the sample as
+// the total. The real figure is 22 of those 292 -- the rest were genuine status changes.
+// Counting the whole file takes one `grep -c`.)
+//
+// **By index rather than to a single placeholder, and that distinction is the whole
+// of the design.** `fetch/api/basic/scheme-others.any.html` has one subtest per
+// origin, so two names that differ only in their port are two *different* subtests
+// -- one same-origin and one cross-origin. Folding both to `localhost:PORT` would
+// collapse them onto one key and silently drop one of the two, which is a worse
+// failure than the churn: it removes a real result instead of a fake change.
+//
+// Applied to a name arriving from the page, so that recording and comparing use the
+// same key and nothing downstream has to remember. Names that contain no port are
+// returned unchanged, which is almost all of them.
+std::string NormalizePortsInName(std::string_view name,
+                                 const std::vector<std::uint16_t>& ports);
 
 // What a test is expected to do today.
 //

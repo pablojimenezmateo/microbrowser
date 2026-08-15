@@ -56,7 +56,7 @@ Result Interpreter::BindPattern(const Node& target, const Value& value, Environm
           // An assignment to an undeclared name creates a global. Sloppy mode,
           // and the web depends on it. On the global *object*, so that
           // `globalThis.x` and `x` name the same thing.
-          global_->Set(target.string, value);
+          realm_->global->Set(target.string, value);
           break;
       }
       return Result::Normal(value);
@@ -485,6 +485,33 @@ Result Interpreter::EvaluateCall(const Node& node, Environment& scope) {
     for (std::size_t i = 1; i < node.children.size(); ++i) {
       const Node* argument = node.Child(i);
       if (argument == nullptr) {
+        continue;
+      }
+      // `super(...xs)`. The same fix `New` above already carries, and missing
+      // here for the same reason it was missing there: the parser accepts the
+      // spread, and evaluating that node as an ordinary expression reaches
+      // `case NodeKind::Spread` and throws "SyntaxError: unsupported expression"
+      // at run time -- a syntax error reported from the middle of a constructor,
+      // for syntax that parsed.
+      //
+      // It is the shape Lit and every transpiler emits for a derived
+      // constructor, so on the tree-walker a custom element written that way
+      // threw on upgrade. The machine has always compiled it; what this restores
+      // is the *differential* over it, which is the whole reason the tree-walker
+      // is still here. Four tests, listed at the top of JsVmTests.cpp.
+      if (argument->kind == NodeKind::Spread) {
+        const Node* inner = argument->Child(0);
+        if (inner == nullptr) {
+          continue;
+        }
+        const Result spread = Evaluate(*inner, scope);
+        if (spread.IsAbrupt()) {
+          return spread;
+        }
+        const Result collected = CollectIterable(spread.value, super_arguments);
+        if (collected.IsAbrupt()) {
+          return collected;
+        }
         continue;
       }
       const Result value = Evaluate(*argument, scope);

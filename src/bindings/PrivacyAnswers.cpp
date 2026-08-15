@@ -141,7 +141,7 @@ void DomBindings::InstallUserActivation(const js::Value& navigator) {
       return Value::Bool(owner != nullptr && owner->HasUserActivation());
     });
     if (getter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
       return getter;
     }
     return Value::Undefined();
@@ -181,7 +181,7 @@ void DomBindings::InstallClipboard(const js::Value& navigator) {
     return promise;
   });
   if (write_text.IsObject()) {
-    write_text.object->Set(kOwnerSlot, PointerValue(this));
+    write_text.object->Set(kOwnerSlot, OwnerValue(this));
     clipboard.object->Set("writeText", write_text);
   }
   // **`readText` is refused**, and it is present-but-rejecting rather than absent because the
@@ -262,7 +262,7 @@ void DomBindings::InstallScreenAndPixelRatio() {
     return Value::Number(QuantizeDevicePixelRatio(owner->geometry_->QueryDevicePixelRatio()));
   });
   if (ratio.IsObject()) {
-    ratio.object->Set(kOwnerSlot, PointerValue(this));
+    ratio.object->Set(kOwnerSlot, OwnerValue(this));
     interpreter_->Global()->DefineAccessor("devicePixelRatio", ratio.object, nullptr);
   }
 
@@ -295,7 +295,7 @@ void DomBindings::InstallScreenAndPixelRatio() {
           static_cast<int>(vertical ? viewport.height : viewport.width))));
     });
     if (getter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
       screen.object->DefineAccessor(field.name, getter.object, nullptr);
     }
   }

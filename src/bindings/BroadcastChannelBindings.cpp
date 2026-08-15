@@ -96,7 +96,7 @@ void DomBindings::InstallBroadcastChannel() {
   const auto method = [this, &channel_interface](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       channel_interface.object->Set(name, native);
     }
   };

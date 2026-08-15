@@ -393,7 +393,7 @@ Value Interpreter::NewPromiseValue() {
   if (promise == nullptr) {
     return Value::Undefined();
   }
-  promise->SetPrototype(well_known_.promise_prototype);
+  promise->SetPrototype(intrinsics().promise_prototype);
   promise->Set(kStateKey, Value::Number(static_cast<double>(State::Pending)));
   promise->Set(kValueKey, Value::Undefined());
   promise->Set(kReactionsKey, NewArrayValue({}));
@@ -446,14 +446,14 @@ void Interpreter::SettleAsyncResult(Object* promise, const Value& value, bool re
 // --- Promise ---------------------------------------------------------------
 
 void Interpreter::InstallPromises() {
-  InstallNative(well_known_.promise_prototype, "then", [](NativeCall& call) {
+  InstallNative(intrinsics().promise_prototype, "then", [](NativeCall& call) {
     if (!IsPromise(call.self)) {
       return call.Throw("TypeError", "Promise.prototype.then called on a non-Promise");
     }
     return PerformThen(call.interpreter, call.self, Argument(call.arguments, 0),
                        Argument(call.arguments, 1));
   });
-  InstallNative(well_known_.promise_prototype, "catch", [](NativeCall& call) {
+  InstallNative(intrinsics().promise_prototype, "catch", [](NativeCall& call) {
     if (!IsPromise(call.self)) {
       return call.Throw("TypeError", "Promise.prototype.catch called on a non-Promise");
     }
@@ -462,7 +462,7 @@ void Interpreter::InstallPromises() {
     return PerformThen(call.interpreter, call.self, Value::Undefined(),
                        Argument(call.arguments, 0));
   });
-  InstallNative(well_known_.promise_prototype, "finally", [](NativeCall& call) {
+  InstallNative(intrinsics().promise_prototype, "finally", [](NativeCall& call) {
     if (!IsPromise(call.self)) {
       return call.Throw("TypeError", "Promise.prototype.finally called on a non-Promise");
     }
@@ -512,9 +512,9 @@ void Interpreter::InstallPromises() {
   if (constructor == nullptr) {
     return;
   }
-  constructor->Set("prototype", Value::Obj(well_known_.promise_prototype));
-  well_known_.promise_prototype->SetHidden("constructor", Value::Obj(constructor));
-  global_scope_->Declare("Promise", Value::Obj(constructor), false);
+  constructor->Set("prototype", Value::Obj(intrinsics().promise_prototype));
+  intrinsics().promise_prototype->SetHidden("constructor", Value::Obj(constructor));
+  realm_->global_scope->Declare("Promise", Value::Obj(constructor), false);
 
   InstallNative(constructor, "resolve", [](NativeCall& call) {
     return PromiseFor(call.interpreter, Argument(call.arguments, 0));
@@ -653,7 +653,7 @@ void Interpreter::InstallPromises() {
 
   // The one way a page reaches the queue directly. Same rule as everything
   // else here: it runs at the end of the turn that queued it.
-  global_scope_->Declare(
+  realm_->global_scope->Declare(
       "queueMicrotask",
       NewNativeValue("queueMicrotask",
                      [](NativeCall& call) {

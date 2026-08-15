@@ -171,8 +171,8 @@ void Page::FinishClickActivation() {
   }
   pre_click_finished_ = true;
   dom::Element& input = *pre_click_element_;
-  script_.DispatchMediaEvent(input, "input");
-  script_.DispatchMediaEvent(input, "change");
+  script_->DispatchMediaEvent(input, "input");
+  script_->DispatchMediaEvent(input, "change");
 }
 
 ClickActivation Page::ResolveClickActivation(dom::Element* click_target) {
@@ -227,8 +227,8 @@ ClickActivation Page::ResolveClickActivation(dom::Element* click_target) {
       // document with no script has no binding layer and therefore no dispatch, so this is the path
       // that keeps a checkbox working on one.
       if (activation.toggled_checkable && !already_finished) {
-        script_.DispatchMediaEvent(*at, "input");
-        script_.DispatchMediaEvent(*at, "change");
+        script_->DispatchMediaEvent(*at, "input");
+        script_->DispatchMediaEvent(*at, "change");
       }
       return activation;
     }
@@ -251,7 +251,7 @@ ClickActivation Page::ResolveClickActivation(dom::Element* click_target) {
           // The `toggle` event, which is what a page listens to rather than
           // polling the attribute. Through the same trusted entry point every
           // other browser-produced event uses.
-          script_.DispatchMediaEvent(details, "toggle");
+          script_->DispatchMediaEvent(details, "toggle");
           activation.toggled_details = true;
           return activation;
         }

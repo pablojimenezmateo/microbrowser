@@ -332,7 +332,7 @@ void DomBindings::InstallXhr() {
            {"getResponseHeader", get_response_header},
            {"getAllResponseHeaders", get_all_response_headers}}) {
     if (method.IsObject()) {
-      method.object->Set(kOwnerSlot, PointerValue(this));
+      method.object->Set(kOwnerSlot, OwnerValue(this));
       prototype.object->Set(name, method);
     }
   }
@@ -375,7 +375,7 @@ void DomBindings::InstallXhr() {
         return xhr;
       });
   if (constructor.IsObject()) {
-    constructor.object->Set(kOwnerSlot, PointerValue(this));
+    constructor.object->Set(kOwnerSlot, OwnerValue(this));
     // **The prototype has to be reachable from the constructor**, not only
     // installed on each instance. `XMLHttpRequest.prototype` is how a page
     // patches every request it will ever make -- and how it feature-detects:

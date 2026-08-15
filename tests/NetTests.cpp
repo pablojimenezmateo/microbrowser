@@ -107,6 +107,44 @@ std::string BodyText(const net::HttpResponse& response) {
 }  // namespace
 
 void RegisterNetTests(std::vector<TestCase>& tests) {
+  AddTest(tests, "Http/AHeadResponseHasNoBodyWhateverContentLengthSays", [] {
+    // RFC 9110 s6.4.1. The `Content-Length` on a response to HEAD describes the body a *GET* would
+    // have returned; there is no body to read. A parser that does not know this waits for bytes no
+    // server will ever send, so **every HEAD request against every server that sets Content-Length
+    // hangs** -- forever, with no error anywhere. It was found by a WPT `.py` handler answering
+    // one, and until then no page this browser had loaded had ever sent a HEAD.
+    ResponseParser parser;
+    parser.SetHeadRequest(true);
+    parser.Consume(Bytes("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 5\r\n\r\n"));
+    Expect(parser.IsComplete(), "the response is complete with the headers alone");
+    ExpectEqString(BodyOf(parser), "", "and carries no body");
+    ExpectEqString(std::string(*parser.Response().headers.Get("content-length")), "5",
+                   "the header is still reported: it is what a GET would have returned");
+  });
+
+  AddTest(tests, "Http/AHeadResponseDoesNotSwallowTheNextOne", [] {
+    // The other half, and the reason this cannot be "stop reading and hope": a kept connection
+    // carries the next response immediately after, and a parser that consumed five bytes of it as
+    // a body would desynchronise the connection for good.
+    ResponseParser parser;
+    parser.SetHeadRequest(true);
+    parser.Consume(Bytes("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nHTTP/1.1 404 Not Found\r\n"));
+    Expect(parser.IsComplete(), "complete at the blank line");
+    ExpectEqInt(static_cast<long long>(parser.Leftover()), 24,
+                "and every byte of what followed is left for the next response");
+  });
+
+  AddTest(tests, "Http/AGetResponseStillWaitsForItsBody", [] {
+    // The control. The flag is per-exchange and must not leak into the ordinary path.
+    ResponseParser parser;
+    parser.SetHeadRequest(false);
+    parser.Consume(Bytes("HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\n"));
+    Expect(!parser.IsComplete(), "a GET response is not complete until its body arrives");
+    parser.Consume(Bytes("hello"));
+    Expect(parser.IsComplete(), "and is complete when it does");
+    ExpectEqString(BodyOf(parser), "hello", "body");
+  });
+
   AddTest(tests, "Http/ParsesASimpleResponse", [] {
     util::ResetPerformanceCounters();
     ResponseParser parser = ParseWhole(

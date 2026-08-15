@@ -301,8 +301,8 @@ Object* Interpreter::NewGenerator(bool is_async) {
   if (generator == nullptr) {
     return nullptr;
   }
-  generator->SetPrototype(is_async ? well_known_.async_generator_prototype
-                                   : well_known_.generator_prototype);
+  generator->SetPrototype(is_async ? intrinsics().async_generator_prototype
+                                   : intrinsics().generator_prototype);
   // Attached now rather than at the first suspend, so that every generator
   // object in existence has state -- a lookup that comes back null is then a
   // page calling `next` on something that is not a generator, which is a
@@ -436,7 +436,7 @@ GeneratorState* SelfState(NativeCall& call) {
 }  // namespace
 
 void Interpreter::InstallGeneratorPrototype() {
-  Object* prototype = well_known_.generator_prototype;
+  Object* prototype = intrinsics().generator_prototype;
 
   InstallNative(prototype, "next", [](NativeCall& call) {
     GeneratorState* state = SelfState(call);
@@ -529,7 +529,7 @@ void Interpreter::InstallGeneratorPrototype() {
   // with. Which is the whole difference from the three above -- there, `next`
   // has an answer by the time it returns; here it has one later, and the queue
   // is what lets a second `next` arrive before the first is answered.
-  Object* async_prototype = well_known_.async_generator_prototype;
+  Object* async_prototype = intrinsics().async_generator_prototype;
   const auto request = [this, async_prototype](const char* name, AsyncRequest::Kind kind) {
     InstallNative(async_prototype, name, [kind, name](NativeCall& call) {
       Object* generator = call.self.IsObject() ? call.self.object : nullptr;
@@ -556,9 +556,9 @@ void Interpreter::InstallGeneratorPrototype() {
   request("throw", AsyncRequest::Kind::Throw);
   request("return", AsyncRequest::Kind::Return);
 
-  if (well_known_.symbol_async_iterator != nullptr) {
+  if (shared_.symbol_async_iterator != nullptr) {
     async_prototype->Set(
-        PropertyKey::Symbol(well_known_.symbol_async_iterator),
+        PropertyKey::Symbol(shared_.symbol_async_iterator),
         NewNativeValue("[Symbol.asyncIterator]", [](NativeCall& call) { return call.self; }));
   }
 }

@@ -18,8 +18,8 @@
 // answer -- the handler table, the finalizers emitted at each exit, and the
 // safepoints that let a collection happen half way through a loop.
 //
-// Under MICROBROWSER_JS_TREEWALK=1 forty tests are expected to fail, in
-// three groups, and the list is worth keeping known:
+// Under MICROBROWSER_JS_TREEWALK=1 fifty tests are expected to fail, in
+// six groups, and the list is worth keeping known:
 //
 //   the stacks being data --
 //   JsInterpreter/AScriptThatRecursesWhileAllocatingIsCollectedThrough
@@ -83,6 +83,57 @@
 //
 // (JsInterpreter/AsyncIsAKeywordOnlyWhereItModifiesAFunction is deliberately
 // not in the list: it is about the parser, which is the same either way.)
+//
+// Three more groups, found on 2026-08-12 by diffing this list against a run
+// rather than by reading it: the three above named forty tests and the run
+// produced fifty-four. Thirteen of the fourteen were the tree-walker being the
+// deliberately lesser engine, and undocumented -- which made the rule below false,
+// because thirteen known-noise lines mean a *new* difference no longer stands out
+// from them.
+//
+// **The fourteenth was a real gap and is now fixed**: `super(...xs)` reached
+// `case NodeKind::Spread` and threw "SyntaxError: unsupported expression" from the
+// middle of a constructor, for syntax that had parsed. That is the shape Lit and
+// every transpiler emits, so a custom element written that way threw on upgrade
+// here -- and since the machine always compiled it, spread-`super` had no
+// differential at all. Four tests came back: JsInterpreter/SuperCallAcceptsSpread-
+// Arguments and the three ShadowDom super-upgrade ones. It is the argument for
+// diffing this list against a run rather than reading it, in one bug.
+//
+//   strict-mode `this` --
+//   JsConformance/TopLevelThisIsTheGlobalInAScriptAndNotInAModule
+//
+// `'use strict'; function f(){ return this } f()` answers the global here and
+// `undefined` on the machine. Already decided and already written down, in
+// Interpreter::CallFunction: a tree-walker body carries no `is_strict`, so
+// OrdinaryCallBindThis cannot tell, and the differential path is not where a real
+// page runs. It belongs in this list rather than only in that comment.
+//
+//   things only a compiled program has --
+//   JsInterpreter/ABlockThatDeclaresNothingAllocatesNoScope
+//   JsVm/ACompiledProgramCarriesTheOffsetsItWasWrittenAt
+//
+// The second is definitionally machine-only: a source offset per instruction
+// exists because there are instructions. The first asserts the *absence* of an
+// allocation and reaches its RangeError through the machine's step budget, which
+// is the same category -- a property of how the machine runs, not of what the
+// language answers.
+//
+//   an async function reached from the host --
+//   Fetch/ReadableStreamPrototypeIsWired
+//   Fetch/ResponseBodyIsAOneChunkStream
+//   Fetch/ResponseBodyReaderMarksBodyUsed
+//   Engine/AsyncDomContentLoadedChallengeSubmitsAfterAwait
+//   Engine/RedditInterstitialHtmlSubmitsDoubledSeed
+//   Engine/AThrowingScriptsErrorEventDoesNotCollectItsStack
+//   DomBindings/SuspenseReplaceHoistsTemplateForMarkup
+//
+// Every one of these has an `async function` in its *fixture* rather than in the
+// engine under test, so the tree-walker refuses at the call and the test observes
+// nothing. That refusal is the third group's rule applied outside src/js, and it
+// is deliberate -- a wrong answer three lines later is worse than a refusal at the
+// call. They are here because a reader diffing this list against a run needs to
+// find them, not because anything about them is wrong.
 //
 // Anything else appearing in that list is a difference nobody decided on.
 //

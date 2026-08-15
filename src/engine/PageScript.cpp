@@ -121,7 +121,21 @@ std::string PageScript::SourceName(std::size_t slot) const {
 void PageScript::Detach() {
   // The binding layer first: it is the one holding the reference.
   bindings_.reset();
-  interpreter_.reset();
+  // **Reset in this order and only this far.** A borrowed interpreter belongs to
+  // the embedder and outlives this document, so what a detach ends is this
+  // page's *use* of it -- the pointer -- and never the object. `owned_` is null
+  // in that case and the reset below does nothing, which is the whole reason the
+  // two are separate fields. `host_interpreter_` and `realm_` deliberately
+  // survive: the caller re-attaches with a fresh realm before the next document
+  // runs, and a child that navigated with neither set would silently build an
+  // interpreter of its own and stop being same-origin with its parent.
+  interpreter_ = nullptr;
+  owned_interpreter_.reset();
+  // The keys are `<iframe>` elements in the document that is about to be
+  // replaced. Kept, they would be a use-after-free waiting for the next page to
+  // allocate an element at the same address -- the rule every per-element map in
+  // `Page::Load` follows, and this is one.
+  frame_windows_.Clear();
   slots_.clear();
   pending_urls_.clear();
   pending_slots_.clear();
@@ -215,6 +229,13 @@ bool PageScript::CollectInserted(dom::Document& document, const DocumentPolicy& 
   // to know the answer to. Re-asked on every collection, because a `<meta>`
   // policy can arrive after the first element did.
   inline_handlers_allowed_ = policy.AllowsInlineHandler();
+  // Re-read here rather than captured once, for the reason the CSP flags above are: a `<meta
+  // charset>` can arrive after the first element did, and a link resolved with the wrong charset
+  // sends the wrong bytes.
+  document_encoding_ = policy.Encoding();
+  if (interpreter_ != nullptr) {
+    bindings::SetDocumentEncoding(*interpreter_, document_encoding_);
+  }
   if (bindings_ != nullptr) {
     bindings_->SetScriptStrictDynamic(script_strict_dynamic_);
     bindings_->SetInlineHandlersAllowed(inline_handlers_allowed_);
@@ -375,17 +396,42 @@ void PageScript::SetActivationHooks(std::function<bool(dom::Element&)> pre_click
   }
 }
 
+void PageScript::AttachToRealm(js::Interpreter& host, js::RealmId realm) {
+  host_interpreter_ = &host;
+  realm_ = realm;
+}
+
 void PageScript::EnsureInterpreter(dom::Document& document, const std::string& url,
                                    std::int64_t now_ms) {
   if (interpreter_ != nullptr) {
     return;
   }
-  interpreter_ = std::make_unique<js::Interpreter>();
+  if (host_interpreter_ != nullptr) {
+    // A same-origin child: it borrows its parent's interpreter and owns a realm
+    // of it. `RealmBoundScript` has already entered that realm on the way in,
+    // which is why no `RealmScope` is written here -- everything below installs
+    // into whichever realm is current, and this is the one entry point where
+    // getting that wrong would put the child's `document` on the embedder's
+    // global rather than on its own.
+    interpreter_ = host_interpreter_;
+  } else {
+    owned_interpreter_ = std::make_unique<js::Interpreter>();
+    interpreter_ = owned_interpreter_.get();
+  }
   bindings_ = std::make_unique<bindings::DomBindings>(*interpreter_, document, url,
                                                      geometry_, network_, history_, storage_,
                                                      cookies_, sockets_, media_, canvas_,
                                                      workers_, indexed_db_, animations_);
   bindings_->Install();
+  // After it, and reaching the interface table through the interpreter rather
+  // than through `DomBindings`: this replaces the `contentWindow` stub that
+  // installer put there with one that answers with the child's *actual* global.
+  // See BrowsingContexts.h for why it is not a method on that class.
+  bindings::InstallFrameWindows(*interpreter_, frame_windows_);
+  // HTML's "encoding-parse a URL" needs it, and every `<a href>` on the page goes through that.
+  // Published onto the realm rather than onto the binding layer; see bindings/DocumentFacts.h.
+  bindings::SetDocumentEncoding(*interpreter_, document_encoding_);
+  bindings::PublishFrameWindows(*interpreter_, frame_windows_);
   bindings_->SetScriptStrictDynamic(script_strict_dynamic_);
   bindings_->SetInlineHandlersAllowed(inline_handlers_allowed_);
   if (pre_click_activation_ || cancel_activation_) {
@@ -560,20 +606,20 @@ void PageScript::SetNavigationTiming(double dom_content_loaded_ms, double load_e
   // document completes before its first script runs -- that is what
   // render-blocking means -- so the entries a page observes with
   // `buffered: true` are exactly the ones a gate here would have dropped.
-  performance_.SetNavigationTiming(interpreter_.get(), dom_content_loaded_ms, load_event_ms,
+  performance_.SetNavigationTiming(interpreter_, dom_content_loaded_ms, load_event_ms,
                                    duration_ms);
 }
 
 void PageScript::SetDocumentTiming(std::int64_t navigation_start_wall_ms, double response_end_ms) {
   // Same argument as above: held as plain data until there is a heap. This one
   // is always early -- the document arriving is what makes a script exist.
-  performance_.SetDocumentTiming(interpreter_.get(), navigation_start_wall_ms, response_end_ms);
+  performance_.SetDocumentTiming(interpreter_, navigation_start_wall_ms, response_end_ms);
 }
 
 void PageScript::AddResourceTiming(const std::string& name, const std::string& initiator,
                                    double start_ms, double response_end_ms,
                                    std::size_t encoded_size, std::size_t decoded_size) {
-  performance_.AddResourceTiming(interpreter_.get(), name, initiator, start_ms, response_end_ms,
+  performance_.AddResourceTiming(interpreter_, name, initiator, start_ms, response_end_ms,
                                  encoded_size, decoded_size);
 }
 

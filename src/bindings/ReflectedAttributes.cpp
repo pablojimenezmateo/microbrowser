@@ -679,8 +679,8 @@ void Reflector::Install() {
     if (!get.IsObject() || !set.IsObject()) {
       continue;
     }
-    get.object->Set(kOwnerSlot, PointerValue(owner));
-    set.object->Set(kOwnerSlot, PointerValue(owner));
+    get.object->Set(kOwnerSlot, OwnerValue(owner));
+    set.object->Set(kOwnerSlot, OwnerValue(owner));
     prototype->object->DefineAccessor(entry.property, get.object, set.object);
   }
   InstallDocumentReflections();
@@ -727,8 +727,8 @@ void Reflector::InstallDocumentReflections() {
     if (!get.IsObject() || !set.IsObject()) {
       continue;
     }
-    get.object->Set(kOwnerSlot, PointerValue(owner));
-    set.object->Set(kOwnerSlot, PointerValue(owner));
+    get.object->Set(kOwnerSlot, OwnerValue(owner));
+    set.object->Set(kOwnerSlot, OwnerValue(owner));
     prototype->object->DefineAccessor(entry.reflection.property, get.object, set.object);
   }
 }

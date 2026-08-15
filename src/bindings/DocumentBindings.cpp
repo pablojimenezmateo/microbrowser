@@ -41,7 +41,7 @@ void DomBindings::Install() {
   const auto method = [this, &target](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->Set(name, native);
     }
   };
@@ -439,7 +439,7 @@ void DomBindings::Install() {
                                                         ->DocumentElement());
       });
   if (document_element.IsObject()) {
-    document_element.object->Set(kOwnerSlot, PointerValue(this));
+    document_element.object->Set(kOwnerSlot, OwnerValue(this));
     target.object->DefineAccessor("documentElement", document_element.object, nullptr);
   }
 
@@ -458,7 +458,7 @@ void DomBindings::Install() {
     return Value::Null();
   });
   if (doctype.IsObject()) {
-    doctype.object->Set(kOwnerSlot, PointerValue(this));
+    doctype.object->Set(kOwnerSlot, OwnerValue(this));
     target.object->DefineAccessor("doctype", doctype.object, nullptr);
   }
 
@@ -486,7 +486,7 @@ void DomBindings::Install() {
       return Value::Obj(call.interpreter.Global());
     });
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->DefineAccessor("defaultView", native.object, nullptr);
     }
   }
@@ -532,8 +532,8 @@ void DomBindings::Install() {
         return Value::Undefined();
       });
   if (cookie_getter.IsObject() && cookie_setter.IsObject()) {
-    cookie_getter.object->Set(kOwnerSlot, PointerValue(this));
-    cookie_setter.object->Set(kOwnerSlot, PointerValue(this));
+    cookie_getter.object->Set(kOwnerSlot, OwnerValue(this));
+    cookie_setter.object->Set(kOwnerSlot, OwnerValue(this));
     target.object->DefineAccessor("cookie", cookie_getter.object, cookie_setter.object);
   }
   InstallActiveElement(document);
@@ -549,7 +549,7 @@ void DomBindings::Install() {
                             : owner->WrapperFor(owner->DocumentOf(call.self)->Head());
   });
   if (head_get.IsObject()) {
-    head_get.object->Set(kOwnerSlot, PointerValue(this));
+    head_get.object->Set(kOwnerSlot, OwnerValue(this));
     target.object->DefineAccessor("head", head_get.object, nullptr);
   }
   InstallTreeWalkers(target);
@@ -604,7 +604,7 @@ void DomBindings::InstallImplementation(const js::Value& document_interface) {
   const auto method = [this, &implementation](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       implementation.object->Set(name, native);
     }
   };
@@ -823,7 +823,7 @@ void DomBindings::InstallImplementation(const js::Value& document_interface) {
         return made;
       });
   if (implementation_accessor.IsObject()) {
-    implementation_accessor.object->Set(kOwnerSlot, PointerValue(this));
+    implementation_accessor.object->Set(kOwnerSlot, OwnerValue(this));
     document_interface.object->DefineAccessor("implementation", implementation_accessor.object,
                                               nullptr);
   }
@@ -889,7 +889,7 @@ void DomBindings::InstallPageVisibility(const js::Value& document_interface) {
     return Value::Bool(true);
   });
   if (has_focus.IsObject()) {
-    has_focus.object->Set(kOwnerSlot, PointerValue(this));
+    has_focus.object->Set(kOwnerSlot, OwnerValue(this));
     document_interface.object->Set("hasFocus", has_focus);
   }
 
@@ -908,7 +908,7 @@ void DomBindings::InstallPageVisibility(const js::Value& document_interface) {
         return owner->WrapperFor(hit);
       });
   if (element_from_point.IsObject()) {
-    element_from_point.object->Set(kOwnerSlot, PointerValue(this));
+    element_from_point.object->Set(kOwnerSlot, OwnerValue(this));
     document_interface.object->Set("elementFromPoint", element_from_point);
   }
   WireTrustedScriptHooks();

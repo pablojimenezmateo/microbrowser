@@ -89,7 +89,7 @@ What exists:
 | `src/engine` | Page (one document), image selection (`srcset`, `sizes`, `<picture>`, against the viewport and the device pixel ratio, and **`loading="lazy"`, which is a box near the scrollport rather than a box at all**), PageScript (its interpreter, bindings, timers and animation frames), Loader (everything network, started/completed), PendingLoad (one navigation in flight), Engine (routes messages, drives the load), **`DocumentPolicy` — this document's Content-Security-Policy plus the origin `'self'` names and the base its relative URLs resolve against, which is where `<base href>` lands and where every CSP question resolves a URL, once**. Hit testing for links, form controls and event targets; form submission; navigation from a click. **Geometry as a service** (ADR 0015): the `bindings::GeometrySource` a page's `getBoundingClientRect` and `getComputedStyle` are answered through, laying out synchronously when the document changed under the last one and counting it as `layout.forced_by_script`. **Dedicated workers** (ADR 0022 §1): `Workers` owns the threads, `WorkerScope` owns what a script standing in one can see -- a `DedicatedWorkerGlobalScope` with events, timers, `location`, a **synchronous** `importScripts` (the one place a thread blocks on the main loop), and the document-free half of the binding layer, so `URL`, `TextEncoder`, `crypto`, `Blob`, `fetch` and `XMLHttpRequest` in a worker are the page's own implementations reached through a `DomBindings` with a **null document**. Fetches a document's subresources **concurrently** and runs its scripts at the three points `defer`, `async` and `type=module` actually mean -- and now fetches an image **after** the navigation that carried the document is over, which is the first request this browser makes outside a load. |
 | `src/bindings` | **The namespaced half of the DOM** — `createElementNS` keeps what it validates and does not fold case, the six `…NS` attribute operations match on (namespace, local name) while `getAttribute` matches a qualified name in any namespace, `getElementsByTagNameNS`, and `lookupNamespaceURI`/`lookupPrefix`/`isDefaultNamespace`. **`innerHTML`, `outerHTML`, `insertAdjacentHTML` and `template.content`** (ADR 0020 §6) — one call into `html::ParseFragment`, because the *context element* is the whole algorithm and four call sites deciding it independently is four chances to build a tree no other browser would. A `<script>` inserted that way does not run. **`fetch`, `Headers`, `Request`, `Response`, `AbortController` and `XMLHttpRequest`** (ADR 0020 §1) — the last of those a *shim* over the first, in the same pending table, so `DeliverFetchResponse` settles a promise or drives a readyState machine and there is no second request path; a synchronous `open()` throws, because this browser has one loop, over a `NetworkSource` this module *declares* and the engine implements — no `net` on its `allow:` line, and no same-origin comparison anywhere in it, because every such decision was made before the answer arrived. `response.body` and `fetch` itself are **absent** rather than stubbed when there is nothing behind them. **`requestAnimationFrame`**, which schedules a frame only while something has asked for one. The seam between script and the document, and the only module that sees both `js` and `dom`. **`IntersectionObserver` and `ResizeObserver`** (ADR 0018 §5) — geometry sampled once per frame at the one place a frame is produced, and delivered only when the answer changed: never from inside the scroll that caused it, sampled in full before anything is delivered, and scheduling nothing, so a page with no observer costs a pointer comparison per frame. **HTML's reflected IDL attributes, as a table and twelve algorithms** — `Reflection.h` is the vocabulary, `ReflectionTable.cpp` is ~430 rows of (interface, property, attribute, kind), and `ReflectedAttributes.cpp` is each algorithm once, including transcriptions of HTML's own integer and floating-point parsing rules (which are *not* `util::ParseInt`: that one rejects trailing garbage and these must stop at it). The fifty hand-written accessor pairs this replaced are the shape that guarantees `td.colSpan` clamps and `col.span` does not, from the same paragraph of the same specification. `nonce` reflects one way only, which is CSP's nonce-hiding rather than a quirk, and every `aria-*` and `role` is a **nullable** string -- three states, because `aria-checked` absent means "not a checkbox" and `aria-checked=""` means "a checkbox in no state". **A real type hierarchy** — Node/CharacterData/Element/HTMLElement and the per-tag interfaces, so `instanceof` answers and a class can extend HTMLElement; methods live on prototypes rather than on every wrapper. **Custom elements** — the registry, upgrade in place, and the connected/disconnected/attributeChanged reactions. **MutationObserver**, batched and delivered as a microtask, with `observe`'s argument checking and the full record -- `previousSibling`/`nextSibling`/`attributeNamespace`, and **one** record for a replacement rather than one per half, which is the DOM's "suppress observers" flag threaded through the four insertion primitives. **The ParentNode/ChildNode mixins** (`append`, `prepend`, `replaceChildren`, `before`, `after`, `replaceWith`) are `src/bindings/NodeMixins.cpp`: one specification section rather than six methods, because each begins with "converting nodes into a node" and ends in a validated pre-insertion -- before which `el.append(el)` built a **cycle**, which is a hang rather than a wrong tree. **`NodeFilter`, `createTreeWalker` and `createNodeIterator`** — a cursor over a tree a page's own filter may change under it, so every step re-reads the tree and a throw out of the filter stops the walk rather than becoming a "reject". **`document.implementation.createHTMLDocument`, and with it a `document` that is no longer *the* document**: the whole `document.*` surface lives on `Document.prototype` and every query resolves against its **receiver**, which is the inversion same-origin iframes need and the reason `DOMParser` was absent. **`MessageChannel`/`MessagePort`**, delivered as a *task* through `TimerQueue::QueueTask` — a microtask would starve exactly the work a page uses a channel to yield to. **`matchMedia`**, through the geometry seam rather than a media context of its own, so it cannot disagree with the cascade or with `innerWidth`; `change` fires from the one place per frame that already samples geometry. **`Range`** — two boundary points and one ordering function behind `collapsed`, `commonAncestorContainer`, `compareBoundaryPoints` and `toString`; the content-mutation half is absent rather than approximate. **The event hierarchy**, and a constructed event that is an instance of its own constructor: UIEvent under Event, Mouse/Keyboard/Focus/Input under UIEvent, Wheel/Pointer/Drag under Mouse. `window` is an event target. **Events** a page makes and dispatches, untrusted by construction. `DocumentFragment`. Element-scoped queries and the element-only walk. **Geometry** — `getBoundingClientRect`, `offsetWidth`/`offsetHeight`, `clientWidth`/`clientHeight`, `window.innerWidth`/`innerHeight` and `getComputedStyle`, over an interface this module *declares* and the engine implements, so no `layout` appears in its `allow:` line; absent entirely when there is no layout behind them. **`URL`, `URLSearchParams`, `FormData`, and the URL decomposition attributes on `<a>` and `<area>`** — `src/bindings/UrlObject.cpp`, all of them over the one parser in `src/url`, which is on this module's `allow:` line for that reason and does not widen ADR 0008's model because `src/url` cannot see `js` or `dom` either. What it replaced was a *string cut* that had no idea what a special scheme is and disagreed with the real parser for every input it did not consider; deleting it moved four thousand web-platform-tests subtests. A `URL`'s state **is its href**, re-parsed on every access, because the standard's serializer round-trips and a second representation is a second thing to fall out of step. `<base href>` is answered from the tree on every call rather than remembered, because a script can rewrite it between two link resolutions. `window`/`location`/`navigator`, element lookup and the simple selectors, attributes, `classList`, `style` (via `Proxy`), `dataset`, tree walking, creation, removal and reordering, `textContent`, event listeners with click dispatch and bubbling, and the timer queue. **Focus** — `document.activeElement`, `focus()`, `blur()` and the four focus events, over the one copy of focus that lives on `dom::Document`; the engine's click and Tab reach the same algorithm, because two ways to change focus is how `activeElement` ends up disagreeing with where the next keystroke goes. Where every same-origin check will live — ADR 0008. |
 | `src/platform` | The only module that knows what a window is, and the only place the process sleeps. SDL, the system font database, and the descriptor wait live here. |
-| `src/js` | JavaScript, and as near complete as the language gets here. Lexer, parser, a bytecode compiler and machine (names resolved to slots, calls that cannot leak a scope keeping bindings in the frame, the tree-walker kept as the differential engine behind `MICROBROWSER_JS_TREEWALK=1`), mark-sweep heap with an ephemeron pass. **Modules** — every `import`/`export` form, `import.meta`, `import()` — with the host supplying the resolver. Classes with accessors, `super`, private fields and methods, static blocks, `new.target`, the brand check. `Proxy` with every trap, and subclassing a builtin. Full `ToPrimitive`. **UTF-16 string indexing over UTF-8 storage.** Property attributes and integrity levels. `ArrayBuffer`, the nine typed arrays and `DataView`. A real `Date` with a computed calendar and a parser. `JSON` with replacer, reviver, indent and `toJSON`. A backtracking regular expression engine with `/u` code points and `\p{...}`. Symbols, iteration, `Map`/`Set`/`Weak*`/`WeakRef`, Promises and the microtask queue, and **every form of suspending a call** — `async`/`await`, generators, `yield*` with real delegation, async generators, `for await`. No `eval` and no `Function(source)`, and a test says so. **A compiled function carries the source offset of every instruction**, so an error's stack names a place (`at HS (@1814415)`) rather than only a fault — offsets rather than lines, because the scripts this is read against are minified. The compiler's instruction bound is a *ratio* against source length, not a flat cap: a 10.7MB bundle is a large program and not blowup, and refusing one silently handed it to the tree-walker. Knows nothing about the DOM. Deviations are listed in `docs/js-conformance-roadmap.md`, each with its reason. |
+| `src/js` | JavaScript, and as near complete as the language gets here. Lexer, parser, a bytecode compiler and machine (names resolved to slots, calls that cannot leak a scope keeping bindings in the frame, the tree-walker kept as the differential engine behind `MICROBROWSER_JS_TREEWALK=1`), mark-sweep heap with an ephemeron pass. **Realms** (ADR 0042) — many globals in one interpreter and one heap, each with its own `js::Intrinsics`, because `frames[0].Array === Array` answering false is the observable a page detects a second global with; the well-known symbols are *shared*, because a `for...of` compiled in one realm has to find the same `Symbol.iterator` as an array made in another or spreading a cross-realm array silently produces nothing. A callable records its realm and the running realm follows the **callee**, so a builtin allocates from the realm its function came from; the stamp is applied by `Heap::AllocateObject` rather than at the six places a callable is made, because a function with the wrong realm is a child frame's code against the parent's global rather than a wrong answer. Bounded at 64 — the count is page-controlled. **Modules** — every `import`/`export` form, `import.meta`, `import()` — with the host supplying the resolver. Classes with accessors, `super`, private fields and methods, static blocks, `new.target`, the brand check. `Proxy` with every trap, and subclassing a builtin. Full `ToPrimitive`. **UTF-16 string indexing over UTF-8 storage.** Property attributes and integrity levels. `ArrayBuffer`, the nine typed arrays and `DataView`. A real `Date` with a computed calendar and a parser. `JSON` with replacer, reviver, indent and `toJSON`. A backtracking regular expression engine with `/u` code points and `\p{...}`. Symbols, iteration, `Map`/`Set`/`Weak*`/`WeakRef`, Promises and the microtask queue, and **every form of suspending a call** — `async`/`await`, generators, `yield*` with real delegation, async generators, `for await`. No `eval` and no `Function(source)`, and a test says so. **A compiled function carries the source offset of every instruction**, so an error's stack names a place (`at HS (@1814415)`) rather than only a fault — offsets rather than lines, because the scripts this is read against are minified. The compiler's instruction bound is a *ratio* against source length, not a flat cap: a 10.7MB bundle is a large program and not blowup, and refusing one silently handed it to the tree-walker. Knows nothing about the DOM. Deviations are listed in `docs/js-conformance-roadmap.md`, each with its reason. |
 | `src/ui` | Browser chrome: toolbar, omnibox with editing, navigation history. No dom/css/layout — the chrome is not a page. It no longer scrolls: the arrow and page keys are a *keydown's default action* and run in the engine after the page's handlers, because the chrome taking them meant a page never saw an ArrowDown. |
 | `src/app` | Main loop: idle-wait policy fed by the page's soonest deadline **and the sockets it is waiting on**, bounded event drain, dirty-region policy, **surface damage from generation counters** (a playing surface damages its rect every frame; a paused one damages nothing), composites chrome over page, present. **`KeyRouting.h` decides chrome-or-page for every key** — before it becomes an ipc message, and therefore before it could cross into a sandboxed renderer. While the omnibox has focus the chrome takes *everything*; otherwise only ctrl+L and ctrl+R, deliberately the whole list. |
 
@@ -133,6 +133,144 @@ serializes the bitmap inline rather than naming it in a resource table. Roadmap 
 `AGENTS.md`.
 
 ## Where To Pick Up
+
+**Read this first: `main` and `master` were merged on 2026-08-15, and one whole subsystem was
+decided by that merge rather than by a session.** Two machines worked from the same base for three
+days without either seeing the other, so several things were built twice. What survived:
+
+- **The WPT `.py` handler table is the path-keyed one** (`wpt::RunHandler`, dispatch on the whole
+  repo-relative path). The name-keyed table built in parallel was dropped, and with it ~17
+  transcribed handlers, the `raw` response a malformed status line needs, and
+  `MICROBROWSER_WPT_HANDLER_REPORT=1` — the ranked list of handlers a run actually asked for and
+  did not get. **That report is the first thing worth rebuilding**; it is what told a session which
+  handler to write next, and picking from grep instead is the mistake TD-0061 records.
+- **The worker global scope** (`src/engine/WorkerScope.{h,cpp}`) and **realms plus the frame host
+  half** (ADR 0042, `engine::RealmBoundScript`) both landed and are both in this tree. They were
+  written against different copies of `PageScript`, so read the sections below together: every host
+  entry into a document's script now goes through the realm guard, including the worker paths.
+- **Seven expectation files are unmeasured against this tree** — `cors`, `dom`, `encoding`,
+  `fetch`, `resource-timing`, `url`, `xhr`. Each side re-recorded different areas from the same
+  base, so neither side's numbers describe the merged binary. **Re-record before planning against
+  any of them.** This is the exact failure that cost 217,000 subtests once already (TD-0058's
+  closing note): *re-record every area a merge touched, not just the ones its branch named.*
+
+
+**What is actually blocking the WPT score, ranked, measured 2026-08-12.** 8,417 tests report *no
+subtests at all* — the harness never reached `done()`, so none of them is visible in the pass rate.
+That bucket is the score, and it is three projects rather than a long tail:
+
+| tests | needs | where |
+|--:|---|---|
+| 2,446 | a worker global that can run testharness (`.any.worker.html`) | ADR 0022 §1, task G5 |
+| 1,083 | an `<iframe>` | ADR 0027 + **ADR 0042 §5** — steps 1-4 landed 2026-08-13; see below for what is left |
+| ~2,214 files | **our own server's `.py` handlers** — the path-keyed table answers ~26 paths; the rest are still 501 | ADR 0040, task **A2** |
+| 226 | the module loader | — |
+
+Read that table with two caveats. **Workers are bigger by count and smaller by information**: a
+`.any.worker.html` is the same assertions as its `.any.html` twin, and the twin mostly passes
+already. And **the third row is the only one that needs no browser feature at all** — `tools/wpt/Server.cpp`
+answers 501 to every `.py` handler *and* to every method that is not GET or HEAD, which is probably
+the cheapest points in the tree and had not been written down before A2.
+
+**The `.py` handlers are a path-keyed table and there is no report to rank them by.** ADR 0040 §2's
+condition was met on 2026-08-14: `tools/wpt/Handlers.{h,cpp}` is a closed list keyed by
+repo-relative path, because three different `redirect.py` files exist with three different
+behaviours and a basename would apply one of them to all three. `?pipe=` landed with it and is the
+larger half — hundreds of tests ask for a status or a header on an *ordinary static file*, and a
+server that ignored the query served the file as itself, which is a wrong answer rather than a
+missing one. The server also reads a request **body** now, which it never did.
+
+**Picking the next handler is currently a guess, and that is the debt to close first.** The obvious
+ranking — how many test files *name* a handler, counted with grep — is wrong, and knowing why is
+what the dropped report bought: it puts `gentest.py` first at 3,766 files, `generate.py` at 2,085
+and `build-compute-kind-widget-fallback-props.py` at 802, and **none of those three is ever
+fetched**. They are the generator scripts that produced the tests, named in a header comment in
+every file they generated. A reference is not a request. Nor is a request a value: a handler a test
+polls inflates its own count, and `stale-script.py` at 806 requests belongs to a directory of
+**six tests**. Check `--list <dir> | wc -l` before writing one.
+
+`tools/wpt/Handlers.cpp` is compiled into `microbrowser_tests`, so a transcription is checkable in
+milliseconds rather than in a suite run. Add a test with each handler — a wrong transcription cost
+a day to find once.
+
+
+**`fetch/metadata/`'s 87 tests are not a handler problem, and this is the worked example of
+the above.** `record-headers.py` landed and the directory went 3.8% → 4.0%. What blocks it is three
+features: `window.open()` returns null so every generated `element-*.sub.html` dies at
+`win.document` (task **J6**, wanting ADR 0042 §5 underneath); `helper.sub.js` builds its origins from
+`{{ports[https][0]}}` and this server binds HTTP only (task **H9**); and `Sec-Fetch-*` request
+headers, which this browser never sends — `grep -rn Sec-Fetch src/` is empty. The third is what the
+tests assert on and is therefore *last*, not first: it gains nothing until the other two land.
+
+**A2's first 21 handlers landed 2026-08-12, with POST**, and the arithmetic is the argument for
+the rest: xhr 135 → 120 harness failures, cors 7 → 8, fetch 204 → 192, and **672 recorded subtest
+failures became passes**. They also found a browser bug no page had ever hit — a response to HEAD
+carries no body whatever its `Content-Length` says, and `net::ResponseParser` waited for one, so
+**every HEAD request hung the browser forever**. That is the shape to expect from this task: the
+handlers are not the point, what they let the suite reach is.
+
+**The expectation files are stale in the *pessimistic* direction.** 599 tests sampled from the
+harness-failure bucket and re-run against the current tree produced 8,283 subtests with 6,327
+passing. Re-measure before planning against any number in `docs/wpt-baseline.md` not dated today.
+
+**`<iframe>`'s lifecycle landed 2026-08-12, and its realm landed later the same day — the *language*
+half of it.** A script-appended frame loads, `iframe.src = other` re-navigates, `srcdoc` parses
+inline, a 404 still fires `load`, and `load` fires from a *task* — 31 `dom/` tests went TIMEOUT → OK.
+Then **ADR 0042** gave `js::Interpreter` many realms: each with its own global, global scope and
+`js::Intrinsics`, a callable recording which realm it belongs to, and the running realm following the
+*callee* so a builtin allocates from the realm its function came from. `frames[0].Array === Array` is
+false, the well-known symbols are shared so a protocol still crosses, and the collector walks every
+realm. Nine tests in `tests/JsRealmTests.cpp`; cost +2.9% on the JS microbenchmarks, measured by
+interleaving and recorded as TD-0060.
+
+**The host half landed 2026-08-13 (ADR 0042 §5 steps 1-4), and the *guard* is the part to read
+before touching any of it.** §5 said a missed realm guard is a same-origin escape rather than a bug,
+and said not to solve it with a `RealmScope` at each of ~40 entry points. So it is a type:
+`engine::RealmBoundScript` is `PageScript`'s only friend, `PageScript`'s constructor is private, and
+its `operator->` hands back a proxy holding the scope for the full expression. **A method added to
+`PageScript` tomorrow is guarded because there is no other way to call it.** Do not add a second
+route to that object.
+
+What works now: a same-origin child runs its own script in its own realm of the embedder's
+interpreter (a cross-origin one gets its own interpreter, which *is* the isolation);
+`iframe.contentWindow` is the child's real global and `contentDocument` is that window's own
+`document`, so the two are one object; `parent`, `top`, `window[i]` and `window.length` answer; a
+frame's window exists the instant the element is inserted, because the suite reads it in the same
+script turn; and `window.location = x` navigates and throws a `SyntaxError` on a URL that does not
+parse. `url/` went **97.9% → 99.8%** on that last pair alone (188 subtests, all of
+`url/failure.html`'s third case), `custom-elements/` + `shadow-dom/` + `domparsing/` gained **141
+subtests with none lost**, and `dom/` lost its one crash.
+
+**Two findings from it are worth more than the feature.** First, a `DomBindings` can now be
+destroyed while the heap holding its natives lives on -- `f.src = other` does exactly that -- so the
+old `kOwnerSlot` *address* was a use-after-free three lines of script could reach, found as a
+segfault in `dom/events/scrolling/scroll-cross-origin-iframes.html`. It holds a never-reused serial
+now (`bindings::OwnerIdentity`); a liveness check on the address would **not** have been enough,
+because the allocator reuses addresses and a stale native would then find a live layer belonging to
+another document. Second, `js::kMaxRealms` was bounding realms *ever made* rather than realms alive:
+`url/failure.html` appends, reads and removes one `<iframe>` 188 times, and past the 64th none of
+them ran script. `Interpreter::RetireRealm` gives the slot back.
+
+**What is left, and the first two are the same shape: a child has script but not the engine's
+services.**
+
+- **No `NetworkSource`/`HistorySource`/`StorageSource`/`CookieSource` reaches a child `Page`**, so a
+  frame's `fetch` is undeclared (`fetch/api/abort/keepalive.html` times out on exactly that). Wiring
+  them is not a one-liner: `Engine::StartFetch` resolves against `page_.Policy()`, so a child's
+  relative URL would resolve against the *embedder's* base and its `connect-src` would be checked
+  against the embedder's policy.
+- **A form inside a frame fires `submit` and never navigates.** `Engine::RunFrameScripts` drains a
+  child's queued activations -- without that a child's `element.click()` recorded an activation
+  nobody performed and every promise waiting on it hung, which is how three
+  `fetch/security/dangling-markup/` tests went from OK to a 20-second TIMEOUT. The submission is
+  dropped, because a child navigation the engine drives is not built.
+- **`postMessage` between realms** (§5 step 5) and `frameElement` are absent.
+- **A wrapper made before an adoption keeps the realm it was made in.** `WrapperFor` delegates to
+  the node document's layer and cross-document `appendChild` works at all now (the node's
+  `unique_ptr` was parked in the layer that made it, so the insertion silently did nothing), but
+  `dom/nodes/node-creation-realm.html` and `node-realm-mixed-across-adoption.html` still fail on it.
+  Those two were passing before **only** because `contentWindow.document` was the embedder's own
+  document, so nothing ever crossed a realm.
 
 **2026-08-14 was a long session and its lesson is one sentence: three of the five largest causes in
 the WPT baseline were capabilities this browser already had that the tests could not reach, and two
@@ -526,13 +664,11 @@ one; unmasking it needs a way to evaluate a prelude before a page's own scripts,
 `microbrowser_snapshot` cannot yet do. **`www.reddit.com` is a separate problem** — a JavaScript
 challenge, unaffected by the `User-Agent`; see `docs/roadmap-to-any-page.md` Phase A.
 
-**`url/` is 9,696 of 9,909 web-platform-tests subtests (97.9%), and what is left is not URL work.**
-188 of the 190 are `failure.html`'s `frame.contentWindow.location = badUrl` third and 24 of the
-31 timeouts are `*.any.worker.html` — ADR 0027 and ADR 0022 §2, which is the same wall `dom/`
-hit from the other direction (see `docs/session-log.md`'s C6 entry: ~4,176 of its subtests are
-behind two `<iframe>`s). TD-0057 carries the numbers. **Nested browsing contexts is the
-highest-value unbuilt feature in the tree on this measurement, and it is the only one two
-independent areas both name.**
+**`url/` is 9,884 of 9,903 web-platform-tests subtests (99.8%) as of 2026-08-13**, up from 97.9%:
+the 188 that were `failure.html`'s `frame.contentWindow.location = badUrl` third case now pass, and
+what remains is 19 subtests plus 30 timeouts of which 24 are `*.any.worker.html` (ADR 0022 §2).
+Nested browsing contexts was the highest-value unbuilt feature on the previous measurement and it
+is now partly built -- see the ADR 0042 §5 paragraphs above for which parts.
 
 Known remaining gaps on Hacker News itself: `<select>` is laid out and submitted but not clickable,
 `cellspacing` is not mapped because there is no `border-spacing`, and `:visited` deliberately
@@ -602,7 +738,7 @@ tools/wpt/fetch.sh                                       # once; ~600MB, pinned 
 # Re-measure an area into the baseline document. `--summary-state` is what makes a
 # sharded run add up: an area this run measured replaces what the file said about it.
 ./build/microbrowser-perf/microbrowser/microbrowser_wpt --update-expectations \
-    --testharness-only --long-timeout 20000 \
+    --testharness-only \
     --summary docs/wpt-baseline.md --summary-state /tmp/microbrowser-wpt-state.tsv dom/
 
 # The URL half of it, against `src/url` directly and in about a second. Four vector sets, all
@@ -611,6 +747,13 @@ cmake --build --preset microbrowser-perf --target microbrowser_urlconf
 ./build/microbrowser-perf/microbrowser/microbrowser_urlconf            # all four
 ./build/microbrowser-perf/microbrowser/microbrowser_urlconf --show 30 setters
 ```
+
+**`--long-timeout` shortens rather than lengthens, and it used to be in the line above.** The
+default is 60,000 ms and a test marked `timeout=long` is the biggest one in its area. Passing
+20,000 recorded 39,837 subtests for `dom/` where the default recorded 46,530 -- ~6,700 subtests
+silently deleted from the measurement, reading exactly like a slow machine. **Compare the subtest
+count against the previous record before committing a re-record**; that check has now caught two
+different causes of the same failure (see `docs/wpt-baseline.md`).
 
 **Use the perf build.** The expectations were recorded there, and a WPT result is
 timing-sensitive in one specific way — a page that has not reported inside testharness.js's own
@@ -660,6 +803,12 @@ and the ledger. **A session that cannot hand off through those three files has n
 
 `status: done` means the session's `check` was *run* and *passed*. Nothing else may set it; a
 session wrongly marked done costs the next agent a whole session to discover.
+
+**Build the *whole* sanitizer preset, not just `microbrowser_tests`.** `DecoderClient/ConfigureFlushRoundTrip`
+spawns `microbrowser_decoder` from its own build tree, so a preset where only the test binary was built
+fails that one test with `configure` — which looks exactly like a real regression in the IPC path and is
+not. `cmake --build --preset microbrowser-asan` with no `--target` is the fix. (Cost me two
+false-positive investigations on 2026-08-12.)
 
 TSan needs ASLR cleared (`setarch -R`); `run-checks.sh` does this automatically. Running `ctest` on
 the tsan preset by hand without it fails with "unexpected memory mapping" — that is the environment,
@@ -784,6 +933,9 @@ limit. Run it before a refactor to see what is about to blow.
 - `docs/adr/0035` — request concurrency is not connection concurrency
 - `docs/adr/0040` — web-platform-tests as the primary correctness signal, and why the server,
   the runner and the expectation format are all ours
+- `docs/adr/0041` — the Web Crypto subset behind `crypto.subtle` (renumbered from a second 0037)
+- `docs/adr/0042` — **realms**: many globals in one interpreter, what is per-realm and what is shared,
+  and §5's hazard — a missed realm guard in the host is a same-origin escape, not a bug
 - `docs/wpt-baseline.md` — **generated**: where this browser is per WPT area, and the
   failures ranked by how many tests each cause costs. Read before picking a task
 - `docs/wpt-plan.md` — the whole road from here, in milestones and parallelizable tasks

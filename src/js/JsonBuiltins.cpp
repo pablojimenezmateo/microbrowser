@@ -765,7 +765,7 @@ void Interpreter::InstallJsonAndUri(Object* json) {
   });
 
   const auto uri = [this](const char* name, bool encode, bool keep_reserved) {
-    global_scope_->Declare(
+    realm_->global_scope->Declare(
         name,
         NewNativeValue(name,
                        [encode, keep_reserved](NativeCall& call) {

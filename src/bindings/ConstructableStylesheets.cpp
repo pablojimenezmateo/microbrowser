@@ -109,7 +109,7 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
     return Value::Undefined();
   });
   if (replace_sync.IsObject()) {
-    replace_sync.object->Set(kOwnerSlot, PointerValue(this));
+    replace_sync.object->Set(kOwnerSlot, OwnerValue(this));
     prototype.object->Set("replaceSync", replace_sync);
   }
 
@@ -132,7 +132,7 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
     return promise;
   });
   if (replace.IsObject()) {
-    replace.object->Set(kOwnerSlot, PointerValue(this));
+    replace.object->Set(kOwnerSlot, OwnerValue(this));
     prototype.object->Set("replace", replace);
   }
 
@@ -145,8 +145,8 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
     if (const Value* style_sheet_proto = self->interfaces_.object->GetOwn("StyleSheet")) {
       sheet.object->SetPrototype(style_sheet_proto->object);
     }
-    auto storage = std::make_unique<SheetStorage>(std::make_shared<std::string>());
-    const auto* heap = storage.release();
+    // Owned by the binding layer, not released into the void. See DomBindings::sheet_texts_.
+    SheetStorage* heap = &self->sheet_texts_.emplace_back(std::make_shared<std::string>());
     sheet.object->SetHidden(kCSSStyleSheetMarkerSlot, Value::Bool(true));
     sheet.object->SetHidden(kCSSSheetStorageSlot, PointerValue(heap));
     if (call.arguments.size() >= 1 && !Argument(call.arguments, 0).IsUndefined()) {
@@ -157,7 +157,7 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
   if (constructor.IsObject()) {
     constructor.object->Set("prototype", prototype);
     prototype.object->Set("constructor", constructor);
-    constructor.object->Set(kOwnerSlot, PointerValue(this));
+    constructor.object->Set(kOwnerSlot, OwnerValue(this));
     interpreter_->Global()->Set("CSSStyleSheet", constructor);
     interpreter_->GlobalScope()->Declare("CSSStyleSheet", constructor, false);
   }
@@ -183,10 +183,9 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
         if (const Value* style_sheet_proto = interfaces_.object->GetOwn("StyleSheet")) {
           sheet.object->SetPrototype(style_sheet_proto->object);
         }
-        auto storage = std::make_unique<SheetStorage>(text);
+        SheetStorage* storage = &sheet_texts_.emplace_back(text);
         sheet.object->SetHidden(kCSSStyleSheetMarkerSlot, Value::Bool(true));
-        sheet.object->SetHidden(kCSSSheetStorageSlot,
-                                PointerValue(storage.release()));
+        sheet.object->SetHidden(kCSSSheetStorageSlot, PointerValue(storage));
         out.push_back(sheet);
       }
       return call.interpreter.NewArrayValue(std::move(out));
@@ -216,8 +215,8 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
       return Value::Undefined();
     });
     if (getter.IsObject() && setter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
-      setter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
+      setter.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->DefineAccessor("adoptedStyleSheets", getter.object, setter.object);
     }
   };

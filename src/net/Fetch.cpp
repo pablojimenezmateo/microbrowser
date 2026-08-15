@@ -315,6 +315,7 @@ bool FetchRequest::BeginExchange() {
   request_headers_ = BuildHeaders(url, remaining_, verdict_, cookie_header);
   sent_ = 0;
   parser_ = ResponseParser{};
+  parser_.SetHeadRequest(remaining_.method == "HEAD");
 
   const bool secure = url.Scheme() == "https";
   const std::uint16_t port = url.EffectivePort().value_or(secure ? 443 : 80);
@@ -558,6 +559,7 @@ void FetchRequest::DeliverResponse(HttpResponse response) {
   // another one on the same connection.
   ReleaseEverything();
   parser_ = ResponseParser{};
+  parser_.SetHeadRequest(remaining_.method == "HEAD");
   reused_ = false;
   retried_ = false;
   stage_ = Stage::Begin;
@@ -582,6 +584,7 @@ bool FetchRequest::Advance(std::int64_t now_ms) {
     reused_ = false;
     sent_ = 0;
     parser_ = ResponseParser{};
+    parser_.SetHeadRequest(remaining_.method == "HEAD");
     stage_ = Stage::Begin;
   };
 

@@ -81,7 +81,7 @@ void DomBindings::InstallBlob() {
   if (!constructor.IsObject()) {
     return;
   }
-  constructor.object->Set(kOwnerSlot, PointerValue(this));
+  constructor.object->Set(kOwnerSlot, OwnerValue(this));
   if (prototype.IsObject()) {
     constructor.object->Set("prototype", prototype);
   }

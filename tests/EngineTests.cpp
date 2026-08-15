@@ -255,7 +255,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "</body></html>",
         "https://example.org/");
 
-    const std::vector<engine::SubresourceRequest>& pending = page.PendingScripts();
+    const std::vector<engine::SubresourceRequest>& pending = page.ScriptHalf()->PendingUrls();
     ExpectEqInt(static_cast<long long>(pending.size()), 1, "one external script");
     ExpectEqString(pending[0].url, "b.js", "named as it was written");
 
@@ -310,7 +310,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "<script>console.log('still ran');</script>"
         "</body></html>",
         "https://example.org/");
-    ExpectEqInt(static_cast<long long>(page.PendingScripts().size()), 1, "one external");
+    ExpectEqInt(static_cast<long long>(page.ScriptHalf()->PendingUrls().size()), 1, "one external");
     // Nothing supplies it, which is what a failed fetch looks like from here.
     page.RunScripts(0);
     Expect(!page.ConsoleOutput().empty(), "the inline script after it still ran");
@@ -341,7 +341,7 @@ void RegisterEngineTests(std::vector<TestCase>& tests) {
         "https://example.org/");
     page.RunScripts(0);
     Expect(page.CollectInsertedScripts(), "the injected tag is found after Run");
-    const std::vector<engine::SubresourceRequest> pending = page.TakeUnrequestedScripts();
+    const std::vector<engine::SubresourceRequest> pending = page.ScriptHalf()->TakeUnrequestedScripts();
     ExpectEqInt(static_cast<long long>(pending.size()), 1, "one late script to fetch");
     ExpectEqString(pending[0].url, "late.js", "named as written");
   });

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -8,6 +9,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "bindings/BindingSupport.h"
 #include "bindings/Geometry.h"
 #include "util/UrlEncoded.h"
 #include "bindings/History.h"
@@ -92,6 +94,11 @@ class DomBindings {
   void InstallWorkerScope();
 
   dom::Document& Document() { return *document_; }
+
+  // Hands over a node this layer created and nobody has inserted yet. What the
+  // DOM's "adopt" step needs when a node crosses documents: the `unique_ptr` is
+  // parked in the layer that made it. See TreeMutation.cpp's insertion path.
+  std::unique_ptr<dom::Node> TakeUnattached(dom::Node* node);
 
   // The wrapper for a node, made once and cached. Public because the engine
   // will need it to hand an event its target.
@@ -939,6 +946,16 @@ class DomBindings {
   // the wrapper cache is one: a C++ table of `Object*` would have to be a GC
   // root and there is no API to add one. Hung off the global, which already is.
   js::Value interfaces_;
+  // The text behind every `CSSStyleSheet` this document has constructed, and its *owner*.
+  //
+  // Script reaches a sheet's text through a raw pointer on the JS object
+  // (`kCSSSheetStorageSlot`), and that pointer used to come from `unique_ptr::release()` with
+  // nothing to free it -- so `new CSSStyleSheet()` leaked, unboundedly, from three lines of script.
+  // LeakSanitizer found it; nothing else would have.
+  //
+  // A `deque` because the pointer must stay valid across a later insertion, which a vector's
+  // references do not. Bounds the growth to the document rather than removing it -- TD-0062.
+  std::deque<std::shared_ptr<std::string>> sheet_texts_;
   // Nodes made by `createElement` and not yet appended. Emptied into the tree
   // as each is adopted; whatever is left is freed with this object, which is
   // why a wrapper for one of them must not outlive the bindings.
@@ -982,6 +999,8 @@ class DomBindings {
   // polyfill that writes `el.style` every frame is not preferred over nothing
   // when the engine has no clock behind the name (ADR 0012).
   AnimationSource* animations_ = nullptr;
+  OwnerIdentity identity_{this};  // see OwnerValue; also deletes copy and move
+  friend js::Value OwnerValue(const DomBindings* owner);
   // What a page last wrote to the clipboard. Held here rather than handed to the system, because
   // reaching the platform clipboard from the binding layer would be a module boundary crossed for one
   // string -- and a test needs to see what was written either way. Write-only for now: the reader

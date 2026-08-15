@@ -16,6 +16,7 @@ namespace microbrowser::tests {
 void RegisterAffineTransformTests(std::vector<TestCase>& tests);
 void RegisterAppDirectoriesTests(std::vector<TestCase>& tests);
 void RegisterArchitectureInvariantsTests(std::vector<TestCase>& tests);
+void RegisterFrameTests(std::vector<TestCase>& tests);
 void RegisterGeometryQueryTests(std::vector<TestCase>& tests);
 void RegisterBlitterTests(std::vector<TestCase>& tests);
 void RegisterCanvasTests(std::vector<TestCase>& tests);
@@ -49,6 +50,7 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests);
 void RegisterJsLexerTests(std::vector<TestCase>& tests);
 void RegisterJsRegExpTests(std::vector<TestCase>& tests);
 void RegisterJsParserTests(std::vector<TestCase>& tests);
+void RegisterJsRealmTests(std::vector<TestCase>& tests);
 void RegisterJsVmTests(std::vector<TestCase>& tests);
 void RegisterFontCatalogTests(std::vector<TestCase>& tests);
 void RegisterFontTests(std::vector<TestCase>& tests);
@@ -218,6 +220,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterBrowserChromeTests(tests);
   microbrowser::tests::RegisterDisplayListDiffTests(tests);
   microbrowser::tests::RegisterEngineTests(tests);
+  microbrowser::tests::RegisterFrameTests(tests);
   microbrowser::tests::RegisterFloatTests(tests);
   microbrowser::tests::RegisterFocusTests(tests);
   microbrowser::tests::RegisterDomBindingsTests(tests);
@@ -228,6 +231,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterJsLexerTests(tests);
   microbrowser::tests::RegisterJsRegExpTests(tests);
   microbrowser::tests::RegisterJsParserTests(tests);
+  microbrowser::tests::RegisterJsRealmTests(tests);
   microbrowser::tests::RegisterJsVmTests(tests);
   microbrowser::tests::RegisterFontCatalogTests(tests);
   microbrowser::tests::RegisterFontTests(tests);

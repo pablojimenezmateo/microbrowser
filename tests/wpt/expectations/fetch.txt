@@ -209,7 +209,16 @@ FAIL=Streaming upload shouldn't work on Http/1.1.
 [fetch/api/basic/request-upload.h2.any.html]
 harness=TIMEOUT
 [fetch/api/basic/response-null-body.any.html]
-harness=TIMEOUT
+FAIL=Response.body is null for responses with method=HEAD
+FAIL=Response.body is null for responses with status=204 (method=GET)
+FAIL=Response.body is null for responses with status=204 (method=OPTIONS)
+FAIL=Response.body is null for responses with status=204 (method=POST)
+FAIL=Response.body is null for responses with status=205 (method=GET)
+FAIL=Response.body is null for responses with status=205 (method=OPTIONS)
+FAIL=Response.body is null for responses with status=205 (method=POST)
+FAIL=Response.body is null for responses with status=304 (method=GET)
+FAIL=Response.body is null for responses with status=304 (method=OPTIONS)
+FAIL=Response.body is null for responses with status=304 (method=POST)
 [fetch/api/basic/response-url.sub.any.html]
 FAIL=Testing response url getter with http://localhost:43183#ada
 FAIL=Testing response url getter with http://localhost:43183/#
@@ -446,22 +455,7 @@ FAIL=Cross domain different protocol [GET]
 FAIL=Same domain different port [GET]
 FAIL=Same domain different protocol different port [GET]
 [fetch/api/cors/cors-origin.any.html]
-FAIL=Allowed origin: "" [origin KO]
-FAIL=CORS preflight [PUT] [origin KO]
-FAIL=CORS preflight [PUT] [origin OK]
-FAIL=Cross domain [HEAD] [origin KO]
-FAIL=Cross domain [HEAD] [origin OK]
-FAIL=Cross domain [POST] [origin KO]
-FAIL=Cross domain [POST] [origin OK]
-FAIL=Cross domain different port [origin KO]
-FAIL=Cross domain different port [origin OK]
-FAIL=Cross domain different protocol [origin KO]
 FAIL=Cross domain different protocol [origin OK]
-FAIL=Cross domain different subdomain [origin KO]
-FAIL=Cross domain different subdomain [origin OK]
-FAIL=Same domain different port [origin KO]
-FAIL=Same domain different port [origin OK]
-FAIL=Same domain different protocol different port [origin KO]
 FAIL=Same domain different protocol different port [origin OK]
 [fetch/api/cors/cors-origin.any.worker.html]
 FAIL=Allowed origin: "" [origin KO]
@@ -667,63 +661,18 @@ FAIL=CORS [PUT], server allows, check preflight has user agent
 FAIL=CORS [chicken], server allows
 FAIL=CORS [patcH], server allows
 [fetch/api/cors/cors-redirect-credentials.any.html]
-FAIL=Redirect 301 from remote to another remote with password
-FAIL=Redirect 301 from remote to another remote with user
-FAIL=Redirect 301 from remote to another remote with user and password
-FAIL=Redirect 301 from remote to same origin with password
-FAIL=Redirect 301 from remote to same origin with user
-FAIL=Redirect 301 from remote to same origin with user and password
-FAIL=Redirect 301 from remote to same remote with password
-FAIL=Redirect 301 from remote to same remote with user
-FAIL=Redirect 301 from remote to same remote with user and password
 FAIL=Redirect 301 from same origin to remote with password
 FAIL=Redirect 301 from same origin to remote with user
 FAIL=Redirect 301 from same origin to remote with user and password
-FAIL=Redirect 302 from remote to another remote with password
-FAIL=Redirect 302 from remote to another remote with user
-FAIL=Redirect 302 from remote to another remote with user and password
-FAIL=Redirect 302 from remote to same origin with password
-FAIL=Redirect 302 from remote to same origin with user
-FAIL=Redirect 302 from remote to same origin with user and password
-FAIL=Redirect 302 from remote to same remote with password
-FAIL=Redirect 302 from remote to same remote with user
-FAIL=Redirect 302 from remote to same remote with user and password
 FAIL=Redirect 302 from same origin to remote with password
 FAIL=Redirect 302 from same origin to remote with user
 FAIL=Redirect 302 from same origin to remote with user and password
-FAIL=Redirect 303 from remote to another remote with password
-FAIL=Redirect 303 from remote to another remote with user
-FAIL=Redirect 303 from remote to another remote with user and password
-FAIL=Redirect 303 from remote to same origin with password
-FAIL=Redirect 303 from remote to same origin with user
-FAIL=Redirect 303 from remote to same origin with user and password
-FAIL=Redirect 303 from remote to same remote with password
-FAIL=Redirect 303 from remote to same remote with user
-FAIL=Redirect 303 from remote to same remote with user and password
 FAIL=Redirect 303 from same origin to remote with password
 FAIL=Redirect 303 from same origin to remote with user
 FAIL=Redirect 303 from same origin to remote with user and password
-FAIL=Redirect 307 from remote to another remote with password
-FAIL=Redirect 307 from remote to another remote with user
-FAIL=Redirect 307 from remote to another remote with user and password
-FAIL=Redirect 307 from remote to same origin with password
-FAIL=Redirect 307 from remote to same origin with user
-FAIL=Redirect 307 from remote to same origin with user and password
-FAIL=Redirect 307 from remote to same remote with password
-FAIL=Redirect 307 from remote to same remote with user
-FAIL=Redirect 307 from remote to same remote with user and password
 FAIL=Redirect 307 from same origin to remote with password
 FAIL=Redirect 307 from same origin to remote with user
 FAIL=Redirect 307 from same origin to remote with user and password
-FAIL=Redirect 308 from remote to another remote with password
-FAIL=Redirect 308 from remote to another remote with user
-FAIL=Redirect 308 from remote to another remote with user and password
-FAIL=Redirect 308 from remote to same origin with password
-FAIL=Redirect 308 from remote to same origin with user
-FAIL=Redirect 308 from remote to same origin with user and password
-FAIL=Redirect 308 from remote to same remote with password
-FAIL=Redirect 308 from remote to same remote with user
-FAIL=Redirect 308 from remote to same remote with user and password
 FAIL=Redirect 308 from same origin to remote with password
 FAIL=Redirect 308 from same origin to remote with user
 FAIL=Redirect 308 from same origin to remote with user and password
@@ -789,33 +738,23 @@ FAIL=Redirect 308 from same origin to remote with password
 FAIL=Redirect 308 from same origin to remote with user
 FAIL=Redirect 308 from same origin to remote with user and password
 [fetch/api/cors/cors-redirect-preflight.any.html]
-FAIL=Redirect 301: cors to another cors (preflight after redirection failure case)
 FAIL=Redirect 301: cors to another cors (preflight after redirection success case)
-FAIL=Redirect 301: cors to same origin (preflight after redirection failure case)
 FAIL=Redirect 301: cors to same origin (preflight after redirection success case)
 FAIL=Redirect 301: same origin to cors (preflight after redirection failure case)
 FAIL=Redirect 301: same origin to cors (preflight after redirection success case)
-FAIL=Redirect 302: cors to another cors (preflight after redirection failure case)
 FAIL=Redirect 302: cors to another cors (preflight after redirection success case)
-FAIL=Redirect 302: cors to same origin (preflight after redirection failure case)
 FAIL=Redirect 302: cors to same origin (preflight after redirection success case)
 FAIL=Redirect 302: same origin to cors (preflight after redirection failure case)
 FAIL=Redirect 302: same origin to cors (preflight after redirection success case)
-FAIL=Redirect 303: cors to another cors (preflight after redirection failure case)
 FAIL=Redirect 303: cors to another cors (preflight after redirection success case)
-FAIL=Redirect 303: cors to same origin (preflight after redirection failure case)
 FAIL=Redirect 303: cors to same origin (preflight after redirection success case)
 FAIL=Redirect 303: same origin to cors (preflight after redirection failure case)
 FAIL=Redirect 303: same origin to cors (preflight after redirection success case)
-FAIL=Redirect 307: cors to another cors (preflight after redirection failure case)
 FAIL=Redirect 307: cors to another cors (preflight after redirection success case)
-FAIL=Redirect 307: cors to same origin (preflight after redirection failure case)
 FAIL=Redirect 307: cors to same origin (preflight after redirection success case)
 FAIL=Redirect 307: same origin to cors (preflight after redirection failure case)
 FAIL=Redirect 307: same origin to cors (preflight after redirection success case)
-FAIL=Redirect 308: cors to another cors (preflight after redirection failure case)
 FAIL=Redirect 308: cors to another cors (preflight after redirection success case)
-FAIL=Redirect 308: cors to same origin (preflight after redirection failure case)
 FAIL=Redirect 308: cors to same origin (preflight after redirection success case)
 FAIL=Redirect 308: same origin to cors (preflight after redirection failure case)
 FAIL=Redirect 308: same origin to cors (preflight after redirection success case)
@@ -891,7 +830,7 @@ FAIL=fetching data url script should be allowed.
 [fetch/api/cors/data-url-worker.html]
 harness=TIMEOUT
 [fetch/api/cors/sandboxed-iframe.html]
-harness=TIMEOUT
+FAIL=CORS with sandboxed iframe
 [fetch/api/credentials/authentication-basic.any.html]
 FAIL=User-added Authorization header with include mode
 FAIL=User-added Authorization header with omit mode
@@ -1110,15 +1049,10 @@ FAIL=original => remote => original with mode: "cors"
 FAIL=original => remote => original with mode: "no-cors"
 [fetch/api/redirect/redirect-count.any.html]
 FAIL=Redirect 301 20 times
-FAIL=Redirect 301 21 times
 FAIL=Redirect 302 20 times
-FAIL=Redirect 302 21 times
 FAIL=Redirect 303 20 times
-FAIL=Redirect 303 21 times
 FAIL=Redirect 307 20 times
-FAIL=Redirect 307 21 times
 FAIL=Redirect 308 20 times
-FAIL=Redirect 308 21 times
 [fetch/api/redirect/redirect-empty-location.any.html]
 FAIL=redirect response with empty Location, follow mode
 FAIL=redirect response with empty Location, manual mode
@@ -1160,23 +1094,18 @@ FAIL=Redirect 303 with POST
 FAIL=Redirect 303 with TESTING
 FAIL=Redirect 307 with POST (blob body)
 [fetch/api/redirect/redirect-mode.any.html]
-FAIL=cross-origin redirect 301 in error redirect and cors mode
 FAIL=cross-origin redirect 301 in error redirect and no-cors mode
 FAIL=cross-origin redirect 301 in manual redirect and cors mode
 FAIL=cross-origin redirect 301 in manual redirect and no-cors mode
-FAIL=cross-origin redirect 302 in error redirect and cors mode
 FAIL=cross-origin redirect 302 in error redirect and no-cors mode
 FAIL=cross-origin redirect 302 in manual redirect and cors mode
 FAIL=cross-origin redirect 302 in manual redirect and no-cors mode
-FAIL=cross-origin redirect 303 in error redirect and cors mode
 FAIL=cross-origin redirect 303 in error redirect and no-cors mode
 FAIL=cross-origin redirect 303 in manual redirect and cors mode
 FAIL=cross-origin redirect 303 in manual redirect and no-cors mode
-FAIL=cross-origin redirect 307 in error redirect and cors mode
 FAIL=cross-origin redirect 307 in error redirect and no-cors mode
 FAIL=cross-origin redirect 307 in manual redirect and cors mode
 FAIL=cross-origin redirect 307 in manual redirect and no-cors mode
-FAIL=cross-origin redirect 308 in error redirect and cors mode
 FAIL=cross-origin redirect 308 in error redirect and no-cors mode
 FAIL=cross-origin redirect 308 in manual redirect and cors mode
 FAIL=cross-origin redirect 308 in manual redirect and no-cors mode
@@ -1245,43 +1174,33 @@ FAIL=same-origin redirect 308 in manual redirect and no-cors mode
 FAIL=[GET] Redirect 301 Other origin to other origin
 FAIL=[GET] Redirect 301 Other origin to same origin
 FAIL=[GET] Redirect 301 Same origin to other origin
-FAIL=[GET] Redirect 301 Same origin to same origin
 FAIL=[GET] Redirect 302 Other origin to other origin
 FAIL=[GET] Redirect 302 Other origin to same origin
 FAIL=[GET] Redirect 302 Same origin to other origin
-FAIL=[GET] Redirect 302 Same origin to same origin
 FAIL=[GET] Redirect 303 Other origin to other origin
 FAIL=[GET] Redirect 303 Other origin to same origin
 FAIL=[GET] Redirect 303 Same origin to other origin
-FAIL=[GET] Redirect 303 Same origin to same origin
 FAIL=[GET] Redirect 307 Other origin to other origin
 FAIL=[GET] Redirect 307 Other origin to same origin
 FAIL=[GET] Redirect 307 Same origin to other origin
-FAIL=[GET] Redirect 307 Same origin to same origin
 FAIL=[GET] Redirect 308 Other origin to other origin
 FAIL=[GET] Redirect 308 Other origin to same origin
 FAIL=[GET] Redirect 308 Same origin to other origin
-FAIL=[GET] Redirect 308 Same origin to same origin
 FAIL=[POST] Redirect 301 Other origin to other origin
 FAIL=[POST] Redirect 301 Other origin to same origin
 FAIL=[POST] Redirect 301 Same origin to other origin
-FAIL=[POST] Redirect 301 Same origin to same origin
 FAIL=[POST] Redirect 302 Other origin to other origin
 FAIL=[POST] Redirect 302 Other origin to same origin
 FAIL=[POST] Redirect 302 Same origin to other origin
-FAIL=[POST] Redirect 302 Same origin to same origin
 FAIL=[POST] Redirect 303 Other origin to other origin
 FAIL=[POST] Redirect 303 Other origin to same origin
 FAIL=[POST] Redirect 303 Same origin to other origin
-FAIL=[POST] Redirect 303 Same origin to same origin
 FAIL=[POST] Redirect 307 Other origin to other origin
 FAIL=[POST] Redirect 307 Other origin to same origin
 FAIL=[POST] Redirect 307 Same origin to other origin
-FAIL=[POST] Redirect 307 Same origin to same origin
 FAIL=[POST] Redirect 308 Other origin to other origin
 FAIL=[POST] Redirect 308 Other origin to same origin
 FAIL=[POST] Redirect 308 Same origin to other origin
-FAIL=[POST] Redirect 308 Same origin to same origin
 [fetch/api/redirect/redirect-origin.any.worker.html]
 FAIL=[GET] Redirect 301 Other origin to other origin
 FAIL=[GET] Redirect 301 Other origin to same origin
@@ -1918,8 +1837,8 @@ FAIL=Check redirect init value of manual and associated getter
 FAIL=Check referrer init value of  and associated getter
 FAIL=Check referrer init value of /relative/ressource and associated getter
 FAIL=Check referrer init value of about:client and associated getter
-FAIL=Check referrer init value of http://localhost:43183/ and associated getter
-FAIL=Check referrer init value of http://localhost:43183/relative/ressource?query=true#fragment and associated getter
+FAIL=Check referrer init value of http://localhost:{{port[0]}}/ and associated getter
+FAIL=Check referrer init value of http://localhost:{{port[0]}}/relative/ressource?query=true#fragment and associated getter
 FAIL=Check referrer init value of http://test.url and associated getter
 FAIL=Check referrerPolicy init value of  and associated getter
 FAIL=Check referrerPolicy init value of no-referrer and associated getter
@@ -2022,9 +1941,9 @@ FAIL=Ensure the correct JSON parser is used
 [fetch/api/response/multi-globals/url-parsing.html]
 FAIL=should parse the redirect Location URL relative to the current settings object
 [fetch/api/response/response-arraybuffer-realm.window.html]
-harness=TIMEOUT
+FAIL=realm of the ArrayBuffer from Response arrayBuffer()
 [fetch/api/response/response-blob-realm.any.html]
-harness=TIMEOUT
+FAIL=realm of the Uint8Array from Response bytes()
 [fetch/api/response/response-body-read-task-handling.html]
 FAIL=piping from a body stream to a JS-written WritableStream should occur in a microtask scope
 FAIL=reading from a body stream should occur in a microtask scope
@@ -2340,7 +2259,7 @@ FAIL=Fetch same origin dictionary using link element
 [fetch/compression-dictionary/dictionary-fetch-with-link-header-in-subresources.tentative.https.html]
 harness=TIMEOUT
 [fetch/compression-dictionary/dictionary-fetch-with-link-header.tentative.https.html]
-harness=TIMEOUT
+FAIL=Fetch same origin dictionary using link header
 [fetch/compression-dictionary/dictionary-fetch-with-link-integrity.tentative.https.html]
 FAIL=HTMLLinkElement rel=compression-dictionary, integrity attribute is ignored.
 FAIL=Initialize global state
@@ -2445,54 +2364,153 @@ FAIL=fetch() and duplicate Content-Length/Content-Type headers
 harness=TIMEOUT
 [fetch/content-length/parsing.window.html]
 FAIL=Input: "Content-Length: ". Expected: 42.
-FAIL=Input: "Content-Length: ,30". Expected: network error.
 FAIL=Input: "Content-Length: -1". Expected: 42.
-FAIL=Input: "Content-Length: 030". Expected: 30.
-FAIL=Input: "Content-Length: 030, 30". Expected: network error.
-FAIL=Input: "Content-Length: 030\r\nContent-Length: 30". Expected: network error.
 FAIL=Input: "Content-Length: 0x20". Expected: 42.
-FAIL=Input: "Content-Length: 30". Expected: 30.
-FAIL=Input: "Content-Length: 30,". Expected: network error.
 FAIL=Input: "Content-Length: 30,30". Expected: 30.
 FAIL=Input: "Content-Length: 30,30,  30  \r\nContent-Length: 30  ". Expected: 30.
 FAIL=Input: "Content-Length: 30,30\r\nContent-Length: 30,30". Expected: 30.
-FAIL=Input: "Content-Length: 30,42". Expected: network error.
-FAIL=Input: "Content-Length: 30,42\r\nContent-Length: 30". Expected: network error.
-FAIL=Input: "Content-Length: 30,42\r\nContent-Length: 30,42". Expected: network error.
 FAIL=Input: "Content-Length: 30\r\nContent-Length: 30". Expected: 30.
 FAIL=Input: "Content-Length: 30\r\nContent-Length: 30,30". Expected: 30.
-FAIL=Input: "Content-Length: 30\r\nContent-Length: 42". Expected: network error.
-FAIL=Input: "Content-Length: 30\r\nContent-Length: \t". Expected: network error.
 FAIL=Input: "Content-Length: 30s". Expected: 42.
-FAIL=Input: "Content-Length: 42". Expected: 42.
-FAIL=Input: "Content-Length: 42,30". Expected: network error.
 FAIL=Input: "Content-Length: 42,42". Expected: 42.
-FAIL=Input: "Content-Length: 42\r\nContent-Length: 30". Expected: network error.
 FAIL=Input: "Content-Length: 42\r\nContent-Length: 42". Expected: 42.
 FAIL=Input: "Content-Length: 42\r\nContent-Length: 42,42". Expected: 42.
 FAIL=Input: "Content-Length: 42s". Expected: 42.
 FAIL=Input: "Content-Length: \"30\"". Expected: 42.
-FAIL=Input: "Content-Length: \r\nContent-Length: 30". Expected: network error.
 FAIL=Input: "Content-Length: aaaah". Expected: 42.
 FAIL=Input: "Content-Length: aaaah, aaaah". Expected: 42.
-FAIL=Input: "Content-Length: aaaah, nah". Expected: network error.
 FAIL=Input: "Content-Length: aaaah\r\nContent-Length: aaaah". Expected: 42.
-FAIL=Input: "Content-Length: aaaah\r\nContent-Length: nah". Expected: network error.
-FAIL=Input: "Content-Length:30\r\nContent-Length:,\r\nContent-Length:30". Expected: network error.
 [fetch/content-length/too-long.window.html]
 FAIL=Content-Length header value of network response exceeds response body
 [fetch/content-type/multipart.window.html]
 harness=TIMEOUT
 [fetch/content-type/response.window.html]
-harness=TIMEOUT
+FAIL=<iframe>: combined response Content-Type:  text/plain
+FAIL=<iframe>: combined response Content-Type: */* text/html
+FAIL=<iframe>: combined response Content-Type: text/html */*
+FAIL=<iframe>: combined response Content-Type: text/html */*;charset=gbk
+FAIL=<iframe>: combined response Content-Type: text/html text/plain
+FAIL=<iframe>: combined response Content-Type: text/html;" " text/plain
+FAIL=<iframe>: combined response Content-Type: text/html;" \" text/plain
+FAIL=<iframe>: combined response Content-Type: text/html;" \" text/plain ";charset=GBK
+FAIL=<iframe>: combined response Content-Type: text/html;" text/plain
+FAIL=<iframe>: combined response Content-Type: text/html;charset=gbk text/html;x=",text/plain
+FAIL=<iframe>: combined response Content-Type: text/html;charset=gbk text/plain text/html
+FAIL=<iframe>: combined response Content-Type: text/html;x=" text/plain
+FAIL:esc=<iframe>: combined response Content-Type: text/plain 
+FAIL=<iframe>: combined response Content-Type: text/plain */*
+FAIL=<iframe>: combined response Content-Type: text/plain */*;charset=gbk
+FAIL=<iframe>: combined response Content-Type: text/plain;charset=gbk text/html
+FAIL=<iframe>: combined response Content-Type: text/plain;charset=gbk text/html;charset=windows-1254
+FAIL=<iframe>: combined response Content-Type: text/plain;charset=gbk text/plain
+FAIL=<iframe>: combined response Content-Type: text/plain;charset=gbk text/plain;charset=windows-1252
+FAIL=<iframe>: combined response Content-Type: text/plain;charset=gbk;x=foo text/plain
+FAIL=<iframe>: separate response Content-Type:  text/plain
+FAIL=<iframe>: separate response Content-Type: */* text/html
+FAIL=<iframe>: separate response Content-Type: text/html */*
+FAIL=<iframe>: separate response Content-Type: text/html */*;charset=gbk
+FAIL=<iframe>: separate response Content-Type: text/html text/plain
+FAIL=<iframe>: separate response Content-Type: text/html;" " text/plain
+FAIL=<iframe>: separate response Content-Type: text/html;" \" text/plain
+FAIL=<iframe>: separate response Content-Type: text/html;" \" text/plain ";charset=GBK
+FAIL=<iframe>: separate response Content-Type: text/html;" text/plain
+FAIL=<iframe>: separate response Content-Type: text/html;charset=gbk text/html;x=",text/plain
+FAIL=<iframe>: separate response Content-Type: text/html;charset=gbk text/plain text/html
+FAIL=<iframe>: separate response Content-Type: text/html;x=" text/plain
+FAIL:esc=<iframe>: separate response Content-Type: text/plain 
+FAIL=<iframe>: separate response Content-Type: text/plain */*
+FAIL=<iframe>: separate response Content-Type: text/plain */*;charset=gbk
+FAIL=<iframe>: separate response Content-Type: text/plain;charset=gbk text/html
+FAIL=<iframe>: separate response Content-Type: text/plain;charset=gbk text/html;charset=windows-1254
+FAIL=<iframe>: separate response Content-Type: text/plain;charset=gbk text/plain
+FAIL=<iframe>: separate response Content-Type: text/plain;charset=gbk text/plain;charset=windows-1252
+FAIL=<iframe>: separate response Content-Type: text/plain;charset=gbk;x=foo text/plain
+FAIL=Request: combined response Content-Type:  text/plain
+FAIL=Request: combined response Content-Type: */* text/html
+FAIL=Request: combined response Content-Type: text/html */*
+FAIL=Request: combined response Content-Type: text/html */*;charset=gbk
+FAIL=Request: combined response Content-Type: text/html text/plain
+FAIL=Request: combined response Content-Type: text/html;" " text/plain
+FAIL=Request: combined response Content-Type: text/html;" \" text/plain
+FAIL=Request: combined response Content-Type: text/html;" \" text/plain ";charset=GBK
+FAIL=Request: combined response Content-Type: text/html;" text/plain
+FAIL=Request: combined response Content-Type: text/html;charset=gbk text/html;x=",text/plain
+FAIL=Request: combined response Content-Type: text/html;charset=gbk text/plain text/html
+FAIL=Request: combined response Content-Type: text/html;x=" text/plain
+FAIL:esc=Request: combined response Content-Type: text/plain 
+FAIL=Request: combined response Content-Type: text/plain */*
+FAIL=Request: combined response Content-Type: text/plain */*;charset=gbk
+FAIL=Request: combined response Content-Type: text/plain;charset=gbk text/html
+FAIL=Request: combined response Content-Type: text/plain;charset=gbk text/html;charset=windows-1254
+FAIL=Request: combined response Content-Type: text/plain;charset=gbk text/plain
+FAIL=Request: combined response Content-Type: text/plain;charset=gbk text/plain;charset=windows-1252
+FAIL=Request: combined response Content-Type: text/plain;charset=gbk;x=foo text/plain
+FAIL=Response: combined response Content-Type:  text/plain
+FAIL=Response: combined response Content-Type: */* text/html
+FAIL=Response: combined response Content-Type: text/html */*
+FAIL=Response: combined response Content-Type: text/html */*;charset=gbk
+FAIL=Response: combined response Content-Type: text/html text/plain
+FAIL=Response: combined response Content-Type: text/html;" " text/plain
+FAIL=Response: combined response Content-Type: text/html;" \" text/plain
+FAIL=Response: combined response Content-Type: text/html;" \" text/plain ";charset=GBK
+FAIL=Response: combined response Content-Type: text/html;" text/plain
+FAIL=Response: combined response Content-Type: text/html;charset=gbk text/html;x=",text/plain
+FAIL=Response: combined response Content-Type: text/html;charset=gbk text/plain text/html
+FAIL=Response: combined response Content-Type: text/html;x=" text/plain
+FAIL:esc=Response: combined response Content-Type: text/plain 
+FAIL=Response: combined response Content-Type: text/plain */*
+FAIL=Response: combined response Content-Type: text/plain */*;charset=gbk
+FAIL=Response: combined response Content-Type: text/plain;charset=gbk text/html
+FAIL=Response: combined response Content-Type: text/plain;charset=gbk text/html;charset=windows-1254
+FAIL=Response: combined response Content-Type: text/plain;charset=gbk text/plain
+FAIL=Response: combined response Content-Type: text/plain;charset=gbk text/plain;charset=windows-1252
+FAIL=Response: combined response Content-Type: text/plain;charset=gbk;x=foo text/plain
+FAIL=fetch(): combined response Content-Type:  text/plain
+FAIL=fetch(): combined response Content-Type: */* text/html
+FAIL=fetch(): combined response Content-Type: text/html */*
+FAIL=fetch(): combined response Content-Type: text/html */*;charset=gbk
+FAIL=fetch(): combined response Content-Type: text/html text/plain
+FAIL=fetch(): combined response Content-Type: text/html;" " text/plain
+FAIL=fetch(): combined response Content-Type: text/html;" \" text/plain
+FAIL=fetch(): combined response Content-Type: text/html;" \" text/plain ";charset=GBK
+FAIL=fetch(): combined response Content-Type: text/html;" text/plain
+FAIL=fetch(): combined response Content-Type: text/html;charset=gbk text/html;x=",text/plain
+FAIL=fetch(): combined response Content-Type: text/html;charset=gbk text/plain text/html
+FAIL=fetch(): combined response Content-Type: text/html;x=" text/plain
+FAIL:esc=fetch(): combined response Content-Type: text/plain 
+FAIL=fetch(): combined response Content-Type: text/plain */*
+FAIL=fetch(): combined response Content-Type: text/plain */*;charset=gbk
+FAIL=fetch(): combined response Content-Type: text/plain;charset=gbk text/html
+FAIL=fetch(): combined response Content-Type: text/plain;charset=gbk text/html;charset=windows-1254
+FAIL=fetch(): combined response Content-Type: text/plain;charset=gbk text/plain
+FAIL=fetch(): combined response Content-Type: text/plain;charset=gbk text/plain;charset=windows-1252
+FAIL=fetch(): combined response Content-Type: text/plain;charset=gbk;x=foo text/plain
+FAIL=fetch(): separate response Content-Type:  text/plain
+FAIL=fetch(): separate response Content-Type: */* text/html
+FAIL=fetch(): separate response Content-Type: text/html */*
+FAIL=fetch(): separate response Content-Type: text/html */*;charset=gbk
+FAIL=fetch(): separate response Content-Type: text/html text/plain
+FAIL=fetch(): separate response Content-Type: text/html;" " text/plain
+FAIL=fetch(): separate response Content-Type: text/html;" \" text/plain
+FAIL=fetch(): separate response Content-Type: text/html;" \" text/plain ";charset=GBK
+FAIL=fetch(): separate response Content-Type: text/html;" text/plain
+FAIL=fetch(): separate response Content-Type: text/html;charset=gbk text/html;x=",text/plain
+FAIL=fetch(): separate response Content-Type: text/html;charset=gbk text/plain text/html
+FAIL=fetch(): separate response Content-Type: text/html;x=" text/plain
+FAIL:esc=fetch(): separate response Content-Type: text/plain 
+FAIL=fetch(): separate response Content-Type: text/plain */*
+FAIL=fetch(): separate response Content-Type: text/plain */*;charset=gbk
+FAIL=fetch(): separate response Content-Type: text/plain;charset=gbk text/html
+FAIL=fetch(): separate response Content-Type: text/plain;charset=gbk text/html;charset=windows-1254
+FAIL=fetch(): separate response Content-Type: text/plain;charset=gbk text/plain
+FAIL=fetch(): separate response Content-Type: text/plain;charset=gbk text/plain;charset=windows-1252
+FAIL=fetch(): separate response Content-Type: text/plain;charset=gbk;x=foo text/plain
 [fetch/content-type/script.window.html]
 FAIL:esc=combined text/javascript 
 FAIL=combined text/javascript error
 FAIL=combined text/javascript; charset=windows-1252 text/javascript
-FAIL=combined text/javascript;" x/x
 FAIL=combined text/javascript;charset=windows-1252  text/javascript
 FAIL=combined text/javascript;charset=windows-1252 error text/javascript
-FAIL=combined text/javascript;charset=windows-1252 x/x text/javascript
 FAIL=combined text/javascript;charset=windows-1252;" \" x/x
 FAIL=combined x/x text/javascript
 FAIL=combined x/x;" x/y;\" text/javascript;charset=windows-1252;" text/javascript
@@ -2500,18 +2518,48 @@ FAIL=combined x/x;charset=windows-1252 text/javascript
 FAIL:esc=separate text/javascript 
 FAIL=separate text/javascript error
 FAIL=separate text/javascript; charset=windows-1252 text/javascript
-FAIL=separate text/javascript;" x/x
 FAIL=separate text/javascript;";charset=windows-1252
 FAIL=separate text/javascript;charset=windows-1252
 FAIL=separate text/javascript;charset=windows-1252  text/javascript
 FAIL=separate text/javascript;charset=windows-1252 error text/javascript
-FAIL=separate text/javascript;charset=windows-1252 x/x text/javascript
 FAIL=separate text/javascript;charset=windows-1252;" \" x/x
-FAIL=separate x/x text/javascript
-FAIL=separate x/x;" x/y;\" text/javascript;charset=windows-1252;" text/javascript
-FAIL=separate x/x;charset=windows-1252 text/javascript
 [fetch/corb/img-mime-types-coverage.tentative.sub.html]
-harness=TIMEOUT
+FAIL:esc=CORB should allow the response if Content-Type is: ''.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'application/blahjson'.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'application/dash+xml'.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'application/javascript'.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'application/json+blah'.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'application/jsonp'.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'application/octet-stream'.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'application/x-www-form-urlencoded'.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'application/xml+blah'.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'image/gif'.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'image/gif;HI=THERE'.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'image/png'.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'image/png;blah'.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'image/svg+xml'.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'null'.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'text/blahxml'.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'text/json+blah'.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'text/x-json'.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'text/xml+blah'.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'x'.  
+FAIL:esc=CORB should allow the response if Content-Type is: 'x/x'.  
+FAIL:esc=CORB should block the response if Content-Type is: 'APPLICATION/BLAH+XML'.  
+FAIL:esc=CORB should block the response if Content-Type is: 'TEXT/BLAH+JSON'.  
+FAIL:esc=CORB should block the response if Content-Type is: 'TEXT/HTML'.  
+FAIL:esc=CORB should block the response if Content-Type is: 'TEXT/JSON'.  
+FAIL:esc=CORB should block the response if Content-Type is: 'application/blah+json'.  
+FAIL:esc=CORB should block the response if Content-Type is: 'application/blah+xml'.  
+FAIL:esc=CORB should block the response if Content-Type is: 'application/json'.  
+FAIL:esc=CORB should block the response if Content-Type is: 'application/xml'.  
+FAIL:esc=CORB should block the response if Content-Type is: 'text/HTML;NO=it;does=NOT'.  
+FAIL:esc=CORB should block the response if Content-Type is: 'text/blah+json'.  
+FAIL:esc=CORB should block the response if Content-Type is: 'text/blah+xml'.  
+FAIL:esc=CORB should block the response if Content-Type is: 'text/html'.  
+FAIL:esc=CORB should block the response if Content-Type is: 'text/json'.  
+FAIL:esc=CORB should block the response if Content-Type is: 'text/json;does=it;matter'.  
+FAIL:esc=CORB should block the response if Content-Type is: 'text/xml'.  
 [fetch/corb/preload-image-png-mislabeled-as-html-nosniff.tentative.sub.html]
 harness=TIMEOUT
 [fetch/corb/response_block.tentative.https.html]
@@ -2527,7 +2575,11 @@ FAIL=CSS is not applied (because of nosniff + non-text/css headers)
 [fetch/corb/style-css-mislabeled-as-html.sub.html]
 FAIL=CSS is not applied (because of strict content-type enforcement for cross-origin stylesheets)
 [fetch/cross-origin-resource-policy/fetch-in-iframe.html]
-harness=TIMEOUT
+FAIL=Cross-origin fetch in a cross origin iframe load fails if the server blocks cross-origin loads with a 'Cross-Origin-Resource-Policy: same-origin' response header.
+FAIL=Cross-origin fetch in a cross origin iframe load fails if the server blocks cross-origin loads with a 'Cross-Origin-Resource-Policy: same-site' response header.
+FAIL=Cross-origin fetch in a data: iframe load fails if the server blocks cross-origin loads with a 'Cross-Origin-Resource-Policy: same-origin' response header.
+FAIL=Cross-origin fetch in a data: iframe load fails if the server blocks cross-origin loads with a 'Cross-Origin-Resource-Policy: same-site' response header.
+FAIL=Same-origin fetch in a cross origin iframe load succeeds if the server blocks cross-origin loads with a 'Cross-Origin-Resource-Policy: same-origin' response header.
 [fetch/cross-origin-resource-policy/fetch.any.html]
 FAIL=Cross-origin cors fetch with a 'Cross-Origin-Resource-Policy: same-origin' response header.
 FAIL=Cross-origin cors fetch with a 'Cross-Origin-Resource-Policy: same-site' response header.
@@ -2711,7 +2763,7 @@ FAIL=Test referer header https://localhost:1
 [fetch/fetch-later/headers/header-referrer-unsafe-url.https.html]
 FAIL=Test referer header https://localhost:1
 [fetch/fetch-later/iframe.https.window.html]
-harness=TIMEOUT
+FAIL=A blank iframe can trigger fetchLater.
 [fetch/fetch-later/new-window.https.window.html]
 harness=TIMEOUT
 [fetch/fetch-later/permissions-policy/deferred-fetch-allowed-by-permissions-policy-attribute-redirect.https.window.html]
@@ -2798,11 +2850,11 @@ FAIL=fetchLater() with activateAfter=1m does send on page entering BFCache even 
 [fetch/fetch-later/send-on-deactivate.https.window.html]
 harness=TIMEOUT
 [fetch/fetch-later/send-on-discard/not-send-after-abort.https.window.html]
-harness=TIMEOUT
+FAIL=A discarded document does not send an already aborted fetchLater request.
 [fetch/fetch-later/send-on-discard/send-multiple-with-activate-after.https.window.html]
-harness=TIMEOUT
+FAIL=A discarded document sends all its fetchLater requests, no matter how much their activateAfter timeout remain.
 [fetch/fetch-later/send-on-discard/send-multiple.https.window.html]
-harness=TIMEOUT
+FAIL=A discarded document sends all its fetchLater requests.
 [fetch/h1-parsing/h1-parsing.tentative.html]
 FAIL=COLON at <after-colon> should result in Network Error (fetch)
 FAIL=COLON at <after-dot> should result in Network Error (fetch)
@@ -3291,9 +3343,30 @@ harness=TIMEOUT
 [fetch/metadata/generated/element-frame.sub.html]
 harness=TIMEOUT
 [fetch/metadata/generated/element-iframe.https.sub.html]
-harness=TIMEOUT
+FAIL=sec-fetch-dest
+FAIL=sec-fetch-mode
+FAIL=sec-fetch-site - Cross-Site -> Cross-Site
+FAIL=sec-fetch-site - Cross-Site -> Same Origin
+FAIL=sec-fetch-site - Cross-Site -> Same-Site
+FAIL=sec-fetch-site - Cross-site
+FAIL=sec-fetch-site - Same origin
+FAIL=sec-fetch-site - Same site
+FAIL=sec-fetch-site - Same-Origin -> Cross-Site
+FAIL=sec-fetch-site - Same-Origin -> Cross-Site -> Same-Origin redirect
+FAIL=sec-fetch-site - Same-Origin -> Same Origin
+FAIL=sec-fetch-site - Same-Origin -> Same-Site
+FAIL=sec-fetch-site - Same-Origin -> Same-Site -> Same-Origin redirect
+FAIL=sec-fetch-site - Same-Site -> Cross-Site
+FAIL=sec-fetch-site - Same-Site -> Same Origin
+FAIL=sec-fetch-site - Same-Site -> Same-Site
+FAIL=sec-fetch-storage-access - Cross-site
+FAIL=sec-fetch-storage-access - Same site
+FAIL=sec-fetch-user
+FAIL=sec-fetch-user with user activation
 [fetch/metadata/generated/element-iframe.sub.html]
-harness=TIMEOUT
+FAIL=sec-fetch-site - HTTPS downgrade (header not sent)
+FAIL=sec-fetch-site - HTTPS downgrade-upgrade
+FAIL=sec-fetch-site - HTTPS upgrade
 [fetch/metadata/generated/element-img-environment-change.https.sub.html]
 FAIL=sec-fetch-dest - no attributes
 FAIL=sec-fetch-mode - attributes: crossorigin
@@ -3345,47 +3418,9 @@ harness=TIMEOUT
 [fetch/metadata/generated/element-input-image.sub.html]
 harness=TIMEOUT
 [fetch/metadata/generated/element-link-icon.https.sub.html]
-FAIL=sec-fetch-dest no attributes
-FAIL=sec-fetch-mode attributes: crossorigin
-FAIL=sec-fetch-mode attributes: crossorigin=anonymous
-FAIL=sec-fetch-mode attributes: crossorigin=use-credentials
-FAIL=sec-fetch-mode no attributes
-FAIL=sec-fetch-site - Cross-Site -> Cross-Site no attributes
-FAIL=sec-fetch-site - Cross-Site -> Same Origin no attributes
-FAIL=sec-fetch-site - Cross-Site -> Same-Site no attributes
-FAIL=sec-fetch-site - Cross-site no attributes
-FAIL=sec-fetch-site - Same origin no attributes
-FAIL=sec-fetch-site - Same site no attributes
-FAIL=sec-fetch-site - Same-Origin -> Cross-Site -> Same-Origin redirect no attributes
-FAIL=sec-fetch-site - Same-Origin -> Cross-Site no attributes
-FAIL=sec-fetch-site - Same-Origin -> Same Origin no attributes
-FAIL=sec-fetch-site - Same-Origin -> Same-Site -> Same-Origin redirect no attributes
-FAIL=sec-fetch-site - Same-Origin -> Same-Site no attributes
-FAIL=sec-fetch-site - Same-Site -> Cross-Site no attributes
-FAIL=sec-fetch-site - Same-Site -> Same Origin no attributes
-FAIL=sec-fetch-site - Same-Site -> Same-Site no attributes
-FAIL=sec-fetch-storage-access - Cross-site no attributes
-FAIL=sec-fetch-storage-access - Same site no attributes
-FAIL=sec-fetch-user no attributes
+harness=TIMEOUT
 [fetch/metadata/generated/element-link-icon.sub.html]
-FAIL=sec-fetch-dest - Not sent to non-trustworthy cross-site destination no attributes
-FAIL=sec-fetch-dest - Not sent to non-trustworthy same-origin destination no attributes
-FAIL=sec-fetch-dest - Not sent to non-trustworthy same-site destination no attributes
-FAIL=sec-fetch-mode - Not sent to non-trustworthy cross-site destination no attributes
-FAIL=sec-fetch-mode - Not sent to non-trustworthy same-origin destination no attributes
-FAIL=sec-fetch-mode - Not sent to non-trustworthy same-site destination no attributes
-FAIL=sec-fetch-site - HTTPS downgrade (header not sent) no attributes
-FAIL=sec-fetch-site - HTTPS downgrade-upgrade no attributes
-FAIL=sec-fetch-site - HTTPS upgrade no attributes
-FAIL=sec-fetch-site - Not sent to non-trustworthy cross-site destination no attributes
-FAIL=sec-fetch-site - Not sent to non-trustworthy same-origin destination no attributes
-FAIL=sec-fetch-site - Not sent to non-trustworthy same-site destination no attributes
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy cross-site destination no attributes
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-origin destination no attributes
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-site destination no attributes
-FAIL=sec-fetch-user - Not sent to non-trustworthy cross-site destination no attributes
-FAIL=sec-fetch-user - Not sent to non-trustworthy same-origin destination no attributes
-FAIL=sec-fetch-user - Not sent to non-trustworthy same-site destination no attributes
+harness=TIMEOUT
 [fetch/metadata/generated/element-link-prefetch.https.optional.sub.html]
 harness=ERROR
 [fetch/metadata/generated/element-link-prefetch.optional.sub.html]
@@ -3401,7 +3436,12 @@ harness=TIMEOUT
 [fetch/metadata/generated/element-script.https.sub.html]
 harness=TIMEOUT
 [fetch/metadata/generated/element-script.sub.html]
-harness=TIMEOUT
+FAIL=sec-fetch-site - HTTPS downgrade (header not sent), attributes: type=module
+FAIL=sec-fetch-site - HTTPS downgrade (header not sent), no attributes
+FAIL=sec-fetch-site - HTTPS downgrade-upgrade, attributes: type=module
+FAIL=sec-fetch-site - HTTPS downgrade-upgrade, no attributes
+FAIL=sec-fetch-site - HTTPS upgrade, attributes: type=module
+FAIL=sec-fetch-site - HTTPS upgrade, no attributes
 [fetch/metadata/generated/element-video-poster.https.sub.html]
 harness=TIMEOUT
 [fetch/metadata/generated/element-video-poster.sub.html]
@@ -3479,34 +3519,90 @@ FAIL=sec-fetch-storage-access - Cross-site, init: mode=no-cors, credentials=incl
 FAIL=sec-fetch-storage-access - Same site, init: mode=no-cors, credentials=include
 FAIL=sec-fetch-user - no init
 [fetch/metadata/generated/fetch.sub.html]
-FAIL=sec-fetch-dest - Not sent to non-trustworthy cross-site destination, no init
-FAIL=sec-fetch-dest - Not sent to non-trustworthy same-origin destination, no init
-FAIL=sec-fetch-dest - Not sent to non-trustworthy same-site destination, no init
-FAIL=sec-fetch-mode - Not sent to non-trustworthy cross-site destination, no init
-FAIL=sec-fetch-mode - Not sent to non-trustworthy same-origin destination, no init
-FAIL=sec-fetch-mode - Not sent to non-trustworthy same-site destination, no init
 FAIL=sec-fetch-site - HTTPS downgrade (header not sent), no init
 FAIL=sec-fetch-site - HTTPS downgrade-upgrade, no init
 FAIL=sec-fetch-site - HTTPS upgrade, no init
-FAIL=sec-fetch-site - Not sent to non-trustworthy cross-site destination, no init
-FAIL=sec-fetch-site - Not sent to non-trustworthy same-origin destination, no init
-FAIL=sec-fetch-site - Not sent to non-trustworthy same-site destination, no init
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy cross-site destination, no init
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-origin destination, no init
-FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-site destination, no init
-FAIL=sec-fetch-user - Not sent to non-trustworthy cross-site destination, no init
-FAIL=sec-fetch-user - Not sent to non-trustworthy same-origin destination, no init
-FAIL=sec-fetch-user - Not sent to non-trustworthy same-site destination, no init
 [fetch/metadata/generated/form-submission.https.sub.html]
 harness=TIMEOUT
 [fetch/metadata/generated/form-submission.sub.html]
 harness=TIMEOUT
 [fetch/metadata/generated/header-link.https.sub.html]
-harness=TIMEOUT
+FAIL=sec-fetch-dest rel=icon
+FAIL=sec-fetch-mode rel=icon
+FAIL=sec-fetch-mode rel=stylesheet
+FAIL=sec-fetch-site rel=icon - Cross-Site -> Cross-Site
+FAIL=sec-fetch-site rel=icon - Cross-Site -> Same Origin
+FAIL=sec-fetch-site rel=icon - Cross-Site -> Same-Site
+FAIL=sec-fetch-site rel=icon - Cross-site
+FAIL=sec-fetch-site rel=icon - Same origin
+FAIL=sec-fetch-site rel=icon - Same site
+FAIL=sec-fetch-site rel=icon - Same-Origin -> Cross-Site
+FAIL=sec-fetch-site rel=icon - Same-Origin -> Cross-Site -> Same-Origin redirect
+FAIL=sec-fetch-site rel=icon - Same-Origin -> Same Origin
+FAIL=sec-fetch-site rel=icon - Same-Origin -> Same-Site
+FAIL=sec-fetch-site rel=icon - Same-Origin -> Same-Site -> Same-Origin redirect
+FAIL=sec-fetch-site rel=icon - Same-Site -> Cross-Site
+FAIL=sec-fetch-site rel=icon - Same-Site -> Same Origin
+FAIL=sec-fetch-site rel=icon - Same-Site -> Same-Site
+FAIL=sec-fetch-site rel=stylesheet - Cross-Site -> Cross-Site
+FAIL=sec-fetch-site rel=stylesheet - Cross-Site -> Same Origin
+FAIL=sec-fetch-site rel=stylesheet - Cross-Site -> Same-Site
+FAIL=sec-fetch-site rel=stylesheet - Cross-site
+FAIL=sec-fetch-site rel=stylesheet - Same origin
+FAIL=sec-fetch-site rel=stylesheet - Same site
+FAIL=sec-fetch-site rel=stylesheet - Same-Origin -> Cross-Site
+FAIL=sec-fetch-site rel=stylesheet - Same-Origin -> Cross-Site -> Same-Origin redirect
+FAIL=sec-fetch-site rel=stylesheet - Same-Origin -> Same Origin
+FAIL=sec-fetch-site rel=stylesheet - Same-Origin -> Same-Site
+FAIL=sec-fetch-site rel=stylesheet - Same-Origin -> Same-Site -> Same-Origin redirect
+FAIL=sec-fetch-site rel=stylesheet - Same-Site -> Cross-Site
+FAIL=sec-fetch-site rel=stylesheet - Same-Site -> Same Origin
+FAIL=sec-fetch-site rel=stylesheet - Same-Site -> Same-Site
+FAIL=sec-fetch-storage-access rel=icon - Cross-site
+FAIL=sec-fetch-storage-access rel=icon - Same site
+FAIL=sec-fetch-storage-access rel=stylesheet - Cross-site
+FAIL=sec-fetch-storage-access rel=stylesheet - Same site
+FAIL=sec-fetch-user rel=icon
+FAIL=sec-fetch-user rel=stylesheet
 [fetch/metadata/generated/header-link.https.sub.tentative.html]
-harness=TIMEOUT
+FAIL=sec-fetch-dest rel=stylesheet
 [fetch/metadata/generated/header-link.sub.html]
-harness=TIMEOUT
+FAIL=sec-fetch-dest rel=icon - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-dest rel=icon - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-dest rel=icon - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-dest rel=stylesheet - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-dest rel=stylesheet - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-dest rel=stylesheet - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-mode rel=icon - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-mode rel=icon - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-mode rel=icon - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-mode rel=stylesheet - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-mode rel=stylesheet - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-mode rel=stylesheet - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-site rel=icon - HTTPS downgrade (header not sent)
+FAIL=sec-fetch-site rel=icon - HTTPS downgrade-upgrade
+FAIL=sec-fetch-site rel=icon - HTTPS upgrade
+FAIL=sec-fetch-site rel=icon - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-site rel=icon - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-site rel=icon - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-site rel=stylesheet - HTTPS downgrade (header not sent)
+FAIL=sec-fetch-site rel=stylesheet - HTTPS downgrade-upgrade
+FAIL=sec-fetch-site rel=stylesheet - HTTPS upgrade
+FAIL=sec-fetch-site rel=stylesheet - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-site rel=stylesheet - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-site rel=stylesheet - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-storage-access rel=icon - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-storage-access rel=icon - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-storage-access rel=icon - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-storage-access rel=stylesheet - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-storage-access rel=stylesheet - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-storage-access rel=stylesheet - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-user rel=icon - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-user rel=icon - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-user rel=icon - Not sent to non-trustworthy same-site destination
+FAIL=sec-fetch-user rel=stylesheet - Not sent to non-trustworthy cross-site destination
+FAIL=sec-fetch-user rel=stylesheet - Not sent to non-trustworthy same-origin destination
+FAIL=sec-fetch-user rel=stylesheet - Not sent to non-trustworthy same-site destination
 [fetch/metadata/generated/header-refresh.https.optional.sub.html]
 harness=ERROR
 [fetch/metadata/generated/header-refresh.optional.sub.html]
@@ -3578,9 +3674,6 @@ FAIL=sec-fetch-mode - Not sent to non-trustworthy same-site destination
 FAIL=sec-fetch-site - HTTPS downgrade (header not sent)
 FAIL=sec-fetch-site - HTTPS downgrade-upgrade
 FAIL=sec-fetch-site - HTTPS upgrade
-FAIL=sec-fetch-site - Not sent to non-trustworthy cross-site destination
-FAIL=sec-fetch-site - Not sent to non-trustworthy same-origin destination
-FAIL=sec-fetch-site - Not sent to non-trustworthy same-site destination
 FAIL=sec-fetch-storage-access - Not sent to non-trustworthy cross-site destination
 FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-origin destination
 FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-site destination
@@ -3612,13 +3705,11 @@ FAIL=sec-fetch-dest - Not sent to non-trustworthy cross-site destination
 FAIL=sec-fetch-dest - Not sent to non-trustworthy same-origin destination
 FAIL=sec-fetch-dest - Not sent to non-trustworthy same-site destination
 FAIL=sec-fetch-mode - Not sent to non-trustworthy cross-site destination
-FAIL=sec-fetch-mode - Not sent to non-trustworthy same-origin destination
 FAIL=sec-fetch-mode - Not sent to non-trustworthy same-site destination
 FAIL=sec-fetch-site - HTTPS downgrade (header not sent)
 FAIL=sec-fetch-site - HTTPS downgrade-upgrade
 FAIL=sec-fetch-site - HTTPS upgrade
 FAIL=sec-fetch-site - Not sent to non-trustworthy cross-site destination
-FAIL=sec-fetch-site - Not sent to non-trustworthy same-origin destination
 FAIL=sec-fetch-site - Not sent to non-trustworthy same-site destination
 FAIL=sec-fetch-storage-access - Not sent to non-trustworthy cross-site destination
 FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-origin destination
@@ -3891,20 +3982,25 @@ harness=TIMEOUT
 [fetch/metadata/worker.https.sub.html]
 harness=TIMEOUT
 [fetch/nosniff/image.html]
-harness=TIMEOUT
+FAIL:esc=URL query: 
+FAIL=URL query: application/blah+xml
+FAIL=URL query: application/xml
+FAIL=URL query: image/gif
+FAIL=URL query: image/png
+FAIL=URL query: image/png;blah
+FAIL=URL query: image/svg+xml
+FAIL=URL query: null
+FAIL=URL query: text/html
+FAIL=URL query: x
+FAIL=URL query: x/x
 [fetch/nosniff/importscripts.html]
 harness=TIMEOUT
 [fetch/nosniff/parsing-nosniff.window.html]
-FAIL=Content-Type-Options%3A%20nosniff
-FAIL=X-Content-Type-Options%3A%0D%0AX-Content-Type-Options%3A%20nosniff
-FAIL=X-Content-Type-Options%3A%20%22nosniFF%22
-FAIL=X-Content-Type-Options%3A%20%2Cnosniff
-FAIL=X-Content-Type-Options%3A%20%40%23%24%23%25%25%26%5E%26%5E*()()11!%2Cnosniff
-FAIL=X-Content-Type-Options%3A%20'NosniFF'
-FAIL=X-Content-Type-Options%3A%20no%0D%0AX-Content-Type-Options%3A%20nosniff
-FAIL=X-Content-Type-Options%3A%20nosniff%0B
-FAIL=X-Content-Type-Options%3A%20nosniff%0B%2Cnosniff
-FAIL=X-Content-Type-Options%3A%20nosniff%0C
+FAIL=X-Content-Type-Options%3A%20NOSNIFF
+FAIL=X-Content-Type-Options%3A%20nosniff%0D%0AX-Content-Type-Options%3A%20no
+FAIL=X-Content-Type-Options%3A%20nosniff%0D%0AX-Content-Type-Options%3A%20nosniff
+FAIL=X-Content-Type-Options%3A%20nosniff%2C%2C%40%23%24%23%25%25%26%5E%26%5E*()()11!
+FAIL=x-content-type-OPTIONS%3A%20nosniff
 [fetch/nosniff/script.html]
 FAIL=URL query: text/ecmascript
 FAIL=URL query: text/ecmascript;blah
@@ -3923,7 +4019,70 @@ FAIL=ORB should block opaque range of image/png not starting at zero, that isn't
 [fetch/orb/tentative/hls.html]
 harness=PRECONDITION_FAILED
 [fetch/orb/tentative/img-mime-types-coverage.tentative.sub.html]
-harness=TIMEOUT
+FAIL:esc=ORB should allow the response if Content-Type is: 'application/ecmascript'.  
+FAIL:esc=ORB should allow the response if Content-Type is: 'application/javascript'.  
+FAIL:esc=ORB should allow the response if Content-Type is: 'application/x-ecmascript'.  
+FAIL:esc=ORB should allow the response if Content-Type is: 'application/x-javascript'.  
+FAIL:esc=ORB should allow the response if Content-Type is: 'image/svg+xml'.  
+FAIL:esc=ORB should allow the response if Content-Type is: 'text/css'.  
+FAIL:esc=ORB should allow the response if Content-Type is: 'text/ecmascript'.  
+FAIL:esc=ORB should allow the response if Content-Type is: 'text/javascript'.  
+FAIL:esc=ORB should allow the response if Content-Type is: 'text/javascript1.0'.  
+FAIL:esc=ORB should allow the response if Content-Type is: 'text/javascript1.1'.  
+FAIL:esc=ORB should allow the response if Content-Type is: 'text/javascript1.2'.  
+FAIL:esc=ORB should allow the response if Content-Type is: 'text/javascript1.3'.  
+FAIL:esc=ORB should allow the response if Content-Type is: 'text/javascript1.4'.  
+FAIL:esc=ORB should allow the response if Content-Type is: 'text/javascript1.5'.  
+FAIL:esc=ORB should allow the response if Content-Type is: 'text/jscript'.  
+FAIL:esc=ORB should allow the response if Content-Type is: 'text/livescript'.  
+FAIL:esc=ORB should allow the response if Content-Type is: 'text/x-ecmascript'.  
+FAIL:esc=ORB should allow the response if Content-Type is: 'text/x-javascript'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/dash+xml'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/gzip'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/json'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/ld+json'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/msexcel'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/mspowerpoint'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/msword'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/msword-template'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/pdf'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.apple.mpegurl'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.ces-quickpoint'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.ces-quicksheet'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.ces-quickword'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.ms-excel'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.ms-excel.sheet.macroenabled.12'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.ms-powerpoint'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.ms-powerpoint.presentation.macroenabled.12'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.ms-word'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.ms-word.document.12'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.ms-word.document.macroenabled.12'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.msword'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.openxmlformats-officedocument.presentationml.template'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.openxmlformats-officedocument.spreadsheetml.template'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.openxmlformats-officedocument.wordprocessingml.template'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.presentation-openxml'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.presentation-openxmlm'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.spreadsheet-openxml'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/vnd.wordprocessing-openxml'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/x-gzip'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/x-protobuf'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/x-protobuffer'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/xhtml+xml'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/xml'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'application/zip'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'audio/mpegurl'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'multipart/byteranges'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'multipart/signed'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'text/csv'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'text/event-stream'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'text/html'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'text/json'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'text/vtt'.  
+FAIL:esc=ORB should block the response if Content-Type is: 'text/xml'.  
 [fetch/orb/tentative/known-mime-type.sub.any.html]
 harness=TIMEOUT
 [fetch/orb/tentative/known-mime-type.sub.any.worker.html]
@@ -4023,6 +4182,10 @@ FAIL=Privileged header not allowed for guard type: request-no-cors
 harness=TIMEOUT
 [fetch/range/non-matching-range-response.html]
 harness=TIMEOUT
+[fetch/range/non-matching-range-response.html]
+FAIL=Range requests ignored (200 status) should succeed
+FAIL=Range requests with no rewrites should succeed
+FAIL=Range response out of range of request should succeed
 [fetch/range/sw-416.https.window.html]
 FAIL=416 response not allowed following no-cors ranged request
 [fetch/range/sw-intercept-range.https.window.html]
@@ -4057,11 +4220,32 @@ FAIL=Status(101) should be accepted, with removing body.
 FAIL=Status(103) should be ignored.
 FAIL=Status(199) should be ignored.
 [fetch/security/dangling-markup/dangling-markup-mitigation-allowed-apis.https.html]
-harness=TIMEOUT
+FAIL=Clean up iframe
+FAIL=Does not block EventSource
+FAIL=Does not block Worker
+FAIL=Does not block fetch
+FAIL=Does not block importScripts
+FAIL:esc=Does not block location.replace(`resources/empty.html?\n<`)
+FAIL:esc=Does not block window.open(`resources/empty.html?\n<`,'_self')
+FAIL=Does not block xhr
+FAIL=Setup controlled frame
 [fetch/security/dangling-markup/dangling-markup-mitigation-data-url.tentative.sub.html]
 harness=TIMEOUT
 [fetch/security/dangling-markup/dangling-markup-mitigation.tentative.html]
-harness=TIMEOUT
+FAIL=<img id="dangling" src="/images/green-1x1.png?img=&#10;b">
+FAIL=<img id="dangling" src="/images/green-1x1.png?img=&amp;#10;b">
+FAIL=<img id="dangling" src="/images/green-1x1.png?img=&amp;#10;b&amp;lt;c">
+FAIL=<img id="dangling" src="/images/green-1x1.png?img=&amp;lt;b">
+FAIL=<img id="dangling" src="/images/green-1x1.png?img=&lt;b">
+FAIL=Fetch: /images/gre\nen-1x1.png?img=<
+FAIL=Fetch: /images/gre\ren-1x1.png?img=<
+FAIL=Fetch: /images/gre\ten-1x1.png?img=<
+FAIL=Fetch: /images/green-1x1.png?<\n=block
+FAIL=Fetch: /images/green-1x1.png?<\r=block
+FAIL=Fetch: /images/green-1x1.png?<\t=block
+FAIL:esc=\\n      <img id="dangling" src="\\n        /images/green-1x1.png?img=&amp;#10;\\n      ">\\n    
+FAIL:esc=\\n      <img id="dangling" src="\\n        /images/green-1x1.png?img=&amp;lt;\\n      ">\\n    
+FAIL:esc=\\n      <img id="dangling" src="\\n        /images/green-1x1.png?img=\\n      ">\\n    
 [fetch/security/dangling-markup/dangling-markup-mitigation.tentative.https.html]
 FAIL=Only blocks dangling markup requests
 [fetch/security/dangling-markup/media.html]

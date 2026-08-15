@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "js/Ast.h"
+#include "js/Realm.h"
 #include "js/Value.h"
 
 namespace microbrowser::js {
@@ -483,6 +484,24 @@ class Object {
   const Value& BoundThis() const { return bound_this_; }
   void SetBoundThis(Value value) { bound_this_ = std::move(value); }
 
+  // Which realm this object belongs to -- ADR 0042 §2.
+  //
+  // Read on every call, because the rule the language needs is that a builtin
+  // allocates from the realm of the *function* rather than of the caller:
+  // `frames[0].Array.prototype.map.call(x, f)` answers an array carrying the
+  // child's `Array.prototype`. Meaningful for a callable; harmless and unread on
+  // anything else.
+  //
+  // An index rather than a `Realm*` for two reasons. It survives the
+  // interpreter's realm list growing when a page appends an `<iframe>`, which a
+  // pointer into a vector's storage does not. And sixteen bits fit in padding
+  // this class already had between `serializable_` and `bound_this_`, so a realm
+  // costs nothing per object -- there are a hundred thousand of these on a real
+  // page and eight bytes each for a field only functions read would not be worth
+  // it.
+  RealmId RealmIndex() const { return realm_; }
+  void SetRealmIndex(RealmId realm) { realm_ = realm; }
+
  private:
   friend class Heap;
 
@@ -511,6 +530,8 @@ class Object {
   Environment* closure_ = nullptr;
   bool arrow_ = false;
   bool serializable_ = true;
+  // In the padding those two bools left. See RealmIndex.
+  RealmId realm_ = kMainRealm;
   Value bound_this_;
   NativeFunction native_;
   Object* home_object_ = nullptr;
@@ -710,6 +731,13 @@ class Heap {
   Heap& operator=(const Heap&) = delete;
 
   Object* AllocateObject(Object::Kind kind);
+  // Which realm subsequent allocations belong to. Written by the interpreter
+  // whenever the running realm changes, read by `AllocateObject` and by nothing
+  // else. Here rather than as an argument because the alternative is threading a
+  // realm through every allocation site in the engine, and a site that passed the
+  // wrong one would be a child frame's function bound to the parent's global --
+  // ADR 0042 §2.
+  void SetAllocationRealm(RealmId realm) { realm_ = realm; }
   Environment* AllocateEnvironment(Environment* parent);
 
   // Frees everything not reachable from `roots`. Returns how many objects went.
@@ -811,6 +839,11 @@ class Heap {
   // for the reason above.
   std::unordered_map<const Object*, std::unordered_map<const Object*, Value>> weak_tables_;
   std::size_t since_collection_ = 0;
+  // Which realm `AllocateObject` stamps on what it hands out. Kept here rather
+  // than passed per allocation because the interpreter changes it at the four
+  // places a realm can change and there are a thousand allocation sites; see
+  // `SetAllocationRealm` and ADR 0042 §2.
+  RealmId realm_ = kMainRealm;
   // Around 150 MB here, which is far more than any page legitimately needs and
   // far less than the machine has. Measured rather than guessed: the fuzzer's
   // recursive allocator reached 600 MB at four times this.

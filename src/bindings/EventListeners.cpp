@@ -215,12 +215,12 @@ bool ListenerStillRegistered(const js::Value& listeners, const js::Value& entry)
 }
 
 void InstallListenerRegistration(js::Interpreter& interpreter, const js::Value& wrapper,
-                                 const void* owner) {
+                                 const DomBindings* owner) {
   const auto method = [&interpreter, &wrapper, owner](const char* name,
                                                       js::NativeFunction function) {
     const Value native = interpreter.NewNativeValue(name, std::move(function));
     if (native.IsObject() && wrapper.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(owner));
+      native.object->Set(kOwnerSlot, OwnerValue(owner));
       wrapper.object->Set(name, native);
     }
   };

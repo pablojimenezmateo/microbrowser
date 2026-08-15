@@ -41,7 +41,13 @@ extern:
 # controller, a canvas host and now a worker host, and at least the last three are separable.
 # Trimming comments to stay under a number was tried first and rejected: the comments in this tree
 # are its best asset and shrinking them to buy header lines is paying with the wrong currency.
-max_tu_lines: 1000
+# **1001 from 2026-08-15, and the odd-looking number is deliberate.** `Page.h` came out of the
+# 2026-08-15 merge exactly one line over: two worktrees each added to it against the same base --
+# the worker's `importScripts` pair on one, the child browsing context's on the other -- and each
+# measured its own total. The cap is set to precisely what the file now is rather than rounded up,
+# so the next line added to `Page.h` fails the lint and forces the split this file has been asking
+# for, instead of buying a seventh raise.
+max_tu_lines: 1001
 
 # Engine is the class most at risk of becoming "the browser". Document,
 # navigation history, network, and script each get their own type; Engine stays
@@ -155,7 +161,24 @@ max_tu_lines: 1000
 # +1 member for `worker_import_fetches_`: an `importScripts` in flight is not the same thing as a
 # worker script in flight, and folding the two into one map would mean asking, on every completion,
 # which of two very different things to do -- start a thread, or unblock one that is asleep.
-budget: Engine header_lines=545 public_methods=22 members=28
+# 545 for ADR 0027's child contexts, and **no new members and no new public
+# methods** -- which is the shape to check before reading the raise as growth.
+# The four are private and every one of them is routing: a late child document,
+# the `load` its arrival owes, and the completion drain those two joined. The
+# drain in particular *left* Engine.cpp for EngineSubresources.cpp, so the
+# translation unit shrank by sixty lines while the header grew by fifteen. The
+# frames themselves live in `FrameTree`, which is why `Page` did not gain a
+# member either.
+# +13 lines for `RunFrameScripts` (ADR 0042 §5): giving each child context somewhere to run script
+# is a same-origin decision, and this is the only class that may make one -- `Page` cannot see
+# `src/url`. Most of those lines are the comment on its `run_scripts` parameter, which is a real
+# ordering rule and not a flag: a child's *window* has to exist before the embedder's first script
+# reads `contentWindow`, and its *scripts* must not have run by then. No new members; the state it
+# writes lives on the `Frame` and on the child's script half.
+# The three paragraphs above are two worktrees off one base -- the worker's imports on one, the
+# child contexts and their script half on the other -- so neither branch's count described this
+# header once both were in the tree. The number is measured after the merge.
+budget: Engine header_lines=582 public_methods=22 members=28
 # Raised for deferred location navigation (pending_location_ + replacing_document_)
 # — ADR 0026 §3 assign/replace/reload without tearing the document under script.
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
@@ -354,12 +377,27 @@ budget: PendingLoad header_lines=125 public_methods=8 members=21
 # half because the halves run either side of an event dispatch that is not this class's.
 budget: Page   header_lines=990 public_methods=198 members=30
 budget: LayoutState header_lines=40 public_methods=0 members=8
-# ADR 0027 §1's child browsing context. Five members and each is a distinct
-# question: which element holds it, what context is behind it, what URL it was
-# told to load, whether that has arrived, and whether it is same-origin. The
-# last is recorded rather than recomputed so that one frame cannot be
-# same-origin to one caller and not to another.
-budget: Frame header_lines=40 public_methods=0 members=6
+# ADR 0027 §1's child browsing context. Each member is a distinct question:
+# which element holds it, what context is behind it, what URL it was told to
+# load, whether that has arrived, whether it has been asked for, and whether it
+# is same-origin. The last is recorded rather than recomputed so that one frame
+# cannot be same-origin to one caller and not to another.
+# Raised to 7 for `requested_source`: the collection pass now runs on every turn
+# rather than once per parse, so "is this element still asking for what it was
+# asking for" has to be answerable without a second network round trip. It is
+# what makes `iframe.src = other` a navigation and `div.className = x` not one,
+# and it is a *recorded* answer for the same reason `same_origin` is -- deriving
+# it at each caller is how two callers come to disagree.
+# +1 member, `scripting_attached` (ADR 0042 §5). Not derivable: a realm is *created* by attaching,
+# so asking twice would give one document two globals, and `CreateRealm` refusing past `kMaxRealms`
+# is an answer that has to be remembered or every turn of the loop asks again.
+budget: Frame header_lines=60 public_methods=0 members=8
+# The tree those frames hang off, lifted out of Page when the collection pass
+# stopped being a once-per-parse walk. Three members: the frames, the structure
+# version the last collection saw, and the elements owed a `load`. Page was at
+# its member budget with the vector alone, which is ADR 0027's "Page stops
+# meaning *the document*" arriving as a lint failure.
+budget: FrameTree header_lines=85 public_methods=16 members=4
 # ADR 0031's decoder child and the surface registry it feeds. Two members: the playback coordinator and
 # the last composited generation per surface id, which is how a playing video damages the screen when
 # the display list is byte-identical.
@@ -441,7 +479,34 @@ budget: PageTextContext header_lines=30 public_methods=5 members=2
 # +1 header line, +1 method and +1 member for SetIndexedDbSource and the
 # IndexedDbSource pointer it stores, the same shape as every other Set*Source.
 # +SetAnimationSource / animations_ / DeliverFinishedAnimations (TD-0021).
-budget: PageScript header_lines=500 public_methods=69 members=32
+# +4 methods and +3 members for ADR 0042 §5's realm attachment. A same-origin
+# child borrows its parent's interpreter and owns a realm of it, so "who owns
+# it", "which one is it" and "which realm of it" stopped being one question and
+# `interpreter_` became `owned_interpreter_` + `interpreter_` +
+# `host_interpreter_` + `realm_`. The guard itself costs this class nothing: it
+# is `RealmBoundScript`, below, and what it took from here is the *constructor*,
+# which is now private with that class as its one friend.
+# +2 lines and +1 member again for the windows around this document -- `FrameGlobals`, which is
+# the state `contentWindow`, `parent`, `top` and `window[i]` read. Here rather than on
+# `DomBindings` because that class is at 989 of its 990 permitted lines, which is the lint saying
+# the next thing added to it should be a separate class; see bindings/BrowsingContexts.h.
+# Raised to 569 by the 2026-08-15 merge, and the three lines are the merge itself rather than a
+# feature: one worktree gave this class the pre-click activation hooks and the worker global's
+# delivery, the other gave it `frame_windows_`, `document_encoding_` and the private constructor
+# `RealmBoundScript` is the friend of. Neither branch's count described the class with both in the
+# tree. Measured after the merge.
+budget: PageScript header_lines=569 public_methods=80 members=37
+# ADR 0042 §5's realm guard, and it is meant to stay this small. One member --
+# the `PageScript` it is the sole friend of -- and the same `operator->` twice,
+# differing in constness. If this grows, something has started living in the
+# guard that belongs in the thing being guarded.
+# The sixth method is `Detach`, and it is the *unguarded* one: it frees this
+# page's interpreter, so a `RealmScope` taken on the way in would restore into an
+# object the call itself destroyed. ASan found that on the navigation path. It is
+# a named method rather than a general escape hatch for exactly the reason the
+# constructor is private -- and it runs no script, so there is nothing a realm
+# would be current for. **A seventh method here should be argued for, not added.**
+budget: RealmBoundScript header_lines=75 public_methods=6 members=1
 # This document's policy plus the two things every question about one needs.
 # Three members and one of them mutable: a refusal is recorded where it is
 # decided, because eight call sites remembering to log is how a browser ends up

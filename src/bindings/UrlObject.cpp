@@ -22,6 +22,8 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/DocumentFacts.h"
+#include "html/UrlEncoding.h"
 #include "bindings/Reflection.h"
 #include "dom/Node.h"
 #include "url/Url.h"
@@ -144,7 +146,28 @@ const dom::Element* FindFirstBaseElement(const dom::Node& node) {
   return nullptr;
 }
 
+// Where a realm keeps the character set of the document whose script runs in it.
+// Not an identifier, so a page can neither read it nor shadow it -- the same
+// convention `#domInterfaces` and `#domWrappers` use.
+constexpr const char* kDocumentEncodingSlot = "#documentEncoding";
+
 }  // namespace
+
+void SetDocumentEncoding(js::Interpreter& interpreter, html::Encoding encoding) {
+  if (js::Object* global = interpreter.Global(); global != nullptr) {
+    global->Set(kDocumentEncodingSlot,
+                js::Value::Number(static_cast<double>(static_cast<std::uint8_t>(encoding))));
+  }
+}
+
+html::Encoding DocumentEncodingOf(js::Interpreter& interpreter) {
+  js::Object* global = interpreter.Global();
+  const js::Value* slot = global == nullptr ? nullptr : global->GetOwn(kDocumentEncodingSlot);
+  if (slot == nullptr || !slot->IsNumber()) {
+    return html::Encoding::Utf8;
+  }
+  return static_cast<html::Encoding>(static_cast<std::uint8_t>(slot->number));
+}
 
 // The document base URL, computed from the tree rather than remembered.
 //
@@ -232,7 +255,7 @@ void DomBindings::InstallUrlConstructor() {
         }
         object.object->SetPrototype(prototype.object);
         object.object->SetHidden(kHrefSlot, Value::String(parsed->Serialize()));
-        object.object->Set(kOwnerSlot, PointerValue(this));
+        object.object->Set(kOwnerSlot, OwnerValue(this));
         // Not clonable: a `URL` is a handle, and a structured clone of one would be a plain object
         // carrying its href with none of its behaviour. The standard's answer is a DataCloneError.
         object.object->MarkHostObject();
@@ -241,7 +264,7 @@ void DomBindings::InstallUrlConstructor() {
   if (!constructor.IsObject()) {
     return;
   }
-  constructor.object->Set(kOwnerSlot, PointerValue(this));
+  constructor.object->Set(kOwnerSlot, OwnerValue(this));
 
   // The components, as accessors on the prototype over the one href slot. On the prototype rather
   // than as own properties so that a setter cannot be shadowed by the value it wrote.
@@ -278,7 +301,7 @@ void DomBindings::InstallUrlConstructor() {
           return Value::Undefined();
         });
     if (set.IsObject()) {
-      set.object->Set(kOwnerSlot, PointerValue(this));
+      set.object->Set(kOwnerSlot, OwnerValue(this));
       prototype.object->DefineAccessor(PartName(part), get.object, set.object);
     }
   }
@@ -305,7 +328,7 @@ void DomBindings::InstallUrlConstructor() {
         return params;
       });
   if (search_params_get.IsObject()) {
-    search_params_get.object->Set(kOwnerSlot, PointerValue(this));
+    search_params_get.object->Set(kOwnerSlot, OwnerValue(this));
     prototype.object->DefineAccessor("searchParams", search_params_get.object, nullptr);
   }
 
@@ -357,14 +380,14 @@ void DomBindings::InstallUrlConstructor() {
         }
         object.object->SetPrototype(prototype.object);
         object.object->SetHidden(kHrefSlot, Value::String(parsed->Serialize()));
-        object.object->Set(kOwnerSlot, PointerValue(this));
+        object.object->Set(kOwnerSlot, OwnerValue(this));
         // Not clonable: a `URL` is a handle, and a structured clone of one would be a plain object
         // carrying its href with none of its behaviour. The standard's answer is a DataCloneError.
         object.object->MarkHostObject();
         return object;
       });
   if (parse_static.IsObject()) {
-    parse_static.object->Set(kOwnerSlot, PointerValue(this));
+    parse_static.object->Set(kOwnerSlot, OwnerValue(this));
     constructor.object->Set("parse", parse_static);
   }
 
@@ -448,8 +471,8 @@ void DomBindings::InstallBaseElementHref() {
     return Value::Undefined();
   });
   if (get.IsObject() && set.IsObject()) {
-    get.object->Set(kOwnerSlot, PointerValue(this));
-    set.object->Set(kOwnerSlot, PointerValue(this));
+    get.object->Set(kOwnerSlot, OwnerValue(this));
+    set.object->Set(kOwnerSlot, OwnerValue(this));
     prototype->object->DefineAccessor("href", get.object, set.object);
   }
 }
@@ -494,8 +517,24 @@ void Reflector::InstallHyperlinkElementUtils() {
       // scalar value string, so the conversion happens here rather than at the setter -- the
       // attribute keeps what was written, and only the *parse* sees U+FFFD.
       const std::string text = util::ScrubLoneSurrogates(*href);
+      // **HTML's "encoding-parse a URL", which is two things and this used to do only one.** The
+      // base is `<base href>` re-read from the tree on every call -- a script can rewrite it
+      // between two link resolutions, and the URL Standard's own setter page does exactly that,
+      // nine hundred times. The *query* is percent-encoded in the **document's** character set
+      // rather than in UTF-8, so `<a href="?q=日本">` on a Shift_JIS page reports `%93%FA%96%7B`:
+      // the bytes a click would actually send.
+      //
+      // TD-0058 is the record of getting one without the other. Two worktrees implemented this
+      // accessor against the same base, each got a different half right, and the merge kept the
+      // live base -- so `url/` read 97.9% and every `encoding/legacy-mb-*` href case reported
+      // UTF-8. The debt entry proposed pointing this at `Engine::ResolveDocumentUrl`, which has
+      // the encoder; that would have traded the failure back the other way, because that function
+      // resolves against `DocumentPolicy::Base()`, computed once and blind to a script appending a
+      // `<base>`. Both halves belong here, and neither needs the other's owner.
+      const html::DocumentQueryEncoder encoder(DocumentEncodingOf(*owner->interpreter_));
       const std::optional<url::Url> base = url::Url::Parse(owner->DocumentBaseUrl(element->NodeDocument()));
-      return base.has_value() ? url::Url::Parse(text, *base) : url::Url::Parse(text);
+      return base.has_value() ? url::Url::Parse(text, *base, &encoder)
+                              : url::Url::Parse(text, &encoder);
     };
 
     const Value href_get =
@@ -526,8 +565,8 @@ void Reflector::InstallHyperlinkElementUtils() {
       return Value::Undefined();
     });
     if (href_get.IsObject() && href_set.IsObject()) {
-      href_get.object->Set(kOwnerSlot, PointerValue(owner));
-      href_set.object->Set(kOwnerSlot, PointerValue(owner));
+      href_get.object->Set(kOwnerSlot, OwnerValue(owner));
+      href_set.object->Set(kOwnerSlot, OwnerValue(owner));
       prototype->object->DefineAccessor("href", href_get.object, href_set.object);
     }
 
@@ -549,7 +588,7 @@ void Reflector::InstallHyperlinkElementUtils() {
       if (!get.IsObject()) {
         continue;
       }
-      get.object->Set(kOwnerSlot, PointerValue(owner));
+      get.object->Set(kOwnerSlot, OwnerValue(owner));
       if (part == Part::Origin) {
         prototype->object->DefineAccessor(PartName(part), get.object, nullptr);
         continue;
@@ -576,7 +615,7 @@ void Reflector::InstallHyperlinkElementUtils() {
             return Value::Undefined();
           });
       if (set.IsObject()) {
-        set.object->Set(kOwnerSlot, PointerValue(owner));
+        set.object->Set(kOwnerSlot, OwnerValue(owner));
         prototype->object->DefineAccessor(PartName(part), get.object, set.object);
       }
     }
@@ -610,7 +649,7 @@ void DomBindings::InstallLocationParts(const js::Value& location_prototype) {
           return Value::String(url.has_value() ? ReadPart(*url, part) : std::string());
         });
     if (get.IsObject()) {
-      get.object->Set(kOwnerSlot, PointerValue(this));
+      get.object->Set(kOwnerSlot, OwnerValue(this));
       location_prototype.object->DefineAccessor(PartName(part), get.object, nullptr);
     }
   }

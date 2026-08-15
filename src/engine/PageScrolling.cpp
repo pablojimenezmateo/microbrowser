@@ -146,7 +146,7 @@ bool Page::DispatchPendingScrollEvents() {
   targets.swap(scroll_.pending_events);
   bool ran = false;
   for (const dom::Element* target : targets) {
-    ran = script_.DispatchScroll(const_cast<dom::Element*>(target)) || ran;
+    ran = script_->DispatchScroll(const_cast<dom::Element*>(target)) || ran;
   }
   return ran;
 }

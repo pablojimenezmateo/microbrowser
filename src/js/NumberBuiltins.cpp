@@ -186,11 +186,11 @@ void Interpreter::InstallNumbers(Object* math) {
     return call.interpreter.NewBigIntValue(std::move(digits));
   });
   if (bigint != nullptr && bigint_prototype != nullptr) {
-    bigint_prototype->SetPrototype(well_known_.object_prototype);
+    bigint_prototype->SetPrototype(intrinsics().object_prototype);
     bigint->Set("prototype", Value::Obj(bigint_prototype));
     bigint_prototype->SetHidden("constructor", Value::Obj(bigint));
-    well_known_.bigint_prototype = bigint_prototype;
-    global_scope_->Declare("BigInt", Value::Obj(bigint), false);
+    intrinsics().bigint_prototype = bigint_prototype;
+    realm_->global_scope->Declare("BigInt", Value::Obj(bigint), false);
 
     InstallNative(bigint_prototype, "toString", [](NativeCall& call) {
       const BigInt* digits = BigIntOf(call.self);
@@ -235,15 +235,15 @@ void Interpreter::InstallNumbers(Object* math) {
   // --- Number ---------------------------------------------------------------
 
   Object* number_prototype = NewObject();
-  Value* declared = global_scope_->Lookup("Number");
+  Value* declared = realm_->global_scope->Lookup("Number");
   Object* number = declared != nullptr && declared->IsObject() ? declared->object : nullptr;
   if (number == nullptr || number_prototype == nullptr) {
     return;
   }
-  number_prototype->SetPrototype(well_known_.object_prototype);
+  number_prototype->SetPrototype(intrinsics().object_prototype);
   number->Set("prototype", Value::Obj(number_prototype));
   number_prototype->SetHidden("constructor", Value::Obj(number));
-  well_known_.number_prototype = number_prototype;
+  intrinsics().number_prototype = number_prototype;
 
   number->Set("MAX_SAFE_INTEGER", Value::Number(9007199254740991.0));
   number->Set("MIN_SAFE_INTEGER", Value::Number(-9007199254740991.0));
@@ -280,7 +280,7 @@ void Interpreter::InstallNumbers(Object* math) {
   // `Number.parseInt` and `parseInt` are required to be the same function
   // object, so this reads the global one back rather than installing a second.
   for (const char* name : {"parseInt", "parseFloat"}) {
-    if (Value* global = global_scope_->Lookup(name)) {
+    if (Value* global = realm_->global_scope->Lookup(name)) {
       number->Set(name, *global);
     }
   }

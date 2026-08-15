@@ -7,6 +7,38 @@
 #include <string_view>
 
 namespace microbrowser::wpt {
+
+std::string NormalizePortsInName(std::string_view name,
+                                 const std::vector<std::uint16_t>& ports) {
+  // The overwhelming majority of names have no digits after a colon at all, so the
+  // cheap rejection comes first: this runs once per subtest and there are tens of
+  // thousands of them per area.
+  if (name.find(':') == std::string_view::npos) {
+    return std::string(name);
+  }
+  std::string result(name);
+  for (std::size_t index = 0; index < ports.size(); ++index) {
+    if (ports[index] == 0) {
+      continue;  // never bound; substituting "0" would match a name that says `:0`
+    }
+    const std::string needle = ":" + std::to_string(ports[index]);
+    const std::string replacement = ":{{port[" + std::to_string(index) + "]}}";
+    for (std::size_t at = result.find(needle); at != std::string::npos;
+         at = result.find(needle, at + replacement.size())) {
+      // Only when the digits *end* there. Without this, port 8000 would rewrite the
+      // `:80001` in a name that happens to contain one, and the result would be a
+      // key no run reproduces.
+      const std::size_t after = at + needle.size();
+      if (after < result.size() && result[after] >= '0' && result[after] <= '9') {
+        at = after;
+        continue;
+      }
+      result.replace(at, needle.size(), replacement);
+    }
+  }
+  return result;
+}
+
 namespace {
 
 // The top-level WPT directory a test belongs to, which is the file its

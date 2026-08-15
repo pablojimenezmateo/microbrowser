@@ -138,7 +138,7 @@ void DomBindings::InstallWorker() {
     return Value::Undefined();
   });
   if (post.IsObject()) {
-    post.object->Set(kOwnerSlot, PointerValue(this));
+    post.object->Set(kOwnerSlot, OwnerValue(this));
     prototype.object->Set("postMessage", post);
   }
 
@@ -157,7 +157,7 @@ void DomBindings::InstallWorker() {
     return Value::Undefined();
   });
   if (terminate.IsObject()) {
-    terminate.object->Set(kOwnerSlot, PointerValue(this));
+    terminate.object->Set(kOwnerSlot, OwnerValue(this));
     prototype.object->Set("terminate", terminate);
   }
 
@@ -183,7 +183,7 @@ void DomBindings::InstallWorker() {
         return worker;
       });
   if (constructor.IsObject()) {
-    constructor.object->Set(kOwnerSlot, PointerValue(this));
+    constructor.object->Set(kOwnerSlot, OwnerValue(this));
     // Reachable from the constructor as well as installed on each instance:
     // `worker instanceof Worker` and `Worker.prototype.postMessage` are both
     // things a page writes, and both read this property. See the note in

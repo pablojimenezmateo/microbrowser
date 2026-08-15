@@ -30,7 +30,7 @@ void DomBindings::InstallNodeMixins(const js::Value& wrapper) {
   const auto method = [this, &wrapper](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       SetFunctionLength(native, 0);
       wrapper.object->Set(name, native);
     }

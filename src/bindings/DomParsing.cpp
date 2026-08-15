@@ -104,7 +104,7 @@ void DomBindings::InstallDomParsing() {
                                                              js::NativeFunction get) {
     const Value getter = interpreter_->NewNativeValue(name, std::move(get));
     if (getter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
       document_interface.object->DefineAccessor(name, getter.object, nullptr);
     }
   };
@@ -172,7 +172,7 @@ void DomBindings::InstallDomParsing() {
     if (!prototype.IsObject() || !constructor.IsObject()) {
       return;
     }
-    constructor.object->Set(kOwnerSlot, PointerValue(this));
+    constructor.object->Set(kOwnerSlot, OwnerValue(this));
     constructor.object->Set("prototype", prototype);
     prototype.object->Set("constructor", constructor);
     interpreter_->Global()->Set(name, constructor);
@@ -262,7 +262,7 @@ void DomBindings::InstallDomParsing() {
         return wrapper;
       });
   if (parse_from_string.IsObject()) {
-    parse_from_string.object->Set(kOwnerSlot, PointerValue(this));
+    parse_from_string.object->Set(kOwnerSlot, OwnerValue(this));
     parser_interface.object->Set("parseFromString", parse_from_string);
   }
   const Value parser_constructor =
@@ -297,7 +297,7 @@ void DomBindings::InstallDomParsing() {
         return Value::String(xml::SerializeXml(*node));
       });
   if (serialize.IsObject()) {
-    serialize.object->Set(kOwnerSlot, PointerValue(this));
+    serialize.object->Set(kOwnerSlot, OwnerValue(this));
     serializer_interface.object->Set("serializeToString", serialize);
   }
   const Value serializer_constructor = interpreter_->NewNativeValue(
@@ -390,7 +390,7 @@ void DomBindings::InstallDomParsing() {
         return fragment;
       });
   if (create.IsObject()) {
-    create.object->Set(kOwnerSlot, PointerValue(this));
+    create.object->Set(kOwnerSlot, OwnerValue(this));
     range_interface.object->Set("createContextualFragment", create);
   }
 }

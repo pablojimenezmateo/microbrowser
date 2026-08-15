@@ -219,7 +219,7 @@ js::Value MakeAttrImpl(DomBindings& owner, js::Interpreter& interpreter, dom::El
           return boolean ? js::Value::Bool(false) : js::Value::Null();
         });
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(&owner));
+      native.object->Set(kOwnerSlot, OwnerValue(&owner));
       entry.object->Set(name, native);
     }
   }
@@ -338,14 +338,14 @@ void DomBindings::InstallNodeQueries(const js::Value& target) {
   const auto method = [this, &target](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->Set(name, native);
     }
   };
   const auto accessor = [this, &target](const char* name, js::NativeFunction get) {
     const Value native = interpreter_->NewNativeValue(name, std::move(get));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->DefineAccessor(name, native.object, nullptr);
     }
   };
@@ -543,14 +543,14 @@ void DomBindings::InstallParentQueries(const js::Value& target) {
   const auto method = [this, &target](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->Set(name, native);
     }
   };
   const auto accessor = [this, &target](const char* name, js::NativeFunction get) {
     const Value native = interpreter_->NewNativeValue(name, std::move(get));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->DefineAccessor(name, native.object, nullptr);
     }
   };
@@ -733,14 +733,14 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
   const auto method = [this, &target](const char* name, js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->Set(name, native);
     }
   };
   const auto accessor = [this, &target](const char* name, js::NativeFunction get) {
     const Value native = interpreter_->NewNativeValue(name, std::move(get));
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       target.object->DefineAccessor(name, native.object, nullptr);
     }
   };
@@ -813,7 +813,7 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
           static_cast<double>(static_cast<dom::Element*>(node)->Attributes().size()));
     });
     if (length.IsObject()) {
-      length.object->Set(kOwnerSlot, PointerValue(owner));
+      length.object->Set(kOwnerSlot, OwnerValue(owner));
       map.object->DefineAccessor("length", length.object, nullptr);
     }
 
@@ -833,7 +833,7 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
                       attributes[static_cast<std::size_t>(index)]);
     });
     if (item.IsObject()) {
-      item.object->Set(kOwnerSlot, PointerValue(owner));
+      item.object->Set(kOwnerSlot, OwnerValue(owner));
       map.object->Set("item", item);
     }
 
@@ -855,7 +855,7 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
           return Value::Null();
         });
     if (get_named.IsObject()) {
-      get_named.object->Set(kOwnerSlot, PointerValue(owner));
+      get_named.object->Set(kOwnerSlot, OwnerValue(owner));
       map.object->Set("getNamedItem", get_named);
     }
 
@@ -878,7 +878,7 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
                                   : MakeAttr(*holder, inner.interpreter, owning, *found);
         });
     if (get_named_ns.IsObject()) {
-      get_named_ns.object->Set(kOwnerSlot, PointerValue(owner));
+      get_named_ns.object->Set(kOwnerSlot, OwnerValue(owner));
       map.object->Set("getNamedItemNS", get_named_ns);
     }
 
@@ -916,7 +916,7 @@ void DomBindings::InstallElementIdentity(const js::Value& target) {
           return made.completion == js::Completion::Throw ? Value::Undefined() : made.value;
         });
     if (iterate.IsObject()) {
-      iterate.object->Set(kOwnerSlot, PointerValue(owner));
+      iterate.object->Set(kOwnerSlot, OwnerValue(owner));
       map.object->Set(js::PropertyKey::Symbol(call.interpreter.SymbolIterator()), iterate);
     }
     return map;

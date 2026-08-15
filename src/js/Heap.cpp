@@ -603,6 +603,12 @@ Object* Heap::AllocateObject(Object::Kind kind) {
   }
   ++since_collection_;
   objects_.push_back(std::make_unique<Object>(kind));
+  // Stamped here rather than at the six places a callable is made, because a
+  // function carrying the wrong realm is not a wrong answer -- it is a child
+  // frame's code running against the parent's global, which is a same-origin
+  // escape. Six sites that each have to remember is six chances at that; the
+  // allocator cannot forget. One store per allocation. ADR 0042 §2.
+  objects_.back()->SetRealmIndex(realm_);
   return objects_.back().get();
 }
 

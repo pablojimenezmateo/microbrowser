@@ -336,13 +336,13 @@ void DomBindings::InstallAbortController() {
           return Value::Undefined();
         });
         if (abort.IsObject()) {
-          abort.object->Set(kOwnerSlot, PointerValue(this));
+          abort.object->Set(kOwnerSlot, OwnerValue(this));
           controller.object->Set("abort", abort);
         }
         return controller;
       });
   if (constructor.IsObject()) {
-    constructor.object->Set(kOwnerSlot, PointerValue(this));
+    constructor.object->Set(kOwnerSlot, OwnerValue(this));
     interpreter_->Global()->Set("AbortController", constructor);
     interpreter_->GlobalScope()->Declare("AbortController", constructor, false);
   }
@@ -612,7 +612,7 @@ void DomBindings::InstallFetch() {
     return promise;
   });
   if (fetch.IsObject()) {
-    fetch.object->Set(kOwnerSlot, PointerValue(this));
+    fetch.object->Set(kOwnerSlot, OwnerValue(this));
     interpreter_->Global()->Set("fetch", fetch);
     interpreter_->GlobalScope()->Declare("fetch", fetch, false);
   }

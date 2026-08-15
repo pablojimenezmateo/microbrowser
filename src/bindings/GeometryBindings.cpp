@@ -127,7 +127,7 @@ void DomBindings::InstallGeometry(const js::Value& element_interface) {
         return MakeDomRect(*owner->interpreter_, box);
       });
   if (rect_of.IsObject()) {
-    rect_of.object->Set(kOwnerSlot, PointerValue(this));
+    rect_of.object->Set(kOwnerSlot, OwnerValue(this));
     element_interface.object->Set("getBoundingClientRect", rect_of);
   }
 
@@ -150,7 +150,7 @@ void DomBindings::InstallGeometry(const js::Value& element_interface) {
         return owner->interpreter_->NewArrayValue(std::move(rects));
       });
   if (rects_of.IsObject()) {
-    rects_of.object->Set(kOwnerSlot, PointerValue(this));
+    rects_of.object->Set(kOwnerSlot, OwnerValue(this));
     element_interface.object->Set("getClientRects", rects_of);
   }
 
@@ -192,7 +192,7 @@ void DomBindings::InstallGeometry(const js::Value& element_interface) {
     if (!getter.IsObject()) {
       continue;
     }
-    getter.object->Set(kOwnerSlot, PointerValue(this));
+    getter.object->Set(kOwnerSlot, OwnerValue(this));
     // No setter. These are read-only in the specification, and a page that
     // assigns one is writing into a value the layout decides.
     element_interface.object->DefineAccessor(metric.name, getter.object, nullptr);
@@ -249,7 +249,7 @@ void DomBindings::InstallScroll(const js::Value& element_interface) {
     if (!getter.IsObject()) {
       continue;
     }
-    getter.object->Set(kOwnerSlot, PointerValue(this));
+    getter.object->Set(kOwnerSlot, OwnerValue(this));
     js::Object* setter = nullptr;
     if (writable) {
       const Value assign =
@@ -277,7 +277,7 @@ void DomBindings::InstallScroll(const js::Value& element_interface) {
             return Value::Undefined();
           });
       if (assign.IsObject()) {
-        assign.object->Set(kOwnerSlot, PointerValue(this));
+        assign.object->Set(kOwnerSlot, OwnerValue(this));
         setter = assign.object;
       }
     }
@@ -306,7 +306,7 @@ void DomBindings::InstallScroll(const js::Value& element_interface) {
           return Value::Undefined();
         });
     if (fn.IsObject()) {
-      fn.object->Set(kOwnerSlot, PointerValue(this));
+      fn.object->Set(kOwnerSlot, OwnerValue(this));
       element_interface.object->Set(method.name, fn);
     }
   }
@@ -327,7 +327,7 @@ void DomBindings::InstallScroll(const js::Value& element_interface) {
         return Value::Undefined();
       });
   if (into_view.IsObject()) {
-    into_view.object->Set(kOwnerSlot, PointerValue(this));
+    into_view.object->Set(kOwnerSlot, OwnerValue(this));
     element_interface.object->Set("scrollIntoView", into_view);
   }
 
@@ -379,7 +379,7 @@ void DomBindings::InstallWindowScroll() {
           return Value::Number(static_cast<double>(vertical ? found->scroll_y : found->scroll_x));
         });
     if (getter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
       global->DefineAccessor(reading.name, getter.object, nullptr);
     }
   }
@@ -412,7 +412,7 @@ void DomBindings::InstallWindowScroll() {
           static_cast<int>(vertical ? viewport.height : viewport.width))));
     });
     if (getter.IsObject()) {
-      getter.object->Set(kOwnerSlot, PointerValue(this));
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
       global->DefineAccessor(extent.name, getter.object, nullptr);
     }
   }
@@ -438,7 +438,7 @@ void DomBindings::InstallWindowScroll() {
           return Value::Undefined();
         });
     if (fn.IsObject()) {
-      fn.object->Set(kOwnerSlot, PointerValue(this));
+      fn.object->Set(kOwnerSlot, OwnerValue(this));
       global->Set(method.name, fn);
       interpreter_->GlobalScope()->Declare(method.name, fn, false);
     }
@@ -468,7 +468,7 @@ void DomBindings::InstallComputedStyle() {
   if (!get_computed_style.IsObject()) {
     return;
   }
-  get_computed_style.object->Set(kOwnerSlot, PointerValue(this));
+  get_computed_style.object->Set(kOwnerSlot, OwnerValue(this));
   interpreter_->Global()->Set("getComputedStyle", get_computed_style);
   interpreter_->GlobalScope()->Declare("getComputedStyle", get_computed_style, false);
 }
@@ -543,7 +543,7 @@ js::Value DomBindings::MakeComputedStyle(dom::Element& element) {
             return Value::String(value.value_or(std::string()));
           });
       if (method.IsObject()) {
-        method.object->Set(kOwnerSlot, PointerValue(owner));
+        method.object->Set(kOwnerSlot, OwnerValue(owner));
         method.object->Set(kNodeSlot, PointerValue(self));
       }
       return method;
@@ -560,7 +560,7 @@ js::Value DomBindings::MakeComputedStyle(dom::Element& element) {
   if (!getter.IsObject()) {
     return Value::Undefined();
   }
-  getter.object->Set(kOwnerSlot, PointerValue(this));
+  getter.object->Set(kOwnerSlot, OwnerValue(this));
   handler.object->Set("get", getter);
 
   // **`'color' in getComputedStyle(el)`**, which is one line at the top of every

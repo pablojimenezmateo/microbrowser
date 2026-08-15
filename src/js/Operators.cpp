@@ -71,8 +71,8 @@ Result Interpreter::ToPrimitive(const Value& value, Hint hint, Value& out) {
   // The override comes first, and finding it is a property lookup rather than
   // a check on the object's kind: an ordinary object with the method behaves
   // exactly as a Date does, which is the point of it being a symbol.
-  if (well_known_.symbol_to_primitive != nullptr) {
-    const Value exotic = GetProperty(value, PropertyKey::Symbol(well_known_.symbol_to_primitive));
+  if (shared_.symbol_to_primitive != nullptr) {
+    const Value exotic = GetProperty(value, PropertyKey::Symbol(shared_.symbol_to_primitive));
     if (exotic.IsObject() && exotic.object->IsCallable()) {
       const char* name = hint == Hint::String   ? "string"
                          : hint == Hint::Number ? "number"
@@ -695,9 +695,9 @@ Result Interpreter::ApplyBinary(BinaryOp op, const Value& a, const Value& b) {
       // The override comes before the callable check, because an object with
       // the trap need not be callable -- which is what lets a plain object
       // stand in for a constructor in a type test.
-      if (well_known_.symbol_has_instance != nullptr) {
+      if (shared_.symbol_has_instance != nullptr) {
         const Value trap =
-            GetProperty(b, PropertyKey::Symbol(well_known_.symbol_has_instance));
+            GetProperty(b, PropertyKey::Symbol(shared_.symbol_has_instance));
         if (trap.IsObject() && trap.object->IsCallable()) {
           const Result asked = CallFunction(trap, b, {a});
           return asked.IsAbrupt() ? asked

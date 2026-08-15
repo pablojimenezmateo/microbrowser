@@ -104,7 +104,7 @@ void DomBindings::InstallCanvas(const js::Value& target) {
     return context;
   });
   if (get_context.IsObject()) {
-    get_context.object->Set(kOwnerSlot, PointerValue(this));
+    get_context.object->Set(kOwnerSlot, OwnerValue(this));
     target.object->Set("getContext", get_context);
   }
 
@@ -169,7 +169,7 @@ js::Value DomBindings::MakeCanvasContext(const js::Value& canvas) {
       return Value::Undefined();
     });
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       native.object->SetHidden("#op", Value::Number(static_cast<double>(method.kind)));
       context.object->Set(method.name, native);
     }
@@ -207,7 +207,7 @@ js::Value DomBindings::MakeCanvasContext(const js::Value& canvas) {
       return Value::Undefined();
     });
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       native.object->SetHidden("#shorthand", Value::String(name));
       context.object->Set(name, native);
     }
@@ -231,7 +231,7 @@ js::Value DomBindings::MakeCanvasContext(const js::Value& canvas) {
       return Value::Undefined();
     });
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       context.object->Set(name, native);
     }
   };
@@ -258,7 +258,7 @@ js::Value DomBindings::MakeCanvasContext(const js::Value& canvas) {
     return Value::Undefined();
   });
   if (arc.IsObject()) {
-    arc.object->Set(kOwnerSlot, PointerValue(this));
+    arc.object->Set(kOwnerSlot, OwnerValue(this));
     context.object->Set("arc", arc);
   }
 
@@ -279,7 +279,7 @@ js::Value DomBindings::MakeCanvasContext(const js::Value& canvas) {
       return Value::Undefined();
     });
     if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, PointerValue(this));
+      native.object->Set(kOwnerSlot, OwnerValue(this));
       context.object->Set(name, native);
     }
   };
@@ -301,7 +301,7 @@ js::Value DomBindings::MakeCanvasContext(const js::Value& canvas) {
     return metrics;
   });
   if (measure.IsObject()) {
-    measure.object->Set(kOwnerSlot, PointerValue(this));
+    measure.object->Set(kOwnerSlot, OwnerValue(this));
     context.object->Set("measureText", measure);
   }
 
@@ -364,8 +364,8 @@ js::Value DomBindings::MakeCanvasContext(const js::Value& canvas) {
           return Value::Undefined();
         });
     if (get.IsObject() && set.IsObject()) {
-      get.object->Set(kOwnerSlot, PointerValue(this));
-      set.object->Set(kOwnerSlot, PointerValue(this));
+      get.object->Set(kOwnerSlot, OwnerValue(this));
+      set.object->Set(kOwnerSlot, OwnerValue(this));
       context.object->DefineAccessor(property.name, get.object, set.object);
     }
   }
@@ -409,7 +409,7 @@ void DomBindings::InstallImageData(const js::Value& context) {
         return owner->MakeImageData(width, height, pixels);
       });
   if (get_image_data.IsObject()) {
-    get_image_data.object->Set(kOwnerSlot, PointerValue(this));
+    get_image_data.object->Set(kOwnerSlot, OwnerValue(this));
     context.object->Set("getImageData", get_image_data);
   }
 
@@ -451,7 +451,7 @@ void DomBindings::InstallImageData(const js::Value& context) {
         return Value::Undefined();
       });
   if (put_image_data.IsObject()) {
-    put_image_data.object->Set(kOwnerSlot, PointerValue(this));
+    put_image_data.object->Set(kOwnerSlot, OwnerValue(this));
     context.object->Set("putImageData", put_image_data);
   }
 
@@ -475,7 +475,7 @@ void DomBindings::InstallImageData(const js::Value& context) {
         return owner->MakeImageData(width, height, std::vector<std::uint8_t>(needed, 0));
       });
   if (create_image_data.IsObject()) {
-    create_image_data.object->Set(kOwnerSlot, PointerValue(this));
+    create_image_data.object->Set(kOwnerSlot, OwnerValue(this));
     context.object->Set("createImageData", create_image_data);
   }
 }

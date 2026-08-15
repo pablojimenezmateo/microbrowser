@@ -89,9 +89,13 @@ class Engine : private bindings::NetworkSource,
   // TD-0031). The tool asks `IsDocumentLoading`; the loop still watches the
   // sockets through `AppendWaitDescriptors`.
   bool IsDocumentLoading() const {
+    // A child document a script asked for is on this list for the same reason a late image is: it
+    // is part of what the document *is*, and a loop that stopped turning would leave an `<iframe>`
+    // holding an empty box and a `load` handler that never ran. HTML agrees -- a frame blocks the
+    // embedder's `load` event, which is the whole difference between it and a `fetch`.
     return load_.active || !post_load_.images.empty() || !post_load_.scripts.empty() ||
-           !module_fetches_.empty() || page_.HasPendingModules() ||
-           page_.HasOutstandingScriptFetches();
+           !post_load_.frames.empty() || !module_fetches_.empty() || page_.HasPendingModules() ||
+           page_.ScriptHalf()->HasOutstandingScriptFetches();
   }
   bool IsLoading() const {
     return IsDocumentLoading() || !script_fetches_.empty() || !font_fetches_.empty();
@@ -236,10 +240,53 @@ class Engine : private bindings::NetworkSource,
   // frames are re-collected -- a script that appends an `<iframe>` creates a
   // context the same way the parser does.
   void StartFrameRequests();
+  // Re-collects the child contexts, fetches the new ones, and fires the `load` events owed to
+  // those whose documents arrived. True when a handler ran, so the document may have moved.
+  bool ProcessDynamicFrames();
+  // Gives every child context that has a document somewhere to run script, and runs it. ADR 0042
+  // §5, and the recursion is the point: a frame inside a frame is a realm of the same interpreter,
+  // because same-origin is transitive and so is the heap they share.
+  //
+  // Here rather than in `Page` because deciding *whose* interpreter a child borrows is a
+  // same-origin question, and `Page` may not see `src/url` -- the same inversion that put
+  // `Frame::same_origin` on this side of the seam (ADR 0027 §2). True when any script ran, which
+  // is the caller's signal that some document in the tree may have moved.
+  //
+  // `top_window` is the root of the whole tree, null at the outermost call. Threaded rather than
+  // re-derived, because `top` is the *first* window in the chain and every level below the second
+  // would otherwise answer with its own parent.
+  //
+  // **`run_scripts` splits the two halves, and they happen at different moments.** A child's
+  // *window* has to exist as soon as its element is in the document, because the embedder's own
+  // first script reads `iframe.contentWindow` -- but its *scripts* must not have run by then, or a
+  // child would see the embedder's globals before the embedder's own script had set them. Browsers
+  // get this for free because a frame's document arrives asynchronously; here it is a parameter,
+  // false on the pass before the page's scripts and true on the passes after.
+  bool RunFrameScripts(Page& parent, bool run_scripts, js::Object* top_window = nullptr);
+  // Gives every `<iframe>` in the tree a context *now*, without dispatching the `load` events they
+  // are owed. Called back from `iframe.contentWindow` when the element has none, because HTML
+  // creates a nested context on insertion and a page reads the window in the same script turn.
+  // See bindings::FrameGlobals::SetSettleHook, which is where the `load` half is explained.
+  void SettleFrameContexts();
+  // Every child context's timers, animation frames and queued activations. Called from the same
+  // places the top-level page's are, because a frame that runs script and never has its queues
+  // drained is worse than one that runs none: what it asked for is recorded and never happens.
+  bool RunFrameDueWork(Page& parent, std::int64_t now_ms);
+  // The above, plus what a handler having run implies: the navigation it asked for, or a relayout
+  // and a paint. `navigated` says the document is gone and the caller must touch nothing else.
+  bool SettleFrameLoads(bool& navigated);
+  // Every completion the loader has ready, routed to whichever table its id is in. Sets `moved`
+  // when anything happened; true when the caller must return at once, because a handler navigated
+  // and the rest of the batch belongs to a document that is gone.
+  bool DrainCompletionBatch(bool& moved);
   // One child document's bytes, into the frame that asked for them. Decides
   // *here* whether the child is same-origin, because this is the module that
   // understands URLs -- see Page::SetFrameDocument and ADR 0027 §2.
   bool OnFrameFetch(Loader::Completion completion, const PendingResource& resource);
+  // A child document that arrived after the navigation was over -- most of them, since a script
+  // appending an `<iframe>` is the common case. False when the completion is not one. Does not
+  // fire `load`; see the body.
+  bool OnLateFrame(Loader::Completion& completion);
   void StartWorkerScriptRequests();
   bool OnWorkerScriptFetch(Loader::Completion completion);
   // `importScripts`, which is a worker blocked on the main loop rather than a subresource the page
@@ -498,10 +545,17 @@ class Engine : private bindings::NetworkSource,
     bool document_interactive = false;
     std::map<Loader::RequestId, std::string> images;
     std::map<Loader::RequestId, std::size_t> scripts;
+    // Child documents a script asked for after the load was over -- which is
+    // most of them, because `iframe.onload = f; document.body.appendChild(f)`
+    // is how a page (and almost every WPT test) makes a second document. The
+    // frame index rather than a URL, for the same reason `scripts` holds one:
+    // the completion carries an id and the tree is addressed by position.
+    std::map<Loader::RequestId, std::size_t> frames;
     void Clear() {
       document_interactive = false;
       images.clear();
       scripts.clear();
+      frames.clear();
     }
   } post_load_;
   // The requests this page's own script made and has not been answered for.
