@@ -45,6 +45,9 @@ constexpr const char* kDecoderFatal = "#textDecoderFatal";
 constexpr const char* kDecoderIgnoreBom = "#textDecoderIgnoreBom";
 constexpr const char* kDecoderEncoding = "#textDecoderEncoding";
 constexpr const char* kDecoderEncodingName = "#textDecoderEncodingName";
+constexpr const char* kDecoderLeftover = "#textDecoderLeftover";
+constexpr const char* kDecoderBomSeen = "#textDecoderBomSeen";
+constexpr const char* kDecoderDoNotFlush = "#textDecoderDoNotFlush";
 
 bool IsEncoder(const Value& value) {
   if (!value.IsObject()) {
@@ -126,19 +129,6 @@ void EncodeIntoUtf8(std::string_view text, std::uint8_t* dest, std::size_t dest_
   read = unit;
 }
 
-std::string_view BomFor(html::Encoding encoding) {
-  switch (encoding) {
-    case html::Encoding::Utf8:
-      return std::string_view("\xEF\xBB\xBF", 3);
-    case html::Encoding::Utf16Le:
-      return std::string_view("\xFF\xFE", 2);
-    case html::Encoding::Utf16Be:
-      return std::string_view("\xFE\xFF", 2);
-    default:
-      return {};
-  }
-}
-
 html::Encoding EncodingOfDecoder(const Value& self) {
   const Value* stored = self.IsObject() ? self.object->GetOwn(kDecoderEncoding) : nullptr;
   if (stored == nullptr || stored->type != js::ValueType::Number) {
@@ -192,41 +182,12 @@ bool CopyBufferBytes(const Value& value, std::string& out) {
   return true;
 }
 
-// WHATWG UTF-8 decode with replacement (or fatal). Returns false on fatal error.
-bool DecodeUtf8Bytes(std::string_view bytes, bool fatal, bool ignore_bom, std::string& out) {
-  out.clear();
-  out.reserve(bytes.size());
-  std::size_t at = 0;
-  if (!ignore_bom && bytes.size() >= 3 &&
-      static_cast<unsigned char>(bytes[0]) == 0xEFu &&
-      static_cast<unsigned char>(bytes[1]) == 0xBBu &&
-      static_cast<unsigned char>(bytes[2]) == 0xBFu) {
-    at = 3;
+bool HiddenBool(const Value& self, const char* key) {
+  if (!self.IsObject()) {
+    return false;
   }
-  while (at < bytes.size()) {
-    std::uint32_t code = 0;
-    const std::size_t before = at;
-    if (util::DecodeUtf8(bytes, at, code) &&
-        !(code >= 0xD800u && code <= 0xDFFFu) && code <= 0x10FFFFu) {
-      // Reject overlong forms DecodeUtf8 does not already reject by walking
-      // the shortest encoding: util::DecodeUtf8 accepts any structurally
-      // valid sequence, including overlong. Re-check the width.
-      const std::size_t width = at - before;
-      const std::size_t expected = code < 0x80u ? 1 : code < 0x800u ? 2 : code < 0x10000u ? 3 : 4;
-      if (width == expected) {
-        util::AppendUtf8(out, code);
-        continue;
-      }
-      at = before;
-    }
-    if (fatal) {
-      return false;
-    }
-    // Replacement: consume one byte and emit U+FFFD.
-    ++at;
-    util::AppendUtf8(out, 0xFFFDu);
-  }
-  return true;
+  const Value* flag = self.object->GetOwn(key);
+  return flag != nullptr && flag->type == js::ValueType::Boolean && flag->boolean;
 }
 
 }  // namespace
@@ -414,34 +375,57 @@ void DomBindings::InstallTextEncoding() {
     if (!CopyBufferBytes(Argument(call.arguments, 0), bytes)) {
       return call.Throw("TypeError", "The provided value is not of type BufferSource");
     }
-    const Value* fatal_flag = call.self.object->GetOwn(kDecoderFatal);
-    const Value* ignore_flag = call.self.object->GetOwn(kDecoderIgnoreBom);
-    const bool fatal = fatal_flag != nullptr && fatal_flag->type == js::ValueType::Boolean &&
-                       fatal_flag->boolean;
-    const bool ignore_bom = ignore_flag != nullptr && ignore_flag->type == js::ValueType::Boolean &&
-                            ignore_flag->boolean;
+    const bool fatal = HiddenBool(call.self, kDecoderFatal);
+    const bool ignore_bom = HiddenBool(call.self, kDecoderIgnoreBom);
     const html::Encoding encoding = EncodingOfDecoder(call.self);
-    std::string text;
-    if (encoding == html::Encoding::Utf8) {
-      if (!DecodeUtf8Bytes(bytes, fatal, ignore_bom, text)) {
-        return call.Throw("TypeError", "The encoded data was not valid.");
+
+    // Encoding Standard: if the previous call was a flush, this one starts a new decoder
+    // instance -- leftover and BOM-seen go. A stream:true call keeps both.
+    std::string leftover;
+    if (HiddenBool(call.self, kDecoderDoNotFlush)) {
+      const Value* stored = call.self.object->GetOwn(kDecoderLeftover);
+      if (stored != nullptr) {
+        (void)CopyBufferBytes(*stored, leftover);
       }
     } else {
-      std::string_view body = bytes;
-      if (!ignore_bom) {
-        const std::string_view bom = BomFor(encoding);
-        if (!bom.empty() && body.size() >= bom.size() && body.substr(0, bom.size()) == bom) {
-          body.remove_prefix(bom.size());
-        }
-      }
-      if (fatal && (encoding == html::Encoding::Utf16Le || encoding == html::Encoding::Utf16Be) &&
-          (body.size() % 2u) != 0u) {
-        return call.Throw("TypeError", "The encoded data was not valid.");
-      }
-      if (!html::DecodeBytes(body, encoding, text, fatal)) {
-        return call.Throw("TypeError", "The encoded data was not valid.");
+      call.self.object->SetHidden(kDecoderBomSeen, Value::Bool(false));
+    }
+    bool stream = false;
+    if (Argument(call.arguments, 1).IsObject()) {
+      const Value* stream_flag = Argument(call.arguments, 1).object->Get("stream");
+      if (stream_flag != nullptr) {
+        stream = js::ToBoolean(*stream_flag);
       }
     }
+    call.self.object->SetHidden(kDecoderDoNotFlush, Value::Bool(stream));
+
+    std::string text;
+    if (!html::DecodeBytesStreaming(leftover, bytes, encoding, text, stream, fatal)) {
+      call.self.object->SetHidden(kDecoderLeftover, Value::Undefined());
+      return call.Throw("TypeError", "The encoded data was not valid.");
+    }
+    if (leftover.empty()) {
+      call.self.object->SetHidden(kDecoderLeftover, Value::Undefined());
+    } else {
+      const Value held = BytesToUint8Array(call.interpreter, leftover);
+      if (held.IsObject()) {
+        call.self.object->SetHidden(kDecoderLeftover, held);
+      }
+    }
+
+    // serialize I/O queue: skip a leading U+FEFF once, for UTF-8 and UTF-16, unless ignoreBOM.
+    if (!ignore_bom &&
+        (encoding == html::Encoding::Utf8 || encoding == html::Encoding::Utf16Le ||
+         encoding == html::Encoding::Utf16Be) &&
+        !HiddenBool(call.self, kDecoderBomSeen) && !text.empty()) {
+      call.self.object->SetHidden(kDecoderBomSeen, Value::Bool(true));
+      if (text.size() >= 3 && static_cast<unsigned char>(text[0]) == 0xEFu &&
+          static_cast<unsigned char>(text[1]) == 0xBBu &&
+          static_cast<unsigned char>(text[2]) == 0xBFu) {
+        text.erase(0, 3);
+      }
+    }
+
     util::AddPerformanceCounter(util::PerfCounterId::EncodingTextDecoderDecode);
     util::AddPerformanceCounter(util::PerfCounterId::EncodingTextDecoderBytes, bytes.size());
     return Value::String(std::move(text));

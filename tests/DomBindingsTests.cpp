@@ -95,6 +95,21 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "catch (err) { return err.name; } })()",
                  "RangeError");
     ExpectScript("<html><body></body></html>", "document.characterSet", "UTF-8");
+    // Encoding Standard: stream:true holds a valid incomplete prefix; a flush
+    // is one U+FFFD; a split BOM is skipped once the last byte arrives.
+    ExpectScript("<html><body></body></html>",
+                 "(() => { const d = new TextDecoder();"
+                 "return d.decode(new Uint8Array([0xF0,0x9F,0x92]), {stream:true}) === ''"
+                 " && d.decode(new Uint8Array([0xA9])) === String.fromCodePoint(0x1F4A9); })()",
+                 "true");
+    ExpectScript("<html><body></body></html>",
+                 "new TextDecoder().decode(new Uint8Array([0xF0,0x9F,0x92])) === '\uFFFD'",
+                 "true");
+    ExpectScript("<html><body></body></html>",
+                 "(() => { const d = new TextDecoder();"
+                 "d.decode(new Uint8Array([0xEF,0xBB]), {stream:true});"
+                 "return d.decode(new Uint8Array([0xBF,0x61])); })()",
+                 "a");
   });
 
   AddTest(tests, "DomBindings/CharacterSetIsTheDocumentsEncodingNotTheRealms", [] {

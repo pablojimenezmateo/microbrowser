@@ -91,6 +91,23 @@ void RegisterWptHandlerTests(std::vector<TestCase>& tests) {
            "and the charset is the label");
   });
 
+  AddTest(tests, "WptHandlers/DomNodesEncodingPyWritesTheLabelIntoAMeta", [] {
+    // dom/nodes/encoding.py: the two characterSet-normalization files load this
+    // in an iframe. A 501 is ~636 subtests of UTF-8 rather than a missing handler.
+    wpt::Stash stash;
+    const HandlerResponse page =
+        wpt::RunHandler(Get("dom/nodes/encoding.py", "label=ibm866"), stash);
+    Expect(page.handled, "encoding.py is on the list");
+    Expect(page.body == "<!doctype html><meta charset=\"ibm866\">",
+           "and the body is the file's format string with the label in the meta");
+    Expect(HeaderOf(page, "Content-Type").empty(),
+           "and it sets no Content-Type, so the sniffer has to read the meta");
+    const HandlerResponse escaped =
+        wpt::RunHandler(Get("dom/nodes/encoding.py", "label=a%22b"), stash);
+    Expect(escaped.body.find("&quot;") != std::string::npos,
+           "html.escape quotes the label, so a quote in it cannot break the attribute");
+  });
+
   AddTest(tests, "WptHandlers/DefaultsAreTheOnesTheFilesWrite", [] {
     wpt::Stash stash;
     // common/slow.py: `float(request.GET.first(b"delay", 2000))`.

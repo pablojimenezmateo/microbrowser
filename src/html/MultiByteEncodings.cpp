@@ -246,7 +246,7 @@ std::string DecodeEucKr(std::string_view bytes) {
 // which is the one place in these five where one sequence is not one character. Handled explicitly
 // because a decoder that emitted only the base would silently drop a tone mark, and Taiwanese
 // Mandarin transcription is exactly what those four are for.
-std::string DecodeBig5(std::string_view bytes) {
+std::string DecodeBig5(std::string_view bytes, std::string* leftover) {
   std::string out;
   std::size_t at = 0;
   while (at < bytes.size()) {
@@ -256,15 +256,29 @@ std::string DecodeBig5(std::string_view bytes) {
       ++at;
       continue;
     }
-    if (byte < 0x81 || byte > 0xFE || at + 1 >= bytes.size()) {
+    if (byte < 0x81 || byte > 0xFE) {
+      AppendReplacement(out);
+      ++at;
+      continue;
+    }
+    if (at + 1 >= bytes.size()) {
+      // A lead with nothing after it. Streaming holds it; a flush is U+FFFD.
+      if (leftover != nullptr) {
+        leftover->assign(bytes.substr(at));
+        break;
+      }
       AppendReplacement(out);
       ++at;
       continue;
     }
     const std::uint8_t trail = static_cast<std::uint8_t>(bytes[at + 1]);
     if ((trail < 0x40 || trail > 0x7E) && (trail < 0xA1 || trail > 0xFE)) {
+      // Pointer stays null. An ASCII trail is restored; a non-ASCII one is consumed.
       AppendReplacement(out);
       ++at;
+      if (trail > 0x7F) {
+        ++at;
+      }
       continue;
     }
     const std::size_t offset = trail < 0x7F ? 0x40u : 0x62u;
@@ -297,8 +311,13 @@ std::string DecodeBig5(std::string_view bytes) {
     }
     std::uint32_t code = 0;
     if (!IndexLookup(kBig5, std::size(kBig5), pointer, kWideHole, code)) {
+      // Encoding Standard: a hole is an error, and an ASCII trail is restored so it is
+      // decoded on its own. `0x81 0x40` is U+FFFD then `@`, not a swallowed `@`.
       AppendReplacement(out);
-      at += 2;
+      ++at;
+      if (trail > 0x7F) {
+        ++at;
+      }
       continue;
     }
     util::AppendUtf8(out, code);
@@ -911,7 +930,7 @@ std::string DecodeMultiByte(std::string_view bytes, Encoding encoding) {
     case Encoding::EucKr:
       return DecodeEucKr(bytes);
     case Encoding::Big5:
-      return DecodeBig5(bytes);
+      return DecodeBig5(bytes, nullptr);
     case Encoding::Gb18030:
     case Encoding::Gbk:
       return DecodeGb18030(bytes);
@@ -920,6 +939,17 @@ std::string DecodeMultiByte(std::string_view bytes, Encoding encoding) {
     default:
       return std::string();
   }
+}
+
+bool DecodeMultiByteStreaming(std::string_view bytes, Encoding encoding, std::string& out,
+                              std::string& leftover, bool stream) {
+  leftover.clear();
+  if (encoding == Encoding::Big5 && stream) {
+    out = DecodeBig5(bytes, &leftover);
+    return true;
+  }
+  out = DecodeMultiByte(bytes, encoding);
+  return true;
 }
 
 bool EncodeMultiByte(std::uint32_t code_point, Encoding encoding, int& state, std::string& out) {

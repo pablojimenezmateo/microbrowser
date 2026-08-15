@@ -827,6 +827,53 @@ HandlerResponse EncodingSingleByteRawHandler(const Query& query) {
   return response;
 }
 
+// Python's html.escape(..., quote=True): the four characters plus apostrophe.
+std::string HtmlEscape(std::string_view text) {
+  std::string out;
+  out.reserve(text.size());
+  for (const char c : text) {
+    switch (c) {
+      case '&':
+        out += "&amp;";
+        break;
+      case '"':
+        out += "&quot;";
+        break;
+      case '\'':
+        out += "&#x27;";
+        break;
+      case '<':
+        out += "&lt;";
+        break;
+      case '>':
+        out += "&gt;";
+        break;
+      default:
+        out.push_back(c);
+        break;
+    }
+  }
+  return out;
+}
+
+// --- dom/nodes/encoding.py ---------------------------------------------------
+//
+//   from html import escape
+//   from wptserve.utils import isomorphic_decode
+//   def main(request, response):
+//       label = request.GET.first(b'label')
+//       return u"""<!doctype html><meta charset="%s">""" % escape(isomorphic_decode(label))
+//
+// No Content-Type: wptserve's default is text/plain, and the charset is in the
+// `<meta>`, which is what Document-characterSet-normalization sniffs.
+HandlerResponse DomNodesEncodingHandler(const Query& query) {
+  HandlerResponse response;
+  response.handled = true;
+  const std::string label = HtmlEscape(QueryFirst(query, "label", ""));
+  response.body = "<!doctype html><meta charset=\"" + label + "\">";
+  return response;
+}
+
 }  // namespace
 
 HandlerResponse RunHandler(const HandlerRequest& request, Stash& stash) {
@@ -918,6 +965,9 @@ HandlerResponse RunHandler(const HandlerRequest& request, Stash& stash) {
   }
   if (path == "encoding/resources/single-byte-raw.py") {
     return EncodingSingleByteRawHandler(query);
+  }
+  if (path == "dom/nodes/encoding.py") {
+    return DomNodesEncodingHandler(query);
   }
   return HandlerResponse{};
 }

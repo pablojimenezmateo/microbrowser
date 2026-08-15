@@ -216,6 +216,12 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
            "the header wins over a meta");
     Expect(SniffEncoding("<html><head><meta charset=\"iso-8859-5\"></head>") == Encoding::Iso8859_5,
            "the meta wins over the fallback");
+    Expect(SniffEncoding("<meta charset=utf-16>") == Encoding::Utf8,
+           "a UTF-16 meta is UTF-8: the tag is ASCII, so the document cannot be UTF-16");
+    Expect(SniffEncoding("<meta charset=x-user-defined>") == Encoding::Windows1252,
+           "and x-user-defined in a meta is windows-1252");
+    Expect(SniffEncoding("<html>", "text/html; charset=utf-16le") == Encoding::Utf16Le,
+           "a Content-Type charset of UTF-16 is honoured -- that one can actually be UTF-16");
     Expect(SniffEncoding("<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">") ==
                Encoding::Utf8,
            "including the http-equiv spelling, which is most of the old web");
@@ -344,6 +350,10 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
                    "EUC-JP's trail range excludes ASCII entirely");
     ExpectEqString(Decode("\x81\x40\x3C", Encoding::EucKr), kReplacement + "@<",
                    "an unassigned EUC-KR lead pair");
+    ExpectEqString(Decode("\x81\x40", Encoding::Big5), kReplacement + "@",
+                   "Big5 restores an ASCII trail on a hole, same as EUC-KR");
+    ExpectEqString(Decode("\x81\x81", Encoding::Big5), kReplacement,
+                   "and a non-ASCII trail on a hole is consumed");
     // The 0x8E prefix with a byte that is not katakana, and a 0x8F -- JIS X 0212 -- whose trail bytes
     // are not trail bytes. Both consume one byte, not two or three.
     ExpectEqString(Decode("\x8E\x41", Encoding::EucJp), kReplacement + "A", "0x8E then ASCII");
@@ -494,6 +504,38 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
     ExpectEqString(DecodeToUtf8(utf8_bom_a, Encoding::Utf8), "a", "document path skips the BOM");
     ExpectEqString(html::DecodeBytes(utf8_bom_a, Encoding::Utf8),
                    std::string("\xEF\xBB\xBF", 3) + "a", "TextDecoder path keeps it");
+  });
+
+  AddTest(tests, "Encoding/StreamingHoldsAnIncompleteUtf8PrefixAndFlushesItAsOneReplacement", [] {
+    // Encoding Standard: a valid incomplete prefix is held across stream:true
+    // chunks and becomes one U+FFFD at flush -- not one per leftover byte.
+    std::string leftover;
+    std::string out;
+    Expect(html::DecodeBytesStreaming(leftover, std::string("\xF0\x9F\x92", 3), Encoding::Utf8, out,
+                                      true, false),
+           "a three-byte prefix of a four-byte sequence is not an error");
+    Expect(out.empty() && leftover.size() == 3,
+           "and it emits nothing while those bytes are held");
+    Expect(html::DecodeBytesStreaming(leftover, std::string("\xA9", 1), Encoding::Utf8, out, false,
+                                      false),
+           "the fourth byte completes it");
+    ExpectEqString(out, "\xF0\x9F\x92\xA9", "U+1F4A9");
+
+    leftover.clear();
+    Expect(html::DecodeBytesStreaming(leftover, std::string("\xF0", 1), Encoding::Utf8, out, true,
+                                      false),
+           "a lone lead is held");
+    Expect(out.empty() && leftover.size() == 1, "and emits nothing");
+    Expect(html::DecodeBytesStreaming(leftover, {}, Encoding::Utf8, out, false, false),
+           "flushing it is not a failure");
+    ExpectEqString(out, kReplacement, "one replacement for the incomplete sequence");
+
+    leftover.clear();
+    Expect(html::DecodeBytesStreaming(leftover, std::string("\xC1", 1), Encoding::Utf8, out, true,
+                                      false),
+           "0xC1 is never a lead");
+    ExpectEqString(out, kReplacement, "so it is U+FFFD immediately, even when streaming");
+    Expect(leftover.empty(), "and nothing is held");
   });
 }
 

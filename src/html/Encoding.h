@@ -100,6 +100,10 @@ Encoding SniffEncoding(std::string_view bytes, std::string_view content_type = {
 // The multi-byte decoders, in their own translation unit because their tables are 648KB of generated
 // data. Called by DecodeToUtf8; separate so that this header does not imply the tables.
 std::string DecodeMultiByte(std::string_view bytes, Encoding encoding);
+// The same decoders with TextDecoder's leftover: an incomplete lead at the end of `bytes` is
+// written to `leftover` when `stream` is true rather than becoming U+FFFD.
+bool DecodeMultiByteStreaming(std::string_view bytes, Encoding encoding, std::string& out,
+                              std::string& leftover, bool stream);
 
 // The multi-byte encoders, in the same translation unit and for the same reason -- and `state` is
 // ISO-2022-JP's, threaded through rather than kept in a static, because two encodings running at
@@ -126,6 +130,13 @@ std::string DecodeToUtf8(std::string_view bytes, Encoding encoding);
 // overload never fails -- that is the document decoder, which always has an answer.
 bool DecodeBytes(std::string_view bytes, Encoding encoding, std::string& out, bool fatal);
 std::string DecodeBytes(std::string_view bytes, Encoding encoding);
+
+// TextDecoder's streaming decode. `leftover` is the decoder instance's I/O queue: prepended to
+// `bytes`, then replaced with any incomplete suffix when `stream` is true. A flush (`stream`
+// false) turns that suffix into U+FFFD -- or a failure when `fatal` is true. BOM handling is
+// not here; TextDecoder strips U+FEFF from the *output* after this returns.
+bool DecodeBytesStreaming(std::string& leftover, std::string_view bytes, Encoding encoding,
+                          std::string& out, bool stream, bool fatal);
 
 // How many bytes of BOM to skip, so a caller that has already sniffed does not decode it as text. A
 // BOM that reached the tokenizer would be a zero-width character at the start of the document, which

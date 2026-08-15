@@ -177,6 +177,16 @@ std::optional<Encoding> PrescanForMeta(std::string_view bytes) {
     if (const std::size_t charset = tag.find("charset"); charset != std::string_view::npos) {
       if (const std::optional<std::string_view> label = CharsetFromContentType(tag)) {
         if (const std::optional<Encoding> found = EncodingFromLabel(*label)) {
+          // HTML's prescan, not the Encoding Standard's get-an-encoding: a `<meta charset=utf-16>`
+          // cannot describe a UTF-16 document (the tag itself is ASCII), so the spec returns UTF-8.
+          // `x-user-defined` is similarly rewritten to windows-1252. TextDecoder still honours both
+          // labels; only a document's meta goes through this.
+          if (*found == Encoding::Utf16Le || *found == Encoding::Utf16Be) {
+            return Encoding::Utf8;
+          }
+          if (*found == Encoding::XUserDefined) {
+            return Encoding::Windows1252;
+          }
           return found;
         }
       }
@@ -200,9 +210,13 @@ void AppendReplacement(std::string& out) {
   AddPerformanceCounter(PerfCounterId::EncodingReplacements);
 }
 
-std::string DecodeUtf8Strictly(std::string_view bytes) {
-  std::string out;
-  out.reserve(bytes.size());
+// UTF-8 decode with TextDecoder's leftover. `stream` holds a valid incomplete prefix instead of
+// emitting U+FFFD for it; `fatal` fails instead of substituting. The document decoder is this
+// with both flags false.
+bool DecodeUtf8(std::string_view bytes, std::string& out, std::string& leftover, bool stream,
+                bool fatal) {
+  leftover.clear();
+  out.reserve(out.size() + bytes.size());
   std::size_t at = 0;
   while (at < bytes.size()) {
     const std::uint8_t lead = static_cast<std::uint8_t>(bytes[at]);
@@ -244,16 +258,21 @@ std::string DecodeUtf8Strictly(std::string_view bytes) {
       }
     } else {
       // 0x80-0xC1 and 0xF5-0xFF are never a lead: a stray continuation, an overlong two-byte form, or
-      // a lead for a code point above U+10FFFF.
+      // a lead for a code point above U+10FFFF. Not a prefix to hold -- emit now, even when streaming.
+      if (fatal) {
+        return false;
+      }
       AppendReplacement(out);
       ++at;
       continue;
     }
     std::size_t taken = 1;
     bool ok = true;
+    bool incomplete = false;
     for (int i = 0; i < continuations; ++i) {
       if (at + taken >= bytes.size()) {
         ok = false;
+        incomplete = true;
         break;
       }
       const std::uint8_t next = static_cast<std::uint8_t>(bytes[at + taken]);
@@ -270,10 +289,17 @@ std::string DecodeUtf8Strictly(std::string_view bytes) {
       ++taken;
     }
     if (!ok) {
+      if (incomplete && stream) {
+        leftover = std::string(bytes.substr(at));
+        return true;
+      }
       // One replacement for the whole maximal subpart, and the bytes it *did* cover are consumed --
       // no more. Advancing by one instead would emit a second replacement for a byte that was
       // already part of this one, and advancing past the byte that ended it would delete a
       // character.
+      if (fatal) {
+        return false;
+      }
       AppendReplacement(out);
       at += taken;
       continue;
@@ -281,11 +307,12 @@ std::string DecodeUtf8Strictly(std::string_view bytes) {
     AppendUtf8(out, code);
     at += taken;
   }
-  return out;
+  return true;
 }
 
-std::string DecodeUtf16(std::string_view bytes, bool little_endian) {
-  std::string out;
+bool DecodeUtf16(std::string_view bytes, bool little_endian, std::string& out, std::string& leftover,
+                 bool stream, bool fatal) {
+  leftover.clear();
   std::size_t at = 0;
   while (at + 1 < bytes.size()) {
     const std::uint8_t first = static_cast<std::uint8_t>(bytes[at]);
@@ -297,7 +324,20 @@ std::string DecodeUtf16(std::string_view bytes, bool little_endian) {
       // A high surrogate needs its pair. An unpaired one is U+FFFD -- not passed through -- because a
       // lone surrogate is not a character and encoding one as UTF-8 produces bytes no decoder accepts.
       if (at + 1 >= bytes.size()) {
+        if (stream) {
+          leftover = std::string(bytes.substr(at - 2));
+          return true;
+        }
+        if (fatal) {
+          return false;
+        }
         AppendReplacement(out);
+        if (at < bytes.size()) {
+          if (fatal) {
+            return false;
+          }
+          AppendReplacement(out);
+        }
         break;
       }
       const std::uint8_t third = static_cast<std::uint8_t>(bytes[at]);
@@ -305,6 +345,9 @@ std::string DecodeUtf16(std::string_view bytes, bool little_endian) {
       const std::uint32_t low = little_endian ? static_cast<std::uint32_t>(third | (fourth << 8))
                                              : static_cast<std::uint32_t>((third << 8) | fourth);
       if (low < 0xDC00 || low > 0xDFFF) {
+        if (fatal) {
+          return false;
+        }
         AppendReplacement(out);
         continue;  // the second unit is not consumed: it may be a valid character of its own
       }
@@ -313,15 +356,25 @@ std::string DecodeUtf16(std::string_view bytes, bool little_endian) {
       continue;
     }
     if (unit >= 0xDC00 && unit <= 0xDFFF) {
+      if (fatal) {
+        return false;
+      }
       AppendReplacement(out);  // a low surrogate with nothing before it
       continue;
     }
     AppendUtf8(out, unit);
   }
   if (at < bytes.size()) {
+    if (stream) {
+      leftover = std::string(bytes.substr(at));
+      return true;
+    }
+    if (fatal) {
+      return false;
+    }
     AppendReplacement(out);  // an odd trailing byte
   }
-  return out;
+  return true;
 }
 
 }  // namespace
@@ -545,17 +598,21 @@ Encoding SniffEncoding(std::string_view bytes, std::string_view content_type) {
   return Encoding::Windows1252;
 }
 
-bool DecodeBytes(std::string_view bytes, Encoding encoding, std::string& out, bool fatal) {
+bool DecodeBytesStreaming(std::string& leftover, std::string_view bytes, Encoding encoding,
+                          std::string& out, bool stream, bool fatal) {
+  std::string input;
+  input.reserve(leftover.size() + bytes.size());
+  input.append(leftover);
+  input.append(bytes.data(), bytes.size());
+  leftover.clear();
+  out.clear();
   switch (encoding) {
     case Encoding::Utf8:
-      out = DecodeUtf8Strictly(bytes);
-      return true;
+      return DecodeUtf8(input, out, leftover, stream, fatal);
     case Encoding::Utf16Le:
-      out = DecodeUtf16(bytes, true);
-      return true;
+      return DecodeUtf16(input, true, out, leftover, stream, fatal);
     case Encoding::Utf16Be:
-      out = DecodeUtf16(bytes, false);
-      return true;
+      return DecodeUtf16(input, false, out, leftover, stream, fatal);
     case Encoding::ShiftJis:
     case Encoding::EucJp:
     case Encoding::EucKr:
@@ -563,11 +620,15 @@ bool DecodeBytes(std::string_view bytes, Encoding encoding, std::string& out, bo
     case Encoding::Gb18030:
     case Encoding::Gbk:
     case Encoding::Iso2022Jp:
-      out = DecodeMultiByte(bytes, encoding);
-      return true;
+      return DecodeMultiByteStreaming(input, encoding, out, leftover, stream);
     default:
-      return DecodeSingleByte(bytes, encoding, out, fatal);
+      return DecodeSingleByte(input, encoding, out, fatal);
   }
+}
+
+bool DecodeBytes(std::string_view bytes, Encoding encoding, std::string& out, bool fatal) {
+  std::string leftover;
+  return DecodeBytesStreaming(leftover, bytes, encoding, out, false, fatal);
 }
 
 std::string DecodeBytes(std::string_view bytes, Encoding encoding) {
