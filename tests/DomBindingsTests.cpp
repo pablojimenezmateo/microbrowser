@@ -3791,6 +3791,28 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "document.styleSheets.length",
                  "3");
   });
+
+  AddTest(tests, "DomBindings/StyleSheetCssRulesInsertAndDelete", [] {
+    static constexpr const char* kPage =
+        "<html><head><style id=s>p{color:red}</style></head><body></body></html>";
+    ExpectScript(kPage, "document.styleSheets[0].cssRules.length", "1");
+    ExpectScript(kPage, "document.styleSheets[0].cssRules[0].cssText", "p { color: red; }");
+    ExpectScript(kPage,
+                 "const s = document.styleSheets[0];"
+                 "s.insertRule('div { color: blue; }', 1);"
+                 "s.cssRules.length + ' ' + s.cssRules[1].cssText",
+                 "2 div { color: blue; }");
+    ExpectScript(kPage,
+                 "const s = document.styleSheets[0];"
+                 "s.deleteRule(0);"
+                 "s.cssRules.length",
+                 "0");
+    ExpectScript(kPage,
+                 "const s = document.styleSheets[0];"
+                 "s.insertRule('@media print { a { color: green; } }', 1);"
+                 "s.cssRules.length + ' ' + s.cssRules[1].type",
+                 "2 4");
+  });
 }
 
 }  // namespace microbrowser::tests

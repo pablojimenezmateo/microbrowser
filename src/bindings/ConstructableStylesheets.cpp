@@ -513,6 +513,7 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
   };
   install_element_sheet("HTMLStyleElement");
   install_element_sheet("HTMLLinkElement");
+  InstallCssomSheetRules();
 }
 
 void DomBindings::InstallCssOm() {

@@ -866,6 +866,8 @@ class DomBindings {
   // ShadowRoot. ADR 0019 §4.
   void InstallConstructableStylesheets(const js::Value& document_interface,
                                        const js::Value& shadow_root_interface);
+  // `cssRules` / `insertRule` / `deleteRule` on the CSSStyleSheet prototype.
+  void InstallCssomSheetRules();
   // `window.CSS` with `supports` (and `escape`) — same answers `@supports`
   // uses, so a page probing via script cannot disagree with a stylesheet.
   // Lives next to constructable sheets because both are the CSSOM surface.

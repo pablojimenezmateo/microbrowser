@@ -568,6 +568,28 @@ void Page::AddStyleSheet(std::size_t pending_index, std::string_view css) {
     return;
   }
   resources_.author_sheet_slots[slot] = std::string(css);
+  if (document_ != nullptr) {
+    std::size_t seen = 0;
+    document_->ForEachDescendant([&](const dom::Node& node) {
+      if (!node.IsElement()) {
+        return;
+      }
+      auto& element = const_cast<dom::Element&>(static_cast<const dom::Element&>(node));
+      if (!IsLinkedStyleSheet(element)) {
+        return;
+      }
+      const std::string* href = element.GetAttribute("href");
+      if (href == nullptr || href->empty()) {
+        return;
+      }
+      if (!policy_.AllowsUrl(csp::Directive::Style, *href, NonceOf(element))) {
+        return;
+      }
+      if (seen++ == pending_index) {
+        element.SetLinkedStyleSheetText(std::string(css));
+      }
+    });
+  }
   // This slot's text has just arrived, so whatever was parsed for it is not it.
   if (slot < resources_.author_sheet_parsed.size()) {
     resources_.author_sheet_parsed[slot].reset();

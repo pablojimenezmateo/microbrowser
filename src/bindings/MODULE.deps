@@ -394,7 +394,7 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # other -- so neither of their counts described this class once both were in the tree. The number
 # below is measured after the merge rather than reasoned about, which is the same habit the
 # paragraph above the previous merge established.
-budget: DomBindings header_lines=973 public_methods=53 members=34
+budget: DomBindings header_lines=980 public_methods=54 members=34
 # ADR 0038's `indexedDB` seam: a database/store/key/version question this module
 # declares and `src/engine` answers, the same inversion StorageSource uses. Four
 # extra "methods" over what reads as the API (16) are the deleted copy ops and

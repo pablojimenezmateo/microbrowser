@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -14,6 +15,11 @@ namespace microbrowser::css {
 // complete, unlike an HTML document that is parsed as it streams. The token
 // vector is what the parser walks, and it is bounded by the input length.
 std::vector<Token> Tokenize(std::string_view input);
+
+// Turns a token run back into text. One serializer, used by the cascade parser
+// for declaration values and by CSSOM for selector / at-rule preludes, so the
+// two cannot disagree about what `url(x.png)` writes back as.
+std::string ReconstructTokens(const std::vector<Token>& tokens, std::size_t from, std::size_t to);
 
 // The pieces below are exposed because each is a place the specification is
 // counter-intuitive and each deserves its own test.

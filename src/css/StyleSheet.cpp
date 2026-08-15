@@ -1,7 +1,5 @@
 #include "css/StyleSheet.h"
 
-#include <cstdio>
-
 #include "css/MediaQuery.h"
 #include "util/Parse.h"
 
@@ -21,110 +19,6 @@ namespace {
 
 using util::AddPerformanceCounter;
 using util::PerfCounterId;
-
-// Turns a token run back into text, for a declaration's value. The value is
-// kept as text at this layer: parsing `1px solid red` into a typed value needs
-// the property's own grammar, which is the property database's job.
-std::string Reconstruct(const std::vector<Token>& tokens, std::size_t from, std::size_t to) {
-  std::string out;
-  for (std::size_t i = from; i < to && i < tokens.size(); ++i) {
-    const Token& token = tokens[i];
-    switch (token.kind) {
-      case Token::Kind::Whitespace:
-        if (!out.empty()) {
-          out.push_back(' ');
-        }
-        break;
-      case Token::Kind::Ident:
-        out += token.value;
-        break;
-      case Token::Kind::Url:
-        // An unquoted `url(x.png)` scans as one token holding just the target,
-        // and it has to be written back out as a url or it reconstructs to a
-        // bare `x.png` -- which reads as an identifier, not a resource. The
-        // quoted form is a Function token plus a String and round-trips on its
-        // own, so before this the two spellings of the same value produced
-        // different declarations.
-        out += "url(\"";
-        out += token.value;
-        out += "\")";
-        break;
-      case Token::Kind::Function:
-        out += token.value;
-        out.push_back('(');
-        break;
-      case Token::Kind::Hash:
-        out.push_back('#');
-        out += token.value;
-        break;
-      case Token::Kind::String:
-        out.push_back('"');
-        out += token.value;
-        out.push_back('"');
-        break;
-      case Token::Kind::AtKeyword:
-        out.push_back('@');
-        out += token.value;
-        break;
-      case Token::Kind::Number:
-      case Token::Kind::Percentage:
-      case Token::Kind::Dimension: {
-        if (token.is_integer) {
-          out += std::to_string(static_cast<long long>(token.number));
-        } else {
-          std::string text = std::to_string(token.number);
-          // Trailing zeros from to_string make `1.5` into `1.500000`.
-          while (text.size() > 1 && text.back() == '0') {
-            text.pop_back();
-          }
-          if (!text.empty() && text.back() == '.') {
-            text.pop_back();
-          }
-          out += text;
-        }
-        if (token.kind == Token::Kind::Percentage) {
-          out.push_back('%');
-        } else if (token.kind == Token::Kind::Dimension) {
-          out += token.value;
-        }
-        break;
-      }
-      case Token::Kind::UnicodeRange: {
-        // Written back out in the canonical form rather than the author's: the
-        // wildcard and single-code-point spellings are already expanded, and
-        // re-tokenizing this text gives the same two ends.
-        char buffer[32] = {};
-        std::snprintf(buffer, sizeof(buffer), "U+%X-%X", token.range_start, token.range_end);
-        out += buffer;
-        break;
-      }
-      case Token::Kind::Delim:
-        out += token.value;
-        break;
-      case Token::Kind::Colon:
-        out.push_back(':');
-        break;
-      case Token::Kind::Comma:
-        out.push_back(',');
-        break;
-      case Token::Kind::LeftParen:
-        out.push_back('(');
-        break;
-      case Token::Kind::RightParen:
-        out.push_back(')');
-        break;
-      case Token::Kind::LeftSquare:
-        out.push_back('[');
-        break;
-      case Token::Kind::RightSquare:
-        out.push_back(']');
-        break;
-      default:
-        break;
-    }
-  }
-  return std::string(Trim(out));
-}
 
 std::vector<Declaration> ParseDeclarations(const std::vector<Token>& tokens, std::size_t from,
                                            std::size_t to) {
@@ -189,7 +83,7 @@ std::vector<Declaration> ParseDeclarations(const std::vector<Token>& tokens, std
       }
     }
 
-    declaration.value = Reconstruct(tokens, value_start, value_end);
+    declaration.value = ReconstructTokens(tokens, value_start, value_end);
     if (!declaration.value.empty()) {
       declarations.push_back(std::move(declaration));
     }
@@ -255,7 +149,7 @@ bool SupportsDeclarationInParens(const std::vector<Token>& tokens, std::size_t f
     return false;
   }
   ++from;
-  return SupportsDeclaration(property, Reconstruct(tokens, from, to));
+  return SupportsDeclaration(property, ReconstructTokens(tokens, from, to));
 }
 
 // `( … )` or `function( … )`. The second is `<general-enclosed>`: a form this
@@ -498,11 +392,9 @@ void ParseFontFace(const std::vector<Token>& tokens, std::size_t from, std::size
 
 bool MediaPreludeMatches(const std::vector<Token>& tokens, std::size_t from, std::size_t to,
                          const MediaContext& context) {
-  // Through `Reconstruct`, which already turns a token run back into text for a
-  // declaration's value and handles every token a media prelude can contain. A
-  // second serializer for the same job is a second set of answers about what
-  // `(min-width:600px)` says.
-  return MediaQueryListMatches(Reconstruct(tokens, from, to), context);
+  // Through ReconstructTokens, which already turns a token run back into text
+  // for a declaration's value and handles every token a media prelude can contain.
+  return MediaQueryListMatches(ReconstructTokens(tokens, from, to), context);
 }
 
 std::size_t FindBlockEnd(const std::vector<Token>& tokens, std::size_t open, std::size_t end) {

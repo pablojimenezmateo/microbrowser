@@ -541,6 +541,11 @@ class Element : public Node {
 
   std::string Serialize() const override;
 
+  const std::string* LinkedStyleSheetText() const { return linked_style_sheet_text_.get(); }
+  void SetLinkedStyleSheetText(std::string text) {
+    linked_style_sheet_text_ = std::make_unique<std::string>(std::move(text));
+  }
+
  private:
   std::string tag_name_;
   std::vector<Attribute> attributes_;
@@ -555,10 +560,7 @@ class Element : public Node {
   // Borrowed, not owned -- see NestedDocument() above, and note that it is the
   // only borrowed pointer on a node in this module.
   Document* nested_document_ = nullptr;
-  // The four small fields are together at the end deliberately: they pack into
-  // the padding the two pointers above already leave, so an element that
-  // remembers its namespace and its prefix is the same size as one that did
-  // not.
+  std::unique_ptr<std::string> linked_style_sheet_text_;
   std::uint32_t prefix_length_ = 0;
   std::uint32_t attr_version_ = 0;
   NamespaceRef namespace_ = NamespaceRef::kHtml;

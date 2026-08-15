@@ -94,7 +94,11 @@ budget: Node     header_lines=185 public_methods=25 members=4
 # origin check is the pointer's absence rather than a test somebody has to
 # remember. `src/engine`'s Page::ClearFrames is the one place it is cleared, and
 # it clears before dropping the document it points at.
-budget: Element      header_lines=200 public_methods=30 members=10
+# +1 member for the fetched text of a `<link rel=stylesheet>`, so CSSOM's cssRules
+# is the same bytes the cascade parsed rather than an empty list for every link
+# (ADR 0012). A unique_ptr, allocated only when the sheet arrives, for the same
+# reason `content_` and `shadow_` are pointers on every element.
+budget: Element      header_lines=215 public_methods=32 members=11
 # +1 AttrVersion / attr_version_: style-cache provenance so an attribute write
 # on one host does not flush every other element's cascade (TD-0021).
 # The namespace an element or attribute is in, as a counted handle rather than

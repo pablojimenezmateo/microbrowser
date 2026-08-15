@@ -6,7 +6,7 @@ purpose: CSS tokenizing, parsing, selectors. Spec-literal, because CSS error rec
 # font or a document, so nothing about layout can reach the cascade through it.
 allow: util dom gfx text
 
-public: Token.h Tokenizer.h StyleSheet.h ComputedStyle.h Length.h Transform.h Timing.h Animation.h StyleResolver.h MediaQuery.h DeclarationText.h
+public: Token.h Tokenizer.h StyleSheet.h Cssom.h ComputedStyle.h Length.h Transform.h Timing.h Animation.h StyleResolver.h MediaQuery.h DeclarationText.h
 
 extern:
 
@@ -160,6 +160,8 @@ budget: TransitionSpec  header_lines=25 public_methods=2 members=5
 budget: AnimationSpec   header_lines=35 public_methods=2 members=8
 budget: Keyframe        header_lines=15 public_methods=0 members=2
 budget: KeyframesRule   header_lines=15 public_methods=0 members=2
+budget: CssomRuleType   header_lines=20 public_methods=0 members=0
+budget: CssomRule       header_lines=20 public_methods=0 members=6
 # The seam the animation pass reaches the cascade through. One method, and it stays one: everything a
 # frame needs to know is "here is a resolved style, adjust it".
 budget: StyleAdjuster   header_lines=20 public_methods=3 members=0

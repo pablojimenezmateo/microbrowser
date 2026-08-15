@@ -282,6 +282,7 @@ microbrowser_module(css
     src/css/AnimationDeclarations.cpp
     src/css/Timing.cpp
     src/css/StyleSheet.cpp
+    src/css/Cssom.cpp
     src/css/TransformDeclarations.cpp
   src/css/Tokenizer.cpp
   DEPS microbrowser_util microbrowser_dom microbrowser_gfx microbrowser_text)
@@ -479,6 +480,7 @@ microbrowser_module(bindings
     src/bindings/PrivacyAnswers.cpp
     src/bindings/CustomElements.cpp
     src/bindings/ConstructableStylesheets.cpp
+    src/bindings/CssomBindings.cpp
     src/bindings/DocumentBindings.cpp
     src/bindings/MutationObserver.cpp
     src/bindings/Performance.cpp

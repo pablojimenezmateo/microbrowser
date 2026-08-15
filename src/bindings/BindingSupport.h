@@ -67,6 +67,12 @@ inline constexpr const char* kAssociatedSheetSlot = "#associatedSheet";
 inline constexpr const char* kSheetOwnerSlot = "#sheetOwner";
 // Where a document or shadow root wrapper keeps its live StyleSheetList.
 inline constexpr const char* kStyleSheetListSlot = "#styleSheetList";
+// CSSOM CSSRule: type and serialized text, stored on the rule wrapper.
+inline constexpr const char* kCssomTypeSlot = "#cssomType";
+inline constexpr const char* kCssomCssTextSlot = "#cssomCssText";
+// The CSSStyleSheet a CSSRuleList is live over.
+inline constexpr const char* kCssomSheetSlot = "#cssomSheet";
+inline constexpr const char* kCssomRuleListSlot = "#cssomRuleList";
 
 // A C++ pointer, as a value script can hold but not usefully forge. It travels
 // as a double, which holds a 53-bit integer exactly -- more than any address on
