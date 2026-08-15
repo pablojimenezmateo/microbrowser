@@ -1281,6 +1281,21 @@ void Interpreter::InstallGlobals() {
       prototype->HideProperties();
     }
   }
+  // Console is installed before well-known symbols exist. The namespace
+  // object's @@toStringTag has to wait until `Symbol.toStringTag` is a real
+  // symbol, or `Object.prototype.toString.call(console)` stays `[object Object]`.
+  if (Value* console_value = realm_->global_scope->Lookup("console")) {
+    if (console_value->IsObject()) {
+      if (Object* tag = SymbolToStringTag()) {
+        Object::Property tag_property;
+        tag_property.value = Value::String("console");
+        tag_property.enumerable = false;
+        tag_property.writable = false;
+        tag_property.configurable = true;
+        console_value->object->Define(PropertyKey::Symbol(tag), std::move(tag_property));
+      }
+    }
+  }
 }
 
 }  // namespace microbrowser::js

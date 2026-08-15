@@ -159,6 +159,16 @@ void RegisterJsConformanceTests(std::vector<TestCase>& tests) {
     ExpectEval("Object.prototype.toString.call({[Symbol.toStringTag]:'X'})", "[object X]");
   });
 
+  AddTest(tests, "JsConformance/ConsoleIsANamespaceObject", [] {
+    ExpectEval("Object.prototype.toString.call(console)", "[object console]");
+    ExpectEval("Object.getPrototypeOf(Object.getPrototypeOf(console)) === Object.prototype",
+               "true");
+    ExpectEval("Object.getOwnPropertyNames(Object.getPrototypeOf(console)).length", "0");
+    ExpectEval("Object.getOwnPropertyDescriptor(globalThis, 'console').enumerable", "false");
+    ExpectEval("(() => { let n = 0; console.count({toString(){ n = 1; return 'x' }}); return n; })()",
+               "1");
+  });
+
   AddTest(tests, "JsConformance/InstanceofConsultsSymbolHasInstance", [] {
     ExpectEval("class C { static [Symbol.hasInstance](x){ return x === 42 } } 42 instanceof C",
                "true");

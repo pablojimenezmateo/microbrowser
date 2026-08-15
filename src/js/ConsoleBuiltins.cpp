@@ -41,6 +41,17 @@ void Interpreter::InstallConsole() {
   // terminal the browser was started from, and a test needs to read what was
   // logged.
   Object* console = NewObject();
+  // WebIDL namespace object: console → empty object → Object.prototype.
+  // A plain object whose prototype is Object.prototype fails
+  // console-is-a-namespace.any.js's chain check, and `self.hasOwnProperty("console")`
+  // fails if the name lives only in the global *scope*.
+  Object* console_proto = NewObject();
+  if (console_proto != nullptr) {
+    console->SetPrototype(console_proto);
+  }
+  // `Symbol.toStringTag` is attached at the end of InstallBuiltins: this
+  // runs before well-known symbols exist, and a missing tag makes
+  // `Object.prototype.toString.call(console)` say `[object Object]`.
   // The console's own state -- how deep the groups are, what each `count`
   // label stands at, and when each `time` label started.
   //
@@ -116,23 +127,43 @@ void Interpreter::InstallConsole() {
     return Value::Undefined();
   });
   // A label defaults to "default" in all four of these, which is the spec's
-  // own word and not a placeholder.
-  const auto label = [](const std::vector<Value>& arguments) {
-    const Value& given = Argument(arguments, 0);
-    return given.IsUndefined() ? std::string("default") : ToString(given);
+  // own word and not a placeholder. Through ToStringOf rather than the pure
+  // ToString: the Console Standard converts the label, so a throwing toString
+  // must surface and an object label must run the page's converter.
+  const auto label = [](NativeCall& call, std::string& out) -> Result {
+    const Value& given = Argument(call.arguments, 0);
+    if (given.IsUndefined()) {
+      out = "default";
+      return Result::Normal();
+    }
+    return call.interpreter.ToStringOf(given, out);
   };
   install(console, "count", [this, state, label](NativeCall& call) {
-    const std::string name = label(call.arguments);
+    std::string name;
+    const Result converted = label(call, name);
+    if (converted.IsAbrupt()) {
+      return call.ThrowValue(converted.value);
+    }
     const std::uint64_t at = ++state->counts[name];
     console_.push_back(name + ": " + std::to_string(at));
     return Value::Undefined();
   });
   install(console, "countReset", [state, label](NativeCall& call) {
-    state->counts.erase(label(call.arguments));
+    std::string name;
+    const Result converted = label(call, name);
+    if (converted.IsAbrupt()) {
+      return call.ThrowValue(converted.value);
+    }
+    state->counts.erase(name);
     return Value::Undefined();
   });
   install(console, "time", [state, label](NativeCall& call) {
-    state->timers[label(call.arguments)] = call.interpreter.NowMilliseconds();
+    std::string name;
+    const Result converted = label(call, name);
+    if (converted.IsAbrupt()) {
+      return call.ThrowValue(converted.value);
+    }
+    state->timers[name] = call.interpreter.NowMilliseconds();
     return Value::Undefined();
   });
   // Real elapsed time rather than a no-op, and at the same millisecond
@@ -140,7 +171,11 @@ void Interpreter::InstallConsole() {
   // DateBuiltins.cpp. A finer clock here would be a timing probe wearing a
   // diagnostic's name.
   const auto elapsed = [this, state, label](NativeCall& call, bool ending) {
-    const std::string name = label(call.arguments);
+    std::string name;
+    const Result converted = label(call, name);
+    if (converted.IsAbrupt()) {
+      return call.ThrowValue(converted.value);
+    }
     const auto found = state->timers.find(name);
     if (found == state->timers.end()) {
       console_.push_back("Timer '" + name + "' does not exist");
@@ -161,6 +196,12 @@ void Interpreter::InstallConsole() {
     return Value::Undefined();
   });
   realm_->global_scope->Declare("console", Value::Obj(console), false);
+  Object::Property console_property;
+  console_property.value = Value::Obj(console);
+  console_property.enumerable = false;
+  console_property.writable = true;
+  console_property.configurable = true;
+  realm_->global->Define("console", std::move(console_property));
 }
 
 }  // namespace microbrowser::js
