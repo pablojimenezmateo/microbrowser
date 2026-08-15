@@ -160,9 +160,22 @@ void SetDocumentEncoding(js::Interpreter& interpreter, html::Encoding encoding) 
   }
 }
 
+void SetDocumentEncodingOn(js::Object& document, html::Encoding encoding) {
+  document.SetHidden(kDocumentEncodingSlot,
+                     js::Value::Number(static_cast<double>(static_cast<std::uint8_t>(encoding))));
+}
+
 html::Encoding DocumentEncodingOf(js::Interpreter& interpreter) {
   js::Object* global = interpreter.Global();
   const js::Value* slot = global == nullptr ? nullptr : global->GetOwn(kDocumentEncodingSlot);
+  if (slot == nullptr || !slot->IsNumber()) {
+    return html::Encoding::Utf8;
+  }
+  return static_cast<html::Encoding>(static_cast<std::uint8_t>(slot->number));
+}
+
+html::Encoding DocumentEncodingOf(const js::Object& document) {
+  const js::Value* slot = document.GetOwn(kDocumentEncodingSlot);
   if (slot == nullptr || !slot->IsNumber()) {
     return html::Encoding::Utf8;
   }

@@ -597,7 +597,7 @@ class DomBindings {
   void InstallCrypto();
   // `crypto.subtle` subset (AES-CTR encrypt, HMAC-SHA-256 sign). In CryptoSubtle.cpp.
   void InstallSubtleCrypto(const js::Value& crypto);
-  // `TextEncoder` / `TextDecoder` (Encoding Standard, UTF-8). In EncodingBindings.cpp; installed
+  // `TextEncoder` / `TextDecoder` (Encoding Standard). In EncodingBindings.cpp; installed
   // from InstallWindow because they are window globals, not navigator answers.
   void InstallTextEncoding();
   // `screen.*` and `devicePixelRatio`, both quantised (ADR 0029 §6). In PrivacyAnswers.cpp with the

@@ -6,7 +6,9 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/DocumentFacts.h"
 #include "bindings/WebIdl.h"
+#include "html/Encoding.h"
 #include "html/TreeBuilder.h"
 #include "xml/XmlParser.h"
 #include "xml/XmlSerializer.h"
@@ -125,12 +127,23 @@ void DomBindings::InstallDomParsing() {
     });
   }
 
-  // Always UTF-8, and that is the specification rather than a simplification:
-  // `parseFromString` takes a *string*, so there is nothing left to decode, and
-  // the encoding a document reports after one is UTF-8 whatever the page it was
-  // called from is in. Three names again, and `inputEncoding` is the legacy one.
+  // The encoding the document was decoded with, which for a loaded page is the
+  // sniffer's answer and for anything `DOMParser` / `createHTMLDocument` made
+  // is UTF-8 -- those take a string, so there is nothing left to decode.
+  // Three names, and `inputEncoding` is the legacy one. Read off the wrapper
+  // rather than the running realm: a parent reading `contentDocument` is not
+  // in the child's realm, and the child's encoding lives on the child's document.
   for (const char* name : {"characterSet", "charset", "inputEncoding"}) {
-    document_accessor(name, [](NativeCall&) { return Value::String(std::string("UTF-8")); });
+    document_accessor(name, [](NativeCall& call) {
+      html::Encoding encoding = html::Encoding::Utf8;
+      if (call.self.IsObject()) {
+        const js::Object* behind = BehindProxies(call.self.object);
+        if (behind != nullptr) {
+          encoding = DocumentEncodingOf(*behind);
+        }
+      }
+      return Value::String(std::string(html::EncodingName(encoding)));
+    });
   }
 
   document_accessor("contentType",

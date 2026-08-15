@@ -16,43 +16,51 @@ namespace microbrowser::html {
 // Encoding confusion leading to XSS is a real, repeatedly exploited bug family, and every rule below
 // that looks pedantic is load-bearing for it.
 //
-// The set is the one ADR 0025 §2 chose by usage, and it is now complete: the single-byte tables here,
-// and the multi-byte family in MultiByteEncodings.cpp behind generated indexes.
+// The Encoding Standard's set. ADR 0025 §2 named the ones a page is actually in; the rest of the
+// single-byte family is the same 128-pointer lookup (byte minus 0x80) generated into
+// SingleByteIndexes.inc. Refusing a label the standard lists is a RangeError a page cannot recover
+// from, which is why the unused-on-HN encodings are here rather than absent.
 enum class Encoding : std::uint8_t {
   Utf8,
-  // The fallback, and it is **not** UTF-8. That is what the specification says, and the reason is
-  // that a page with no declaration is overwhelmingly old: decoding such a page as UTF-8 turns every
-  // high byte into U+FFFD, where windows-1252 renders the text its author saw.
-  Windows1252,
-  Latin1,       // ISO-8859-1, which the specification maps *to* windows-1252 -- see DecodeToUtf8
+  Windows1252,  // the fallback; ISO-8859-1's labels map here
+  Latin1,       // unused by EncodingFromLabel; kept so a switch cannot forget the alias
+  Ibm866,
   Iso8859_2,
+  Iso8859_3,
+  Iso8859_4,
   Iso8859_5,
+  Iso8859_6,
   Iso8859_7,
-  Iso8859_9,
+  Iso8859_8,
+  Iso8859_8I,  // same index as Iso8859_8; different canonical name
+  Iso8859_9,   // canonical name windows-1254
+  Iso8859_10,
+  Iso8859_13,
+  Iso8859_14,
   Iso8859_15,
+  Iso8859_16,
+  Koi8R,
+  Koi8U,
+  Macintosh,
+  Windows874,
+  Windows1250,
+  Windows1251,
+  Windows1253,
+  Windows1255,
+  Windows1256,
+  Windows1257,
+  Windows1258,
+  XMacCyrillic,
+  XUserDefined,
+  Replacement,  // iso-2022-kr and the other labels the standard refuses to honour
   Utf16Le,
   Utf16Be,
-  // The legacy multi-byte family, ADR 0025 §2's fourth group and session 32. Each is a lead byte, a
-  // trail byte and its own pointer arithmetic over one of four generated indexes -- see
-  // MultiByteEncodings.cpp, where the *ranges* are the difficulty: a wrong one produces plausible
-  // wrong characters rather than a failure.
   ShiftJis,
   EucJp,
   EucKr,
   Big5,
   Gb18030,
-  // GBK decodes as GB18030 and **encodes differently**, which is why it is an encoding here rather
-  // than a label for one. Its encoder has the standard's "is GBK" flag set: the euro sign is one
-  // byte, and every code point the two-byte form cannot reach is an *error* instead of a four-byte
-  // sequence. A page that declares `gbk` and gets GB18030's encoder sends four bytes where every
-  // other browser sends `&#…;`, and a form handler that split on those bytes would see a field the
-  // user never typed.
-  Gbk,
-  // ISO-2022-JP, and the only stateful member of the family: the byte 0x41 means `A` or a kanji
-  // depending on an escape sequence some distance earlier. That is why it is here at all rather
-  // than filed with the others -- a stateful encoding is the one where "decode the tail of a
-  // document" is not a well-defined question, and where a smuggled escape changes what every byte
-  // after it means.
+  Gbk,  // shares GB18030's decoder, not its encoder
   Iso2022Jp,
 };
 
@@ -69,6 +77,11 @@ std::string_view EncodingName(Encoding encoding);
 // sniffing algorithm rather than to UTF-8, because a page that declares `shift_jis` and gets UTF-8 is
 // a page whose bytes are reinterpreted, which is the confusion this file exists to prevent.
 std::optional<Encoding> EncodingFromLabel(std::string_view label);
+
+// The charset parameter of a MIME type, or nothing when there is none or it
+// names no encoding. XHR uses this and then falls back to UTF-8, which is not
+// the document sniffer's windows-1252 -- two questions, two functions.
+std::optional<Encoding> EncodingFromMimeType(std::string_view content_type);
 
 // The encoding a document is in, by the WHATWG Encoding Standard's order:
 //
@@ -101,7 +114,18 @@ void FinishMultiByte(Encoding encoding, int& state, std::string& out);
 // a decoder into an XSS vector. The substitution follows the specification's rules exactly: a maximal
 // subpart of an ill-formed sequence becomes *one* U+FFFD, so `\xE0\x80\x41` is one replacement
 // followed by `A` rather than two replacements or a swallowed `A`.
+//
+// A leading BOM is skipped: it is not text, and one that reached the tokenizer would be a
+// zero-width character at the start of the document. `DecodeBytes` is the same conversion without
+// that skip, which is what `TextDecoder` needs when `ignoreBOM` is true -- a BOM it was told to
+// keep is three (or two) bytes of the encoding, not a signature to discard.
 std::string DecodeToUtf8(std::string_view bytes, Encoding encoding);
+
+// Decode `bytes` in `encoding` without stripping a leading BOM. `fatal` is TextDecoder's flag:
+// a byte with no mapping is U+FFFD when false and a failure when true. The string-returning
+// overload never fails -- that is the document decoder, which always has an answer.
+bool DecodeBytes(std::string_view bytes, Encoding encoding, std::string& out, bool fatal);
+std::string DecodeBytes(std::string_view bytes, Encoding encoding);
 
 // How many bytes of BOM to skip, so a caller that has already sniffed does not decode it as text. A
 // BOM that reached the tokenizer would be a zero-width character at the start of the document, which

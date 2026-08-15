@@ -800,6 +800,33 @@ HandlerResponse XhrAccessControlHandler(const HandlerRequest& request, std::stri
   return response;
 }
 
+// --- encoding/resources/text-plain-charset.py --------------------------------
+//
+//   response.headers.set(b"Content-Type", b"text/plain;charset=" + request.GET.first(b"label"))
+//   response.content = b"hello encoding"
+HandlerResponse EncodingTextPlainCharsetHandler(const Query& query) {
+  HandlerResponse response;
+  response.handled = true;
+  AddHeader(response, "Content-Type", "text/plain;charset=" + QueryFirst(query, "label", ""));
+  response.body = "hello encoding";
+  return response;
+}
+
+// --- encoding/resources/single-byte-raw.py -----------------------------------
+//
+//   response.headers.set(b"Content-Type", b"text/plain;charset=" + request.GET.first(b"label"))
+//   response.content = bytes(range(255))
+HandlerResponse EncodingSingleByteRawHandler(const Query& query) {
+  HandlerResponse response;
+  response.handled = true;
+  AddHeader(response, "Content-Type", "text/plain;charset=" + QueryFirst(query, "label", ""));
+  response.body.resize(255);
+  for (int i = 0; i < 255; ++i) {
+    response.body[static_cast<std::size_t>(i)] = static_cast<char>(i);
+  }
+  return response;
+}
+
 }  // namespace
 
 HandlerResponse RunHandler(const HandlerRequest& request, Stash& stash) {
@@ -885,6 +912,12 @@ HandlerResponse RunHandler(const HandlerRequest& request, Stash& stash) {
   }
   if (path == "xhr/resources/access-control-basic-denied.py") {
     return XhrAccessControlHandler(request, "denied");
+  }
+  if (path == "encoding/resources/text-plain-charset.py") {
+    return EncodingTextPlainCharsetHandler(query);
+  }
+  if (path == "encoding/resources/single-byte-raw.py") {
+    return EncodingSingleByteRawHandler(query);
   }
   return HandlerResponse{};
 }

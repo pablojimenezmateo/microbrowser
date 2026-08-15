@@ -105,6 +105,19 @@ PageScript::Timing TimingFor(const dom::Element& element, bool external, bool mo
   return Timing::Blocking;
 }
 
+void PublishDocumentEncoding(bindings::DomBindings* bindings, js::Interpreter* interpreter,
+                             dom::Document& document, html::Encoding encoding) {
+  if (interpreter != nullptr) {
+    bindings::SetDocumentEncoding(*interpreter, encoding);
+  }
+  if (bindings != nullptr) {
+    const js::Value wrapper = bindings->WrapperFor(&document);
+    if (wrapper.IsObject()) {
+      bindings::SetDocumentEncodingOn(*wrapper.object, encoding);
+    }
+  }
+}
+
 }  // namespace
 
 std::string PageScript::SourceName(std::size_t slot) const {
@@ -233,9 +246,7 @@ bool PageScript::CollectInserted(dom::Document& document, const DocumentPolicy& 
   // charset>` can arrive after the first element did, and a link resolved with the wrong charset
   // sends the wrong bytes.
   document_encoding_ = policy.Encoding();
-  if (interpreter_ != nullptr) {
-    bindings::SetDocumentEncoding(*interpreter_, document_encoding_);
-  }
+  PublishDocumentEncoding(bindings_.get(), interpreter_, document, document_encoding_);
   if (bindings_ != nullptr) {
     bindings_->SetScriptStrictDynamic(script_strict_dynamic_);
     bindings_->SetInlineHandlersAllowed(inline_handlers_allowed_);
@@ -429,8 +440,8 @@ void PageScript::EnsureInterpreter(dom::Document& document, const std::string& u
   // See BrowsingContexts.h for why it is not a method on that class.
   bindings::InstallFrameWindows(*interpreter_, frame_windows_);
   // HTML's "encoding-parse a URL" needs it, and every `<a href>` on the page goes through that.
-  // Published onto the realm rather than onto the binding layer; see bindings/DocumentFacts.h.
-  bindings::SetDocumentEncoding(*interpreter_, document_encoding_);
+  // Published onto the realm *and* the document wrapper; see bindings/DocumentFacts.h.
+  PublishDocumentEncoding(bindings_.get(), interpreter_, document, document_encoding_);
   bindings::PublishFrameWindows(*interpreter_, frame_windows_);
   bindings_->SetScriptStrictDynamic(script_strict_dynamic_);
   bindings_->SetInlineHandlersAllowed(inline_handlers_allowed_);

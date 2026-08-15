@@ -68,6 +68,29 @@ void RegisterWptHandlerTests(std::vector<TestCase>& tests) {
            "while one that is on the list is handled");
   });
 
+  AddTest(tests, "WptHandlers/EncodingHandlersServeTheCharsetTheyWereAsked", [] {
+    // encoding/resources/text-plain-charset.py and single-byte-raw.py: the iframe
+    // and XHR single-byte decoder tests fetch these, and a 501 is 168 failures
+    // apiece rather than a missing handler.
+    wpt::Stash stash;
+    const HandlerResponse plain =
+        wpt::RunHandler(Get("encoding/resources/text-plain-charset.py", "label=ibm866"), stash);
+    Expect(plain.handled, "text-plain-charset.py is on the list");
+    Expect(HeaderOf(plain, "Content-Type") == "text/plain;charset=ibm866",
+           "and the charset is the label it was asked for, with no space after the semicolon");
+    Expect(plain.body == "hello encoding", "and the body is the file's constant");
+
+    const HandlerResponse raw =
+        wpt::RunHandler(Get("encoding/resources/single-byte-raw.py", "label=windows-1252"), stash);
+    Expect(raw.handled, "single-byte-raw.py is on the list");
+    Expect(raw.body.size() == 255, "bytes(range(255)) is 0..254");
+    Expect(static_cast<unsigned char>(raw.body.front()) == 0 &&
+               static_cast<unsigned char>(raw.body.back()) == 254,
+           "from 0 through 254");
+    Expect(HeaderOf(raw, "Content-Type") == "text/plain;charset=windows-1252",
+           "and the charset is the label");
+  });
+
   AddTest(tests, "WptHandlers/DefaultsAreTheOnesTheFilesWrite", [] {
     wpt::Stash stash;
     // common/slow.py: `float(request.GET.first(b"delay", 2000))`.

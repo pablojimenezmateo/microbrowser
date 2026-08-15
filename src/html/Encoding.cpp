@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <iterator>
 
 #include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
@@ -17,93 +18,71 @@ using util::PerfCounterId;
 // so matching the number is what makes this browser agree with the one a page was tested in.
 constexpr std::size_t kPrescanBytes = 1024;
 
-// windows-1252's difference from ISO-8859-1: the 0x80-0x9F range, which ISO-8859-1 leaves as control
-// characters and which windows-1252 fills with punctuation. This table is *why* the two labels are the
-// same decoder in the specification -- a page labelled `iso-8859-1` containing a 0x93 means a curly
-// quote, because that is what the authoring tool that produced it meant, and rendering a control
-// character there is rendering something no reader ever saw.
-constexpr std::array<std::uint32_t, 32> kWindows1252Upper = {
-    0x20AC, 0xFFFD, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030, 0x0160,
-    0x2039, 0x0152, 0xFFFD, 0x017D, 0xFFFD, 0xFFFD, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022,
-    0x2013, 0x2014, 0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0xFFFD, 0x017E, 0x0178,
-};
+#include "html/SingleByteIndexes.inc"
 
-// The high halves of the ISO-8859 parts this browser decodes. Only the 0xA0-0xFF range differs between
-// them -- 0x00-0x9F is ASCII plus C1 controls in every part -- so each table is 96 entries rather than
-// 256, which is also how the specification's index files are written.
-constexpr std::array<std::uint32_t, 96> kIso8859_2 = {
-    0x00A0, 0x0104, 0x02D8, 0x0141, 0x00A4, 0x013D, 0x015A, 0x00A7, 0x00A8, 0x0160, 0x015E, 0x0164,
-    0x0179, 0x00AD, 0x017D, 0x017B, 0x00B0, 0x0105, 0x02DB, 0x0142, 0x00B4, 0x013E, 0x015B, 0x02C7,
-    0x00B8, 0x0161, 0x015F, 0x0165, 0x017A, 0x02DD, 0x017E, 0x017C, 0x0154, 0x00C1, 0x00C2, 0x0102,
-    0x00C4, 0x0139, 0x0106, 0x00C7, 0x010C, 0x00C9, 0x0118, 0x00CB, 0x011A, 0x00CD, 0x00CE, 0x010E,
-    0x0110, 0x0143, 0x0147, 0x00D3, 0x00D4, 0x0150, 0x00D6, 0x00D7, 0x0158, 0x016E, 0x00DA, 0x0170,
-    0x00DC, 0x00DD, 0x0162, 0x00DF, 0x0155, 0x00E1, 0x00E2, 0x0103, 0x00E4, 0x013A, 0x0107, 0x00E7,
-    0x010D, 0x00E9, 0x0119, 0x00EB, 0x011B, 0x00ED, 0x00EE, 0x010F, 0x0111, 0x0144, 0x0148, 0x00F3,
-    0x00F4, 0x0151, 0x00F6, 0x00F7, 0x0159, 0x016F, 0x00FA, 0x0171, 0x00FC, 0x00FD, 0x0163, 0x02D9,
-};
-constexpr std::array<std::uint32_t, 96> kIso8859_5 = {
-    0x00A0, 0x0401, 0x0402, 0x0403, 0x0404, 0x0405, 0x0406, 0x0407, 0x0408, 0x0409, 0x040A, 0x040B,
-    0x040C, 0x00AD, 0x040E, 0x040F, 0x0410, 0x0411, 0x0412, 0x0413, 0x0414, 0x0415, 0x0416, 0x0417,
-    0x0418, 0x0419, 0x041A, 0x041B, 0x041C, 0x041D, 0x041E, 0x041F, 0x0420, 0x0421, 0x0422, 0x0423,
-    0x0424, 0x0425, 0x0426, 0x0427, 0x0428, 0x0429, 0x042A, 0x042B, 0x042C, 0x042D, 0x042E, 0x042F,
-    0x0430, 0x0431, 0x0432, 0x0433, 0x0434, 0x0435, 0x0436, 0x0437, 0x0438, 0x0439, 0x043A, 0x043B,
-    0x043C, 0x043D, 0x043E, 0x043F, 0x0440, 0x0441, 0x0442, 0x0443, 0x0444, 0x0445, 0x0446, 0x0447,
-    0x0448, 0x0449, 0x044A, 0x044B, 0x044C, 0x044D, 0x044E, 0x044F, 0x2116, 0x0451, 0x0452, 0x0453,
-    0x0454, 0x0455, 0x0456, 0x0457, 0x0458, 0x0459, 0x045A, 0x045B, 0x045C, 0x00A7, 0x045E, 0x045F,
-};
-constexpr std::array<std::uint32_t, 96> kIso8859_7 = {
-    0x00A0, 0x2018, 0x2019, 0x00A3, 0x20AC, 0x20AF, 0x00A6, 0x00A7, 0x00A8, 0x00A9, 0x037A, 0x00AB,
-    0x00AC, 0x00AD, 0xFFFD, 0x2015, 0x00B0, 0x00B1, 0x00B2, 0x00B3, 0x0384, 0x0385, 0x0386, 0x00B7,
-    0x0388, 0x0389, 0x038A, 0x00BB, 0x038C, 0x00BD, 0x038E, 0x038F, 0x0390, 0x0391, 0x0392, 0x0393,
-    0x0394, 0x0395, 0x0396, 0x0397, 0x0398, 0x0399, 0x039A, 0x039B, 0x039C, 0x039D, 0x039E, 0x039F,
-    0x03A0, 0x03A1, 0xFFFD, 0x03A3, 0x03A4, 0x03A5, 0x03A6, 0x03A7, 0x03A8, 0x03A9, 0x03AA, 0x03AB,
-    0x03AC, 0x03AD, 0x03AE, 0x03AF, 0x03B0, 0x03B1, 0x03B2, 0x03B3, 0x03B4, 0x03B5, 0x03B6, 0x03B7,
-    0x03B8, 0x03B9, 0x03BA, 0x03BB, 0x03BC, 0x03BD, 0x03BE, 0x03BF, 0x03C0, 0x03C1, 0x03C2, 0x03C3,
-    0x03C4, 0x03C5, 0x03C6, 0x03C7, 0x03C8, 0x03C9, 0x03CA, 0x03CB, 0x03CC, 0x03CD, 0x03CE, 0xFFFD,
-};
-constexpr std::array<std::uint32_t, 96> kIso8859_9 = {
-    0x00A0, 0x00A1, 0x00A2, 0x00A3, 0x00A4, 0x00A5, 0x00A6, 0x00A7, 0x00A8, 0x00A9, 0x00AA, 0x00AB,
-    0x00AC, 0x00AD, 0x00AE, 0x00AF, 0x00B0, 0x00B1, 0x00B2, 0x00B3, 0x00B4, 0x00B5, 0x00B6, 0x00B7,
-    0x00B8, 0x00B9, 0x00BA, 0x00BB, 0x00BC, 0x00BD, 0x00BE, 0x00BF, 0x00C0, 0x00C1, 0x00C2, 0x00C3,
-    0x00C4, 0x00C5, 0x00C6, 0x00C7, 0x00C8, 0x00C9, 0x00CA, 0x00CB, 0x00CC, 0x00CD, 0x00CE, 0x00CF,
-    0x011E, 0x00D1, 0x00D2, 0x00D3, 0x00D4, 0x00D5, 0x00D6, 0x00D7, 0x00D8, 0x00D9, 0x00DA, 0x00DB,
-    0x00DC, 0x0130, 0x015E, 0x00DF, 0x00E0, 0x00E1, 0x00E2, 0x00E3, 0x00E4, 0x00E5, 0x00E6, 0x00E7,
-    0x00E8, 0x00E9, 0x00EA, 0x00EB, 0x00EC, 0x00ED, 0x00EE, 0x00EF, 0x011F, 0x00F1, 0x00F2, 0x00F3,
-    0x00F4, 0x00F5, 0x00F6, 0x00F7, 0x00F8, 0x00F9, 0x00FA, 0x00FB, 0x00FC, 0x0131, 0x015F, 0x00FF,
-};
-constexpr std::array<std::uint32_t, 96> kIso8859_15 = {
-    0x00A0, 0x00A1, 0x00A2, 0x00A3, 0x20AC, 0x00A5, 0x0160, 0x00A7, 0x0161, 0x00A9, 0x00AA, 0x00AB,
-    0x00AC, 0x00AD, 0x00AE, 0x00AF, 0x00B0, 0x00B1, 0x00B2, 0x00B3, 0x017D, 0x00B5, 0x00B6, 0x00B7,
-    0x017E, 0x00B9, 0x00BA, 0x00BB, 0x0152, 0x0153, 0x0178, 0x00BF, 0x00C0, 0x00C1, 0x00C2, 0x00C3,
-    0x00C4, 0x00C5, 0x00C6, 0x00C7, 0x00C8, 0x00C9, 0x00CA, 0x00CB, 0x00CC, 0x00CD, 0x00CE, 0x00CF,
-    0x00D0, 0x00D1, 0x00D2, 0x00D3, 0x00D4, 0x00D5, 0x00D6, 0x00D7, 0x00D8, 0x00D9, 0x00DA, 0x00DB,
-    0x00DC, 0x00DD, 0x00DE, 0x00DF, 0x00E0, 0x00E1, 0x00E2, 0x00E3, 0x00E4, 0x00E5, 0x00E6, 0x00E7,
-    0x00E8, 0x00E9, 0x00EA, 0x00EB, 0x00EC, 0x00ED, 0x00EE, 0x00EF, 0x00F0, 0x00F1, 0x00F2, 0x00F3,
-    0x00F4, 0x00F5, 0x00F6, 0x00F7, 0x00F8, 0x00F9, 0x00FA, 0x00FB, 0x00FC, 0x00FD, 0x00FE, 0x00FF,
-};
+constexpr std::uint16_t kSingleByteHole = 0xFFFF;
 
-const std::array<std::uint32_t, 96>* SingleByteTable(Encoding encoding) {
-  switch (encoding) {
-    case Encoding::Iso8859_2:
-      return &kIso8859_2;
-    case Encoding::Iso8859_5:
-      return &kIso8859_5;
-    case Encoding::Iso8859_7:
-      return &kIso8859_7;
-    case Encoding::Iso8859_9:
-      return &kIso8859_9;
-    case Encoding::Iso8859_15:
-      return &kIso8859_15;
-    default:
-      return nullptr;
+void AppendUtf8(std::string& out, std::uint32_t code);
+void AppendReplacement(std::string& out);
+
+// The single-byte decoder: ASCII below 0x80, then pointer = byte − 0x80 into a 128-entry index.
+// A hole is U+FFFD, or a failure when `fatal` is set -- TextDecoder's flag, and the reason this
+// returns bool rather than a string.
+bool DecodeSingleByte(std::string_view bytes, Encoding encoding, std::string& out, bool fatal) {
+  if (encoding == Encoding::Replacement) {
+    // Encoding Standard: empty in, empty out; any non-empty input is *one*
+    // U+FFFD, not one per byte. TextDecoder refuses this encoding; documents
+    // and XHR still reach it through a label the sniffer accepted.
+    if (bytes.empty()) {
+      return true;
+    }
+    if (fatal) {
+      return false;
+    }
+    AppendReplacement(out);
+    return true;
   }
+  if (encoding == Encoding::XUserDefined) {
+    out.reserve(out.size() + bytes.size());
+    for (const char byte : bytes) {
+      const std::uint8_t value = static_cast<std::uint8_t>(byte);
+      if (value < 0x80) {
+        out.push_back(static_cast<char>(value));
+      } else {
+        AppendUtf8(out, 0xF780u + (value - 0x80u));
+      }
+    }
+    return true;
+  }
+  const std::uint16_t* table = SingleByteIndex(encoding);
+  if (table == nullptr) {
+    return false;
+  }
+  out.reserve(out.size() + bytes.size());
+  for (const char byte : bytes) {
+    const std::uint8_t value = static_cast<std::uint8_t>(byte);
+    if (value < 0x80) {
+      out.push_back(static_cast<char>(value));
+      continue;
+    }
+    const std::uint16_t code = table[value - 0x80u];
+    if (code == kSingleByteHole) {
+      if (fatal) {
+        return false;
+      }
+      AppendReplacement(out);
+      continue;
+    }
+    AppendUtf8(out, code);
+  }
+  return true;
 }
 
 // The single-byte encoders, which are the tables above searched backwards.
 //
-// A linear scan over 96 entries rather than a generated reverse table, and that is a measurement
+// A linear scan over 128 entries rather than a generated reverse table, and that is a measurement
 // rather than laziness: a single-byte encoding is only ever asked to encode a *URL query* or a form
-// field, both of which are tens of characters, and 96 comparisons of a `uint32_t` is under the cost
+// field, both of which are tens of characters, and 128 comparisons of a `uint16_t` is under the cost
 // of the branch that would pick a table. The multi-byte encoders are the ones with 24,000 entries
 // and they are binary searches over generated tables for exactly that reason.
 bool EncodeSingleByte(std::uint32_t code_point, Encoding encoding, std::string& out) {
@@ -111,32 +90,25 @@ bool EncodeSingleByte(std::uint32_t code_point, Encoding encoding, std::string& 
     out.push_back(static_cast<char>(code_point));
     return true;
   }
-  if (const std::array<std::uint32_t, 96>* table = SingleByteTable(encoding)) {
-    // 0x80-0x9F is the C1 control range, identical in every ISO-8859 part, and the table starts at
-    // 0xA0. A code point in that range encodes to itself; anything else has to be in the table.
-    if (code_point >= 0x80 && code_point <= 0x9F) {
-      out.push_back(static_cast<char>(code_point));
+  if (encoding == Encoding::XUserDefined) {
+    if (code_point >= 0xF780u && code_point <= 0xF7FFu) {
+      out.push_back(static_cast<char>(0x80u + (code_point - 0xF780u)));
       return true;
-    }
-    for (std::size_t i = 0; i < table->size(); ++i) {
-      if ((*table)[i] == code_point && code_point != 0xFFFD) {
-        out.push_back(static_cast<char>(0xA0u + i));
-        return true;
-      }
     }
     return false;
   }
-  // windows-1252, and ISO-8859-1 with it -- the specification maps the second label to the first
-  // decoder, and an encoder that disagreed would be the same confusion in the other direction.
-  for (std::size_t i = 0; i < kWindows1252Upper.size(); ++i) {
-    if (kWindows1252Upper[i] == code_point && code_point != 0xFFFD) {
+  if (encoding == Encoding::Replacement) {
+    return false;
+  }
+  const std::uint16_t* table = SingleByteIndex(encoding);
+  if (table == nullptr) {
+    return false;
+  }
+  for (std::size_t i = 0; i < 128; ++i) {
+    if (table[i] == code_point && code_point != kSingleByteHole) {
       out.push_back(static_cast<char>(0x80u + i));
       return true;
     }
-  }
-  if (code_point >= 0xA0 && code_point <= 0xFF) {
-    out.push_back(static_cast<char>(code_point));
-    return true;
   }
   return false;
 }
@@ -312,38 +284,6 @@ std::string DecodeUtf8Strictly(std::string_view bytes) {
   return out;
 }
 
-std::string DecodeSingleByte(std::string_view bytes, Encoding encoding) {
-  const std::array<std::uint32_t, 96>* table = SingleByteTable(encoding);
-  std::string out;
-  out.reserve(bytes.size());
-  for (const char byte : bytes) {
-    const std::uint8_t value = static_cast<std::uint8_t>(byte);
-    if (value < 0x80) {
-      out.push_back(static_cast<char>(value));
-      continue;
-    }
-    if (table != nullptr) {
-      if (value < 0xA0) {
-        // C1 controls in every ISO-8859 part. Passed through as the code point they are rather than
-        // replaced: they are legal characters, and a decoder that replaced them would corrupt text.
-        AppendUtf8(out, value);
-      } else {
-        AppendUtf8(out, (*table)[value - 0xA0u]);
-      }
-      continue;
-    }
-    // windows-1252, which is also what `iso-8859-1` and `latin1` decode as -- the specification maps
-    // those labels to this decoder, because a page labelled ISO-8859-1 with a 0x93 in it means a curly
-    // quote and that is what its reader saw.
-    if (value < 0xA0) {
-      AppendUtf8(out, kWindows1252Upper[value - 0x80u]);
-    } else {
-      AppendUtf8(out, value);
-    }
-  }
-  return out;
-}
-
 std::string DecodeUtf16(std::string_view bytes, bool little_endian) {
   std::string out;
   std::size_t at = 0;
@@ -387,91 +327,25 @@ std::string DecodeUtf16(std::string_view bytes, bool little_endian) {
 }  // namespace
 
 std::optional<Encoding> EncodingFromLabel(std::string_view label) {
-  const std::string lowered = util::AsciiLowerCase(std::string(util::TrimAscii(label)));
-  // The labels the Encoding Standard lists for each of these, which is more than the canonical name:
-  // a page writes `utf8`, `UTF_8`, `cp1252` or `latin1`, and every one of those is in the index.
-  if (lowered == "utf-8" || lowered == "utf8" || lowered == "unicode-1-1-utf-8" ||
-      lowered == "utf_8") {
-    return Encoding::Utf8;
+  // HTML's ASCII whitespace, not C's: `\vwindows-1252` is an invalid label, and TrimAscii would
+  // accept it because `\v` is isspace. The Encoding Standard names the five characters.
+  const std::string lowered = util::AsciiLowerCase(std::string(util::TrimHtmlWhitespace(label)));
+  const auto* begin = std::begin(kEncodingLabels);
+  const auto* end = std::end(kEncodingLabels);
+  const auto* found =
+      std::lower_bound(begin, end, lowered, [](const EncodingLabel& entry, const std::string& key) {
+        return std::string_view(entry.label) < key;
+      });
+  if (found != end && found->label == lowered) {
+    return found->encoding;
   }
-  if (lowered == "windows-1252" || lowered == "cp1252" || lowered == "x-cp1252" ||
-      lowered == "ansi_x3.4-1968" || lowered == "ascii" || lowered == "us-ascii" ||
-      lowered == "iso-8859-1" || lowered == "iso8859-1" || lowered == "latin1" ||
-      lowered == "l1" || lowered == "cp819") {
-    // **All of these are one decoder**, including `ascii`: the specification maps ASCII's label to
-    // windows-1252 because a document that claims ASCII and contains a high byte is a document whose
-    // author meant windows-1252, and replacing those bytes would corrupt text that renders elsewhere.
-    return Encoding::Windows1252;
+  return std::nullopt;
+}
+
+std::optional<Encoding> EncodingFromMimeType(std::string_view content_type) {
+  if (const std::optional<std::string_view> label = CharsetFromContentType(content_type)) {
+    return EncodingFromLabel(*label);
   }
-  if (lowered == "iso-8859-2" || lowered == "iso8859-2" || lowered == "latin2" ||
-      lowered == "l2") {
-    return Encoding::Iso8859_2;
-  }
-  if (lowered == "iso-8859-5" || lowered == "iso8859-5" || lowered == "cyrillic") {
-    return Encoding::Iso8859_5;
-  }
-  if (lowered == "iso-8859-7" || lowered == "iso8859-7" || lowered == "greek" ||
-      lowered == "greek8") {
-    return Encoding::Iso8859_7;
-  }
-  if (lowered == "iso-8859-9" || lowered == "iso8859-9" || lowered == "latin5" ||
-      lowered == "windows-1254") {
-    return Encoding::Iso8859_9;
-  }
-  if (lowered == "iso-8859-15" || lowered == "iso8859-15" || lowered == "latin9" ||
-      lowered == "csisolatin9") {
-    return Encoding::Iso8859_15;
-  }
-  if (lowered == "utf-16" || lowered == "utf-16le" || lowered == "utf16" || lowered == "utf16le") {
-    // A bare `utf-16` label means *little endian* in the Encoding Standard. That looks arbitrary and
-    // is not: it is what the installed base emits, and guessing big-endian instead produces text with
-    // a NUL between every character.
-    return Encoding::Utf16Le;
-  }
-  if (lowered == "utf-16be" || lowered == "utf16be") {
-    return Encoding::Utf16Be;
-  }
-  // The legacy multi-byte labels, every spelling the Encoding Standard's index lists. `shift-jis` with
-  // a hyphen, `sjis`, `ms_kanji` and `csshiftjis` are all in real documents, and a page whose label is
-  // unrecognised falls through to windows-1252 -- which for Japanese is mojibake rather than text.
-  if (lowered == "shift_jis" || lowered == "shift-jis" || lowered == "sjis" ||
-      lowered == "ms_kanji" || lowered == "ms932" || lowered == "csshiftjis" ||
-      lowered == "windows-31j" || lowered == "x-sjis") {
-    return Encoding::ShiftJis;
-  }
-  if (lowered == "euc-jp" || lowered == "eucjp" || lowered == "x-euc-jp" ||
-      lowered == "cseucpkdfmtjapanese") {
-    return Encoding::EucJp;
-  }
-  if (lowered == "iso-2022-jp" || lowered == "csiso2022jp") {
-    return Encoding::Iso2022Jp;
-  }
-  if (lowered == "euc-kr" || lowered == "euckr" || lowered == "windows-949" ||
-      lowered == "ks_c_5601-1987" || lowered == "ks_c_5601-1989" || lowered == "ksc5601" ||
-      lowered == "ksc_5601" || lowered == "iso-ir-149" || lowered == "csksc56011987" ||
-      lowered == "korean" || lowered == "cseuckr") {
-    return Encoding::EucKr;
-  }
-  if (lowered == "big5" || lowered == "big5-hkscs" || lowered == "cn-big5" ||
-      lowered == "csbig5" || lowered == "x-x-big5") {
-    return Encoding::Big5;
-  }
-  if (lowered == "gb18030") {
-    return Encoding::Gb18030;
-  }
-  if (lowered == "gbk" || lowered == "gb2312" || lowered == "gb_2312" ||
-      lowered == "gb_2312-80" || lowered == "chinese" || lowered == "csgb2312" ||
-      lowered == "csiso58gb231280" || lowered == "iso-ir-58" || lowered == "x-gbk") {
-    // **GBK is not GB18030 and these labels are not that one.** They share a decoder -- GB18030 is a
-    // superset, so decoding a GBK document with it produces the same characters -- and they do not
-    // share an encoder: GBK refuses everything the two-byte form cannot reach, where GB18030 emits
-    // four bytes. A page labelled `gbk` whose form sent four-byte sequences would be sending bytes
-    // its own server has no decoder for.
-    return Encoding::Gbk;
-  }
-  // Everything else is *nothing*, so the caller falls through to the next step of the algorithm rather
-  // than to UTF-8. What is left in that category is small now -- the EBCDIC labels, and the
-  // `replacement` encoding the standard defines for labels that are dangerous to honour.
   return std::nullopt;
 }
 
@@ -482,16 +356,64 @@ std::string_view EncodingName(Encoding encoding) {
     case Encoding::Windows1252:
     case Encoding::Latin1:
       return "windows-1252";
+    case Encoding::Ibm866:
+      return "IBM866";
     case Encoding::Iso8859_2:
       return "ISO-8859-2";
+    case Encoding::Iso8859_3:
+      return "ISO-8859-3";
+    case Encoding::Iso8859_4:
+      return "ISO-8859-4";
     case Encoding::Iso8859_5:
       return "ISO-8859-5";
+    case Encoding::Iso8859_6:
+      return "ISO-8859-6";
     case Encoding::Iso8859_7:
       return "ISO-8859-7";
+    case Encoding::Iso8859_8:
+      return "ISO-8859-8";
+    case Encoding::Iso8859_8I:
+      return "ISO-8859-8-I";
     case Encoding::Iso8859_9:
       return "windows-1254";
+    case Encoding::Iso8859_10:
+      return "ISO-8859-10";
+    case Encoding::Iso8859_13:
+      return "ISO-8859-13";
+    case Encoding::Iso8859_14:
+      return "ISO-8859-14";
     case Encoding::Iso8859_15:
       return "ISO-8859-15";
+    case Encoding::Iso8859_16:
+      return "ISO-8859-16";
+    case Encoding::Koi8R:
+      return "KOI8-R";
+    case Encoding::Koi8U:
+      return "KOI8-U";
+    case Encoding::Macintosh:
+      return "macintosh";
+    case Encoding::Windows874:
+      return "windows-874";
+    case Encoding::Windows1250:
+      return "windows-1250";
+    case Encoding::Windows1251:
+      return "windows-1251";
+    case Encoding::Windows1253:
+      return "windows-1253";
+    case Encoding::Windows1255:
+      return "windows-1255";
+    case Encoding::Windows1256:
+      return "windows-1256";
+    case Encoding::Windows1257:
+      return "windows-1257";
+    case Encoding::Windows1258:
+      return "windows-1258";
+    case Encoding::XMacCyrillic:
+      return "x-mac-cyrillic";
+    case Encoding::XUserDefined:
+      return "x-user-defined";
+    case Encoding::Replacement:
+      return "replacement";
     case Encoding::Utf16Le:
       return "UTF-16LE";
     case Encoding::Utf16Be:
@@ -623,18 +545,17 @@ Encoding SniffEncoding(std::string_view bytes, std::string_view content_type) {
   return Encoding::Windows1252;
 }
 
-std::string DecodeToUtf8(std::string_view bytes, Encoding encoding) {
-  // The BOM is not text. One that reached the tokenizer would be a zero-width character at the start
-  // of the document -- invisible, and it shifts every offset a parse error reports.
-  const std::size_t bom = BomLength(bytes);
-  const std::string_view body = bytes.substr(std::min(bom, bytes.size()));
+bool DecodeBytes(std::string_view bytes, Encoding encoding, std::string& out, bool fatal) {
   switch (encoding) {
     case Encoding::Utf8:
-      return DecodeUtf8Strictly(body);
+      out = DecodeUtf8Strictly(bytes);
+      return true;
     case Encoding::Utf16Le:
-      return DecodeUtf16(body, true);
+      out = DecodeUtf16(bytes, true);
+      return true;
     case Encoding::Utf16Be:
-      return DecodeUtf16(body, false);
+      out = DecodeUtf16(bytes, false);
+      return true;
     case Encoding::ShiftJis:
     case Encoding::EucJp:
     case Encoding::EucKr:
@@ -642,10 +563,24 @@ std::string DecodeToUtf8(std::string_view bytes, Encoding encoding) {
     case Encoding::Gb18030:
     case Encoding::Gbk:
     case Encoding::Iso2022Jp:
-      return DecodeMultiByte(body, encoding);
+      out = DecodeMultiByte(bytes, encoding);
+      return true;
     default:
-      return DecodeSingleByte(body, encoding);
+      return DecodeSingleByte(bytes, encoding, out, fatal);
   }
+}
+
+std::string DecodeBytes(std::string_view bytes, Encoding encoding) {
+  std::string out;
+  (void)DecodeBytes(bytes, encoding, out, false);
+  return out;
+}
+
+std::string DecodeToUtf8(std::string_view bytes, Encoding encoding) {
+  // The BOM is not text. One that reached the tokenizer would be a zero-width character at the start
+  // of the document -- invisible, and it shifts every offset a parse error reports.
+  const std::size_t bom = BomLength(bytes);
+  return DecodeBytes(bytes.substr(std::min(bom, bytes.size())), encoding);
 }
 
 bool Encoder::Encode(std::uint32_t code_point, std::string& out) {

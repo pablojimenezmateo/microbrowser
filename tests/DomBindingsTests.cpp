@@ -5,10 +5,12 @@
 
 #include "TestSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/DocumentFacts.h"
 #include "bindings/Network.h"
 #include "bindings/AnimationFrames.h"
 #include "bindings/IdleCallbacks.h"
 #include "bindings/Timers.h"
+#include "html/Encoding.h"
 #include "html/TreeBuilder.h"
 #include "js/Interpreter.h"
 
@@ -75,11 +77,38 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript("<html><body></body></html>",
                  "Array.from(new TextEncoder().encode('A')).join(',')", "65");
     ExpectScript("<html><body></body></html>",
-                 "(() => { try { new TextDecoder('windows-1252'); return 'ok'; }"
+                 "new TextDecoder('windows-1252').decode(new Uint8Array([0xE9]))", "é");
+    ExpectScript("<html><body></body></html>",
+                 "new TextDecoder('utf-16le').encoding", "utf-16le");
+    ExpectScript("<html><body></body></html>",
+                 "(() => { try { new TextDecoder('no-such-encoding'); return 'ok'; }"
                  "catch (err) { return err.name; } })()",
                  "RangeError");
     ExpectScript("<html><body></body></html>",
+                 "(() => { const d = new Uint8Array(4); const r = new TextEncoder().encodeInto('Hi', d);"
+                 "return r.read + ',' + r.written + ',' + d[0] + ',' + d[1]; })()",
+                 "2,2,72,105");
+    ExpectScript("<html><body></body></html>",
                  "new TextDecoder().decode(new Uint8Array([0xEF,0xBB,0xBF,0x61]))", "a");
+    ExpectScript("<html><body></body></html>",
+                 "(() => { try { new TextDecoder('replacement'); return 'ok'; }"
+                 "catch (err) { return err.name; } })()",
+                 "RangeError");
+    ExpectScript("<html><body></body></html>", "document.characterSet", "UTF-8");
+  });
+
+  AddTest(tests, "DomBindings/CharacterSetIsTheDocumentsEncodingNotTheRealms", [] {
+    // A parent reading `iframe.contentDocument.characterSet` is in the embedder's
+    // realm. The encoding has to live on the document wrapper, or every child
+    // reports UTF-8.
+    Bound bound = Bind("<html><body></body></html>");
+    const js::Value wrapper = bound.dom_bindings->WrapperFor(bound.document.get());
+    Expect(wrapper.IsObject(), "the document has a wrapper after Install");
+    bindings::SetDocumentEncodingOn(*wrapper.object, html::Encoding::Ibm866);
+    const js::Result result = bound.interpreter->Run(
+        "document.characterSet + '|' + document.inputEncoding");
+    ExpectEqString(js::ToString(result.value), "IBM866|IBM866",
+                   "characterSet and inputEncoding read the wrapper's encoding");
   });
 
   AddTest(tests, "DomBindings/BtoaAndAtobRoundTripLatin1", [] {

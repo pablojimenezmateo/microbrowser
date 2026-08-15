@@ -156,9 +156,9 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
     Expect(EncodingFromLabel("us-ascii") == Encoding::Windows1252, "and ascii");
     ExpectEqString(Decode("\x93hello\x94", Encoding::Windows1252), "“hello”",
                    "0x93 and 0x94 are curly quotes rather than controls");
-    // 0x81 is one of the five unassigned windows-1252 bytes, and it is U+FFFD rather than passed
-    // through -- the table says so.
-    ExpectEqString(Decode("\x81", Encoding::Windows1252), kReplacement, "an unassigned byte");
+    // The Encoding Standard maps the five "undefined" windows-1252 bytes to the C1 controls they
+    // occupy, not to U+FFFD. A replacement there would be a character no other browser emits.
+    ExpectEqString(Decode("\x81", Encoding::Windows1252), "\xC2\x81", "0x81 is U+0081");
     // Above 0xA0 the two encodings agree, which is most of the range.
     ExpectEqString(Decode("\xE9", Encoding::Windows1252), "é", "é is é");
   });
@@ -176,6 +176,27 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
     // getting it wrong is not a rounding error, it is different text.
     Expect(Decode("\xC1", Encoding::Iso8859_7) != Decode("\xC1", Encoding::Windows1252),
            "one byte, two alphabets");
+  });
+
+  AddTest(tests, "Encoding/TheRestOfTheSingleByteFamilyIsTheEncodingStandardsIndex", [] {
+    Expect(EncodingFromLabel("ibm866") == Encoding::Ibm866, "ibm866");
+    Expect(EncodingFromLabel("iso-8859-3") == Encoding::Iso8859_3, "iso-8859-3");
+    Expect(EncodingFromLabel("koi8-r") == Encoding::Koi8R, "koi8-r");
+    Expect(EncodingFromLabel("macintosh") == Encoding::Macintosh, "macintosh");
+    Expect(EncodingFromLabel("windows-1250") == Encoding::Windows1250, "windows-1250");
+    Expect(EncodingFromLabel("iso-8859-8-i") == Encoding::Iso8859_8I, "iso-8859-8-i");
+    ExpectEqString(std::string(html::EncodingName(Encoding::Iso8859_8I)), "ISO-8859-8-I",
+                   "8-I is not 8");
+    Expect(EncodingFromLabel("csisolatin1") == Encoding::Windows1252, "a previously missing alias");
+    Expect(EncodingFromLabel("iso_8859-1:1987") == Encoding::Windows1252, "and a colon in a label");
+    // Vertical tab is not ASCII whitespace. TrimAscii would strip it and honour the label.
+    Expect(!EncodingFromLabel("\vwindows-1252").has_value(), "\\v does not strip");
+    // ISO-8859-3 has holes; 0xA5 is one. Non-fatal is U+FFFD, fatal is a failure.
+    ExpectEqString(Decode("\xA5", Encoding::Iso8859_3), kReplacement, "a hole is U+FFFD");
+    std::string fatal_out;
+    Expect(!html::DecodeBytes("\xA5", Encoding::Iso8859_3, fatal_out, true),
+           "and fatal refuses it");
+    Expect(html::DecodeBytes("A", Encoding::Iso8859_3, fatal_out, true), "ASCII still decodes");
   });
 
   AddTest(tests, "Encoding/TheBomWinsOverAContradictoryHeader", [] {
@@ -228,14 +249,24 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
     // The confusion in miniature: a page that declares an encoding and is decoded as UTF-8 is a page
     // whose bytes are reinterpreted. An unrecognised label must take the *next* step of the algorithm.
     //
-    // `shift_jis` and `gb18030` were the examples here until session 32 built them, and
-    // `iso-2022-jp` was one until this session did. **The changed assertion is each session's own
-    // change**, and that is the whole reason the test still means something: an example that has
-    // become supported proves nothing about the fall-through. What is left in the category is the
-    // standard's `replacement` encoding and the EBCDIC labels.
-    Expect(!EncodingFromLabel("hz-gb-2312").has_value(), "an encoding this browser lacks is nothing");
-    Expect(!EncodingFromLabel("ibm866").has_value(), "and so is another");
+    // `shift_jis` and `gb18030` were the examples here until session 32 built them, `iso-2022-jp`
+    // until that family landed, and `ibm866` / `hz-gb-2312` until the rest of the single-byte index
+    // did. **The changed assertion is each session's own change.** What is left is labels the
+    // standard does not list -- EBCDIC, invented names -- which must still fall through.
+    Expect(!EncodingFromLabel("cp037").has_value(), "an encoding this browser lacks is nothing");
+    Expect(!EncodingFromLabel("ebcdic").has_value(), "and so is another");
     Expect(!EncodingFromLabel("").has_value(), "and an empty label");
+    Expect(EncodingFromLabel("ibm866") == Encoding::Ibm866, "ibm866 is in the index now");
+    Expect(EncodingFromLabel("hz-gb-2312") == Encoding::Replacement,
+           "and hz-gb-2312 is replacement, not a decoder");
+    ExpectEqString(Decode("ABC", Encoding::Replacement), kReplacement,
+                   "the replacement decoder emits one U+FFFD for any non-empty input");
+    ExpectEqString(Decode("", Encoding::Replacement), "",
+                   "and empty input stays empty");
+    Expect(html::EncodingFromMimeType("text/plain;charset=ibm866") == Encoding::Ibm866,
+           "XHR reads charset off Content-Type without falling through to windows-1252");
+    Expect(!html::EncodingFromMimeType("text/plain").has_value(),
+           "and no charset is nothing, so the caller can default to UTF-8");
     // With an unknown header, the meta still gets its turn.
     Expect(SniffEncoding("<meta charset=utf-8>", "text/html; charset=x-nonesuch") == Encoding::Utf8,
            "the algorithm continues rather than guessing");
@@ -453,6 +484,16 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
     Expect(SniffEncoding("<meta charset=big5>") == Encoding::Big5, "and from the document");
     ExpectEqString(DecodeToUtf8("\x93\xFA", SniffEncoding("<meta charset=shift_jis>")), "日",
                    "and DecodeToUtf8 dispatches to it");
+  });
+
+  AddTest(tests, "Encoding/DecodeBytesKeepsABomThatDecodeToUtf8Strips", [] {
+    // TextDecoder's ignoreBOM:true needs the bytes themselves. Document loading
+    // still uses DecodeToUtf8, which skips a leading BOM so the tokenizer never
+    // sees one.
+    const std::string utf8_bom_a = std::string("\xEF\xBB\xBF", 3) + "a";
+    ExpectEqString(DecodeToUtf8(utf8_bom_a, Encoding::Utf8), "a", "document path skips the BOM");
+    ExpectEqString(html::DecodeBytes(utf8_bom_a, Encoding::Utf8),
+                   std::string("\xEF\xBB\xBF", 3) + "a", "TextDecoder path keeps it");
   });
 }
 

@@ -11,12 +11,10 @@ max_tu_lines: 1400
 # The Encoding Standard's set, as an enum. The scanner counts an `enum class` as
 # a class and that is useful here for the reason it is useful for
 # TokenizerState: this list *is* the coverage claim, and every encoding added to
-# it should be visible in a diff. Sixteen entries and every one of them earns
-# its place by usage (ADR 0025 §2) -- the lines are the comments saying why,
-# because `Gbk` beside `Gb18030` and `Latin1` beside `Windows1252` are each two
-# names for one decoder and two different encoders, which is exactly the kind of
-# thing a reader has to be told rather than shown.
-budget: Encoding header_lines=45 public_methods=0 members=0
+# it should be visible in a diff. Raised from 45 when the remaining single-byte
+# encodings landed from the standard's own indexes -- each enumerator is one
+# encoding, and a comment that grouped them would hide the coverage claim.
+budget: Encoding header_lines=90 public_methods=0 members=0
 # The encoder, and the two members are the whole design: which encoding, and
 # ISO-2022-JP's shift state. The state is *on the object* rather than a static
 # because two encodings running at once -- a form's fields and a URL's query --

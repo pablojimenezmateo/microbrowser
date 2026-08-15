@@ -1,4 +1,4 @@
-// `TextEncoder` / `TextDecoder` — the Encoding Standard's UTF-8 half — and
+// `TextEncoder` / `TextDecoder` — the Encoding Standard's API — and
 // `btoa` / `atob`, the Window binary-string Base64 pair.
 //
 // youtube's player builds PES keys and offline-cache blobs with
@@ -7,22 +7,27 @@
 // `ReferenceError: btoa is not defined` dozens of times per load (measured
 // under MICROBROWSER_JS_THROWS); the bytes already live in util::Base64.
 //
-// Only UTF-8 is implemented for TextDecoder. Other labels refuse with
-// RangeError — the Encoding Standard's answer, and ADR 0012's: a decoder that
-// silently pretends every label is UTF-8 is worse than an absence.
+// TextDecoder uses the encodings `html::EncodingFromLabel` already knows.
+// Refusing every label but UTF-8 was honest while those decoders did not
+// exist; they do now, and a second decoder here would be a second answer
+// to "what does this label mean". Labels this browser does not have still
+// throw RangeError — ADR 0012: a decoder that silently pretends every
+// label is UTF-8 is worse than an absence.
 
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
-#include <cstring>
-
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "html/Encoding.h"
+#include "js/StringUnits.h"
 #include "util/Base64.h"
 #include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
@@ -38,6 +43,8 @@ constexpr const char* kEncoderMarker = "#isTextEncoder";
 constexpr const char* kDecoderMarker = "#isTextDecoder";
 constexpr const char* kDecoderFatal = "#textDecoderFatal";
 constexpr const char* kDecoderIgnoreBom = "#textDecoderIgnoreBom";
+constexpr const char* kDecoderEncoding = "#textDecoderEncoding";
+constexpr const char* kDecoderEncodingName = "#textDecoderEncodingName";
 
 bool IsEncoder(const Value& value) {
   if (!value.IsObject()) {
@@ -86,6 +93,58 @@ std::string EncodeJsString(std::string_view text) {
     util::AppendUtf8(out, 0xFFFDu);
   }
   return out;
+}
+
+// Encoding Standard § encodeInto: walk UTF-16 code units, emit UTF-8, stop
+// before a character that does not fit. `read` is code units, `written` is
+// bytes. An unpaired surrogate becomes U+FFFD (three bytes, one unit).
+void EncodeIntoUtf8(std::string_view text, std::uint8_t* dest, std::size_t dest_len,
+                    std::size_t& read, std::size_t& written) {
+  read = 0;
+  written = 0;
+  const std::size_t units = js::Utf16Length(text);
+  std::size_t unit = 0;
+  while (unit < units) {
+    std::uint32_t code = js::CodePointAt(text, unit);
+    std::size_t consumed = 1;
+    if (code >= 0x10000u) {
+      consumed = 2;
+    } else if (code >= 0xD800u && code <= 0xDFFFu) {
+      code = 0xFFFDu;
+    }
+    std::string encoded;
+    util::AppendUtf8(encoded, code);
+    if (written + encoded.size() > dest_len) {
+      break;
+    }
+    if (dest != nullptr && !encoded.empty()) {
+      std::memcpy(dest + written, encoded.data(), encoded.size());
+    }
+    written += encoded.size();
+    unit += consumed;
+  }
+  read = unit;
+}
+
+std::string_view BomFor(html::Encoding encoding) {
+  switch (encoding) {
+    case html::Encoding::Utf8:
+      return std::string_view("\xEF\xBB\xBF", 3);
+    case html::Encoding::Utf16Le:
+      return std::string_view("\xFF\xFE", 2);
+    case html::Encoding::Utf16Be:
+      return std::string_view("\xFE\xFF", 2);
+    default:
+      return {};
+  }
+}
+
+html::Encoding EncodingOfDecoder(const Value& self) {
+  const Value* stored = self.IsObject() ? self.object->GetOwn(kDecoderEncoding) : nullptr;
+  if (stored == nullptr || stored->type != js::ValueType::Number) {
+    return html::Encoding::Utf8;
+  }
+  return static_cast<html::Encoding>(static_cast<std::uint8_t>(stored->number));
 }
 
 Value BytesToUint8Array(js::Interpreter& interpreter, std::string_view body) {
@@ -170,32 +229,6 @@ bool DecodeUtf8Bytes(std::string_view bytes, bool fatal, bool ignore_bom, std::s
   return true;
 }
 
-std::string NormalizeLabel(std::string_view label) {
-  std::string out;
-  out.reserve(label.size());
-  // Trim ASCII whitespace, lowercase.
-  std::size_t begin = 0;
-  while (begin < label.size() &&
-         (label[begin] == ' ' || label[begin] == '\t' || label[begin] == '\n' ||
-          label[begin] == '\r' || label[begin] == '\f')) {
-    ++begin;
-  }
-  std::size_t end = label.size();
-  while (end > begin && (label[end - 1] == ' ' || label[end - 1] == '\t' || label[end - 1] == '\n' ||
-                         label[end - 1] == '\r' || label[end - 1] == '\f')) {
-    --end;
-  }
-  for (std::size_t i = begin; i < end; ++i) {
-    const unsigned char c = static_cast<unsigned char>(label[i]);
-    out.push_back(static_cast<char>(c >= 'A' && c <= 'Z' ? c + 32 : c));
-  }
-  if (out == "utf8" || out == "unicode-1-1-utf-8" || out == "unicode11utf8" ||
-      out == "unicode20utf8" || out == "x-unicode20utf8") {
-    return "utf-8";
-  }
-  return out;
-}
-
 }  // namespace
 
 void DomBindings::InstallTextEncoding() {
@@ -229,6 +262,12 @@ void DomBindings::InstallTextEncoding() {
     if (!IsEncoder(call.self) && !IsDecoder(call.self)) {
       return call.Throw("TypeError", "Illegal invocation");
     }
+    if (IsDecoder(call.self)) {
+      const Value* name = call.self.object->GetOwn(kDecoderEncodingName);
+      if (name != nullptr && name->IsString()) {
+        return *name;
+      }
+    }
     return Value::String(std::string("utf-8"));
   });
   if (encoding_getter.IsObject()) {
@@ -252,17 +291,61 @@ void DomBindings::InstallTextEncoding() {
     encoder_prototype.object->Set("encode", encode);
   }
 
+  const Value encode_into = interpreter_->NewNativeValue("encodeInto", [](NativeCall& call) -> Value {
+    if (!IsEncoder(call.self)) {
+      return call.Throw("TypeError", "Illegal invocation");
+    }
+    std::string input;
+    if (!Argument(call.arguments, 0).IsUndefined()) {
+      input = js::ToString(Argument(call.arguments, 0));
+    }
+    const Value dest = Argument(call.arguments, 1);
+    if (!dest.IsObject() || dest.object->GetKind() != js::Object::Kind::TypedArray) {
+      return call.Throw("TypeError", "The provided value is not of type Uint8Array");
+    }
+    const js::BufferView* view = dest.object->View();
+    if (view == nullptr || view->kind != js::ElementKind::Uint8) {
+      return call.Throw("TypeError", "The provided value is not of type Uint8Array");
+    }
+    std::size_t read = 0;
+    std::size_t written = 0;
+    if (view->bytes != nullptr) {
+      const std::size_t dest_len = view->length;
+      std::uint8_t* dest_bytes = view->bytes->data() + view->offset;
+      if (view->offset > view->bytes->size() ||
+          dest_len > view->bytes->size() - view->offset) {
+        dest_bytes = nullptr;
+      } else {
+        EncodeIntoUtf8(input, dest_bytes, dest_len, read, written);
+      }
+    }
+    const Value result = call.interpreter.NewObjectValue();
+    if (result.IsObject()) {
+      result.object->Set("read", Value::Number(static_cast<double>(read)));
+      result.object->Set("written", Value::Number(static_cast<double>(written)));
+    }
+    util::AddPerformanceCounter(util::PerfCounterId::EncodingTextEncoderEncode);
+    util::AddPerformanceCounter(util::PerfCounterId::EncodingTextEncoderBytes, written);
+    return result;
+  });
+  if (encode_into.IsObject()) {
+    encoder_prototype.object->Set("encodeInto", encode_into);
+  }
+
   interpreter_->Global()->Set("TextEncoder", encoder_ctor);
   interpreter_->GlobalScope()->Declare("TextEncoder", encoder_ctor, false);
 
   const Value decoder_prototype = interpreter_->NewObjectValue();
   const Value decoder_ctor = interpreter_->NewNativeValue("TextDecoder", [decoder_prototype](NativeCall& call) -> Value {
-    std::string label = "utf-8";
+    html::Encoding encoding = html::Encoding::Utf8;
     if (!Argument(call.arguments, 0).IsUndefined()) {
-      label = NormalizeLabel(js::ToString(Argument(call.arguments, 0)));
-    }
-    if (label != "utf-8") {
-      return call.Throw("RangeError", "The encoding label provided ('" + label + "') is invalid.");
+      const std::string label = js::ToString(Argument(call.arguments, 0));
+      const std::optional<html::Encoding> found = html::EncodingFromLabel(label);
+      if (!found.has_value() || *found == html::Encoding::Replacement) {
+        return call.Throw("RangeError",
+                          "The encoding label provided ('" + label + "') is invalid.");
+      }
+      encoding = *found;
     }
     bool fatal = false;
     bool ignore_bom = false;
@@ -286,6 +369,10 @@ void DomBindings::InstallTextEncoding() {
     object.object->SetHidden(kDecoderMarker, Value::Bool(true));
     object.object->SetHidden(kDecoderFatal, Value::Bool(fatal));
     object.object->SetHidden(kDecoderIgnoreBom, Value::Bool(ignore_bom));
+    object.object->SetHidden(kDecoderEncoding,
+                             Value::Number(static_cast<double>(static_cast<std::uint8_t>(encoding))));
+    object.object->SetHidden(kDecoderEncodingName,
+                             Value::String(util::AsciiLowerCase(html::EncodingName(encoding))));
     util::AddPerformanceCounter(util::PerfCounterId::EncodingTextDecoderConstructed);
     return object;
   });
@@ -333,9 +420,27 @@ void DomBindings::InstallTextEncoding() {
                        fatal_flag->boolean;
     const bool ignore_bom = ignore_flag != nullptr && ignore_flag->type == js::ValueType::Boolean &&
                             ignore_flag->boolean;
+    const html::Encoding encoding = EncodingOfDecoder(call.self);
     std::string text;
-    if (!DecodeUtf8Bytes(bytes, fatal, ignore_bom, text)) {
-      return call.Throw("TypeError", "The encoded data was not valid.");
+    if (encoding == html::Encoding::Utf8) {
+      if (!DecodeUtf8Bytes(bytes, fatal, ignore_bom, text)) {
+        return call.Throw("TypeError", "The encoded data was not valid.");
+      }
+    } else {
+      std::string_view body = bytes;
+      if (!ignore_bom) {
+        const std::string_view bom = BomFor(encoding);
+        if (!bom.empty() && body.size() >= bom.size() && body.substr(0, bom.size()) == bom) {
+          body.remove_prefix(bom.size());
+        }
+      }
+      if (fatal && (encoding == html::Encoding::Utf16Le || encoding == html::Encoding::Utf16Be) &&
+          (body.size() % 2u) != 0u) {
+        return call.Throw("TypeError", "The encoded data was not valid.");
+      }
+      if (!html::DecodeBytes(body, encoding, text, fatal)) {
+        return call.Throw("TypeError", "The encoded data was not valid.");
+      }
     }
     util::AddPerformanceCounter(util::PerfCounterId::EncodingTextDecoderDecode);
     util::AddPerformanceCounter(util::PerfCounterId::EncodingTextDecoderBytes, bytes.size());

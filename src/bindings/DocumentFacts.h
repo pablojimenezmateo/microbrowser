@@ -27,8 +27,18 @@ namespace microbrowser::bindings {
 // Written once per document, after `DomBindings::Install` and before any script.
 void SetDocumentEncoding(js::Interpreter& interpreter, html::Encoding encoding);
 
+// The same fact on the document wrapper. `characterSet` reads this rather than
+// the running realm's global: a parent script asking `frame.contentDocument`
+// is in the embedder's realm, and the child's encoding lives on the child's
+// document. DOMParser documents never get one and stay UTF-8, which is the
+// specification -- `parseFromString` takes a string.
+void SetDocumentEncodingOn(js::Object& document, html::Encoding encoding);
+
 // What HTML's "encoding-parse a URL" encodes a query with. UTF-8 when nothing
 // published one, which is what a document with no legacy encoding behind it is.
 html::Encoding DocumentEncodingOf(js::Interpreter& interpreter);
+
+// What `document.characterSet` answers. UTF-8 when the wrapper was never told.
+html::Encoding DocumentEncodingOf(const js::Object& document);
 
 }  // namespace microbrowser::bindings

@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -37,7 +38,9 @@
 #include "url/Url.h"
 #include "bindings/FetchSupport.h"
 #include "bindings/Network.h"
+#include "html/Encoding.h"
 #include "util/PerformanceCounters.h"
+#include "util/StringUtil.h"
 
 namespace microbrowser::bindings {
 
@@ -92,6 +95,22 @@ js::Value ParseJsonThrough(js::Interpreter& interpreter, std::string_view text) 
   const js::Result result =
       interpreter.CallFunction(*parse, *json, {Value::String(std::string(text))});
   return result.completion == js::Completion::Throw ? Value::Null() : result.value;
+}
+
+// XHR's text decoder: the charset of `Content-Type`, or UTF-8. Not the document
+// sniffer -- that one falls through to windows-1252, and a JSON endpoint with
+// no charset would become mojibake rather than a parse error.
+std::string DecodeXhrBody(const ScriptResponse& response) {
+  html::Encoding encoding = html::Encoding::Utf8;
+  for (const ScriptHeader& header : response.headers) {
+    if (util::EqualsAsciiCaseInsensitive(header.name, "content-type")) {
+      if (const std::optional<html::Encoding> found = html::EncodingFromMimeType(header.value)) {
+        encoding = *found;
+      }
+      break;
+    }
+  }
+  return html::DecodeToUtf8(response.body, encoding);
 }
 
 }  // namespace
@@ -490,7 +509,8 @@ void DomBindings::DeliverToXhr(const js::Value& xhr, const ScriptResponse& respo
   xhr.object->Set("status", Value::Number(static_cast<double>(response.status)));
   xhr.object->Set("statusText", Value::String(response.status_text));
   xhr.object->Set("responseURL", Value::String(response.url));
-  xhr.object->Set("responseText", Value::String(response.body));
+  const std::string text = DecodeXhrBody(response);
+  xhr.object->Set("responseText", Value::String(text));
 
   // `response` is `responseText` unless the page asked for JSON, in which case
   // it is the parsed value -- and `null` when the body does not parse, which is
@@ -500,7 +520,7 @@ void DomBindings::DeliverToXhr(const js::Value& xhr, const ScriptResponse& respo
   if (wanted == "json") {
     xhr.object->Set("response", ParseJsonThrough(*interpreter_, response.body));
   } else {
-    xhr.object->Set("response", Value::String(response.body));
+    xhr.object->Set("response", Value::String(text));
   }
 
   // The three states in one turn, because a response arrives here whole: there
