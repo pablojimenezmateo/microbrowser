@@ -41,6 +41,14 @@ void AppendReplacement(std::string& out) {
   util::AddPerformanceCounter(util::PerfCounterId::EncodingReplacements);
 }
 
+bool HoldIncomplete(std::string_view bytes, std::size_t at, std::string* leftover) {
+  if (leftover == nullptr) {
+    return false;
+  }
+  leftover->assign(bytes.substr(at));
+  return true;
+}
+
 // An index lookup that cannot read past the end and cannot return a hole as a character. Every
 // decoder below goes through it, so the bound is stated once -- a pointer computed from two bytes a
 // stranger wrote is exactly the arithmetic that overruns a table.
@@ -65,7 +73,7 @@ bool IndexLookup(const Table& table, std::size_t count, std::size_t pointer, std
 // index: pointers 8836 and above are the "extension" area, which the standard maps to a private-use
 // range rather than to the index. Those are the characters a Japanese vendor added and a page may
 // legitimately contain.
-std::string DecodeShiftJis(std::string_view bytes) {
+std::string DecodeShiftJis(std::string_view bytes, std::string* leftover) {
   std::string out;
   std::size_t at = 0;
   while (at < bytes.size()) {
@@ -95,6 +103,9 @@ std::string DecodeShiftJis(std::string_view bytes) {
       continue;
     }
     if (at + 1 >= bytes.size()) {
+      if (HoldIncomplete(bytes, at, leftover)) {
+        break;
+      }
       AppendReplacement(out);
       break;
     }
@@ -131,7 +142,7 @@ std::string DecodeShiftJis(std::string_view bytes) {
 // set -- a second index, and the only one of the six that is *decode only*: no encoder in the
 // standard produces a 0x8F sequence, so a document containing one was written by something older
 // than the web.
-std::string DecodeEucJp(std::string_view bytes) {
+std::string DecodeEucJp(std::string_view bytes, std::string* leftover) {
   std::string out;
   std::size_t at = 0;
   while (at < bytes.size()) {
@@ -141,7 +152,15 @@ std::string DecodeEucJp(std::string_view bytes) {
       ++at;
       continue;
     }
-    if (byte == 0x8E && at + 1 < bytes.size()) {
+    if (byte == 0x8E) {
+      if (at + 1 >= bytes.size()) {
+        if (HoldIncomplete(bytes, at, leftover)) {
+          break;
+        }
+        AppendReplacement(out);
+        ++at;
+        continue;
+      }
       const std::uint8_t katakana = static_cast<std::uint8_t>(bytes[at + 1]);
       if (katakana >= 0xA1 && katakana <= 0xDF) {
         util::AppendUtf8(out, 0xFF61u + katakana - 0xA1u);
@@ -158,6 +177,14 @@ std::string DecodeEucJp(std::string_view bytes) {
       // hides the character a sanitiser was looking for. When the trail bytes are not trail bytes,
       // one byte is consumed and everything after it is decoded as text, which is what the
       // standard's pushback does.
+      if (at + 2 >= bytes.size()) {
+        if (HoldIncomplete(bytes, at, leftover)) {
+          break;
+        }
+        AppendReplacement(out);
+        ++at;
+        continue;
+      }
       const bool shaped = at + 2 < bytes.size() &&
                           static_cast<std::uint8_t>(bytes[at + 1]) >= 0xA1 &&
                           static_cast<std::uint8_t>(bytes[at + 1]) <= 0xFE &&
@@ -180,7 +207,15 @@ std::string DecodeEucJp(std::string_view bytes) {
       at += 3;
       continue;
     }
-    if (byte < 0xA1 || byte > 0xFE || at + 1 >= bytes.size()) {
+    if (byte < 0xA1 || byte > 0xFE) {
+      AppendReplacement(out);
+      ++at;
+      continue;
+    }
+    if (at + 1 >= bytes.size()) {
+      if (HoldIncomplete(bytes, at, leftover)) {
+        break;
+      }
       AppendReplacement(out);
       ++at;
       continue;
@@ -207,7 +242,7 @@ std::string DecodeEucJp(std::string_view bytes) {
 
 // EUC-KR. One index, one range, and the widest trail range of the five: 0x41-0xFE, which is why its
 // index is 23,750 entries for a 94x94 character set.
-std::string DecodeEucKr(std::string_view bytes) {
+std::string DecodeEucKr(std::string_view bytes, std::string* leftover) {
   std::string out;
   std::size_t at = 0;
   while (at < bytes.size()) {
@@ -217,7 +252,15 @@ std::string DecodeEucKr(std::string_view bytes) {
       ++at;
       continue;
     }
-    if (byte < 0x81 || byte > 0xFE || at + 1 >= bytes.size()) {
+    if (byte < 0x81 || byte > 0xFE) {
+      AppendReplacement(out);
+      ++at;
+      continue;
+    }
+    if (at + 1 >= bytes.size()) {
+      if (HoldIncomplete(bytes, at, leftover)) {
+        break;
+      }
       AppendReplacement(out);
       ++at;
       continue;
@@ -353,7 +396,7 @@ std::optional<std::uint32_t> Gb18030RangesCodePoint(std::size_t pointer) {
 // two-byte form covers the BMP, and the four-byte form covers everything else, including every code
 // point above it. The four-byte form is what makes this the only legacy encoding that can say
 // anything Unicode can.
-std::string DecodeGb18030(std::string_view bytes) {
+std::string DecodeGb18030(std::string_view bytes, std::string* leftover) {
   std::string out;
   std::size_t at = 0;
   while (at < bytes.size()) {
@@ -368,7 +411,15 @@ std::string DecodeGb18030(std::string_view bytes) {
       ++at;
       continue;
     }
-    if (byte == 0xFF || at + 1 >= bytes.size()) {
+    if (byte == 0xFF) {
+      AppendReplacement(out);
+      ++at;
+      continue;
+    }
+    if (at + 1 >= bytes.size()) {
+      if (HoldIncomplete(bytes, at, leftover)) {
+        break;
+      }
       AppendReplacement(out);
       ++at;
       continue;
@@ -386,6 +437,9 @@ std::string DecodeGb18030(std::string_view bytes) {
                           static_cast<std::uint8_t>(bytes[at + 3]) >= 0x30 &&
                           static_cast<std::uint8_t>(bytes[at + 3]) <= 0x39;
       if (!shaped) {
+        if (at + 3 >= bytes.size() && HoldIncomplete(bytes, at, leftover)) {
+          break;
+        }
         AppendReplacement(out);
         ++at;
         continue;
@@ -924,16 +978,16 @@ bool EncodeIso2022Jp(std::uint32_t code_point, int& raw_state, std::string& out)
 std::string DecodeMultiByte(std::string_view bytes, Encoding encoding) {
   switch (encoding) {
     case Encoding::ShiftJis:
-      return DecodeShiftJis(bytes);
+      return DecodeShiftJis(bytes, nullptr);
     case Encoding::EucJp:
-      return DecodeEucJp(bytes);
+      return DecodeEucJp(bytes, nullptr);
     case Encoding::EucKr:
-      return DecodeEucKr(bytes);
+      return DecodeEucKr(bytes, nullptr);
     case Encoding::Big5:
       return DecodeBig5(bytes, nullptr);
     case Encoding::Gb18030:
     case Encoding::Gbk:
-      return DecodeGb18030(bytes);
+      return DecodeGb18030(bytes, nullptr);
     case Encoding::Iso2022Jp:
       return DecodeIso2022Jp(bytes);
     default:
@@ -944,12 +998,31 @@ std::string DecodeMultiByte(std::string_view bytes, Encoding encoding) {
 bool DecodeMultiByteStreaming(std::string_view bytes, Encoding encoding, std::string& out,
                               std::string& leftover, bool stream) {
   leftover.clear();
-  if (encoding == Encoding::Big5 && stream) {
-    out = DecodeBig5(bytes, &leftover);
-    return true;
+  std::string* hold = stream ? &leftover : nullptr;
+  switch (encoding) {
+    case Encoding::ShiftJis:
+      out = DecodeShiftJis(bytes, hold);
+      return true;
+    case Encoding::EucJp:
+      out = DecodeEucJp(bytes, hold);
+      return true;
+    case Encoding::EucKr:
+      out = DecodeEucKr(bytes, hold);
+      return true;
+    case Encoding::Big5:
+      out = DecodeBig5(bytes, hold);
+      return true;
+    case Encoding::Gb18030:
+    case Encoding::Gbk:
+      out = DecodeGb18030(bytes, hold);
+      return true;
+    case Encoding::Iso2022Jp:
+      out = DecodeIso2022Jp(bytes);
+      return true;
+    default:
+      out.clear();
+      return true;
   }
-  out = DecodeMultiByte(bytes, encoding);
-  return true;
 }
 
 bool EncodeMultiByte(std::uint32_t code_point, Encoding encoding, int& state, std::string& out) {

@@ -536,6 +536,16 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
            "0xC1 is never a lead");
     ExpectEqString(out, kReplacement, "so it is U+FFFD immediately, even when streaming");
     Expect(leftover.empty(), "and nothing is held");
+
+    leftover.clear();
+    Expect(html::DecodeBytesStreaming(leftover, std::string("\x93", 1), Encoding::ShiftJis, out, true,
+                                      false),
+           "a Shift_JIS lead is held");
+    Expect(out.empty() && leftover.size() == 1, "while streaming");
+    Expect(html::DecodeBytesStreaming(leftover, std::string("\xFA", 1), Encoding::ShiftJis, out, false,
+                                      false),
+           "and completes");
+    ExpectEqString(out, "日", "as 日");
   });
 }
 

@@ -449,11 +449,6 @@ FAIL=fatal stream: iso-2022-jp
 FAIL=gb18030 version and ranges
 FAIL=gbk version and ranges
 FAIL=specific: big5
-FAIL=stream: euc-jp
-FAIL=stream: euc-kr
-FAIL=stream: gb18030
-FAIL=stream: gbk
-FAIL=stream: shift_jis
 FAIL=utf-16be does not produce more chars than truncated
 FAIL=utf-16le does not produce more chars than truncated
 [encoding/textdecoder-mistakes.any.worker.html]
@@ -476,11 +471,6 @@ FAIL=fatal stream: iso-2022-jp
 FAIL=gb18030 version and ranges
 FAIL=gbk version and ranges
 FAIL=specific: big5
-FAIL=stream: euc-jp
-FAIL=stream: euc-kr
-FAIL=stream: gb18030
-FAIL=stream: gbk
-FAIL=stream: shift_jis
 FAIL=utf-16be does not produce more chars than truncated
 FAIL=utf-16le does not produce more chars than truncated
 [encoding/textdecoder-streaming.any.html]
