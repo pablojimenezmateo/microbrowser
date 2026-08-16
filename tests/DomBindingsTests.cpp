@@ -3592,12 +3592,12 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage,
                  "const t = document.getElementById('title'); t.style.display = 'none';"
                  "t.getAttribute('style')",
-                 "display: none");
+                 "display: none;");
     // camelCase in, kebab-case out.
     ExpectScript(kPage,
                  "const t = document.getElementById('title'); t.style.backgroundColor = 'red';"
                  "t.getAttribute('style')",
-                 "background-color: red");
+                 "background-color: red;");
     ExpectScript(kPage,
                  "const t = document.getElementById('title'); t.style.display = 'none';"
                  "t.style.display",
@@ -3611,7 +3611,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "const t = document.getElementById('title');"
                  "t.style.color = 'red'; t.style.display = 'none'; t.style.color = 'blue';"
                  "t.getAttribute('style')",
-                 "color: blue; display: none");
+                 "color: blue; display: none;");
     // An empty value removes the property, which is what `= ''` means.
     ExpectScript(kPage,
                  "const t = document.getElementById('title'); t.style.color = 'red';"
@@ -3634,7 +3634,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "t.style.setProperty('background-color', 'green');"
                  "t.style.getPropertyValue('background-color') + '|' + t.style.backgroundColor +"
                  " '|' + t.getAttribute('style')",
-                 "green|green|background-color: green");
+                 "green|green|background-color: green;");
     ExpectScript(kPage,
                  "const t = document.getElementById('title');"
                  "t.style.setProperty('color', 'red');"
@@ -3645,7 +3645,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "const t = document.getElementById('title');"
                  "t.style.setProperty('margin', '1px', 'important');"
                  "t.getAttribute('style')",
-                 "margin: 1px !important");
+                 "margin: 1px !important;");
   });
 
   AddTest(tests, "DomBindings/ChildElementCountSkipsTextNodes", [] {
@@ -4122,6 +4122,54 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "p.style.fontFamily = '#simple';"
                  "p.style.fontFamily",
                  "onelittlepiggywenttomarket");
+    ExpectScript(kPage,
+                 "const r = document.styleSheets[0].cssRules[0];"
+                 "r.selectorText + ' ' + (r instanceof CSSStyleRule) + ' ' +"
+                 " (r instanceof CSSRule) + ' ' + CSSRule.STYLE_RULE + ' ' +"
+                 " (r.style === r.style)",
+                 "p true true 1 true");
+    ExpectScript(kPage,
+                 "const s = document.styleSheets[0];"
+                 "const a = s.cssRules;"
+                 "const b = s.cssRules;"
+                 "const r = s.cssRules[0];"
+                 "r.foo = 7;"
+                 "(a === b) + ' ' + (r === s.cssRules[0]) + ' ' + s.cssRules[0].foo",
+                 "true true 7");
+    ExpectScript(kPage,
+                 "const s = document.styleSheets[0];"
+                 "s.addRule('#foo', 'color: blue');"
+                 "s.cssRules[1].selectorText + ' ' + s.addRule('.x', 'color: red')",
+                 "#foo -1");
+    ExpectScript(kPage,
+                 "try { document.styleSheets[0].insertRule(); 'no' }"
+                 "catch (e) { e.name }",
+                 "TypeError");
+    ExpectScript(kPage,
+                 "const r = document.styleSheets[0].cssRules[0];"
+                 "r.selectorText = '!!';"
+                 "r.selectorText",
+                 "p");
+    ExpectScript(kPage,
+                 "document.styleSheets[0].cssRules[0].style.color",
+                 "red");
+    ExpectScript(kPage,
+                 "const s = document.styleSheets[0];"
+                 "s.insertRule('@media print { a { color: green } }', 1);"
+                 "const m = s.cssRules[1];"
+                 "m.cssRules.length + ' ' + (m.cssRules[0] instanceof CSSStyleRule) + ' ' +"
+                 " m.cssRules[0].style.color + ' ' + (m.cssRules[0].parentRule === m)",
+                 "1 true green true");
+    ExpectScript(kPage,
+                 "const r = document.styleSheets[0].cssRules[0].style;"
+                 "const d = Object.getOwnPropertyDescriptor(CSSStyleDeclaration.prototype, 'cssText');"
+                 "(!r.hasOwnProperty('getPropertyValue')) + ' ' +"
+                 "(typeof CSSStyleDeclaration.prototype.getPropertyValue === 'function') + ' ' +"
+                 "(r instanceof CSSStyleProperties) + ' ' + (typeof d.get === 'function')",
+                 "true true true true");
+    ExpectScript(kPage,
+                 "try { document.body.style.getPropertyValue() } catch (e) { e.name }",
+                 "TypeError");
   });
 }
 

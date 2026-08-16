@@ -482,6 +482,8 @@ microbrowser_module(bindings
     src/bindings/CustomElements.cpp
     src/bindings/ConstructableStylesheets.cpp
     src/bindings/CssomBindings.cpp
+    src/bindings/CssomMediaList.cpp
+    src/bindings/CssomStyleDeclaration.cpp
     src/bindings/DocumentBindings.cpp
     src/bindings/MutationObserver.cpp
     src/bindings/Performance.cpp

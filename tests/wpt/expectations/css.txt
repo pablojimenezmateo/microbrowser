@@ -73192,46 +73192,22 @@ FAIL=Window.scrollTo(instant): promise behavior
 FAIL=Window.scrollTo(instant): return type
 FAIL=Window.scrollTo(smooth): promise behavior
 FAIL=Window.scrollTo(smooth): return type
-[css/cssom/CSS-namespace-object-class-string.html]
-FAIL=@@toStringTag exists on the namespace object with the appropriate descriptor
-FAIL=Object.prototype.toString applied after deleting @@toStringTag
-FAIL=Object.prototype.toString applied after modifying the namespace object's @@toStringTag
-FAIL=Object.prototype.toString applied to the namespace object
-[css/cssom/CSSConditionRule-conditionText.html]
-FAIL=CSSConditionRule.conditionText
 [css/cssom/CSSContainerRule.tentative.html]
 FAIL=@container (min-width: 100px) {}
 FAIL=@container name (min-width: 100px) {}
 [css/cssom/CSSFontFeatureValuesRule.html]
 FAIL=CSSFontFeatureValuesMap entries are settable to sequences of numbers.
 FAIL=CSSFontFeatureValuesMap entries are settable to single values.
-FAIL=CSSFontFeatureValuesRule family is settable and readable.
 FAIL=CSSFontFeatureValuesRule is correctly parsed and accessible via CSSOM.
 FAIL=Clearing all entries is possible.
 FAIL=Deleting single entries is possible.
 FAIL=Multiple rules for the same family are kept separate in CSSOM.
 FAIL=New rules can be added.
-[css/cssom/CSSGroupingRule-cssRules.html]
-FAIL=[SameObject] is honored
-[css/cssom/CSSGroupingRule-insertRule.html]
-FAIL=CSS parsing error
-FAIL=constraint violation
-FAIL=disallowed namespace rule
-FAIL=index after final
-FAIL=index before first
-FAIL=index exceeds length
-FAIL=index not specified
 [css/cssom/CSSKeyframeRule.html]
 harness=TIMEOUT
 [css/cssom/CSSKeyframesRule.html]
 FAIL=indexed getter, length
 FAIL=name, cssRules, appendRule, findRule, deleteRule
-[css/cssom/CSSNamespaceRule.html]
-FAIL=CSSOM - CSSNamespaceRule interface
-[css/cssom/CSSRuleList.html]
-FAIL=CSSOM - CSSRuleList interface
-[css/cssom/CSSStyleDeclaration-iterator.html]
-FAIL=CSSStyleDeclaration should expose Symbol.iterator
 [css/cssom/CSSStyleRule-set-selectorText-namespace.html]
 FAIL=CSSStyleRule: selectorText value: | *.style1  | isMatch: false
 FAIL=CSSStyleRule: selectorText value: |*|*.style1  | isMatch: true
@@ -73239,99 +73215,15 @@ FAIL=CSSStyleRule: selectorText value: |.style1| isMatch: false
 FAIL=CSSStyleRule: selectorText value: |p| isMatch: false
 FAIL=CSSStyleRule: selectorText value: |svg|*.style1  | isMatch: true
 [css/cssom/CSSStyleRule-set-selectorText.html]
-FAIL=CSSStyleRule: Can read selectorText value.
-FAIL:esc=CSSStyleRule: Invalid CSS selector: 
-FAIL:esc=CSSStyleRule: Invalid CSS selector:  
-FAIL=CSSStyleRule: Invalid CSS selector: !!
-FAIL=CSSStyleRule: Invalid CSS selector: #
-FAIL=CSSStyleRule: Invalid CSS selector: $
-FAIL=CSSStyleRule: Invalid CSS selector: (
-FAIL=CSSStyleRule: Invalid CSS selector: ()
-FAIL=CSSStyleRule: Invalid CSS selector: -
-FAIL=CSSStyleRule: Invalid CSS selector: .
-FAIL=CSSStyleRule: Invalid CSS selector: 123
-FAIL=CSSStyleRule: Invalid CSS selector: :
-FAIL=CSSStyleRule: Invalid CSS selector: ::
-FAIL=CSSStyleRule: Invalid CSS selector: :::
-FAIL=CSSStyleRule: Invalid CSS selector: ::gibberish
 FAIL=CSSStyleRule: Invalid CSS selector: :gibberish
-FAIL=CSSStyleRule: Invalid CSS selector: [
-FAIL=CSSStyleRule: Invalid CSS selector: []
-FAIL=CSSStyleRule: Invalid CSS selector: {
-FAIL=CSSStyleRule: Invalid CSS selector: {}
-FAIL=CSSStyleRule: selectorText value: |  #container | isMatch: true
-FAIL=CSSStyleRule: selectorText value: |#container  | isMatch: true
-FAIL=CSSStyleRule: selectorText value: |#container| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |#no-match| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |*:not(:active)| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |*| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |*|*| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |*|a| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |*|div| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |.style1| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |::after| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |::before| isMatch: false
 FAIL=CSSStyleRule: selectorText value: |::first-letter| isMatch: false
 FAIL=CSSStyleRule: selectorText value: |::first-line| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |:active| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |:after| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |:before| isMatch: false
 FAIL=CSSStyleRule: selectorText value: |:first-letter| isMatch: false
 FAIL=CSSStyleRule: selectorText value: |:first-line| isMatch: false
 FAIL=CSSStyleRule: selectorText value: |:lang(tr-AZ)| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |:lang(zh)| isMatch: true
 FAIL=CSSStyleRule: selectorText value: |:lang(zh-CN)| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |:not(:active)| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |U+c7U+11eU+131U+130| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |U+d83eU+dd13| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |[*|lang]| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |[lang*="-"]| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |[lang*="ab"]| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |[lang*="h-"]| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |[lang="ab-CD"]| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |[lang="zh-CN"]| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |[lang^="ab"]| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |[lang^="z"]| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |[language-no]| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |[language]| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |[lang|="ab"]| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |[lang|="z"]| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |[lang|="zh"]| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |[lang|="zh-CN"]| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |[segment$="3"]| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |[segment$="42"]| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |[segment$="43"]| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |[segment~="42"]| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |[segment~="43"]| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |[|lang]| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |div > div| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |div div| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |div.style1| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |div:active| isMatch: false
 FAIL=CSSStyleRule: selectorText value: |div:focus:not([lang="zh-CN"])| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |div:not(#non-existing-id)| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |div:not(:active)| isMatch: true
 FAIL=CSSStyleRule: selectorText value: |div[lang="zh-CN"]:not(:focus)| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |div| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |p + div| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |p ~ div| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |span  div  | isMatch: true
-FAIL=CSSStyleRule: selectorText value: |span + div| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |span > div| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |span div| isMatch: true
-FAIL=CSSStyleRule: selectorText value: |span ~ div| isMatch: false
-FAIL=CSSStyleRule: selectorText value: ||div| isMatch: false
-[css/cssom/CSSStyleRule.html]
-FAIL=Assigning to CSSStyleRule.style assigns to cssText; CSSStyleRule.style returns the same object
-FAIL=CSSRule and CSSStyleRule types
-FAIL=CSSStyleRule's style has [PutForwards]
-FAIL=Existence and type of CSSStyleRule attributes
-FAIL=Existence of CSSRule attributes
-FAIL=Mutability of CSSStyleRule's style attribute
-FAIL=Type of CSSRule#type and constant values
-FAIL=Values of CSSRule attributes
-FAIL=Values of CSSStyleRule attributes
-FAIL=Writability of CSSRule attributes
 [css/cssom/CSSStyleSheet-constructable-baseURL.html]
 FAIL=Constructing sheet with custom base URL ueses that URL for CSS rules
 FAIL=Constructing sheet with invalid base URL throws a NotAllowedError
@@ -73345,10 +73237,6 @@ FAIL=@import rules are not parsed in CSSStyleSheet.replace
 FAIL=@import rules are not parsed in CSSStyleSheet.replaceSync
 FAIL=@import rules should not trigger any loads.
 FAIL=Inserting an @import rule through insertRule on a constructed stylesheet throws an exception
-[css/cssom/CSSStyleSheet-constructable-invalidation.html]
-FAIL=mutating constructed CSSStyleSheet applied to root invalidates styles
-FAIL=mutating constructed CSSStyleSheet applied to shadowdom invalidates styles
-FAIL=mutating dependent constructed CSSStyleSheet applied to shadowdom invalidates styles
 [css/cssom/CSSStyleSheet-constructable-replace-cssRules.html]
 FAIL=cssRules tests (sync: false)
 FAIL=cssRules tests (sync: true)
@@ -73360,23 +73248,8 @@ FAIL=CSSStyleSheet.replaceSync throws NotAllowedError for non-constructed sheets
 FAIL=CSSStyleSheet.replace/replaceSync() when stylesheet is a thenable
 [css/cssom/CSSStyleSheet-constructable.html]
 harness=TIMEOUT
-[css/cssom/CSSStyleSheet-modify-after-removal.html]
-FAIL=Modify constructed sheet from removed iframe
 [css/cssom/CSSStyleSheet-template-adoption.html]
 FAIL=adoptedStyleSheets won't be cleared when adopting into/from <template>s
-[css/cssom/CSSStyleSheet.html]
-FAIL=addRule with #foo selectors
-FAIL=addRule with @media rule
-FAIL=addRule with index greater than length throws
-FAIL=addRule with no argument adds "undefined" selector
-FAIL=cssRules and rules are the same object
-FAIL=deleteRule with no argument throws
-FAIL=deleteRule(1)
-FAIL=insertRule with #bar selector
-FAIL=insertRule with no argument throws
-FAIL=removeRule on empty style sheet throws
-FAIL=removeRule with no argument removes first rule
-FAIL=removeRule(1)
 [css/cssom/HTMLLinkElement-disabled-001.html]
 FAIL=<link disabled> prevents the stylesheet from being in document.styleSheets (from parser)
 FAIL=HTMLLinkElement.disabled reflects the <link disabled> attribute, and behaves consistently
@@ -73398,15 +73271,11 @@ harness=TIMEOUT
 FAIL=Link element load event doesn't block the parser.
 [css/cssom/HTMLStyleElement-load-event.html]
 FAIL=style elements fire load events properly
-[css/cssom/MediaList.html]
-FAIL=CSSOM - MediaList interface
 [css/cssom/MediaList2.xhtml]
 harness=TIMEOUT
 [css/cssom/MutationObserver-style.html]
 FAIL=Updating cssText triggers an observation callback even if the value is the same
 FAIL=Updating style property with the same value does not trigger an observation callback
-[css/cssom/adoptedstylesheets-modify-array-and-sheet.html]
-FAIL=Modify the color declaration. Should now be green.
 [css/cssom/adoptedstylesheets-observablearray.html]
 FAIL=document.adoptedStyleSheets should allow mutation in-place
 FAIL=shadowRoot.adoptedStyleSheets should allow mutation in-place
@@ -73416,10 +73285,6 @@ FAIL=CSS Test: @namespace in CSSOM is not severely broken
 FAIL=KeyframeEffect constructor
 FAIL=KeyframeEffect.setKeyframes
 FAIL=setProperty
-[css/cssom/border-shorthand-serialization.html]
-FAIL=Border shorthand is serialized correctly if all border-image-* are set to their initial specified values.
-FAIL=Declaration with border longhands and border-image is not serialized to a border shorthand declaration.
-FAIL=Declaration with border longhands is not serialized to a border shorthand declaration.
 [css/cssom/caretPositionFromPoint-audioVideo.html]
 FAIL=document.caretPositionFromPoint() should return a CaretPosition over audio elements
 FAIL=document.caretPositionFromPoint() should return a CaretPosition over video elements
@@ -73463,18 +73328,12 @@ FAIL=absolute_computed_margins
 FAIL=relative_computed_left_and_right
 FAIL=relative_computed_margins
 [css/cssom/computed-style-set-property.html]
-FAIL=Computed style parent (should be null)
 FAIL=Exception thrown when trying to change a computed style alias via property
-FAIL=Exception thrown when trying to change a computed style alias via setProperty
 FAIL=Exception thrown when trying to change a computed style declaration via property
-FAIL=Exception thrown when trying to change a computed style declaration via setProperty
 [css/cssom/css-style-attr-decl-block.html]
 FAIL=Changes to CSS declaration block after a base URL change
 FAIL=Changes to CSS declaration block should queue mutation record for style attribute
-FAIL=Changes to CSS declaration block should reflect on style attribute
 FAIL=Removing non-existing property or setting invalid value on CSS declaration block shouldn't queue mutation record
-[css/cssom/css-style-declaration-modifications.html]
-harness=ERROR
 [css/cssom/css-style-reparse.html]
 FAIL=style.innerHTML modification
 FAIL=style.textContent modification
@@ -73483,60 +73342,18 @@ FAIL=@import stylesheet is properly unlinked from parent after removal
 [css/cssom/cssimportrule-sheet-identity.html]
 FAIL=CSSImportRule has different sheets even if referencing the same URL
 [css/cssom/cssimportrule.html]
-FAIL=CSSImportRule : MediaList mediaText attribute should be updated due to [PutForwards]
-FAIL=CSSRule and CSSImportRule types
 FAIL=CSSStyleDeclaration cssText attribute should be updated due to [PutForwards]
-FAIL=Existence and writability of CSSImportRule attributes
-FAIL=Existence and writability of CSSImportRule supportsText attribute
-FAIL=Existence and writability of CSSRule attributes
-FAIL=StyleSheet : MediaList mediaText attribute should be updated due to [PutForwards]
-FAIL=Type of CSSRule#type and constant values
 FAIL=Value of CSSImportRule supportsText attribute
 FAIL=Values of CSSImportRule attributes
 FAIL=Values of CSSRule attributes
-[css/cssom/cssom-cssText-serialize.html]
-FAIL=CSSStyleDeclaration cssText serializes declaration blocks.
 [css/cssom/cssom-fontfacerule-constructors.html]
-FAIL=@font-face declarations are instances of CSSFontFaceRule
 FAIL=The style attribute must return a CSSFontFaceDescriptors block
 [css/cssom/cssom-fontfacerule.html]
 FAIL=CSSStyleDeclaration values are represented within CSSFontFaceRule
 [css/cssom/cssom-pagerule.html]
-FAIL=Cannot set selectorText to invalid pseudo page
-FAIL=Cannot set selectorText to named page with pseudo, whitespace between
-FAIL=Cannot set selectorText to two pseudos, whitespace between
-FAIL=Page selector is initially the empty string
-FAIL=Sanity checks
-FAIL=Set cssText to :left pseudo page
-FAIL=Set cssText to named page
-FAIL=Set cssText to named page with :first pseudo page
-FAIL=Set cssText to named page with case insensitive :first pseudo page
-FAIL=Set cssText to named page with pseudo pages of :first, :left, :right, :first in order.
-FAIL=Set cssText to named page with two :first pseudo page
 FAIL=Set selectorText to named page after rule was removed
-FAIL=Set selectorText to named page with case insensitive :first pseudo page
 [css/cssom/cssom-ruleTypeAndOrder.html]
-FAIL=Type of #s-6 is expected to be page rule
-[css/cssom/cssom-setProperty-shorthand.html]
-FAIL=shorthand background can be set with setProperty and priority !important
-FAIL=shorthand background-position can be set with setProperty and priority !important
-FAIL=shorthand background-repeat can be set with setProperty and priority !important
-FAIL=shorthand border can be set with setProperty and priority !important
-FAIL=shorthand border-bottom can be set with setProperty and priority !important
-FAIL=shorthand border-color can be set with setProperty and priority !important
-FAIL=shorthand border-left can be set with setProperty and priority !important
-FAIL=shorthand border-radius can be set with setProperty and priority !important
-FAIL=shorthand border-right can be set with setProperty and priority !important
-FAIL=shorthand border-spacing can be set with setProperty and priority !important
-FAIL=shorthand border-style can be set with setProperty and priority !important
-FAIL=shorthand border-top can be set with setProperty and priority !important
-FAIL=shorthand border-width can be set with setProperty and priority !important
-FAIL=shorthand font can be set with setProperty and priority !important
-FAIL=shorthand list-style can be set with setProperty and priority !important
-FAIL=shorthand margin can be set with setProperty and priority !important
-FAIL=shorthand outline can be set with setProperty and priority !important
-FAIL=shorthand overflow can be set with setProperty and priority !important
-FAIL=shorthand padding can be set with setProperty and priority !important
+FAIL=Type of #s-3 is expected to be style rule
 [css/cssom/cssstyledeclaration-all-shorthand.html]
 FAIL=getPropertyValue('all') returns css-wide keyword when 'all' overrides prior property
 FAIL=getPropertyValue('all') returns css-wide keyword when 'all' overrides prior property via insertRule
@@ -73565,41 +73382,19 @@ FAIL=setProperty('all') sets all property values
 [css/cssom/cssstyledeclaration-cssfontrule.tentative.html]
 FAIL=a CSSStyleDeclaration for a CSSFontRule contains a unicode-range attribute
 [css/cssom/cssstyledeclaration-csstext-all-shorthand.html]
-FAIL='all' shorthand alone
-FAIL='all' shorthand with 'direction' and 'unicode-bidi'
 FAIL='all' shorthand with 'width' and 'height'
 FAIL='all' shorthand with 'width', 'height' and custom properties
 FAIL='all' shorthand with all longhands
-[css/cssom/cssstyledeclaration-csstext-final-delimiter.html]
-FAIL=inline style - text - delimiters - one declaration
-FAIL=inline style - text - delimiters - two declarations
 [css/cssom/cssstyledeclaration-csstext-important.html]
 FAIL=padding-left should be taken from the !important property
 [css/cssom/cssstyledeclaration-csstext-setter.window.html]
 FAIL=cssText setter and selector invalidation
-FAIL=cssText setter should set style attribute even when there are no style changes (body)
-FAIL=cssText setter should set style attribute even when there are no style changes (cool-beans)
-FAIL=cssText setter should set style attribute even when there are no style changes, part 2 (body)
-FAIL=cssText setter should set style attribute even when there are no style changes, part 2 (cool-beans)
-FAIL=cssText setter should set style attribute even when there are no style changes, part 3 (body)
-FAIL=cssText setter should set style attribute even when there are no style changes, part 3 (cool-beans)
-FAIL=cssText setter should set style attribute even when there are no style changes, part 4 (body)
-FAIL=cssText setter should set style attribute even when there are no style changes, part 4 (cool-beans)
 [css/cssom/cssstyledeclaration-csstext.html]
 FAIL=Shorthands _are_ serialized if there are no other properties with different logical groups in between
 FAIL=Shorthands aren't serialized if there are other properties with different logical groups in between
-FAIL=another cssText order (non-alphabetical order)
-FAIL=cssText order
-FAIL=invalid property does not appear
-FAIL=overwriting with invalid value
-FAIL=uppercase property
-FAIL=uppercase value
-FAIL=use rgb
-FAIL=whitespaces in value
 [css/cssom/cssstyledeclaration-custom-properties.html]
 FAIL=Custom properties are included in computed style
 [css/cssom/cssstyledeclaration-mutability.html]
-FAIL=StyleSheet's CSSStyleDeclaration is mutable
 FAIL=getComputedStyle's CSSStyleDeclaration is not mutable
 [css/cssom/cssstyledeclaration-mutationrecord-001.html]
 harness=TIMEOUT
@@ -73613,12 +73408,9 @@ FAIL=Registered custom properties are included in CSSComputedStyleDeclaration
 [css/cssom/cssstyledeclaration-removeProperty-all.html]
 FAIL=CSSStyleDeclaration.removeProperty("all")
 [css/cssom/cssstyledeclaration-setter-attr.html]
-FAIL=Setting an invalid property via the declaration setter doesn't create a declaration
 FAIL=Setting an invalid value via the declaration setter doesn't create a declaration
 [css/cssom/cssstyledeclaration-setter-declarations.html]
 FAIL=longhand property setter should update only the decoarations being set
-FAIL=property setter should update only the declaration being set
-FAIL=setProperty with longhand should update only the declaration being set
 FAIL=setProperty with shorthand should update only the declarations being set
 [css/cssom/cssstyledeclaration-setter-logical.html]
 FAIL=newly set declaration should be after all declarations in the same logical property group but have different logical kind
@@ -73633,7 +73425,6 @@ FAIL=Various tests
 FAIL=Multiple values flex with CSS-wide and two non-CSS-wide-keyword values should serialize correctly.
 FAIL=Multiple values flex with CSS-wide keyword should serialize correctly.
 FAIL=Multiple values flex with CSS-wide keywords and non-CSS-wide value should serialize correctly.
-FAIL=Single value flex with CSS-wide keyword should serialize correctly.
 FAIL=Single value flex with non-CSS-wide value should serialize correctly.
 [css/cssom/font-family-serialization-001.html]
 FAIL=Computed: digit-starting family name stays quoted
@@ -73700,8 +73491,6 @@ FAIL=Fixed-length margin-bottom property value should roundtrip
 FAIL=Fixed-length margin-left property value should roundtrip
 FAIL=Fixed-length margin-right property value should roundtrip
 FAIL=Fixed-length margin-top property value should roundtrip
-[css/cssom/getComputedStyle-property-order.html]
-FAIL=Computed style properties should be sorted lexicographically
 [css/cssom/getComputedStyle-pseudo-checkmark.html]
 FAIL=Resolution of width is correct for pseudo-element (due to double-colon)
 FAIL=Resolution of width is correct when pseudo-element argument is ignored (due to single-colon)
@@ -73746,6 +73535,7 @@ FAIL=CSSStyleDeclaration is immutable
 FAIL=Dynamically change to display: contents on pseudo-elements
 FAIL=Item-based blockification of nonexistent pseudo-elements
 FAIL=Item-based blockification of pseudo-elements
+FAIL=Prefixed ::-webkit-file-upload-button does not resolve in getComputedStyle
 FAIL=Pseudo-elements can use the full range of CSS syntax
 FAIL=Resolution of nonexistent pseudo-element styles
 FAIL=Resolution of pseudo-element styles in display: none elements
@@ -73801,55 +73591,42 @@ FAIL=Resolved value of min-width & min-height 'auto' keyword behaves as expected
 [css/cssom/getComputedStyle-sticky-pos-percent.html]
 FAIL=Sticky element's top property percentage value should be resolved against the div with overflow: hidden
 [css/cssom/idlharness.html]
-FAIL=idl_test setup
+FAIL=Document interface: attribute adoptedStyleSheets
+FAIL=HTMLElement interface: attribute style
+FAIL=HTMLLinkElement interface: attribute sheet
+FAIL=HTMLStyleElement interface: attribute sheet
+FAIL=MathMLElement interface: attribute style
+FAIL=ProcessingInstruction interface: attribute sheet
+FAIL=ProcessingInstruction interface: xmlss_pi must inherit property "sheet" with the proper type
+FAIL=SVGElement interface: attribute style
+FAIL=SVGStyleElement interface: attribute sheet
+FAIL=ShadowRoot interface: attribute adoptedStyleSheets
+FAIL=ShadowRoot interface: attribute styleSheets
+FAIL=Window interface: operation getComputedStyle(Element, optional CSSOMString?)
 [css/cssom/inline-style-001.html]
-FAIL=csstext_write
-FAIL=property_write
 FAIL=shorthand_properties
-[css/cssom/insertRule-across-context.html]
-FAIL=The constructor of inserted rule object must be from iframe
-FAIL=The constructor of inserted rule object must be from iframe for new CSSStyleSheet()
 [css/cssom/insertRule-charset-no-index.html]
-FAIL=insertRule with charset and omitted index argument
 FAIL=insertRule with charset and undefined index argument
 [css/cssom/insertRule-import-no-index.html]
 FAIL=insertRule with import and omitted index argument
 FAIL=insertRule with import and undefined index argument
-[css/cssom/insertRule-namespace-after-import.html]
-FAIL=insertRule places an @namespace rule after a single @import rule
-FAIL=insertRule places an @namespace rule after two @import rules
 [css/cssom/insertRule-namespace-no-index.html]
 FAIL=insertRule with namespace and omitted index argument
 FAIL=insertRule with namespace and omitted index argument should insert import
 FAIL=insertRule with namespace and undefined index argument
 [css/cssom/insertRule-no-index.html]
-FAIL=insertRule with omitted index argument
 FAIL=insertRule with undefined index argument
 [css/cssom/insertRule-syntax-error-01.html]
 FAIL=A syntax error in insertRule should throw and not affect the style of the page
-[css/cssom/invalid-pseudo-elements.html]
-FAIL=CSSOM: Test that rules with invalid pseudo elements are not found
 [css/cssom/link-element-stylesheet-title.html]
 FAIL=Executing setAttribute('title', '') results in the title being set to null
 FAIL=StyleSheet.title
 [css/cssom/medialist-appendmedium-parse-single-and-dedup.html]
-FAIL=appendMedium does not append a duplicate medium
 FAIL=appendMedium with a comma-separated list is a no-op
 FAIL=appendMedium with a comma-separated list leaves an existing list unchanged
 [css/cssom/medialist-deletemedium-parse-and-remove-all.html]
 FAIL=deleteMedium matches a query that differs only in whitespace
 FAIL=deleteMedium removes every matching query, not only the first
-[css/cssom/medialist-interfaces-001.html]
-FAIL=mediatest_medialist_serialize_comma
-FAIL=mediatest_medialist_serialize_element
-FAIL=mediatest_medialist_serialize_empty
-FAIL=mediatest_medialist_serialize_order
-[css/cssom/medialist-interfaces-002.html]
-FAIL=deleteMedium_no_matching_medium_to_remove
-FAIL=deleteMedium_removes_correct_medium
-[css/cssom/medialist-interfaces-004.html]
-FAIL=appendMedium_correctly_appends_medium_to_empty_MediaList
-FAIL=appendMedium_correctly_appends_medium_to_nonempty_MediaList
 [css/cssom/overflow-serialization.html]
 FAIL=Overflow-x/y longhands on element with different keywords should serialize correctly.
 FAIL=Overflow-x/y longhands on element with same CSS-wide keyword should serialize correctly.
@@ -73857,8 +73634,6 @@ FAIL=Overflow-x/y longhands on element with same non-CSS-wide keyword should ser
 FAIL=Overflow-x/y longhands with different keywords should serialize correctly.
 FAIL=Overflow-x/y longhands with same CSS-wide keyword should serialize correctly.
 FAIL=Overflow-x/y longhands with same non-CSS-wide keyword should serialize correctly.
-FAIL=Single value overflow with CSS-wide keyword should serialize correctly.
-FAIL=Single value overflow with non-CSS-wide keyword should serialize correctly.
 [css/cssom/page-descriptors.html]
 FAIL=CSSPageDescriptors properties tests
 [css/cssom/preferred-stylesheet-order.html]
@@ -73882,7 +73657,6 @@ FAIL=radio
 FAIL=@keyframe
 FAIL=@page
 [css/cssom/selectorSerialize.html]
-FAIL=:nth-child serialization produces canonical form
 FAIL=escaped character (*) in element prefix
 FAIL=escaped character (@) in attribute name
 FAIL=escaped character (\) in element name
@@ -73894,25 +73668,9 @@ FAIL=escaped character in attribute name
 FAIL=escaped character in attribute name with any namespace
 FAIL=escaped character in attribute prefix
 FAIL=escaped character in both attribute prefix and name
-FAIL=single class (simple) selector in the sequence of simple selectors that is not a universal selector
-FAIL=single id (simple) selector in the sequence of simple selectors that is not a universal selector
-FAIL=single pseudo (simple) selector ":not" which accepts arguments in the sequence of simple selectors that is not a universal selector
-FAIL=single pseudo (simple) selector ":nth-last-of-type" which accepts arguments in the sequence of simple selectors that is not a universal selector
 FAIL=single pseudo (simple) selector "lang" which accepts arguments in the sequence of simple selectors that is not a universal selector
-FAIL=single pseudo (simple) selector "nth-child" which accepts arguments in the sequence of simple selectors that is not a universal selector
-FAIL=single pseudo (simple) selector "nth-last-child" which accepts arguments in the sequence of simple selectors that is not a universal selector
-FAIL=single pseudo (simple) selector "nth-of-child" which accepts arguments in the sequence of simple selectors that is not a universal selector
-FAIL=single pseudo (simple) selector which does not accept arguments in the sequence of simple selectors that is not a universal selector
-FAIL=single type (simple) selector in the sequence of simple selectors that is not a universal selector
-FAIL=single universal selector shows '*' when serialized.
-[css/cssom/selectorText-modification-restyle-002.html]
-FAIL=Check that color changes correctly after shadow stylesheet selector and #container class is changed.
 [css/cssom/serialization-CSSDeclaration-with-important.html]
 FAIL=Inline style declaration with whitespace between '!' and 'important'.
-FAIL=Style set dynamically via cssText with whitespace between '!' and 'important'.
-[css/cssom/serialize-all-longhands.html]
-FAIL=Computed style
-FAIL=Specified style
 [css/cssom/serialize-custom-props.html]
 FAIL=An <integer> custom prop can take a 12-digit integer
 FAIL=An <integer> custom prop can take a 25-digit integer
@@ -73940,12 +73698,6 @@ FAIL=type - no features - character case normalization
 FAIL=type - no features - negation
 FAIL=type - omission of all
 [css/cssom/serialize-namespaced-type-selectors.html]
-FAIL=Simple type selector
-FAIL=Simple type selector followed by atttribute selector
-FAIL=Simple type selector followed by class
-FAIL=Simple type selector followed by id
-FAIL=Simple type selector followed by pseudo class
-FAIL=Simple type selector followed by pseudo element
 FAIL=Type selector with any namespace
 FAIL=Type selector with any namespace followed by attribute selector
 FAIL=Type selector with any namespace followed by class
@@ -73964,18 +73716,6 @@ FAIL=Type selector with namespace followed by class
 FAIL=Type selector with namespace followed by id
 FAIL=Type selector with namespace followed by pseudo class
 FAIL=Type selector with namespace followed by pseudo element
-FAIL=Type selector without a namespace
-FAIL=Type selector without a namespace followed by attribute selector
-FAIL=Type selector without a namespace followed by class
-FAIL=Type selector without a namespace followed by id
-FAIL=Type selector without a namespace followed by pseudo class
-FAIL=Type selector without a namespace followed by pseudo element
-FAIL=Universal selector
-FAIL=Universal selector followed by attribute selector
-FAIL=Universal selector followed by class
-FAIL=Universal selector followed by id
-FAIL=Universal selector followed by pseudo class
-FAIL=Universal selector followed by pseudo element
 FAIL=Universal selector in any namespace
 FAIL=Universal selector in any namespace followed by attribute selector
 FAIL=Universal selector in any namespace followed by class
@@ -73994,12 +73734,6 @@ FAIL=Universal selector with namespace followed by class
 FAIL=Universal selector with namespace followed by id
 FAIL=Universal selector with namespace followed by pseudo class
 FAIL=Universal selector with namespace followed by pseudo element
-FAIL=Universal selector without a namespace
-FAIL=Universal selector without a namespace followed by attribute selector
-FAIL=Universal selector without a namespace followed by class
-FAIL=Universal selector without a namespace followed by id
-FAIL=Universal selector without a namespace followed by pseudo class
-FAIL=Universal selector without a namespace followed by pseudo element
 [css/cssom/serialize-values.html]
 FAIL=background-color: rgba(5, 7, 10, 0.5)
 FAIL=background-image: url(http://localhost/)
@@ -74176,12 +73910,8 @@ FAIL=word-spacing: .1em
 [css/cssom/serialize-variable-reference.html]
 FAIL=Longhand with variable preserves original serialization but trims whitespace: without whitespace
 FAIL=Shorthand with variable preserves original serialization but trims whitespace: without whitespace
-[css/cssom/set-selector-text-attachment.html]
-FAIL=Modifying property value invalidates style, even after selectorText mutation
 [css/cssom/setproperty-null-undefined.html]
-FAIL=Verify that setting a CSS property priority to undefined is accepted.
 FAIL=Verify that setting a CSS property to null is treated like empty string.
-FAIL=Verify that setting a CSS property to undefined has no effect.
 [css/cssom/shorthand-serialization.html]
 FAIL=Shorthand serialization after setting
 FAIL=Shorthand serialization with 'initial' value, one longhand with important flag.
@@ -74203,13 +73933,8 @@ FAIL=The serialization of overflow-x: scroll; overflow-y: hidden; should be cano
 FAIL=The serialization of overflow-x: scroll; overflow-y: scroll; should be canonical.
 FAIL=The serialization of padding-top: 1px; padding-right: 2px; padding-bottom: 3px; padding-left: 4px; should be canonical.
 [css/cssom/style-sheet-interfaces-001.html]
-FAIL=CSSStyleSheet_properties
-FAIL=CSSStyleSheet_property_values
-FAIL=StyleSheet_properties
 FAIL=StyleSheet_property_values
 FAIL=disabled attribute getter/setter
-[css/cssom/style-sheet-interfaces-002.html]
-FAIL=add_rule
 [css/cssom/stylesheet-cross-origin-redirect-quirks.sub.html]
 harness=TIMEOUT
 [css/cssom/stylesheet-same-origin.sub.html]

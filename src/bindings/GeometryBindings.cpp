@@ -17,6 +17,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/WebIdl.h"
 #include "bindings/Fingerprint.h"
 
 namespace microbrowser::bindings {
@@ -451,6 +452,9 @@ void DomBindings::InstallComputedStyle() {
   }
   const Value get_computed_style =
       interpreter_->NewNativeValue("getComputedStyle", [](NativeCall& call) -> Value {
+        if (!RequireArguments(call, "Window", "getComputedStyle", 1)) {
+          return call.ThrownValue();
+        }
         DomBindings* owner = OwnerOf(call);
         if (owner == nullptr) {
           return Value::Undefined();
@@ -469,6 +473,8 @@ void DomBindings::InstallComputedStyle() {
     return;
   }
   get_computed_style.object->Set(kOwnerSlot, OwnerValue(this));
+  get_computed_style.object->Set("length", Value::Number(1));
+  get_computed_style.object->HideProperty("length");
   interpreter_->Global()->Set("getComputedStyle", get_computed_style);
   interpreter_->GlobalScope()->Declare("getComputedStyle", get_computed_style, false);
 }
@@ -484,6 +490,7 @@ js::Value DomBindings::MakeComputedStyle(dom::Element& element) {
     return target;
   }
   target.object->Set(kNodeSlot, PointerValue(&element));
+  target.object->SetHidden(kComputedStyleSlot, Value::Bool(true));
 
   const Value handler = interpreter_->NewObjectValue();
   if (!handler.IsObject()) {
@@ -513,49 +520,30 @@ js::Value DomBindings::MakeComputedStyle(dom::Element& element) {
     }
     const Value key = Argument(call.arguments, 1);
     if (key.IsSymbol()) {
-      return Value::Undefined();  // no protocol hooks on a style declaration
+      return call.interpreter.GetPropertyValue(Argument(call.arguments, 0),
+                                               KeyOfTrapArgument(key));
     }
     const std::string written = js::ToString(key);
-    if (written == "getPropertyValue") {
-      // The method form, made on demand rather than kept on the target: a page
-      // reads it once per query and the alternative is a property on every
-      // computed style whether or not anything asks.
-      //
-      // The element travels on the function object rather than in `self`,
-      // because `self` at the call is the *Proxy* and a proxy has no own
-      // properties of its own to read a node out of -- which is the same
-      // reason the bindings pointer travels there. A capture would work and is
-      // refused for the reason BindingSupport gives: a raw pointer in a
-      // capture is a lifetime the collector cannot see.
-      const Value method = owner->interpreter_->NewNativeValue(
-          "getPropertyValue", [](NativeCall& inner) -> Value {
-            DomBindings* method_owner = OwnerOf(inner);
-            dom::Node* node = inner.callee == nullptr
-                                  ? nullptr
-                                  : NodeOf(Value::Obj(inner.callee));
-            if (method_owner == nullptr || node == nullptr || !node->IsElement() ||
-                method_owner->geometry_ == nullptr) {
-              return Value::String(std::string());
-            }
-            const std::string property = js::ToString(Argument(inner.arguments, 0));
-            const std::optional<std::string> value = method_owner->geometry_->QueryUsedValue(
-                static_cast<dom::Element&>(*node), property);
-            return Value::String(value.value_or(std::string()));
-          });
-      if (method.IsObject()) {
-        method.object->Set(kOwnerSlot, OwnerValue(owner));
-        method.object->Set(kNodeSlot, PointerValue(self));
-      }
-      return method;
+    if (written == "getPropertyValue" || written == "getPropertyPriority" || written == "item" ||
+        written == "setProperty" || written == "removeProperty" || written == "cssText" ||
+        written == "length" || written == "parentRule" || written == "cssFloat" ||
+        written == "hasOwnProperty" || written == "propertyIsEnumerable" ||
+        written == "isPrototypeOf" || written == "toString" || written == "toLocaleString" ||
+        written == "valueOf" || written == "constructor") {
+      return call.interpreter.GetPropertyValue(Argument(call.arguments, 0),
+                                               KeyOfTrapArgument(key));
     }
     const std::optional<std::string> value =
         owner->geometry_->QueryUsedValue(*self, to_css_name(written));
-    // A property this engine has no answer for reads back as the empty string,
-    // which is what the specification says an unsupported property does. It is
-    // a string either way: a page writes
-    // `if (getComputedStyle(el).display === 'none')` and an `undefined` there
-    // compares false in a way nothing reports.
-    return Value::String(value.value_or(std::string()));
+    if (value.has_value()) {
+      return Value::String(*value);
+    }
+    const Value inherited = call.interpreter.GetPropertyValue(Argument(call.arguments, 0),
+                                                              KeyOfTrapArgument(key));
+    if (!inherited.IsUndefined()) {
+      return inherited;
+    }
+    return Value::String(std::string());
   });
   if (!getter.IsObject()) {
     return Value::Undefined();
@@ -584,7 +572,12 @@ js::Value DomBindings::MakeComputedStyle(dom::Element& element) {
       return Value::Bool(false);
     }
     const std::string written = js::ToString(key);
-    if (written == "getPropertyValue") {
+    if (written == "getPropertyValue" || written == "getPropertyPriority" || written == "item" ||
+        written == "setProperty" || written == "removeProperty" || written == "cssText" ||
+        written == "length" || written == "parentRule" || written == "cssFloat" ||
+        written == "hasOwnProperty" || written == "propertyIsEnumerable" ||
+        written == "isPrototypeOf" || written == "toString" || written == "toLocaleString" ||
+        written == "valueOf" || written == "constructor") {
       return Value::Bool(true);
     }
     // Present exactly when this browser has an answer, which is stricter than the specification --
@@ -608,7 +601,18 @@ js::Value DomBindings::MakeComputedStyle(dom::Element& element) {
   }
   const js::Result made =
       interpreter_->CallFunction(*constructor, Value::Undefined(), {target, handler});
-  return made.IsAbrupt() ? Value::Undefined() : made.value;
+  const Value style = made.IsAbrupt() ? Value::Undefined() : made.value;
+  if (style.IsObject() && interfaces_.IsObject()) {
+    const Value* proto = interfaces_.object->GetOwn("CSSStyleProperties");
+    if (proto == nullptr || !proto->IsObject()) {
+      proto = interfaces_.object->GetOwn("CSSStyleDeclaration");
+    }
+    if (proto != nullptr && proto->IsObject()) {
+      style.object->SetPrototype(proto->object);
+      target.object->SetPrototype(proto->object);
+    }
+  }
+  return style;
 }
 
 }  // namespace microbrowser::bindings

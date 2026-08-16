@@ -17,7 +17,9 @@ enum class CssomRuleType : std::uint16_t {
   Import = 3,
   Media = 4,
   FontFace = 5,
+  Page = 6,
   Keyframes = 7,
+  Margin = 9,
   Namespace = 10,
   Supports = 12,
 };
@@ -35,5 +37,20 @@ struct CssomRule {
 
 // Top-level CSSOM rules, with `@media` / `@supports` nested rather than flattened.
 std::vector<CssomRule> ParseCssom(std::string_view source);
+
+// CSSOM's serialize-a-selector-list. Empty when `text` does not parse.
+std::string SerializeSelectorList(const std::vector<Selector>& selectors);
+std::string SerializeSelectorList(std::string_view text);
+
+std::string JoinCssomRules(const std::vector<CssomRule>& rules);
+void RefreshCssomCssText(CssomRule& rule);
+
+// CSSStyleRule.selectorText. False when the selector does not parse -- the
+// assignment is then a no-op, which is what the CSSOM says.
+bool SetCssomSelectorText(CssomRule& rule, std::string_view selector);
+
+// CSSPageRule.selectorText. False when the selector is not a page selector --
+// the assignment is then a no-op.
+bool SetCssomPageSelectorText(CssomRule& rule, std::string_view selector);
 
 }  // namespace microbrowser::css

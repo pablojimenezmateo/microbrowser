@@ -115,6 +115,20 @@ inline constexpr const char* kCssomCssTextSlot = "#cssomCssText";
 // The CSSStyleSheet a CSSRuleList is live over.
 inline constexpr const char* kCssomSheetSlot = "#cssomSheet";
 inline constexpr const char* kCssomRuleListSlot = "#cssomRuleList";
+// Index of a CSSRule in its parent's rule list, and the [SameObject] wrappers.
+inline constexpr const char* kCssomIndexSlot = "#cssomIndex";
+inline constexpr const char* kCssomRuleWrappersSlot = "#cssomRuleWrappers";
+inline constexpr const char* kCssomStyleSlot = "#cssomStyle";
+// Nested CSSRule: the grouping rule this one was created under. Walked to
+// resolve `cssRules[i]` of an `@media` / `@page` rather than the sheet's
+// top-level list.
+inline constexpr const char* kCssomParentSlot = "#cssomParent";
+// [SameObject] MediaList on a sheet, `@media` rule, or `@import` rule.
+inline constexpr const char* kCssomMediaListSlot = "#cssomMediaList";
+// CSSPageDescriptors brand: not every CSSStyleDeclaration is a page rule's style.
+inline constexpr const char* kCssomPageStyleSlot = "#cssomPageStyle";
+// `getComputedStyle` is a CSSStyleDeclaration that must not accept writes.
+inline constexpr const char* kComputedStyleSlot = "#computedStyle";
 
 // A C++ pointer, as a value script can hold but not usefully forge. It travels
 // as a double, which holds a 53-bit integer exactly -- more than any address on

@@ -12,7 +12,9 @@
 #include <vector>
 
 #include "bindings/BindingSupport.h"
+#include "bindings/CssomInternals.h"
 #include "bindings/DomBindings.h"
+#include "bindings/WebIdl.h"
 #include "css/StyleResolver.h"
 #include "css/StyleSheet.h"
 #include "dom/Node.h"
@@ -164,34 +166,23 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
     return;
   }
 
-  const Value prototype = interpreter_->NewObjectValue();
+  const Value prototype = MakeInterface("StyleSheet", Value::Undefined());
   if (!prototype.IsObject()) {
     return;
   }
-  if (interfaces_.IsObject()) {
-    interfaces_.object->Set("StyleSheet", prototype);
-  }
-
-  const Value replace_sync = interpreter_->NewNativeValue("replaceSync", [this](NativeCall& call) {
-    SheetStorage* storage = SheetStoragePtr(call.self);
-    if (storage == nullptr || *storage == nullptr) {
-      return call.Throw("TypeError", "replaceSync called on an invalid CSSStyleSheet");
-    }
-    **storage = js::ToString(Argument(call.arguments, 0));
-    if (document_ != nullptr) {
-      document_->NoteTreeMutation();
-    }
-    return Value::Undefined();
-  });
-  if (replace_sync.IsObject()) {
-    replace_sync.object->Set(kOwnerSlot, OwnerValue(this));
-    prototype.object->Set("replaceSync", replace_sync);
-  }
 
   const auto accessor = [this, &prototype](const char* name, js::NativeFunction getter) {
-    const Value native = interpreter_->NewNativeValue(name, std::move(getter));
+    const std::string native_name = std::string("get ") + name;
+    const Value native = interpreter_->NewNativeValue(
+        native_name.c_str(), [getter = std::move(getter)](NativeCall& call) -> Value {
+          if (!IsCssomSheetThis(call.self)) {
+            return call.Throw("TypeError", "Illegal invocation");
+          }
+          return getter(call);
+        });
     if (native.IsObject()) {
       native.object->Set(kOwnerSlot, OwnerValue(this));
+      SetFunctionLength(native, 0);
       prototype.object->DefineAccessor(name, native.object, nullptr);
     }
   };
@@ -222,22 +213,115 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
     const std::string* title = owner->GetAttribute("title");
     return Value::String(title == nullptr ? "" : *title);
   });
-  accessor("disabled", [](NativeCall& call) -> Value {
-    const dom::Element* owner = SheetOwnerOf(call.self);
-    return Value::Bool(owner != nullptr && owner->GetAttribute("disabled") != nullptr);
-  });
 
-  const Value replace = interpreter_->NewNativeValue("replace", [](NativeCall& call) {
+  const Value disabled_get = interpreter_->NewNativeValue(
+      "get disabled", [](NativeCall& call) -> Value {
+        if (!IsCssomSheetThis(call.self)) {
+          return call.Throw("TypeError", "Illegal invocation");
+        }
+        const dom::Element* owner = SheetOwnerOf(call.self);
+        return Value::Bool(owner != nullptr && owner->GetAttribute("disabled") != nullptr);
+      });
+  const Value disabled_set = interpreter_->NewNativeValue(
+      "set disabled", [](NativeCall& call) -> Value {
+        if (!IsCssomSheetThis(call.self)) {
+          return call.Throw("TypeError", "Illegal invocation");
+        }
+        dom::Element* owner = SheetOwnerOf(call.self);
+        if (owner == nullptr) {
+          return Value::Undefined();
+        }
+        if (js::ToBoolean(Argument(call.arguments, 0))) {
+          owner->SetAttribute("disabled", "");
+        } else {
+          owner->RemoveAttribute("disabled");
+        }
+        return Value::Undefined();
+      });
+  if (disabled_get.IsObject() && disabled_set.IsObject()) {
+    disabled_get.object->Set(kOwnerSlot, OwnerValue(this));
+    disabled_set.object->Set(kOwnerSlot, OwnerValue(this));
+    SetFunctionLength(disabled_get, 0);
+    SetFunctionLength(disabled_set, 1);
+    prototype.object->DefineAccessor("disabled", disabled_get.object, disabled_set.object);
+  }
+
+  const Value css_proto = MakeInterface("CSSStyleSheet", prototype);
+  if (!css_proto.IsObject()) {
+    return;
+  }
+  const auto css_accessor = [this, &css_proto](const char* name, js::NativeFunction getter) {
+    const std::string native_name = std::string("get ") + name;
+    const Value native = interpreter_->NewNativeValue(
+        native_name.c_str(), [getter = std::move(getter)](NativeCall& call) -> Value {
+          if (!IsCssomSheetThis(call.self)) {
+            return call.Throw("TypeError", "Illegal invocation");
+          }
+          return getter(call);
+        });
+    if (native.IsObject()) {
+      native.object->Set(kOwnerSlot, OwnerValue(this));
+      SetFunctionLength(native, 0);
+      css_proto.object->DefineAccessor(name, native.object, nullptr);
+    }
+  };
+  css_accessor("ownerRule", [](NativeCall&) { return Value::Null(); });
+
+  const Value replace_sync = interpreter_->NewNativeValue("replaceSync", [this](NativeCall& call) {
+    if (!IsCssomSheetThis(call.self)) {
+      return call.Throw("TypeError", "Illegal invocation");
+    }
+    if (!RequireArguments(call, "CSSStyleSheet", "replaceSync", 1)) {
+      return call.ThrownValue();
+    }
     SheetStorage* storage = SheetStoragePtr(call.self);
     if (storage == nullptr || *storage == nullptr) {
-      return call.Throw("TypeError", "replace called on an invalid CSSStyleSheet");
+      return ThrowDom(call, "NotAllowedError",
+                      "replaceSync is not allowed on this CSSStyleSheet");
     }
-    // The async form can `@import`; absent rather than a sheet that silently
-    // lacks its imports. ADR 0019 §4.
+    **storage = js::ToString(Argument(call.arguments, 0));
+    if (call.self.IsObject()) {
+      call.self.object->SetHidden(kCssomRuleWrappersSlot, Value::Undefined());
+    }
+    if (document_ != nullptr) {
+      document_->NoteTreeMutation();
+    }
+    return Value::Undefined();
+  });
+  if (replace_sync.IsObject()) {
+    replace_sync.object->Set(kOwnerSlot, OwnerValue(this));
+    SetFunctionLength(replace_sync, 1);
+    css_proto.object->Set("replaceSync", replace_sync);
+  }
+
+  const Value replace = interpreter_->NewNativeValue("replace", [](NativeCall& call) {
     const Value promise = call.interpreter.NewPromiseValue();
     if (!promise.IsObject()) {
       return Value::Undefined();
     }
+    if (!IsCssomSheetThis(call.self)) {
+      call.interpreter.SettleAsyncResult(
+          promise.object,
+          call.interpreter.MakeError("TypeError", "Illegal invocation"), true);
+      return promise;
+    }
+    if (call.arguments.empty()) {
+      call.interpreter.SettleAsyncResult(
+          promise.object,
+          call.interpreter.MakeError("TypeError", "replace requires 1 argument"), true);
+      return promise;
+    }
+    SheetStorage* storage = SheetStoragePtr(call.self);
+    if (storage == nullptr || *storage == nullptr) {
+      call.interpreter.SettleAsyncResult(
+          promise.object,
+          MakeDomException(call.interpreter, "NotAllowedError",
+                           "replace is not allowed on this CSSStyleSheet"),
+          true);
+      return promise;
+    }
+    // The async form can `@import`; absent rather than a sheet that silently
+    // lacks its imports. ADR 0019 §4.
     call.interpreter.SettleAsyncResult(
         promise.object,
         MakeDomException(call.interpreter, "NotSupportedError",
@@ -247,16 +331,20 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
   });
   if (replace.IsObject()) {
     replace.object->Set(kOwnerSlot, OwnerValue(this));
-    prototype.object->Set("replace", replace);
+    SetFunctionLength(replace, 1);
+    css_proto.object->Set("replace", replace);
   }
 
   DomBindings* self = this;
   const Value constructor = interpreter_->NewNativeValue("CSSStyleSheet", [self](NativeCall& call) {
+    if (!call.interpreter.IsConstructCall(call.self)) {
+      return call.Throw("TypeError", "Illegal constructor: CSSStyleSheet");
+    }
     const Value sheet = call.interpreter.NewObjectValue();
     if (!sheet.IsObject()) {
       return Value::Undefined();
     }
-    if (const Value* style_sheet_proto = self->interfaces_.object->GetOwn("StyleSheet")) {
+    if (const Value* style_sheet_proto = self->interfaces_.object->GetOwn("CSSStyleSheet")) {
       sheet.object->SetPrototype(style_sheet_proto->object);
     }
     // Owned by the binding layer, not released into the void. See DomBindings::sheet_texts_.
@@ -269,21 +357,30 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
     return sheet;
   });
   if (constructor.IsObject()) {
-    constructor.object->Set("prototype", prototype);
-    prototype.object->Set("constructor", constructor);
+    js::Object::Property proto_property;
+    proto_property.value = css_proto;
+    proto_property.writable = false;
+    proto_property.enumerable = false;
+    proto_property.configurable = false;
+    constructor.object->Define("prototype", std::move(proto_property));
+    css_proto.object->Set("constructor", constructor);
     constructor.object->Set(kOwnerSlot, OwnerValue(this));
-    interpreter_->Global()->Set("CSSStyleSheet", constructor);
+    SetFunctionLength(constructor, 0);
+    DefineNonEnumerable(interpreter_->Global(), "CSSStyleSheet", constructor);
     interpreter_->GlobalScope()->Declare("CSSStyleSheet", constructor, false);
+    if (js::Value* style_sheet = interpreter_->GlobalScope()->Lookup("StyleSheet")) {
+      interpreter_->Global()->Set("StyleSheet", *style_sheet);
+    }
   }
 
   const auto install_adopted = [this](const js::Value& target) {
     if (!target.IsObject()) {
       return;
     }
-    const Value getter = interpreter_->NewNativeValue("adoptedStyleSheets", [this](NativeCall& call) {
+    const Value getter = interpreter_->NewNativeValue("get adoptedStyleSheets", [this](NativeCall& call) {
       dom::Node* root = AdoptedStyleRootOf(NodeOf(call.self));
       if (root == nullptr) {
-        return call.interpreter.NewArrayValue({});
+        return call.Throw("TypeError", "Illegal invocation");
       }
       std::vector<Value> out;
       for (const dom::SharedConstructableSheet& text : AdoptedStyleSheetsOf(*root)) {
@@ -294,7 +391,7 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
         if (!sheet.IsObject()) {
           continue;
         }
-        if (const Value* style_sheet_proto = interfaces_.object->GetOwn("StyleSheet")) {
+        if (const Value* style_sheet_proto = interfaces_.object->GetOwn("CSSStyleSheet")) {
           sheet.object->SetPrototype(style_sheet_proto->object);
         }
         SheetStorage* storage = &sheet_texts_.emplace_back(text);
@@ -331,6 +428,8 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
     if (getter.IsObject() && setter.IsObject()) {
       getter.object->Set(kOwnerSlot, OwnerValue(this));
       setter.object->Set(kOwnerSlot, OwnerValue(this));
+      SetFunctionLength(getter, 0);
+      SetFunctionLength(setter, 1);
       target.object->DefineAccessor("adoptedStyleSheets", getter.object, setter.object);
     }
   };
@@ -354,7 +453,7 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
     if (!sheet.IsObject()) {
       return sheet;
     }
-    if (const Value* style_sheet_proto = interfaces_.object->GetOwn("StyleSheet")) {
+    if (const Value* style_sheet_proto = interfaces_.object->GetOwn("CSSStyleSheet")) {
       sheet.object->SetPrototype(style_sheet_proto->object);
     }
     sheet.object->SetHidden(kCSSStyleSheetMarkerSlot, Value::Bool(true));
@@ -365,26 +464,27 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
     return sheet;
   };
 
-  const Value list_prototype = interpreter_->NewObjectValue();
-  if (list_prototype.IsObject() && interfaces_.IsObject()) {
-    interfaces_.object->Set("StyleSheetList", list_prototype);
-  }
+  const Value list_prototype = MakeInterface("StyleSheetList", Value::Undefined());
   if (list_prototype.IsObject()) {
-    const Value length = interpreter_->NewNativeValue("length", [](NativeCall& call) {
+    const Value length = interpreter_->NewNativeValue("get length", [](NativeCall& call) -> Value {
       dom::Node* root = NodeOf(call.self);
       if (root == nullptr) {
-        return Value::Number(0);
+        return call.Throw("TypeError", "Illegal invocation");
       }
       return Value::Number(static_cast<double>(AssociatedStyleSheetElements(*root).size()));
     });
     if (length.IsObject()) {
       length.object->Set(kOwnerSlot, OwnerValue(this));
+      SetFunctionLength(length, 0);
       list_prototype.object->DefineAccessor("length", length.object, nullptr);
     }
     const Value item = interpreter_->NewNativeValue("item", [this, associated_sheet](NativeCall& call) {
+      if (!RequireArguments(call, "StyleSheetList", "item", 1)) {
+        return call.ThrownValue();
+      }
       dom::Node* root = NodeOf(call.self);
       if (root == nullptr) {
-        return Value::Null();
+        return call.Throw("TypeError", "Illegal invocation");
       }
       const std::vector<dom::Element*> sheets = AssociatedStyleSheetElements(*root);
       const std::size_t index = static_cast<std::size_t>(js::ToNumber(Argument(call.arguments, 0)));
@@ -395,8 +495,13 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
     });
     if (item.IsObject()) {
       item.object->Set(kOwnerSlot, OwnerValue(this));
+      item.object->Set("length", Value::Number(1));
+      item.object->HideProperty("length");
       list_prototype.object->Set("item", item);
     }
+  }
+  if (js::Value* list_ctor = interpreter_->GlobalScope()->Lookup("StyleSheetList")) {
+    interpreter_->Global()->Set("StyleSheetList", *list_ctor);
   }
 
   const auto make_list = [this, list_prototype, associated_sheet](dom::Node& root) -> Value {
@@ -472,18 +577,16 @@ void DomBindings::InstallConstructableStylesheets(const js::Value& document_inte
     if (!target.IsObject()) {
       return;
     }
-    const Value getter = interpreter_->NewNativeValue("styleSheets", [this, make_list](NativeCall& call) {
+    const Value getter = interpreter_->NewNativeValue("get styleSheets", [this, make_list](NativeCall& call) {
       dom::Node* root = NodeOf(call.self);
       if (root == nullptr) {
-        root = document_;
-      }
-      if (root == nullptr) {
-        return call.interpreter.NewArrayValue({});
+        return call.Throw("TypeError", "Illegal invocation");
       }
       return make_list(*root);
     });
     if (getter.IsObject()) {
       getter.object->Set(kOwnerSlot, OwnerValue(this));
+      SetFunctionLength(getter, 0);
       target.object->DefineAccessor("styleSheets", getter.object, nullptr);
     }
   };
@@ -600,10 +703,20 @@ void DomBindings::InstallCssOm() {
     return Value::String(std::move(out));
   });
   if (escape.IsObject()) {
+    SetFunctionLength(escape, 1);
     css.object->Set("escape", escape);
   }
 
-  interpreter_->Global()->Set("CSS", css);
+  if (js::Object* tag = interpreter_->SymbolToStringTag()) {
+    js::Object::Property property;
+    property.value = Value::String("CSS");
+    property.writable = false;
+    property.enumerable = false;
+    property.configurable = true;
+    css.object->Define(js::PropertyKey::Symbol(tag), std::move(property));
+  }
+
+  DefineNonEnumerable(interpreter_->Global(), "CSS", css);
   interpreter_->GlobalScope()->Declare("CSS", css, false);
 }
 

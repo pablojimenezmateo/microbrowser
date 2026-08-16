@@ -1,6 +1,8 @@
 #include "bindings/BindingSupport.h"
+#include "bindings/CssomInternals.h"
 #include "css/DeclarationText.h"
 #include "bindings/DomBindings.h"
+#include "bindings/WebIdl.h"
 
 #include <string>
 #include <vector>
@@ -58,7 +60,8 @@ std::string ToCssName(const std::string& name) {
 // a page then tries to call.
 bool IsCssomName(const std::string& name) {
   return name == "cssText" || name == "setProperty" || name == "removeProperty" ||
-         name == "getPropertyValue";
+         name == "getPropertyValue" || name == "getPropertyPriority" || name == "length" ||
+         name == "item" || name == "parentRule" || name == "cssFloat";
 }
 
 // The declarations in a `style` attribute, in order. Parsed on every access
@@ -99,33 +102,10 @@ std::string Serialize(const std::vector<std::pair<std::string, std::string>>& de
     }
     out += declaration.first + ": " + declaration.second;
   }
+  if (!out.empty()) {
+    out += ';';
+  }
   return out;
-}
-
-// The element a style method was built for. Methods hang off the Proxy target
-// and carry the pointer themselves: `style.setProperty(...)` sets `this` to
-// the Proxy, which has no `#node` slot, so reading the element off `this`
-// would always fail.
-dom::Element* StyleElementOf(const NativeCall& call) {
-  if (call.callee == nullptr) {
-    return nullptr;
-  }
-  const Value* slot = call.callee->GetOwn(kNodeSlot);
-  if (slot == nullptr || !slot->IsNumber()) {
-    return nullptr;
-  }
-  auto* node = reinterpret_cast<dom::Node*>(static_cast<std::uintptr_t>(slot->number));
-  return node != nullptr && node->IsElement() ? static_cast<dom::Element*>(node) : nullptr;
-}
-
-std::string GetDeclaration(dom::Element& element, const std::string& css_name) {
-  const std::string* text = element.GetAttribute("style");
-  for (const auto& declaration : Parse(text == nullptr ? std::string() : *text)) {
-    if (declaration.first == css_name) {
-      return declaration.second;
-    }
-  }
-  return {};
 }
 
 void PutDeclaration(dom::Element& element, const std::string& css_name, std::string value) {
@@ -145,24 +125,6 @@ void PutDeclaration(dom::Element& element, const std::string& css_name, std::str
   element.SetAttribute("style", Serialize(declarations));
 }
 
-std::string TakeDeclaration(dom::Element& element, const std::string& css_name) {
-  const std::string* text = element.GetAttribute("style");
-  std::vector<std::pair<std::string, std::string>> declarations =
-      Parse(text == nullptr ? std::string() : *text);
-  std::string previous;
-  std::vector<std::pair<std::string, std::string>> kept;
-  kept.reserve(declarations.size());
-  for (auto& declaration : declarations) {
-    if (declaration.first == css_name) {
-      previous = std::move(declaration.second);
-      continue;
-    }
-    kept.push_back(std::move(declaration));
-  }
-  element.SetAttribute("style", Serialize(kept));
-  return previous;
-}
-
 }  // namespace
 
 js::Value DomBindings::MakeStyle(dom::Element& element) {
@@ -173,48 +135,6 @@ js::Value DomBindings::MakeStyle(dom::Element& element) {
     return target;
   }
   target.object->Set(kNodeSlot, PointerValue(&element));
-
-  // The CSSOM methods, on the target so the get trap can hand them back by
-  // name. Each carries the element: see StyleElementOf.
-  const auto method = [this, &target, &element](const char* name, js::NativeFunction function) {
-    const Value native = interpreter_->NewNativeValue(name, std::move(function));
-    if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, OwnerValue(this));
-      native.object->Set(kNodeSlot, PointerValue(&element));
-      target.object->Set(name, native);
-    }
-  };
-  method("getPropertyValue", [](NativeCall& call) {
-    dom::Element* self = StyleElementOf(call);
-    if (self == nullptr) {
-      return Value::String(std::string());
-    }
-    return Value::String(GetDeclaration(*self, js::ToString(Argument(call.arguments, 0))));
-  });
-  method("setProperty", [](NativeCall& call) {
-    dom::Element* self = StyleElementOf(call);
-    if (self == nullptr) {
-      return Value::Undefined();
-    }
-    std::string name = js::ToString(Argument(call.arguments, 0));
-    std::string value = js::ToString(Argument(call.arguments, 1));
-    // Priority is optional. `"important"` is the only value the CSSOM names;
-    // anything else is ignored rather than stringified onto the declaration,
-    // which would make `setProperty('color','red','nope')` a declaration no
-    // cascade accepts.
-    if (js::ToString(Argument(call.arguments, 2)) == "important" && !value.empty()) {
-      value += " !important";
-    }
-    PutDeclaration(*self, name, std::move(value));
-    return Value::Undefined();
-  });
-  method("removeProperty", [](NativeCall& call) {
-    dom::Element* self = StyleElementOf(call);
-    if (self == nullptr) {
-      return Value::String(std::string());
-    }
-    return Value::String(TakeDeclaration(*self, js::ToString(Argument(call.arguments, 0))));
-  });
 
   const Value handler = interpreter_->NewObjectValue();
   if (!handler.IsObject()) {
@@ -236,31 +156,26 @@ js::Value DomBindings::MakeStyle(dom::Element& element) {
     }
     const Value key = Argument(call.arguments, 1);
     if (key.IsSymbol()) {
-      return Value::Undefined();  // no protocol hooks on a style declaration
+      return call.interpreter.GetPropertyValue(Argument(call.arguments, 0),
+                                               KeyOfTrapArgument(key));
     }
     // Checked before the conversion, or `cssText` becomes `css-text` and
     // stops being the one name here that is not a CSS property.
     const std::string written = js::ToString(key);
-    if (written == "setProperty" || written == "removeProperty" || written == "getPropertyValue") {
-      // Off the target, where MakeStyle put them. Returning undefined here
-      // would send ShadyCSS down `typeof === "string"` again the moment a
-      // trap forgot one name.
-      if (receiver_target.IsObject()) {
-        if (const Value* found = receiver_target.object->GetOwn(written)) {
-          return *found;
-        }
-      }
-      return Value::Undefined();
+    if (IsCssomName(written)) {
+      return call.interpreter.GetPropertyValue(receiver_target, KeyOfTrapArgument(key));
     }
     const std::string* text = static_cast<dom::Element*>(self)->GetAttribute("style");
-    if (written == "cssText") {
-      return Value::String(text == nullptr ? std::string() : *text);
-    }
     const std::string wanted = ToCssName(written);
     for (const auto& declaration : Parse(text == nullptr ? std::string() : *text)) {
       if (declaration.first == wanted) {
         return Value::String(declaration.second);
       }
+    }
+    const Value inherited =
+        call.interpreter.GetPropertyValue(receiver_target, KeyOfTrapArgument(key));
+    if (!inherited.IsUndefined()) {
+      return inherited;
     }
     // An unset property is the empty string, not undefined. A page tests
     // `if (el.style.display === 'none')` and both answers have to be strings
@@ -279,14 +194,27 @@ js::Value DomBindings::MakeStyle(dom::Element& element) {
       return Value::Bool(true);
     }
     const std::string written = js::ToString(key);
-    if (IsCssomName(written) && written != "cssText") {
-      // Assigning to a method name is a silent no-op rather than a
-      // `set-property: ...` declaration nobody asked for.
+    if (IsCssomName(written) && written != "cssText" && written != "cssFloat") {
       return Value::Bool(true);
     }
-    const std::string value = js::ToString(Argument(call.arguments, 2));
-    if (written == "cssText") {
-      target_element.SetAttribute("style", value);
+    if (written == "cssText" || written == "cssFloat") {
+      const js::Result assigned = call.interpreter.SetProperty(
+          Argument(call.arguments, 0), KeyOfTrapArgument(key), Argument(call.arguments, 2));
+      if (assigned.IsAbrupt()) {
+        return call.ThrowValue(assigned.value);
+      }
+      return Value::Bool(true);
+    }
+    bool any_upper = false;
+    bool any_lower = false;
+    for (const char c : written) {
+      if (c >= 'A' && c <= 'Z') {
+        any_upper = true;
+      } else if (c >= 'a' && c <= 'z') {
+        any_lower = true;
+      }
+    }
+    if (any_upper && !any_lower) {
       return Value::Bool(true);
     }
     // **CSSOM parses before it stores, and serializes on the way out.** An assignment that does not
@@ -299,6 +227,8 @@ js::Value DomBindings::MakeStyle(dom::Element& element) {
     // behaviour deliberately: a property wrongly canonicalised silently changes what a page reads,
     // where one left alone behaves as it always did.
     const std::string property = ToCssName(written);
+    const std::string raw_value = js::ToString(Argument(call.arguments, 2));
+    const std::string value(util::TrimAscii(raw_value));
     std::string canonical;
     switch (css::CanonicaliseDeclaration(property, value, &canonical)) {
       case css::DeclarationValidity::Invalid:
@@ -307,6 +237,9 @@ js::Value DomBindings::MakeStyle(dom::Element& element) {
         PutDeclaration(target_element, property, canonical);
         return Value::Bool(true);
       case css::DeclarationValidity::Unknown:
+        if (!CssomKeepsUnknownDeclaration(property, value)) {
+          return Value::Bool(true);
+        }
         break;
     }
     PutDeclaration(target_element, property, value);
@@ -322,7 +255,18 @@ js::Value DomBindings::MakeStyle(dom::Element& element) {
   }
   const js::Result made = interpreter_->CallFunction(*constructor, Value::Undefined(),
                                                      {target, handler});
-  return made.IsAbrupt() ? Value::Undefined() : made.value;
+  const Value style = made.IsAbrupt() ? Value::Undefined() : made.value;
+  if (style.IsObject() && interfaces_.IsObject()) {
+    const Value* proto = interfaces_.object->GetOwn("CSSStyleProperties");
+    if (proto == nullptr || !proto->IsObject()) {
+      proto = interfaces_.object->GetOwn("CSSStyleDeclaration");
+    }
+    if (proto != nullptr && proto->IsObject()) {
+      style.object->SetPrototype(proto->object);
+      target.object->SetPrototype(proto->object);
+    }
+  }
+  return style;
 }
 
 js::Value DomBindings::MakeDataset(dom::Element& element) {

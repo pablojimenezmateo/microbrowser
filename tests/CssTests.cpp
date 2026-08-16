@@ -7,6 +7,7 @@
 
 #include "TestSupport.h"
 #include "css/ComputedStyle.h"
+#include "css/Cssom.h"
 #include "css/StyleResolver.h"
 #include "css/StyleSheet.h"
 #include "css/Tokenizer.h"
@@ -771,6 +772,43 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
     ExpectEqInt(static_cast<long long>(sheet.font_faces.at(0).sources.size()), 1,
                 "with only the URL source");
     ExpectEqString(sheet.font_faces.at(0).sources.at(0).url, "a.woff2", "the one it can fetch");
+  });
+
+  AddTest(tests, "Cssom/SerializesSelectorsTheCssomWay", [] {
+    ExpectEqString(css::SerializeSelectorList("div"), "div", "type");
+    ExpectEqString(css::SerializeSelectorList(".style1"), ".style1", "class");
+    ExpectEqString(css::SerializeSelectorList("#container"), "#container", "id");
+    ExpectEqString(css::SerializeSelectorList("*"), "*", "universal");
+    ExpectEqString(css::SerializeSelectorList("div > span"), "div > span", "child");
+    ExpectEqString(css::SerializeSelectorList(":after"), "::after", "legacy pseudo-element");
+    ExpectEqString(css::SerializeSelectorList("div.class"), "div.class", "compound drops star");
+    ExpectEqString(css::SerializeSelectorList("[|lang]"), "[lang]", "null-namespace attribute");
+    ExpectEqString(css::SerializeSelectorList("*|div"), "div", "any-namespace type drops star-pipe");
+    ExpectEqString(css::SerializeSelectorList(":nth-child(even)"), ":nth-child(2n)",
+                   "even is 2n");
+    ExpectEqString(css::SerializeSelectorList("!!"), "", "unparseable is empty");
+  });
+
+  AddTest(tests, "Cssom/ParseKeepsMediaNestedAndCanonicalisesSelectors", [] {
+    const std::vector<css::CssomRule> rules =
+        css::ParseCssom("DIV { color: red } @media print { a { color: green } }");
+    ExpectEqInt(static_cast<long long>(rules.size()), 2, "two top-level rules");
+    ExpectEqInt(static_cast<long long>(rules[0].type), 1, "style");
+    ExpectEqString(rules[0].prelude, "div", "selector is serialized");
+    ExpectEqInt(static_cast<long long>(rules[1].type), 4, "media");
+    ExpectEqInt(static_cast<long long>(rules[1].children.size()), 1, "nested, not flattened");
+  });
+
+  AddTest(tests, "Cssom/ParseKeepsPageMarginRulesAndDeclarations", [] {
+    const std::vector<css::CssomRule> rules =
+        css::ParseCssom("@page { margin: 1in; @top-left { content: none } }");
+    ExpectEqInt(static_cast<long long>(rules.size()), 1, "one page rule");
+    ExpectEqInt(static_cast<long long>(rules[0].type), 6, "page");
+    ExpectEqInt(static_cast<long long>(rules[0].declarations.size()), 1, "page descriptors");
+    ExpectEqString(rules[0].declarations[0].property, "margin", "descriptor name");
+    ExpectEqInt(static_cast<long long>(rules[0].children.size()), 1, "margin at-rule");
+    ExpectEqInt(static_cast<long long>(rules[0].children[0].type), 9, "margin");
+    ExpectEqString(rules[0].children[0].at_name, "top-left", "margin name");
   });
 }
 

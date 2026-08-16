@@ -149,6 +149,40 @@ void Page::ApplyDocumentHeadPolicy() {
 }
 
 bool Page::CollectShadowStyleSheets() {
+  bool author_text_changed = false;
+  if (document_ != nullptr && !resources_.author_sheet_slots.empty()) {
+    std::size_t slot = 0;
+    document_->ForEachDescendant([&](const dom::Node& node) {
+      if (!node.IsElement() || slot >= resources_.author_sheet_slots.size()) {
+        return;
+      }
+      const auto& element = static_cast<const dom::Element&>(node);
+      std::optional<std::string> text;
+      if (element.TagName() == "style") {
+        text = DirectText(element);
+      } else if (IsLinkedStyleSheet(element)) {
+        if (const std::string* linked = element.LinkedStyleSheetText()) {
+          text = *linked;
+        }
+      } else {
+        return;
+      }
+      if (!text.has_value()) {
+        ++slot;
+        return;
+      }
+      std::optional<std::string>& stored = resources_.author_sheet_slots[slot];
+      if (!stored.has_value() || *stored != *text) {
+        stored = std::move(*text);
+        if (slot < resources_.author_sheet_parsed.size()) {
+          resources_.author_sheet_parsed[slot].reset();
+        }
+        author_text_changed = true;
+      }
+      ++slot;
+    });
+  }
+
   std::vector<std::pair<const dom::Node*, std::string>> found;
   if (document_ != nullptr) {
     for (const dom::SharedConstructableSheet& sheet : document_->AdoptedStyleSheets()) {
@@ -186,7 +220,7 @@ bool Page::CollectShadowStyleSheets() {
     // every mutation affordable: the comparison is over the *text*, so a
     // component whose contents change without its stylesheet changing costs one
     // walk rather than a re-parse.
-    return false;
+    return author_text_changed;
   }
   resources_.shadow_sheets = std::move(found);
   // The text moved, which is the one thing this function reports and the one
