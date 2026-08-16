@@ -7,19 +7,4 @@ FAIL=idl_test setup
 [url/javascript-urls.window.html]
 harness=TIMEOUT
 [url/percent-encoding.window.html]
-FAIL=Input A with encoding big5
 FAIL=Input A with encoding iso-2022-jp
-FAIL=Input A with encoding utf-8
-FAIL=Input U+2020 with encoding big5
-FAIL=Input U+2020 with encoding euc-kr
-FAIL=Input U+2020 with encoding utf-8
-FAIL=Input U+2020 with encoding windows-1252
-FAIL=Input U+203e\ with encoding iso-2022-jp
-FAIL=Input U+203e\ with encoding utf-8
-FAIL=Input U+2212 with encoding shift_jis
-FAIL=Input U+2212 with encoding utf-8
-FAIL=Input U+a2 with encoding iso-8859-2
-FAIL=Input U+a2 with encoding utf-8
-FAIL=Input U+e1| with encoding utf-8
-FAIL=Input U+e5e5 with encoding gb18030
-FAIL=Input U+e5e5 with encoding utf-8
