@@ -508,8 +508,8 @@ void DomBindings::InstallResponse() {
         made.status_text = "OK";
         const Value body = Argument(call.arguments, 0);
         std::string extracted_type;
+        bool from_string = false;
         if (!body.IsUndefined() && !body.IsNull()) {
-          bool from_string = false;
           if (!ExtractRequestBody(body, made.body, from_string, &extracted_type)) {
             return call.Throw("TypeError", "failed to read response body");
           }
@@ -531,7 +531,7 @@ void DomBindings::InstallResponse() {
             }
           }
         }
-        MaybeSetExtractedContentType(made.headers, extracted_type);
+        MaybeSetBodyContentType(made.headers, extracted_type, from_string);
         Value response = MakeResponse(made);
         if (response.IsObject() && prototype.IsObject()) {
           response.object->SetPrototype(prototype.object);
@@ -564,6 +564,30 @@ void DomBindings::InstallRequest() {
   // one -- a service-worker-shaped `onfetch` handler reads the form a page submitted. The used flag
   // is the request's own, so reading a request's body does not mark a response's.
   InstallBodyFormData(prototype, kRequestBodySlot, "#requestBodyUsed");
+
+  const auto install = [this, &prototype](const char* name, js::NativeFunction function) {
+    const Value native = interpreter_->NewNativeValue(name, std::move(function));
+    if (native.IsObject()) {
+      native.object->Set(kOwnerSlot, OwnerValue(this));
+      prototype.object->Set(name, native);
+    }
+  };
+  install("text", [](NativeCall& call) -> Value {
+    if (!call.self.IsObject()) {
+      return SettledPromise(call.interpreter,
+                            call.interpreter.MakeError("TypeError", "not a Request"), true);
+    }
+    const Value* used = call.self.object->GetOwn("#requestBodyUsed");
+    if (used != nullptr && js::ToBoolean(*used)) {
+      return SettledPromise(call.interpreter,
+                            call.interpreter.MakeError("TypeError", "body already read"), true);
+    }
+    call.self.object->SetHidden("#requestBodyUsed", Value::Bool(true));
+    const Value* body = call.self.object->GetOwn(kRequestBodySlot);
+    return SettledPromise(call.interpreter,
+                          Value::String(body == nullptr ? std::string() : js::ToString(*body)),
+                          false);
+  });
 
   // Deliberately thin. A `Request` here is the *arguments* to a fetch as a
   // value a page can pass around and clone -- which is what a router or an
@@ -659,7 +683,7 @@ void DomBindings::InstallRequest() {
             signal = *given;
           }
         }
-        MaybeSetExtractedContentType(headers, extracted_type);
+        MaybeSetBodyContentType(headers, extracted_type, body_from_string);
         made.object->Set("url", Value::String(std::move(url)));
         made.object->Set("method", Value::String(std::move(method)));
         made.object->Set("mode", Value::String(std::move(mode)));

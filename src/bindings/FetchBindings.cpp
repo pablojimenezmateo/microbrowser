@@ -577,7 +577,7 @@ void DomBindings::InstallFetch() {
                          return IsForbiddenHeaderName(LowerCase(header.name));
                        }),
         request.headers.end());
-    MaybeSetExtractedContentType(request.headers, extracted_type);
+    MaybeSetBodyContentType(request.headers, extracted_type, request.body_from_string);
 
     if (signal.IsObject()) {
       const Value* aborted = signal.object->GetOwn(kAbortedSlot);

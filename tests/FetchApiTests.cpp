@@ -390,6 +390,24 @@ void RegisterFetchApiTests(std::vector<TestCase>& tests) {
            "the File part carries its type and its bytes");
   });
 
+  AddTest(tests, "Fetch/BlobBodySendsItsBytesAndType", [] {
+    Session session;
+    session.Serve("page.example", OkResponse("text/plain", "ok"));
+    session.Run(
+        "const blob = new Blob(['PASS'], {type: 'a/b; c=d'});"
+        "const req = new Request('/blob', {method: 'POST', body: blob});"
+        "console.log(req.headers.get('content-type'));"
+        "req.text().then(t => console.log(t));"
+        "fetch('/blob', {method: 'POST', body: blob})"
+        "  .then(r => r.text()).then(t => console.log(t));");
+    ExpectEqString(session.Console(), "a/b; c=d|PASS|ok", session.Errors());
+    const std::string& wire = session.factory.log.requests.at(1);
+    Expect(wire.find("Content-Length: 4\r\n") != std::string::npos,
+           "Blob bytes reach the wire, not String(blob): " + wire.substr(0, 300));
+    Expect(wire.find("Content-Type: a/b; c=d\r\n") != std::string::npos,
+           "a Blob's type becomes Content-Type");
+  });
+
   AddTest(tests, "Fetch/APageCannotSetAForbiddenHeader", [] {
     Session session;
     session.Serve("page.example", OkResponse("text/plain", "ok"));

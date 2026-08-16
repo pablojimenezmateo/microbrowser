@@ -86,6 +86,15 @@ inline void MaybeSetExtractedContentType(std::vector<ScriptHeader>& headers,
   headers.push_back({"Content-Type", type});
 }
 
+inline void MaybeSetBodyContentType(std::vector<ScriptHeader>& headers,
+                                    const std::string& extracted_type, bool from_string) {
+  if (!extracted_type.empty()) {
+    MaybeSetExtractedContentType(headers, extracted_type);
+  } else if (from_string) {
+    MaybeSetExtractedContentType(headers, "text/plain;charset=UTF-8");
+  }
+}
+
 // Bytes a page handed to `fetch` / `new Request` as a body. Strings stay
 // strings; ArrayBuffer and typed-array views are copied as raw bytes; FormData
 // becomes `multipart/form-data` and fills `content_type` when given.
@@ -117,6 +126,18 @@ inline bool ExtractRequestBody(const js::Value& value, std::string& out, bool& f
     from_string = false;
     if (content_type != nullptr) {
       *content_type = std::move(type);
+    }
+    return true;
+  }
+  if (IsBlobValue(value)) {
+    const js::Value* body = value.object->GetOwn(kBlobBodySlot);
+    out = body != nullptr && body->IsString() ? body->AsString() : std::string();
+    from_string = false;
+    if (content_type != nullptr) {
+      const js::Value* type = value.object->GetOwn(kBlobTypeSlot);
+      if (type != nullptr && type->IsString() && !type->AsString().empty()) {
+        *content_type = type->AsString();
+      }
     }
     return true;
   }

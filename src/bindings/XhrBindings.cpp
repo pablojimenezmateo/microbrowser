@@ -247,7 +247,7 @@ void DomBindings::InstallXhr() {
         return call.Throw("TypeError", "failed to read request body");
       }
       request.body_from_string = from_string;
-      MaybeSetExtractedContentType(request.headers, extracted_type);
+      MaybeSetBodyContentType(request.headers, extracted_type, from_string);
     }
     // `withCredentials` is the whole of XHR's CORS surface, and it means what
     // `credentials: "include"` means -- which is why it can be one line here
