@@ -91,6 +91,18 @@ void RegisterWptHandlerTests(std::vector<TestCase>& tests) {
            "and the charset is the label");
   });
 
+  AddTest(tests, "WptHandlers/MimeCharsetPyServesTheTypeItWasAsked", [] {
+    wpt::Stash stash;
+    const HandlerResponse page = wpt::RunHandler(
+        Get("mimesniff/mime-types/resources/mime-charset.py", "type=text%2Fhtml%3Bcharset%3Dgbk"),
+        stash);
+    Expect(page.handled, "mime-charset.py is on the list");
+    Expect(HeaderOf(page, "Content-Type") == "text/html;charset=gbk",
+           "and Content-Type is the type query, percent-decoded");
+    Expect(page.body.find("document.characterSet") != std::string::npos,
+           "and the body is the file's script");
+  });
+
   AddTest(tests, "WptHandlers/DomNodesEncodingPyWritesTheLabelIntoAMeta", [] {
     // dom/nodes/encoding.py: the two characterSet-normalization files load this
     // in an iframe. A 501 is ~636 subtests of UTF-8 rather than a missing handler.

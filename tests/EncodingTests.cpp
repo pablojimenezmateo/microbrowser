@@ -271,6 +271,10 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
                    "and empty input stays empty");
     Expect(html::EncodingFromMimeType("text/plain;charset=ibm866") == Encoding::Ibm866,
            "XHR reads charset off Content-Type without falling through to windows-1252");
+    Expect(html::EncodingFromMimeType("TEXT/HTML;CHARSET=GBK") == Encoding::Gbk,
+           "the MIME parse folds the type and keeps the first charset");
+    Expect(html::EncodingFromMimeType("text/html;charset=\" gbk\"") == Encoding::Gbk,
+           "and a quoted value with a leading space still labels GBK");
     Expect(!html::EncodingFromMimeType("text/plain").has_value(),
            "and no charset is nothing, so the caller can default to UTF-8");
     // With an unknown header, the meta still gets its turn.

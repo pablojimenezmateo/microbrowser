@@ -827,6 +827,24 @@ HandlerResponse EncodingSingleByteRawHandler(const Query& query) {
   return response;
 }
 
+// --- mimesniff/mime-types/resources/mime-charset.py --------------------------
+//
+//   content = b"<meta charset=utf-8>\n<script>document.write(document.characterSet)</script>"
+//   response.add_required_headers = False
+//   output = b"HTTP/1.1 200 OK\r\n"
+//   output += b"Content-Length: " + ...
+//   output += b"Content-Type: " + request.GET.first(b"type") + b"\r\n"
+//
+// The raw write is a workaround for a wptserve bug (WPT #8372). Setting the
+// Content-Type header here is the same bytes on the wire.
+HandlerResponse MimeCharsetHandler(const Query& query) {
+  HandlerResponse response;
+  response.handled = true;
+  AddHeader(response, "Content-Type", QueryFirst(query, "type"));
+  response.body = "<meta charset=utf-8>\n<script>document.write(document.characterSet)</script>";
+  return response;
+}
+
 // Python's html.escape(..., quote=True): the four characters plus apostrophe.
 std::string HtmlEscape(std::string_view text) {
   std::string out;
@@ -965,6 +983,9 @@ HandlerResponse RunHandler(const HandlerRequest& request, Stash& stash) {
   }
   if (path == "encoding/resources/single-byte-raw.py") {
     return EncodingSingleByteRawHandler(query);
+  }
+  if (path == "mimesniff/mime-types/resources/mime-charset.py") {
+    return MimeCharsetHandler(query);
   }
   if (path == "dom/nodes/encoding.py") {
     return DomNodesEncodingHandler(query);

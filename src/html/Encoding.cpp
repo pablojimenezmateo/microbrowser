@@ -4,6 +4,7 @@
 #include <array>
 #include <iterator>
 
+#include "util/MimeType.h"
 #include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
 
@@ -395,8 +396,18 @@ std::optional<Encoding> EncodingFromLabel(std::string_view label) {
 }
 
 std::optional<Encoding> EncodingFromMimeType(std::string_view content_type) {
-  if (const std::optional<std::string_view> label = CharsetFromContentType(content_type)) {
-    return EncodingFromLabel(*label);
+  // The MIME Sniffing parse, not a `charset=` search: a duplicate parameter
+  // keeps the first, a quoted value unescapes, and `charset =gbk` is not a
+  // parameter named charset. CharsetFromContentType stays for the `<meta>`
+  // prescan, which is not a MIME type.
+  const std::optional<util::MimeType> mime = util::ParseMimeType(content_type);
+  if (!mime.has_value()) {
+    return std::nullopt;
+  }
+  for (const auto& parameter : mime->parameters) {
+    if (parameter.first == "charset") {
+      return EncodingFromLabel(parameter.second);
+    }
   }
   return std::nullopt;
 }
@@ -565,10 +576,8 @@ Encoding SniffEncoding(std::string_view bytes, std::string_view content_type) {
   }
   // 2. `Content-Type`.
   if (!content_type.empty()) {
-    if (const std::optional<std::string_view> label = CharsetFromContentType(content_type)) {
-      if (const std::optional<Encoding> found = EncodingFromLabel(*label)) {
-        return *found;
-      }
+    if (const std::optional<Encoding> found = EncodingFromMimeType(content_type)) {
+      return *found;
     }
   }
   // 3. The XML declaration, and the XML *default*, both of which apply only to an XML content type.
