@@ -668,6 +668,25 @@ target_compile_definitions(microbrowser_mimeconf PRIVATE
   MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(microbrowser_mimeconf PRIVATE microbrowser_util)
 
+# CSS parsing conformance runner. Exercises src/css tokenizer, property
+# parsing (SupportsDeclaration) and selector parsing against built-in test
+# vectors. Same shape as urlconf/mimeconf. See tools/cssconf/main.cpp.
+add_executable(microbrowser_cssconf tools/cssconf/main.cpp)
+target_include_directories(microbrowser_cssconf PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_compile_definitions(microbrowser_cssconf PRIVATE
+  MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(microbrowser_cssconf PRIVATE microbrowser_css)
+
+# Encoding conformance runner. Exercises src/html/Encoding.h against the
+# Encoding Standard's label table and decode indexes from the WPT checkout.
+# Same pattern as urlconf/mimeconf. See tools/encconf/main.cpp.
+add_executable(microbrowser_encconf tools/encconf/main.cpp tools/urlconf/Json.cpp)
+target_include_directories(microbrowser_encconf PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/tools" "${CMAKE_CURRENT_SOURCE_DIR}/src")
+target_compile_definitions(microbrowser_encconf PRIVATE
+  MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(microbrowser_encconf PRIVATE microbrowser_html)
+
 # web-platform-tests: the server, the runner, and the expectations. See
 # docs/adr/0036-web-platform-tests.md. The checkout itself is not vendored --
 # tools/wpt/fetch.sh pins it -- so this target builds whether or not it is

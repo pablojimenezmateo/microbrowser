@@ -15,6 +15,86 @@ now the second-best one.
 
 ---
 
+## The target: Firefox's pass rate, per area
+
+100% WPT compliance is not a meaningful target — no shipping browser achieves
+it. Firefox (the closest) runs ~96% aggregate; Chromium ~95%; Safari ~93%.
+Each has areas where it fails deliberately, areas where the tests are written
+against another engine's behaviour, and areas where neither engine nor test is
+wrong but the specification is ambiguous.
+
+**The target for each WPT area is Firefox's pass rate on the same tests.**
+This is the *ceiling*: a gap between microbrowser and the ceiling is a bug;
+a test Firefox also fails is not our problem (yet); a test we refuse is a
+decision with a name.
+
+`tools/wpt/firefox-ref.py` downloads Firefox's latest results from the
+wpt.fyi API, aggregates by our areas, and produces a comparison table:
+
+```bash
+python3 tools/wpt/firefox-ref.py --cache /tmp/firefox-wpt-summary.json
+# -> docs/wpt-firefox-ceiling.md
+```
+
+Each task in `docs/wpt-tasks.json` carries a `firefox_ceiling` field from this
+tool and a `ceiling_source` of `"firefox"`. The existing `target` stays as a
+planning number — it may be lower than the ceiling when the full rate is not
+reachable in one session, or when a deliberate refusal caps the achievable rate.
+
+### Refusal policy
+
+Some WPT areas test capabilities this browser has explicitly decided not to
+implement. These decisions are documented in ADRs and are not bugs to chase.
+
+**Partial refusals** (some tests in an area are blocked by ADR decisions):
+
+| area | ADR | what is refused |
+|---|---|---|
+| `html/` | 0011, 0012, 0026 | `document.write` (tokenizer re-entry) |
+| `html/browsers/` | 0026 §6 | `window.open` returns null, `opener` absent |
+| `workers/` | 0022 §1 | `SharedWorker` refused (DedicatedWorker implemented) |
+| `content-security-policy/` | 0020 §3 | `report-uri`/`report-to`/`Report-Only` not implemented |
+| `css/selectors/` | 0012, 0016, 0033 | `:visited` matches nothing (privacy) |
+| `streams/` | 0020 §1 | `new ReadableStream({start})` illegal constructor |
+| `IndexedDB/` | 0021, 0038 | memory tier only, no disk persistence by default |
+| `websockets/` | — | server does not speak WebSocket protocol (infrastructure) |
+| `domparsing/` | — | `DOMParser` absent (second Document problem) |
+
+**Full refusals** (entire areas out of scope, not in `directories.txt`):
+`webrtc/` (ADR 0029), `geolocation/` (ADR 0029), `webaudio/` (ADR 0028),
+`encrypted-media/` (ADR 0028), `service-workers/` (ADR 0022),
+`push-api/` (ADR 0022), `webgl/` (ADR 0029).
+
+The complete mapping is `docs/wpt-refusals.tsv`. When a test fails because of
+a refusal, the expectation line carries a comment naming the ADR — this is
+rule 1 in §0, not a new rule.
+
+### Direct runners for data-table areas
+
+Three areas have their test data as pinned tables rather than browser tests:
+
+| runner | area | what it exercises | vectors |
+|---|---|---|---|
+| `microbrowser_urlconf` | `url/` | `src/url` parser/setters/IDNA | 3,900+ |
+| `microbrowser_mimeconf` | `mimesniff/` | `src/util` MIME parse/serialize | ~300 |
+| `microbrowser_encconf` | `encoding/` | `src/html` label resolution, decode, encode | 3,800+ |
+| `microbrowser_cssconf` | `css/` | `src/css` tokenizer, supports, selectors | 216 |
+
+Each runs in under a second against the module directly, names the exact field
+or byte that differed, and is a developer tool (not a `ctest` target). Build
+a runner before working an area that qualifies — the URL area went 37% → 98%
+in one session because of it.
+
+### Handler demand report
+
+The WPT server now tracks every unhandled `.py` handler request by path. At
+server shutdown it prints a ranked table of which handlers were actually
+requested and how often. This replaces the `MICROBROWSER_WPT_HANDLER_REPORT=1`
+that was lost in the 2026-08-15 merge and is what stops handler prioritization
+from being guesswork.
+
+---
+
 ## 0. How this is meant to be worked
 
 ### The unit of work is a WPT area, not a feature

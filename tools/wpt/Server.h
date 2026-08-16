@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 #include "wpt/Handlers.h"
@@ -128,6 +129,10 @@ class Server {
   std::vector<std::uint16_t> bound_ports_;
   std::vector<std::unique_ptr<Connection>> connections_;
   std::string error_;
+
+  // Tracks unhandled `.py` handler requests by path, so the demand report can rank which
+  // handler to transcribe next. Keyed by repo-relative path; value is request count.
+  std::unordered_map<std::string, int> unhandled_handlers_;
 };
 
 // The substitution table, exposed because the runner needs the same origins the

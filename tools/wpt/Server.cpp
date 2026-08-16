@@ -483,6 +483,28 @@ struct Server::Connection {
 Server::Server(ServerOptions options) : options_(std::move(options)) {}
 
 Server::~Server() {
+  if (!unhandled_handlers_.empty()) {
+    // Rank unhandled .py handlers by request count so the next handler to transcribe is
+    // the one the suite actually asks for the most. This is the demand report that was
+    // dropped in the 2026-08-15 merge and is what stops handler prioritization from being
+    // guesswork (grep for a handler name counts references in comments, not requests).
+    std::vector<std::pair<std::string, int>> ranked(unhandled_handlers_.begin(),
+                                                     unhandled_handlers_.end());
+    std::sort(ranked.begin(), ranked.end(),
+              [](const auto& a, const auto& b) { return a.second > b.second; });
+    std::fprintf(stderr, "\n--- unhandled .py handler demand (requests) ---\n");
+    for (const auto& [path, count] : ranked) {
+      std::fprintf(stderr, "  %5d  %s\n", count, path.c_str());
+    }
+    std::fprintf(stderr, "--- %zu distinct handlers, %d total requests ---\n\n",
+                 ranked.size(),
+                 [&] {
+                   int total = 0;
+                   for (const auto& [_, c] : ranked) total += c;
+                   return total;
+                 }());
+  }
+
   for (const auto& connection : connections_) {
     if (connection->descriptor >= 0) {
       ::close(connection->descriptor);
@@ -731,6 +753,7 @@ void Server::Respond(Connection& connection, std::string_view request,
     if (!answer.handled) {
       // Still the ADR's answer for everything not on the closed list: a test that needs an
       // unimplemented handler fails visibly rather than getting a plausible 200.
+      ++unhandled_handlers_[relative];
       fail(501, "Python handlers are not implemented");
     } else {
       status = answer.status;
