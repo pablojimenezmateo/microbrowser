@@ -1939,6 +1939,27 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
   ExpectEqString(js::ToString(message.value), "esms", "postMessage delivers to window");
   });
 
+  AddTest(tests, "DomBindings/BlobSliceAndSize", [] {
+    ExpectScript("<body></body>",
+                 "const b = new Blob(['hello']);"
+                 "b.size + ',' + b.slice(1, 4).size + ',' + Object.prototype.toString.call(b)",
+                 "5,3,[object Blob]");
+    ExpectScript("<body></body>",
+                 "const a = new Blob(['PASSSTRING']);"
+                 "const s = a.slice(-6);"
+                 "s.size + ',' + s.type",
+                 "6,");
+    ExpectScript("<body></body>",
+                 "const a = new Blob(['abcd']);"
+                 "const s = a.slice(0, 0, 'TEXT/PLAIN');"
+                 "s.type + ',' + new Blob().slice(0,0,null).type",
+                 "text/plain,null");
+    ExpectScript("<body></body>",
+                 "const inner = new Blob(['squiggle']);"
+                 "new Blob(['foo', inner, 'baz']).size",
+                 "14");
+  });
+
   AddTest(tests, "DomBindings/IframeInsertCompletesEsmsFeatureDetection", [] {
     auto document = html::ParseDocument("<html><head></head><body></body></html>");
     auto interpreter = std::make_unique<js::Interpreter>();
