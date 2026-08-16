@@ -90,18 +90,35 @@ void AppendPart(std::string& body, const Value& part) {
   body += js::ToString(part);
 }
 
-std::string BodyFromParts(const Value& parts) {
-  if (parts.IsUndefined() || parts.IsNull()) {
-    return std::string();
+bool BodyFromBlobParts(NativeCall& call, const Value& parts, std::string& body) {
+  if (parts.IsUndefined()) {
+    return true;
   }
-  if (!parts.IsObject()) {
-    return js::ToString(parts);
+  if (parts.IsNull() || !parts.IsObject()) {
+    (void)call.Throw("TypeError", "Blob parts must be a sequence");
+    return false;
   }
-  std::string body;
-  for (std::size_t i = 0; i < parts.object->ElementCount(); ++i) {
-    AppendPart(body, parts.object->GetElement(i));
+  std::vector<Value> items;
+  if (!IterateValue(call, parts, items)) {
+    return false;
   }
-  return body;
+  for (const Value& item : items) {
+    AppendPart(body, item);
+  }
+  return true;
+}
+
+bool OptionsType(NativeCall& call, const Value& options, std::string& type) {
+  if (options.IsUndefined() || options.IsNull()) {
+    type.clear();
+    return true;
+  }
+  if (!options.IsObject()) {
+    (void)call.Throw("TypeError", "Blob options must be an object");
+    return false;
+  }
+  type = TypeFromOptions(options);
+  return true;
 }
 
 std::int64_t ToSliceOffset(const Value& value) {
@@ -206,8 +223,14 @@ void DomBindings::InstallBlob() {
     if (prototype.IsObject()) {
       object.object->SetPrototype(prototype.object);
     }
-    object.object->SetHidden(kBlobBodySlot, Value::String(BodyFromParts(Argument(call.arguments, 0))));
-    object.object->SetHidden(kBlobTypeSlot, Value::String(TypeFromOptions(Argument(call.arguments, 1))));
+    std::string body;
+    std::string type;
+    if (!BodyFromBlobParts(call, Argument(call.arguments, 0), body) ||
+        !OptionsType(call, Argument(call.arguments, 1), type)) {
+      return call.ThrownValue();
+    }
+    object.object->SetHidden(kBlobBodySlot, Value::String(std::move(body)));
+    object.object->SetHidden(kBlobTypeSlot, Value::String(std::move(type)));
     object.object->SetHidden(kBlobMarkerSlot, Value::Bool(true));
     return object;
   });
@@ -215,6 +238,7 @@ void DomBindings::InstallBlob() {
     return;
   }
   constructor.object->Set(kOwnerSlot, OwnerValue(this));
+  constructor.object->Set("length", Value::Number(0));
   if (prototype.IsObject()) {
     constructor.object->Set("prototype", prototype);
     const Value type_get = interpreter_->NewNativeValue("type", [](NativeCall& call) {
@@ -294,10 +318,14 @@ void DomBindings::InstallBlob() {
         if (file_prototype.IsObject()) {
           object.object->SetPrototype(file_prototype.object);
         }
-        object.object->SetHidden(kBlobBodySlot,
-                                 Value::String(BodyFromParts(Argument(call.arguments, 0))));
-        object.object->SetHidden(kBlobTypeSlot,
-                                 Value::String(TypeFromOptions(Argument(call.arguments, 2))));
+        std::string body;
+        std::string type;
+        if (!BodyFromBlobParts(call, Argument(call.arguments, 0), body) ||
+            !OptionsType(call, Argument(call.arguments, 2), type)) {
+          return call.ThrownValue();
+        }
+        object.object->SetHidden(kBlobBodySlot, Value::String(std::move(body)));
+        object.object->SetHidden(kBlobTypeSlot, Value::String(std::move(type)));
         object.object->SetHidden(kBlobMarkerSlot, Value::Bool(true));
         object.object->SetHidden(kBlobNameSlot, Value::String(js::ToString(Argument(call.arguments, 1))));
         return object;

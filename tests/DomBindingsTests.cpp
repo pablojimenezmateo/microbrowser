@@ -1958,6 +1958,10 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "const inner = new Blob(['squiggle']);"
                  "new Blob(['foo', inner, 'baz']).size",
                  "14");
+    ExpectScript("<body></body>",
+                 "(() => { try { new Blob('abc'); return 'no' } catch (e) { return e.name } })()"
+                 " + ',' + Blob.length",
+                 "TypeError,0");
   });
 
   AddTest(tests, "DomBindings/IframeInsertCompletesEsmsFeatureDetection", [] {
