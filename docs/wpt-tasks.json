@@ -537,10 +537,10 @@
       "check": "css/css-syntax/ >= 85%.",
       "depends": [],
       "target": "85%",
-      "status": "in_progress",
+      "status": "done",
       "agent": "wpt-d8",
       "adr": "",
-      "notes": "",
+      "notes": "**Done 2026-08-16: css/css-syntax/ is 387/429 (90.2%)**, against a Firefox ceiling of 76.7% (the task's 85% check sits above that ceiling; the ceiling is the bound). Tokenizer preprocess (NUL/CR/FF, escaped EOF), ReconstructTokens (CDO/CDC, consecutive-token comments, signed numbers so An+B `2n+1` round-trips), `<urange>` CSSOM, `u+a` as a selector in both CSSOM and the cascade, at-rules in declaration lists including `@page`, custom-property computed values, EOF-closed selector constructs, CSSFontFaceRule.style. Remaining: stylesheet charset, nested-rule/custom-property ambiguity, surrogate identifiers, a handful of url() serializations.",
       "ceiling_source": "firefox",
       "firefox_ceiling": "76.7%"
     },

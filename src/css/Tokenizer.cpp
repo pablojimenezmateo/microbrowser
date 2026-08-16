@@ -49,7 +49,10 @@ bool IsNameChar(char c) {
 }
 
 bool IsValidEscape(std::string_view input) {
-  return input.size() >= 2 && input[0] == '\\' && input[1] != '\n';
+  // CSS Syntax §4.3.8: a `\` is a valid escape when the next code point is not
+  // a newline, **including when the next code point is EOF**. `foo\` at EOF is
+  // the ident `foo` plus U+FFFD, not a delim and not a dropped slash.
+  return !input.empty() && input[0] == '\\' && (input.size() == 1 || input[1] != '\n');
 }
 
 void AppendUtf8(std::uint32_t code_point, std::string& out) {
@@ -202,6 +205,7 @@ Token Scanner::ConsumeNumeric() {
 Token Scanner::ConsumeString(char quote) {
   Token token;
   token.kind = Token::Kind::String;
+  token.quote = quote;
   ++position_;  // the opening quote
   while (!AtEnd()) {
     const char c = input_[position_];
@@ -543,8 +547,12 @@ std::vector<Token> Scanner::Run() {
 }  // namespace
 
 std::size_t ConsumeEscape(std::string_view input, std::string& out) {
-  if (input.size() < 2 || input[0] != '\\') {
-    return input.empty() ? 0 : 1;
+  if (input.empty() || input[0] != '\\') {
+    return 0;
+  }
+  if (input.size() == 1) {
+    AppendUtf8(0xFFFD, out);
+    return 1;
   }
   if (!IsHexDigit(input[1])) {
     out.push_back(input[1]);
@@ -609,113 +617,191 @@ bool WouldStartNumber(std::string_view input) {
   return IsDigit(input[0]);
 }
 
+std::string PreprocessCss(std::string_view input) {
+  // CSS Syntax §3.3: NUL → U+FFFD, CR/CRLF/FF → LF. Done before the scanner
+  // so `At()` returning `'\0'` means EOF and only EOF — a real NUL used to be
+  // indistinguishable from the end of the sheet, and `foo\0bar` was two idents.
+  std::string out;
+  out.reserve(input.size());
+  for (std::size_t i = 0; i < input.size();) {
+    const unsigned char c = static_cast<unsigned char>(input[i]);
+    if (c == 0) {
+      out += "\xEF\xBF\xBD";
+      ++i;
+    } else if (c == '\r') {
+      out += '\n';
+      ++i;
+      if (i < input.size() && input[i] == '\n') {
+        ++i;
+      }
+    } else if (c == '\f') {
+      out += '\n';
+      ++i;
+    } else {
+      out += static_cast<char>(c);
+      ++i;
+    }
+  }
+  return out;
+}
+
 std::vector<Token> Tokenize(std::string_view input) {
-  Scanner scanner(input);
+  const std::string preprocessed = PreprocessCss(input);
+  Scanner scanner(preprocessed);
   std::vector<Token> tokens = scanner.Run();
   AddPerformanceCounter(PerfCounterId::CssTokens, tokens.size());
   return tokens;
 }
 
-std::string ReconstructTokens(const std::vector<Token>& tokens, std::size_t from, std::size_t to) {
+std::string SerializeOneToken(const Token& token, bool preserve_string_quotes) {
+  switch (token.kind) {
+    case Token::Kind::Whitespace:
+      return token.value.empty() ? " " : token.value;
+    case Token::Kind::Ident:
+      return token.value;
+    case Token::Kind::Url:
+      return "url(\"" + token.value + "\")";
+    case Token::Kind::Function:
+      return token.value + "(";
+    case Token::Kind::Hash:
+      return "#" + token.value;
+    case Token::Kind::String: {
+      const char quote = preserve_string_quotes && token.quote == '\'' ? '\'' : '"';
+      return std::string(1, quote) + token.value + quote;
+    }
+    case Token::Kind::AtKeyword:
+      return "@" + token.value;
+    case Token::Kind::Number:
+    case Token::Kind::Percentage:
+    case Token::Kind::Dimension: {
+      // CSSOM serializes zero without a sign, so `-0px` and `-0` read back as
+      // `0px` / `0`. IEEE `-0.0 == 0.0`, which is the whole test.
+      // A non-zero signed number keeps its `+`: `2n+1` is a dimension and a
+      // signed number, and dropping the plus either concatenates (`2n1`) or
+      // inserts a comment (`2n/**/1`). Both fail to parse as An+B, which is
+      // how setting `selectorText` to `:nth-child(odd)` used to delete the rule.
+      std::string out;
+      if (token.has_sign && token.number > 0.0) {
+        out += '+';
+      }
+      if (token.number == 0.0) {
+        out += '0';
+      } else if (token.is_integer) {
+        out += std::to_string(static_cast<long long>(token.number));
+      } else {
+        std::string text = std::to_string(token.number);
+        while (text.size() > 1 && text.back() == '0') {
+          text.pop_back();
+        }
+        if (!text.empty() && text.back() == '.') {
+          text.pop_back();
+        }
+        out += text;
+      }
+      if (token.kind == Token::Kind::Percentage) {
+        out.push_back('%');
+      } else if (token.kind == Token::Kind::Dimension) {
+        out += token.value;
+      }
+      return out;
+    }
+    case Token::Kind::UnicodeRange: {
+      char buffer[32] = {};
+      if (token.range_start == token.range_end) {
+        std::snprintf(buffer, sizeof(buffer), "U+%X", token.range_start);
+      } else {
+        std::snprintf(buffer, sizeof(buffer), "U+%X-%X", token.range_start, token.range_end);
+      }
+      return buffer;
+    }
+    case Token::Kind::Delim:
+      return token.value;
+    case Token::Kind::Cdo:
+      return "<!--";
+    case Token::Kind::Cdc:
+      return "-->";
+    case Token::Kind::Colon:
+      return ":";
+    case Token::Kind::Comma:
+      return ",";
+    case Token::Kind::Semicolon:
+      return ";";
+    case Token::Kind::LeftParen:
+      return "(";
+    case Token::Kind::RightParen:
+      return ")";
+    case Token::Kind::LeftSquare:
+      return "[";
+    case Token::Kind::RightSquare:
+      return "]";
+    case Token::Kind::LeftBrace:
+      return "{";
+    case Token::Kind::RightBrace:
+      return "}";
+    default:
+      return {};
+  }
+}
+
+bool ConcatenationReparsedAsOne(std::string_view left, std::string_view right) {
+  // CSS Syntax serialization: insert `/**/` between adjacent tokens when
+  // concatenating their serializations would re-parse as a different stream.
+  auto without_eof = [](std::vector<Token> tokens) {
+    while (!tokens.empty() && tokens.back().kind == Token::Kind::EndOfFile) {
+      tokens.pop_back();
+    }
+    return tokens;
+  };
+  const std::vector<Token> a = without_eof(Tokenize(left));
+  const std::vector<Token> b = without_eof(Tokenize(right));
+  const std::vector<Token> joined = without_eof(Tokenize(std::string(left) + std::string(right)));
+  if (joined.size() != a.size() + b.size()) {
+    return true;
+  }
+  for (std::size_t i = 0; i < a.size(); ++i) {
+    if (!(joined[i] == a[i])) {
+      return true;
+    }
+  }
+  for (std::size_t i = 0; i < b.size(); ++i) {
+    if (!(joined[a.size() + i] == b[i])) {
+      return true;
+    }
+  }
+  return false;
+}
+
+std::string ReconstructTokens(const std::vector<Token>& tokens, std::size_t from, std::size_t to,
+                              bool preserve_string_quotes) {
   std::string out;
+  std::string prev;
+  bool prev_was_whitespace = true;
   for (std::size_t i = from; i < to && i < tokens.size(); ++i) {
     const Token& token = tokens[i];
-    switch (token.kind) {
-      case Token::Kind::Whitespace:
-        if (!out.empty()) {
-          out += token.value.empty() ? " " : token.value;
-        }
-        break;
-      case Token::Kind::Ident:
-        out += token.value;
-        break;
-      case Token::Kind::Url:
-        out += "url(\"";
-        out += token.value;
-        out += "\")";
-        break;
-      case Token::Kind::Function:
-        out += token.value;
-        out.push_back('(');
-        break;
-      case Token::Kind::Hash:
-        out.push_back('#');
-        out += token.value;
-        break;
-      case Token::Kind::String:
-        out.push_back('"');
-        out += token.value;
-        out.push_back('"');
-        break;
-      case Token::Kind::AtKeyword:
-        out.push_back('@');
-        out += token.value;
-        break;
-      case Token::Kind::Number:
-      case Token::Kind::Percentage:
-      case Token::Kind::Dimension: {
-        // CSSOM serializes zero without a sign, so `-0px` and `-0` read back as
-        // `0px` / `0`. IEEE `-0.0 == 0.0`, which is the whole test.
-        if (token.number == 0.0) {
-          out += '0';
-        } else if (token.is_integer) {
-          out += std::to_string(static_cast<long long>(token.number));
-        } else {
-          std::string text = std::to_string(token.number);
-          while (text.size() > 1 && text.back() == '0') {
-            text.pop_back();
-          }
-          if (!text.empty() && text.back() == '.') {
-            text.pop_back();
-          }
-          out += text;
-        }
-        if (token.kind == Token::Kind::Percentage) {
-          out.push_back('%');
-        } else if (token.kind == Token::Kind::Dimension) {
-          out += token.value;
-        }
-        break;
+    if (token.kind == Token::Kind::Whitespace) {
+      if (!out.empty()) {
+        prev = token.value.empty() ? " " : token.value;
+        out += prev;
+        prev_was_whitespace = true;
       }
-      case Token::Kind::UnicodeRange: {
-        char buffer[32] = {};
-        std::snprintf(buffer, sizeof(buffer), "U+%X-%X", token.range_start, token.range_end);
-        out += buffer;
-        break;
-      }
-      case Token::Kind::Delim:
-        out += token.value;
-        break;
-      case Token::Kind::Colon:
-        out.push_back(':');
-        break;
-      case Token::Kind::Comma:
-        out.push_back(',');
-        break;
-      case Token::Kind::Semicolon:
-        out.push_back(';');
-        break;
-      case Token::Kind::LeftParen:
-        out.push_back('(');
-        break;
-      case Token::Kind::RightParen:
-        out.push_back(')');
-        break;
-      case Token::Kind::LeftSquare:
-        out.push_back('[');
-        break;
-      case Token::Kind::RightSquare:
-        out.push_back(']');
-        break;
-      case Token::Kind::LeftBrace:
-        out.push_back('{');
-        break;
-      case Token::Kind::RightBrace:
-        out.push_back('}');
-        break;
-      default:
-        break;
+      continue;
     }
+    const std::string piece = SerializeOneToken(token, preserve_string_quotes);
+    if (piece.empty()) {
+      continue;
+    }
+    // `url(` tokenizes as a URL token, not a function, so a pairwise reparse of
+    // `url(` + `"x"` would look like a merge. A token that already ended on an
+    // opener cannot swallow what follows.
+    const char last = prev.empty() ? '\0' : prev.back();
+    const bool opener = last == '(' || last == '[' || last == '{' || last == ':' || last == ';' ||
+                        last == ',';
+    if (!out.empty() && !prev_was_whitespace && !opener && ConcatenationReparsedAsOne(prev, piece)) {
+      out += "/**/";
+    }
+    out += piece;
+    prev = piece;
+    prev_was_whitespace = false;
   }
   return std::string(Trim(out));
 }

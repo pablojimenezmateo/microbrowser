@@ -32,6 +32,33 @@ std::vector<Declaration> ParseDeclarations(const std::vector<Token>& tokens, std
     if (at >= to) {
       break;
     }
+    if (tokens[at].kind == Token::Kind::AtKeyword) {
+      // Consume an at-rule: prelude until `;` or a matching `{}` block. Skipping
+      // to the next semicolon would swallow `color: green` after `@at {}`.
+      ++at;
+      int depth = 0;
+      while (at < to) {
+        if (depth == 0 && tokens[at].kind == Token::Kind::Semicolon) {
+          ++at;
+          break;
+        }
+        if (tokens[at].kind == Token::Kind::LeftBrace) {
+          ++depth;
+        } else if (tokens[at].kind == Token::Kind::RightBrace) {
+          if (depth == 0) {
+            break;
+          }
+          --depth;
+          ++at;
+          if (depth == 0) {
+            break;
+          }
+          continue;
+        }
+        ++at;
+      }
+      continue;
+    }
     if (tokens[at].kind != Token::Kind::Ident) {
       // Not a declaration. Skip to the next semicolon, which is the spec's
       // recovery: one bad declaration does not lose the rest of the block.

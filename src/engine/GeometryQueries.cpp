@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "css/MediaQuery.h"
+#include "css/ComputedStyle.h"
 #include "dom/FlatTree.h"
 #include "engine/Page.h"
 #include "gfx/ColorText.h"
@@ -335,6 +336,9 @@ std::string UsedValueOf(const layout::Box& box, Used kind) {
 // property the implementation does not support.
 std::optional<std::string> ComputedValueOf(const css::ComputedStyle& style,
                                            std::string_view property) {
+  if (property.size() >= 2 && property[0] == '-' && property[1] == '-') {
+    return css::ComputedCustomProperty(style, property);
+  }
   const float font_size = style.font_size;
   if (property == "display") return std::string(DisplayText(style.display));
   if (property == "position") return std::string(PositionText(style.position));

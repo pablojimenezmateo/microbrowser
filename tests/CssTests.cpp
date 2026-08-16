@@ -133,6 +133,74 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
                    "a null escape becomes U+FFFD rather than a NUL in the middle of a name");
   });
 
+  AddTest(tests, "CssTokenizer/PreprocessesNulAndEscapedEof", [] {
+    const std::string nul_ident = std::string("foo") + '\0' + "bar";
+    ExpectEqString(TokensOf(nul_ident).at(0).value, std::string("foo") + "\xEF\xBF\xBD" + "bar",
+                   "a NUL in an ident is U+FFFD, not a second ident");
+    ExpectEqString(TokensOf("foo\\").at(0).value, std::string("foo") + "\xEF\xBF\xBD",
+                   "an escaped EOF is U+FFFD in an ident");
+    ExpectEqString(css::ReconstructTokens(css::Tokenize("foo\\"), 0, 2),
+                   std::string("foo") + "\xEF\xBF\xBD", "and reconstruction keeps it");
+  });
+
+  AddTest(tests, "CssTokenizer/InsertsACommentBetweenTokensThatWouldMerge", [] {
+    const std::vector<Token> tokens = css::Tokenize("foo bar");
+    // Drop the whitespace so the two idents sit next to each other, which is
+    // what `var(--a)var(--b)` produces after substitution.
+    std::vector<Token> adjacent;
+    adjacent.push_back(tokens.at(0));
+    adjacent.push_back(tokens.at(2));
+    ExpectEqString(css::ReconstructTokens(adjacent, 0, 2), "foo/**/bar",
+                   "concatenating two idents would make one ident");
+    const std::vector<Token> anb = css::Tokenize("2n+1");
+    ExpectEqString(css::ReconstructTokens(anb, 0, anb.size()), "2n+1",
+                   "a signed number keeps the plus that An+B needs");
+  });
+
+  AddTest(tests, "Css/UnicodeRangeSerializesWithoutARedundantEnd", [] {
+    std::string canonical;
+    Expect(css::CanonicaliseDeclaration("unicode-range", "u+a", &canonical) ==
+               css::DeclarationValidity::Canonical,
+           "u+a parses");
+    ExpectEqString(canonical, "U+A", "a single code point is not written as a range of itself");
+    Expect(css::CanonicaliseDeclaration("unicode-range", "u/**/+/**/a/**/?", &canonical) ==
+               css::DeclarationValidity::Canonical,
+           "comments between the tokens of a urange are skipped");
+    ExpectEqString(canonical, "U+A0-AF", "and wildcards expand");
+    Expect(css::CanonicaliseDeclaration("unicode-range", "u+ abc", &canonical) ==
+               css::DeclarationValidity::Invalid,
+           "whitespace inside a urange is a parse error");
+  });
+
+  AddTest(tests, "Css/UaPlusAIsASelectorNotAUnicodeRange", [] {
+    const std::vector<Selector> selectors = ParseSelectorList("u+a");
+    ExpectEqInt(static_cast<long long>(selectors.size()), 1, "it parses");
+    ExpectEqString(css::SerializeSelectorList(selectors), "u + a",
+                   "as a next-sibling pair, which is what CSS Syntax 3 made of the old token");
+    const StyleSheet sheet = ParseStyleSheet("u+a { color: green }");
+    ExpectEqInt(static_cast<long long>(sheet.rules.size()), 1,
+                "and the cascade parser sees the same selector, not a dropped urange");
+  });
+
+  AddTest(tests, "Css/EofClosesAnUnclosedSelectorConstruct", [] {
+    Expect(!ParseSelectorList("[foo").empty(), "`[foo` at EOF is `[foo]`");
+    Expect(!ParseSelectorList(":nth-child(1").empty(), "`:nth-child(1` at EOF is `:nth-child(1)`");
+  });
+
+  AddTest(tests, "Css/AtRuleInADeclarationListDoesNotEatTheNextDeclaration", [] {
+    const std::vector<Declaration> declarations =
+        ParseDeclarationList("@at {} color: green; @at at; font-size: 16px");
+    ExpectEqInt(static_cast<long long>(declarations.size()), 2,
+                "both real declarations survive the at-rules");
+    ExpectEqString(declarations.at(0).property, "color", "the one after a block at-rule");
+    ExpectEqString(declarations.at(1).property, "font-size", "and the one after a semicolon at-rule");
+    const std::vector<css::CssomRule> page = css::ParseCssom(
+        "@page { @at {} margin-top: 20px; @at at; margin-bottom: 10px; }");
+    ExpectEqInt(static_cast<long long>(page.size()), 1, "one page rule");
+    ExpectEqInt(static_cast<long long>(page.at(0).declarations.size()), 2,
+                "both page descriptors survive the nested at-rules");
+  });
+
   AddTest(tests, "CssTokenizer/RecognizesBadStringsAndUrls", [] {
     Expect(TokensOf("\"unterminated\nrest").at(0).kind == Token::Kind::BadString,
            "a newline inside a string makes it a bad-string, which invalidates its "
@@ -787,6 +855,15 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
     ExpectEqString(css::SerializeSelectorList("*|div"), "div", "any-namespace type drops star-pipe");
     ExpectEqString(css::SerializeSelectorList(":nth-child(even)"), ":nth-child(2n)",
                    "even is 2n");
+    ExpectEqString(css::SerializeSelectorList(":nth-child(odd)"), ":nth-child(2n+1)",
+                   "odd is 2n+1, with the plus that keeps the two tokens apart");
+    const std::vector<css::CssomRule> nth = css::ParseCssom(":nth-child(odd) { color: blue; }");
+    ExpectEqInt(static_cast<long long>(nth.size()), 1, "odd survives a CSSOM round-trip");
+    ExpectEqString(nth.at(0).prelude, ":nth-child(2n+1)", "as the serialized An+B");
+    const std::vector<css::CssomRule> foo_rule = css::ParseCssom("foo { color: blue; }");
+    ExpectEqInt(static_cast<long long>(foo_rule.size()), 1,
+                "a type selector with a colour is one CSSOM rule");
+    ExpectEqString(foo_rule.at(0).prelude, "foo", "the selector survives");
     ExpectEqString(css::SerializeSelectorList("!!"), "", "unparseable is empty");
   });
 

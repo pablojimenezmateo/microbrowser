@@ -67,6 +67,10 @@ struct Token {
   // hash and not a valid id, and the difference decides whether a selector
   // parses.
   bool hash_is_id = false;
+  // Which quote a string was written with (`'` or `"`). Custom-property
+  // serialization has to round-trip the two; ReconstructTokens used to emit
+  // double quotes for every string and the consecutive-token tests noticed.
+  char quote = '\0';
 
   friend bool operator==(const Token&, const Token&) = default;
 };

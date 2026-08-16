@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -180,6 +181,55 @@ SelectorPart::AttributeCase CaseFlag(std::string_view text) {
 // `Selectors.h`.
 std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size_t from,
                                      std::size_t to, SelectorParseMode mode) {
+  // CSS Syntax dropped the unicode-range token; the tokenizer keeps it so
+  // `@font-face { unicode-range: U+A }` survives reconstruction. A selector
+  // written `u+a` therefore arrives as one token, which matches nothing. Expand
+  // a single-code-point range back into `u` `+` ident, which is `u + a`.
+  bool needs_urange = false;
+  for (std::size_t i = from; i < to && i < tokens.size(); ++i) {
+    if (tokens[i].kind == Token::Kind::UnicodeRange &&
+        tokens[i].range_start == tokens[i].range_end) {
+      needs_urange = true;
+      break;
+    }
+  }
+  if (needs_urange) {
+    std::vector<Token> expanded;
+    expanded.reserve(to - from + 4);
+    for (std::size_t i = from; i < to && i < tokens.size(); ++i) {
+      const Token& token = tokens[i];
+      if (token.kind != Token::Kind::UnicodeRange || token.range_start != token.range_end) {
+        expanded.push_back(token);
+        continue;
+      }
+      Token ident_u;
+      ident_u.kind = Token::Kind::Ident;
+      ident_u.value = "u";
+      Token plus;
+      plus.kind = Token::Kind::Delim;
+      plus.value = "+";
+      Token rest;
+      char hex[16] = {};
+      std::snprintf(hex, sizeof(hex), "%x", token.range_start);
+      if (hex[0] >= '0' && hex[0] <= '9') {
+        rest.kind = Token::Kind::Number;
+        rest.is_integer = true;
+        rest.number = static_cast<double>(token.range_start);
+      } else {
+        rest.kind = Token::Kind::Ident;
+        rest.value = hex;
+      }
+      expanded.push_back(std::move(ident_u));
+      expanded.push_back(std::move(plus));
+      expanded.push_back(std::move(rest));
+    }
+    std::size_t end = expanded.size();
+    while (end > 0 && expanded[end - 1].kind == Token::Kind::EndOfFile) {
+      --end;
+    }
+    return ParseSelectors(expanded, 0, end, mode);
+  }
+
   const int depth = mode.depth;
   std::vector<Selector> selectors;
   Selector current;
@@ -415,10 +465,10 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
         if (i + 1 < to && tokens[i + 1].kind == Token::Kind::Function) {
           const std::string function = Lowered(tokens[i + 1].value);
           const std::size_t close = FindFunctionEnd(tokens, i + 1, to);
-          if (close >= to) {
-            failed = true;  // unterminated: the rule goes, per CSS recovery
-            break;
-          }
+          // EOF closes a function. Stylesheet recovery drops an unclosed rule
+          // because `{` follows; querySelector's argument *is* the input, and
+          // `:nth-child(1` is a valid selector.
+          const std::size_t args_end = close < to ? close : to;
           SelectorPart part;
           if (function == "is" || function == "where") {
             if (depth >= kMaxSelectorNestingDepth) {
@@ -431,7 +481,7 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
             // applies, so one selector from a future level does not cost an
             // author the four beside it. An empty result is a valid `:is()` that
             // matches nothing rather than a parse failure.
-            for (const auto& [start, end] : SplitOnCommas(tokens, i + 2, close)) {
+            for (const auto& [start, end] : SplitOnCommas(tokens, i + 2, args_end)) {
               std::vector<Selector> one =
                   ParseSelectors(tokens, start, end, nest(false, mode.inside_has));
               for (Selector& selector : one) {
@@ -445,7 +495,7 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
             }
             part.kind = SelectorPart::Kind::Not;
             part.arguments =
-                ParseSelectors(tokens, i + 2, close, nest(false, mode.inside_has));
+                ParseSelectors(tokens, i + 2, args_end, nest(false, mode.inside_has));
             if (part.arguments.empty()) {
               failed = true;  // `:not()` is unforgiving, and `:not()` is invalid
               break;
@@ -459,7 +509,7 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
               break;
             }
             part.kind = SelectorPart::Kind::Has;
-            part.arguments = ParseSelectors(tokens, i + 2, close, nest(true, true));
+            part.arguments = ParseSelectors(tokens, i + 2, args_end, nest(true, true));
             if (part.arguments.empty()) {
               failed = true;
               break;
@@ -469,7 +519,7 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
             // folded here so the matcher never has to: which language an element
             // is in is a question about text, and the answer must not depend on
             // how the author capitalised the tag.
-            if (!ParseLangRanges(tokens, i + 2, close, part.value)) {
+            if (!ParseLangRanges(tokens, i + 2, args_end, part.value)) {
               failed = true;
               break;
             }
@@ -480,19 +530,19 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
             // selector at all. The grammar and the match are different questions
             // and this is the one place the difference is visible.
             std::size_t at = i + 2;
-            while (at < close && tokens[at].kind == Token::Kind::Whitespace) {
+            while (at < args_end && tokens[at].kind == Token::Kind::Whitespace) {
               ++at;
             }
-            if (at >= close || tokens[at].kind != Token::Kind::Ident) {
+            if (at >= args_end || tokens[at].kind != Token::Kind::Ident) {
               failed = true;
               break;
             }
             part.value = Lowered(tokens[at].value);
             ++at;
-            while (at < close && tokens[at].kind == Token::Kind::Whitespace) {
+            while (at < args_end && tokens[at].kind == Token::Kind::Whitespace) {
               ++at;
             }
-            if (at != close) {
+            if (at != args_end) {
               failed = true;
               break;
             }
@@ -506,15 +556,15 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
             // `An+B of S` -- only on the two `-child` forms, because
             // `:nth-of-type(2n of .x)` would be two ways of saying which
             // sequence to count over and the grammar admits only one.
-            const std::size_t of = FindNthOf(tokens, i + 2, close);
-            std::size_t nth_end = close;
-            if (of != close) {
+            const std::size_t of = FindNthOf(tokens, i + 2, args_end);
+            std::size_t nth_end = args_end;
+            if (of != args_end) {
               if (part.nth.of_type || depth >= kMaxSelectorNestingDepth) {
                 failed = true;
                 break;
               }
               part.arguments =
-                  ParseSelectors(tokens, of + 1, close, nest(false, mode.inside_has));
+                  ParseSelectors(tokens, of + 1, args_end, nest(false, mode.inside_has));
               if (part.arguments.empty()) {
                 failed = true;
                 break;
@@ -535,7 +585,7 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
             }
             part.kind = SelectorPart::Kind::Host;
             part.arguments =
-                ParseSelectors(tokens, i + 2, close, nest(false, mode.inside_has));
+                ParseSelectors(tokens, i + 2, args_end, nest(false, mode.inside_has));
             if (part.arguments.empty()) {
               failed = true;
               break;
@@ -551,7 +601,7 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
           part.name = function;
           compound.parts.push_back(std::move(part));
           saw_part = true;
-          i = close;
+          i = args_end;
           break;
         }
         if (i + 1 >= to || tokens[i + 1].kind != Token::Kind::Ident) {
@@ -636,6 +686,9 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
         if (at < to && tokens[at].kind == Token::Kind::RightSquare) {
           part.match = SelectorPart::AttributeMatch::Exists;
           i = at;
+        } else if (at >= to) {
+          part.match = SelectorPart::AttributeMatch::Exists;
+          i = at > 0 ? at - 1 : at;
         } else if (at < to && tokens[at].kind == Token::Kind::Delim) {
           const std::string op = tokens[at].value;
           if (op == "=") {

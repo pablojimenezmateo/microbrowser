@@ -94,7 +94,7 @@ void DomBindings::InstallCssomSheetRules() {
   MakeInterface("CSSSupportsRule", css_condition);
   const Value css_style_rule = MakeInterface("CSSStyleRule", css_grouping);
   MakeInterface("CSSImportRule", css_rule);
-  MakeInterface("CSSFontFaceRule", css_rule);
+  const Value css_font_face_rule = MakeInterface("CSSFontFaceRule", css_rule);
   MakeInterface("CSSPageRule", css_grouping);
   MakeInterface("CSSNamespaceRule", css_rule);
   MakeInterface("CSSKeyframesRule", css_rule);
@@ -527,6 +527,22 @@ void DomBindings::InstallCssomSheetRules() {
     return style;
   };
 
+  const auto bind_style = [&](const Value& proto) {
+    rule_accessor(proto, "style", [make_style](NativeCall& call) { return make_style(call.self); },
+                  [make_style](NativeCall& call) -> Value {
+                    const Value style = make_style(call.self);
+                    if (!style.IsObject()) {
+                      return Value::Undefined();
+                    }
+                    const js::Result assigned = call.interpreter.SetProperty(
+                        style, js::PropertyKey("cssText"), Argument(call.arguments, 0));
+                    if (assigned.IsAbrupt()) {
+                      return call.ThrowValue(assigned.value);
+                    }
+                    return Argument(call.arguments, 0);
+                  });
+  };
+
   InstallCssomStylePrototype(*interpreter_, interfaces_, OwnerValue(this), write_sheet, geometry_);
 
   rule_accessor(
@@ -555,21 +571,8 @@ void DomBindings::InstallCssomSheetRules() {
         }
         return Value::Undefined();
       });
-  rule_accessor(
-      css_style_rule, "style",
-      [make_style](NativeCall& call) { return make_style(call.self); },
-      [make_style](NativeCall& call) -> Value {
-        const Value style = make_style(call.self);
-        if (!style.IsObject()) {
-          return Value::Undefined();
-        }
-        const js::Result assigned = call.interpreter.SetProperty(
-            style, js::PropertyKey("cssText"), Argument(call.arguments, 0));
-        if (assigned.IsAbrupt()) {
-          return call.ThrowValue(assigned.value);
-        }
-        return Argument(call.arguments, 0);
-      });
+  bind_style(css_style_rule);
+  bind_style(css_font_face_rule);
 
   if (const Value* page = interfaces_.object->GetOwn("CSSPageRule");
       page != nullptr && page->IsObject()) {
@@ -598,19 +601,7 @@ void DomBindings::InstallCssomSheetRules() {
                     }
                     return Value::Undefined();
                   });
-    rule_accessor(*page, "style", [make_style](NativeCall& call) { return make_style(call.self); },
-                  [make_style](NativeCall& call) -> Value {
-                    const Value style = make_style(call.self);
-                    if (!style.IsObject()) {
-                      return Value::Undefined();
-                    }
-                    const js::Result assigned = call.interpreter.SetProperty(
-                        style, js::PropertyKey("cssText"), Argument(call.arguments, 0));
-                    if (assigned.IsAbrupt()) {
-                      return call.ThrowValue(assigned.value);
-                    }
-                    return Argument(call.arguments, 0);
-                  });
+    bind_style(*page);
   }
   if (const Value* margin = interfaces_.object->GetOwn("CSSMarginRule");
       margin != nullptr && margin->IsObject()) {
@@ -623,19 +614,7 @@ void DomBindings::InstallCssomSheetRules() {
       const css::CssomRule* rule = LocateCssomRule(rules, call.self);
       return Value::String(rule == nullptr ? "" : rule->at_name);
     });
-    rule_accessor(*margin, "style", [make_style](NativeCall& call) { return make_style(call.self); },
-                  [make_style](NativeCall& call) -> Value {
-                    const Value style = make_style(call.self);
-                    if (!style.IsObject()) {
-                      return Value::Undefined();
-                    }
-                    const js::Result assigned = call.interpreter.SetProperty(
-                        style, js::PropertyKey("cssText"), Argument(call.arguments, 0));
-                    if (assigned.IsAbrupt()) {
-                      return call.ThrowValue(assigned.value);
-                    }
-                    return Argument(call.arguments, 0);
-                  });
+    bind_style(*margin);
   }
 
   rule_accessor(css_condition, "conditionText", [](NativeCall& call) -> Value {

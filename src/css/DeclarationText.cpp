@@ -2,11 +2,14 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
+#include <cstdio>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "css/Tokenizer.h"
+#include "css/ComputedStyle.h"
 #include "gfx/ColorText.h"
 #include "util/StringUtil.h"
 
@@ -215,6 +218,134 @@ bool ParseFontFamily(std::string_view value, std::string* out) {
   return true;
 }
 
+int HexDigitValue(char c) {
+  if (c >= '0' && c <= '9') {
+    return c - '0';
+  }
+  if (c >= 'a' && c <= 'f') {
+    return c - 'a' + 10;
+  }
+  if (c >= 'A' && c <= 'F') {
+    return c - 'A' + 10;
+  }
+  return -1;
+}
+
+struct UrangeCursor {
+  std::string_view text;
+  std::size_t at = 0;
+
+  void SkipComments() {
+    while (at + 1 < text.size() && text[at] == '/' && text[at + 1] == '*') {
+      at += 2;
+      while (at + 1 < text.size() && !(text[at] == '*' && text[at + 1] == '/')) {
+        ++at;
+      }
+      at = at + 1 < text.size() ? at + 2 : text.size();
+    }
+  }
+  char Peek() {
+    SkipComments();
+    return at < text.size() ? text[at] : '\0';
+  }
+  char Take() {
+    SkipComments();
+    return at < text.size() ? text[at++] : '\0';
+  }
+  bool Ended() {
+    SkipComments();
+    return at >= text.size();
+  }
+};
+
+bool ParseOneUrange(UrangeCursor& cursor, std::uint32_t& first, std::uint32_t& last) {
+  const char u = cursor.Take();
+  if (u != 'u' && u != 'U') {
+    return false;
+  }
+  if (cursor.Take() != '+') {
+    return false;
+  }
+  std::string hex;
+  std::size_t questions = 0;
+  while (hex.size() + questions < 6) {
+    const char c = cursor.Peek();
+    if (HexDigitValue(c) >= 0 && questions == 0) {
+      hex.push_back(cursor.Take());
+    } else if (c == '?') {
+      ++questions;
+      cursor.Take();
+    } else {
+      break;
+    }
+  }
+  if (hex.empty() && questions == 0) {
+    return false;
+  }
+  const auto hex_value = [](const std::string& digits, char fill, std::size_t pad) {
+    std::string padded = digits;
+    padded.append(pad, fill);
+    std::uint32_t value = 0;
+    for (const char c : padded) {
+      value = (value << 4) | static_cast<std::uint32_t>(HexDigitValue(c));
+    }
+    return value;
+  };
+  first = hex_value(hex, '0', questions);
+  last = hex_value(hex, 'F', questions);
+  if (questions == 0 && cursor.Peek() == '-') {
+    cursor.Take();
+    std::string second;
+    while (second.size() < 6 && HexDigitValue(cursor.Peek()) >= 0) {
+      second.push_back(cursor.Take());
+    }
+    if (second.empty()) {
+      return false;
+    }
+    last = hex_value(second, '0', 0);
+  }
+  if (first > 0x10FFFF || last > 0x10FFFF) {
+    return false;
+  }
+  return true;
+}
+
+bool ParseUnicodeRangeList(std::string_view value, std::string* out) {
+  UrangeCursor cursor{Trim(value)};
+  if (cursor.Ended()) {
+    return false;
+  }
+  std::string serialized;
+  while (!cursor.Ended()) {
+    std::uint32_t first = 0;
+    std::uint32_t last = 0;
+    if (!ParseOneUrange(cursor, first, last)) {
+      return false;
+    }
+    if (!serialized.empty()) {
+      serialized += ", ";
+    }
+    char buffer[32] = {};
+    if (first == last) {
+      std::snprintf(buffer, sizeof(buffer), "U+%X", first);
+    } else {
+      std::snprintf(buffer, sizeof(buffer), "U+%X-%X", first, last);
+    }
+    serialized += buffer;
+    if (cursor.Ended()) {
+      break;
+    }
+    if (cursor.Peek() != ',') {
+      return false;
+    }
+    cursor.Take();
+  }
+  if (out != nullptr) {
+    *out = std::move(serialized);
+  }
+  return true;
+}
+
 // The family half of `font: <size> <family>`. Everything after the first
 // length, percentage, or absolute/relative-size keyword is the family.
 bool ParseFontShorthandFamily(std::string_view value, std::string* out) {
@@ -351,6 +482,13 @@ DeclarationValidity CanonicaliseDeclaration(std::string_view property, std::stri
     return DeclarationValidity::Canonical;
   }
 
+  if (name == "unicode-range") {
+    if (!ParseUnicodeRangeList(trimmed, out)) {
+      return DeclarationValidity::Invalid;
+    }
+    return DeclarationValidity::Canonical;
+  }
+
   // Custom properties preserve the token stream the page wrote. Reconstructing
   // them would turn a 25-digit integer into a double.
   if (name.size() >= 2 && name[0] == '-' && name[1] == '-') {
@@ -365,6 +503,85 @@ DeclarationValidity CanonicaliseDeclaration(std::string_view property, std::stri
     *out = ReconstructTokens(tokens, 0, tokens.size());
   }
   return DeclarationValidity::Unknown;
+}
+
+namespace {
+
+bool ExpandCustomTokens(std::string_view value, const ComputedStyle& style, int depth,
+                        std::vector<Token>& out) {
+  if (depth > 32) {
+    return false;
+  }
+  const std::vector<Token> tokens = Tokenize(value);
+  for (std::size_t i = 0; i < tokens.size(); ++i) {
+    const Token& token = tokens[i];
+    if (token.kind == Token::Kind::EndOfFile) {
+      break;
+    }
+    if (token.kind == Token::Kind::Function && util::AsciiLowerCase(token.value) == "var") {
+      int paren = 1;
+      std::size_t close = i + 1;
+      std::size_t comma = tokens.size();
+      while (close < tokens.size() && paren > 0) {
+        if (tokens[close].kind == Token::Kind::Function ||
+            tokens[close].kind == Token::Kind::LeftParen) {
+          ++paren;
+        } else if (tokens[close].kind == Token::Kind::RightParen) {
+          --paren;
+        } else if (tokens[close].kind == Token::Kind::Comma && paren == 1 &&
+                   comma == tokens.size()) {
+          comma = close;
+        }
+        if (paren > 0) {
+          ++close;
+        }
+      }
+      if (paren != 0) {
+        return false;
+      }
+      std::size_t name_at = i + 1;
+      while (name_at < close && tokens[name_at].kind == Token::Kind::Whitespace) {
+        ++name_at;
+      }
+      if (name_at >= close || tokens[name_at].kind != Token::Kind::Ident) {
+        return false;
+      }
+      if (const std::string* found = style.CustomProperty(tokens[name_at].value)) {
+        if (!ExpandCustomTokens(*found, style, depth + 1, out)) {
+          return false;
+        }
+      } else if (comma < tokens.size()) {
+        const std::string fallback = ReconstructTokens(tokens, comma + 1, close);
+        if (!ExpandCustomTokens(fallback, style, depth + 1, out)) {
+          return false;
+        }
+      } else {
+        return false;
+      }
+      i = close;
+      continue;
+    }
+    out.push_back(token);
+  }
+  return true;
+}
+
+}  // namespace
+
+std::string ComputedCustomProperty(const ComputedStyle& style, std::string_view name) {
+  const std::string* specified = style.CustomProperty(name);
+  if (specified == nullptr) {
+    return {};
+  }
+  const std::string lowered = util::AsciiLowerCase(*specified);
+  if (lowered.find("var(") == std::string::npos) {
+    return std::string(Trim(*specified));
+  }
+  std::vector<Token> tokens;
+  if (!ExpandCustomTokens(*specified, style, 0, tokens)) {
+    return {};
+  }
+  return ReconstructTokens(tokens, 0, tokens.size(), true);
 }
 
 }  // namespace microbrowser::css

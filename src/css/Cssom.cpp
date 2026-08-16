@@ -371,17 +371,13 @@ void WriteCssomCssText(CssomRule& rule) {
   if (rule.at_name.empty()) {
     return;
   }
-  std::string inner;
-  if (!rule.children.empty()) {
-    for (CssomRule& child : rule.children) {
-      WriteCssomCssText(child);
-      if (!inner.empty()) {
-        inner += ' ';
-      }
-      inner += child.css_text;
+  std::string inner = SerializeDeclarations(rule.declarations);
+  for (CssomRule& child : rule.children) {
+    WriteCssomCssText(child);
+    if (!inner.empty()) {
+      inner += ' ';
     }
-  } else {
-    inner = SerializeDeclarations(rule.declarations);
+    inner += child.css_text;
   }
   const bool has_block = rule.type != CssomRuleType::Import && rule.type != CssomRuleType::Namespace;
   rule.css_text = "@" + rule.at_name;
@@ -455,6 +451,10 @@ void ParsePageBlock(const std::vector<Token>& tokens, std::size_t from, std::siz
              tokens[at].kind != Token::Kind::EndOfFile) {
         ++at;
       }
+      if (at < to && tokens[at].kind == Token::Kind::Semicolon) {
+        ++at;
+        continue;
+      }
       if (at >= to || tokens[at].kind != Token::Kind::LeftBrace) {
         break;
       }
@@ -500,16 +500,12 @@ CssomRule AtRule(const std::vector<Token>& tokens, std::size_t at_index, std::si
     } else if (rule.type == CssomRuleType::FontFace || rule.type == CssomRuleType::Margin) {
       rule.declarations = ParseDeclarationList(ReconstructTokens(tokens, block_start, block_end));
     }
-    std::string inner;
-    if (!rule.children.empty()) {
-      for (const CssomRule& child : rule.children) {
-        if (!inner.empty()) {
-          inner += ' ';
-        }
-        inner += child.css_text;
+    std::string inner = SerializeDeclarations(rule.declarations);
+    for (const CssomRule& child : rule.children) {
+      if (!inner.empty()) {
+        inner += ' ';
       }
-    } else {
-      inner = SerializeDeclarations(rule.declarations);
+      inner += child.css_text;
     }
     rule.css_text = "@" + rule.at_name;
     if (!rule.prelude.empty()) {

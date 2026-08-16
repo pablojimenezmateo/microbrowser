@@ -19,7 +19,10 @@ std::vector<Token> Tokenize(std::string_view input);
 // Turns a token run back into text. One serializer, used by the cascade parser
 // for declaration values and by CSSOM for selector / at-rule preludes, so the
 // two cannot disagree about what `url(x.png)` writes back as.
-std::string ReconstructTokens(const std::vector<Token>& tokens, std::size_t from, std::size_t to);
+// `preserve_string_quotes` is for computed custom properties: `'a'` and `"a"`
+// have to round-trip, while specified CSSOM values always emit double quotes.
+std::string ReconstructTokens(const std::vector<Token>& tokens, std::size_t from, std::size_t to,
+                              bool preserve_string_quotes = false);
 
 // The pieces below are exposed because each is a place the specification is
 // counter-intuitive and each deserves its own test.

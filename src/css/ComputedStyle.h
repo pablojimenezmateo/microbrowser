@@ -635,6 +635,11 @@ struct ComputedStyle {
 // ADR 0014 and the note in StyleResolver.cpp where it is acted on.
 bool SubstituteVars(std::string_view value, const ComputedStyle& style, std::string& out);
 
+// The computed value of a custom property. Specified text when it contains no
+// `var()` — comments stay — otherwise the token stream after substitution,
+// serialized with `/**/` between tokens that would otherwise re-parse as one.
+std::string ComputedCustomProperty(const ComputedStyle& style, std::string_view name);
+
 // Parses a colour: named, `#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb()`, `rgba()`.
 // Nullopt for anything unrecognized, which is how an invalid declaration is
 // dropped rather than turning an element transparent.

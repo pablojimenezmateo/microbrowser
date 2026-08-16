@@ -49448,106 +49448,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [css/css-sizing/table-percentage-max-width-beside-float.html]
 FAIL=#container 1
-[css/css-syntax/anb-parsing.html]
-FAIL="+ 2n" becomes "parse error"
-FAIL="+ n + 5" becomes "parse error"
-FAIL="+ n +5" becomes "parse error"
-FAIL="+ n" becomes "parse error"
-FAIL="+ n- 5" becomes "parse error"
-FAIL="+ n-5" becomes "parse error"
-FAIL="+1" becomes "1"
-FAIL="+2 n" becomes "parse error"
-FAIL="+n + +5" becomes "parse error"
-FAIL="+n + -5" becomes "parse error"
-FAIL="+n + 5" becomes "n+5"
-FAIL="+n +5" becomes "n+5"
-FAIL="+n - +5" becomes "parse error"
-FAIL="+n - -5" becomes "parse error"
-FAIL="+n - 5" becomes "n-5"
-FAIL="+n -5" becomes "n-5"
-FAIL="+n" becomes "n"
-FAIL="+n- 5" becomes "n-5"
-FAIL="+n-5" becomes "n-5"
-FAIL="- 2n" becomes "parse error"
-FAIL="-1 + n" becomes "parse error"
-FAIL="-1" becomes "-1"
-FAIL="-5n- 5" becomes "-5n-5"
-FAIL="-N" becomes "-n"
-FAIL="-n + +5" becomes "parse error"
-FAIL="-n + -5" becomes "parse error"
-FAIL="-n + 5" becomes "-n+5"
-FAIL="-n +5" becomes "-n+5"
-FAIL="-n - +5" becomes "parse error"
-FAIL="-n - -5" becomes "parse error"
-FAIL="-n - 5" becomes "-n-5"
-FAIL="-n -5" becomes "-n-5"
-FAIL="-n 5" becomes "parse error"
-FAIL="-n" becomes "-n"
-FAIL="-n- +5" becomes "parse error"
-FAIL="-n- -5" becomes "parse error"
-FAIL="-n- 5" becomes "-n-5"
-FAIL="-n-5" becomes "-n-5"
-FAIL="0 - n" becomes "parse error"
-FAIL="1 - n" becomes "parse error"
-FAIL="1" becomes "1"
-FAIL="2 n + 2" becomes "parse error"
-FAIL="5N" becomes "5n"
-FAIL="5n + +5" becomes "parse error"
-FAIL="5n + -5" becomes "parse error"
-FAIL="5n + 5" becomes "5n+5"
-FAIL="5n +5" becomes "5n+5"
-FAIL="5n - +5" becomes "parse error"
-FAIL="5n - -5" becomes "parse error"
-FAIL="5n - 5" becomes "5n-5"
-FAIL="5n -5" becomes "5n-5"
-FAIL="5n" becomes "5n"
-FAIL="5n- +5" becomes "parse error"
-FAIL="5n- -5" becomes "parse error"
-FAIL="5n- 5" becomes "5n-5"
-FAIL="5n-5" becomes "5n-5"
-FAIL="N" becomes "n"
-FAIL="even" becomes "2n"
-FAIL="n + 5" becomes "n+5"
-FAIL="n +5" becomes "n+5"
-FAIL="n 5" becomes "parse error"
-FAIL="n" becomes "n"
-FAIL="n- +5" becomes "parse error"
-FAIL="n- -5" becomes "parse error"
-FAIL="n- 5" becomes "n-5"
-FAIL="n-5" becomes "n-5"
-FAIL="odd" becomes "2n+1"
-[css/css-syntax/anb-serialization.html]
-FAIL="+1" becomes "1"
-FAIL="+n+1" becomes "n+1"
-FAIL="-1" becomes "-1"
-FAIL="-1n + 1" becomes "-n+1"
-FAIL="-1n - 0" becomes "-n"
-FAIL="-1n - 1" becomes "-n-1"
-FAIL="-1n" becomes "-n"
-FAIL="-2n - 2" becomes "-2n-2"
-FAIL="-n-1" becomes "-n-1"
-FAIL="0n + 0" becomes "0"
-FAIL="0n + 1" becomes "1"
-FAIL="0n - 1" becomes "-1"
-FAIL="1" becomes "1"
-FAIL="1n + 1" becomes "n+1"
-FAIL="1n - 0" becomes "n"
-FAIL="1n - 1" becomes "n-1"
-FAIL="1n" becomes "n"
-FAIL="2n + 2" becomes "2n+2"
-FAIL="n + 0" becomes "n"
-FAIL="n - 0" becomes "n"
-[css/css-syntax/at-rule-in-declaration-list.html]
-FAIL=Allow @-rule with block inside font-face rule
-FAIL=Allow @-rule with block inside page rule
-FAIL=Allow @-rule with block inside style rule
-FAIL=Allow @-rule with semi-colon inside font-face rule
-FAIL=Allow @-rule with semi-colon inside page rule
-FAIL=Allow @-rule with semi-colon inside style rule
-[css/css-syntax/cdc-vs-ident-tokens.html]
-FAIL=CDC-token is properly emitted, and not parsed as an ident.
-[css/css-syntax/charset-is-not-a-rule.html]
-FAIL=@charset isn't a valid rule and shouldn't show up in the OM
 [css/css-syntax/charset/page-windows-1251-charset-attribute-bogus.html]
 FAIL=CSS charset: page windows-1251, charset attribute bogus
 [css/css-syntax/charset/page-windows-1251-css-at-charset-1250-charset-attribute-windows-1253.html]
@@ -49583,276 +49483,35 @@ FAIL=Nested rule that looks like a custom property declaration
 FAIL=Nested rule that looks like an invalid custom property declaration
 FAIL=Rule that looks like a custom property declaration is ignored
 FAIL=Rule that looks like an invalid custom property declaration is ignored
-[css/css-syntax/decimal-points-in-numbers.html]
-FAIL=decimal point after digits is invalid in a dimension
-FAIL=decimal point after digits is invalid in a number
-FAIL=decimal point before digits is valid in a dimension
-FAIL=decimal point before digits is valid in a number
-FAIL=decimal point between digits is valid in a dimension
-FAIL=decimal point between digits is valid in a number
-[css/css-syntax/declarations-trim-whitespace.html]
-FAIL=--foo-1:bar;
-FAIL=--foo-2: bar;
-FAIL=--foo-3:bar ;
-FAIL=--foo-4: bar ;
-FAIL=--foo-5: bar !important;
-FAIL=--foo-6: bar !important ;
-FAIL=--foo-7:bar!important;
-FAIL=--foo-8:bar!important ;
-FAIL=--foo-9:bar (then ws until end of rule)
 [css/css-syntax/escaped-eof.html]
-FAIL=Escaped EOF in a string is ignored.
-FAIL=Escaped EOF turns into a U+FFFD in a dimension token.
-FAIL=Escaped EOF turns into a U+FFFD in a hash token, makes it 'ID' type.
 FAIL=Escaped EOF turns into a U+FFFD in a url token.
-FAIL=Escaped EOF turns into a U+FFFD in an ident token.
-[css/css-syntax/inclusive-ranges.html]
-FAIL="0" becomes "0"
-FAIL="1" becomes "1"
-FAIL="2" becomes "2"
-FAIL="3" becomes "3"
-FAIL="4" becomes "4"
-FAIL="5" becomes "5"
-FAIL="6" becomes "6"
-FAIL="7" becomes "7"
-FAIL="8" becomes "8"
-FAIL="9" becomes "9"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
-FAIL="foo" becomes "parse error"
 [css/css-syntax/input-preprocessing.html]
-FAIL="   " becomes "U+fffdU+fffdU+fffd"
-FAIL=" " becomes "U+fffd"
-FAIL=" foo" becomes "U+fffdfoo"
 FAIL="U+d800" becomes "U+fffd"
 FAIL="U+d800U+d800U+d800" becomes "U+fffdU+fffdU+fffd"
 FAIL="U+d800foo" becomes "U+fffdfoo"
-FAIL="f oo" becomes "fU+fffdoo"
 FAIL="fU+d800oo" becomes "fU+fffdoo"
-FAIL="foo " becomes "fooU+fffd"
 FAIL="fooU+d800" becomes "fooU+fffd"
 [css/css-syntax/invalid-nested-rules.html]
 FAIL=Continues parsing after block on invalid rule error
 [css/css-syntax/serialize-consecutive-tokens.html]
 FAIL=Comments are handled correctly when computing a/* comment */b using t1:.
-FAIL=Comments are handled correctly when computing a/* comment */var(--t1) using t1:b.
-FAIL=Comments are handled correctly when computing var(--t1)b using t1:"a/* unfinished ".
 FAIL=Comments are handled correctly when computing var(--t1)b using t1:'a " '/* comment */.
 FAIL=Comments are handled correctly when computing var(--t1)b using t1:'a/* unfinished '.
-FAIL=Comments are handled correctly when computing var(--t1)b using t1:a/* comment */.
-FAIL=Empty fallback between tokens must not disturb comment insertion
-FAIL=Serialization of consecutive # and - tokens.
-FAIL=Serialization of consecutive # and 123 tokens.
-FAIL=Serialization of consecutive # and 123% tokens.
-FAIL=Serialization of consecutive # and 123em tokens.
-FAIL=Serialization of consecutive # and bar tokens.
-FAIL=Serialization of consecutive # and bar() tokens.
 FAIL=Serialization of consecutive # and url(bar) tokens.
-FAIL=Serialization of consecutive #foo and - tokens.
-FAIL=Serialization of consecutive #foo and --> tokens.
-FAIL=Serialization of consecutive #foo and 123 tokens.
-FAIL=Serialization of consecutive #foo and 123% tokens.
-FAIL=Serialization of consecutive #foo and 123em tokens.
-FAIL=Serialization of consecutive #foo and bar tokens.
-FAIL=Serialization of consecutive #foo and bar() tokens.
 FAIL=Serialization of consecutive #foo and url(bar) tokens.
-FAIL=Serialization of consecutive + and 123 tokens.
-FAIL=Serialization of consecutive + and 123% tokens.
-FAIL=Serialization of consecutive + and 123em tokens.
-FAIL=Serialization of consecutive - and - tokens.
-FAIL=Serialization of consecutive - and 123 tokens.
-FAIL=Serialization of consecutive - and 123% tokens.
-FAIL=Serialization of consecutive - and 123em tokens.
-FAIL=Serialization of consecutive - and bar tokens.
-FAIL=Serialization of consecutive - and bar() tokens.
 FAIL=Serialization of consecutive - and url(bar) tokens.
-FAIL=Serialization of consecutive . and 123 tokens.
-FAIL=Serialization of consecutive . and 123% tokens.
-FAIL=Serialization of consecutive . and 123em tokens.
-FAIL=Serialization of consecutive / and * tokens.
-FAIL=Serialization of consecutive 123 and % tokens.
-FAIL=Serialization of consecutive 123 and 123 tokens.
-FAIL=Serialization of consecutive 123 and 123% tokens.
-FAIL=Serialization of consecutive 123 and 123em tokens.
-FAIL=Serialization of consecutive 123 and bar tokens.
-FAIL=Serialization of consecutive 123 and bar() tokens.
 FAIL=Serialization of consecutive 123 and url(bar) tokens.
-FAIL=Serialization of consecutive 123foo and - tokens.
-FAIL=Serialization of consecutive 123foo and --> tokens.
-FAIL=Serialization of consecutive 123foo and 123 tokens.
-FAIL=Serialization of consecutive 123foo and 123% tokens.
-FAIL=Serialization of consecutive 123foo and 123em tokens.
-FAIL=Serialization of consecutive 123foo and bar tokens.
-FAIL=Serialization of consecutive 123foo and bar() tokens.
 FAIL=Serialization of consecutive 123foo and url(bar) tokens.
 FAIL=Serialization of consecutive @ and - tokens.
-FAIL=Serialization of consecutive @ and bar tokens.
-FAIL=Serialization of consecutive @ and bar() tokens.
 FAIL=Serialization of consecutive @ and url(bar) tokens.
-FAIL=Serialization of consecutive @foo and - tokens.
-FAIL=Serialization of consecutive @foo and --> tokens.
-FAIL=Serialization of consecutive @foo and 123 tokens.
-FAIL=Serialization of consecutive @foo and 123% tokens.
-FAIL=Serialization of consecutive @foo and 123em tokens.
-FAIL=Serialization of consecutive @foo and bar tokens.
-FAIL=Serialization of consecutive @foo and bar() tokens.
 FAIL=Serialization of consecutive @foo and url(bar) tokens.
-FAIL=Serialization of consecutive foo and () tokens.
-FAIL=Serialization of consecutive foo and - tokens.
-FAIL=Serialization of consecutive foo and --> tokens.
-FAIL=Serialization of consecutive foo and 123 tokens.
-FAIL=Serialization of consecutive foo and 123% tokens.
-FAIL=Serialization of consecutive foo and 123em tokens.
-FAIL=Serialization of consecutive foo and bar tokens.
-FAIL=Serialization of consecutive foo and bar() tokens.
 FAIL=Serialization of consecutive foo and url(bar) tokens.
-[css/css-syntax/serialize-escape-identifiers.html]
-FAIL=Rules must be the same after serialization round-trip, even with escaped characters
-[css/css-syntax/trailing-braces.html]
-FAIL=Trailing braces are not valid
-[css/css-syntax/unclosed-url-at-eof.html]
-FAIL=Unclosed empty url token at EOF is valid.
-FAIL=Unclosed url token at EOF is valid.
-[css/css-syntax/unicode-range-selector.html]
-FAIL=Unicode range is not a token, and doesn't cause confusion in selectors
-[css/css-syntax/urange-parsing.html]
-FAIL="()U+123" is invalid
-FAIL="U + a b c" is invalid
-FAIL="U+0a0" => "U+A0"
-FAIL="U+ABC" => "U+ABC"
-FAIL="U+abc" => "U+ABC"
-FAIL="u + abc" is invalid
-FAIL="u +abc" is invalid
-FAIL="u+ abc" is invalid
-FAIL="u+0" => "U+0"
-FAIL="u+0+0a" is invalid
-FAIL="u+0+1" is invalid
-FAIL="u+0-0000001" is invalid
-FAIL="u+0-000000a" is invalid
-FAIL="u+0-0a" => "U+0-A"
-FAIL="u+0-0a?" is invalid
-FAIL="u+0-0aaaaaa" is invalid
-FAIL="u+0-1" => "U+0-1"
-FAIL="u+0-10ffff" => "U+0-10FFFF"
-FAIL="u+0-110000" is invalid
-FAIL="u+0-222222" is invalid
-FAIL="u+00" => "U+0"
-FAIL="u+000" => "U+0"
-FAIL="u+0000" => "U+0"
-FAIL="u+00000" => "U+0"
-FAIL="u+000000" => "U+0"
-FAIL="u+000000-000001" => "U+0-1"
-FAIL="u+000000-0aaaaa" => "U+0-AAAAA"
-FAIL="u+0000000" is invalid
-FAIL="u+0000000-0a" is invalid
-FAIL="u+0000000-1" is invalid
-FAIL="u+000000?" is invalid
-FAIL="u+000000a" is invalid
-FAIL="u+00000?" => "U+0-F"
-FAIL="u+00000??" is invalid
-FAIL="u+00000a" => "U+A"
-FAIL="u+00000a0" is invalid
-FAIL="u+00000aa" is invalid
-FAIL="u+00a????" is invalid
-FAIL="u+0?-0a" is invalid
-FAIL="u+0?????" => "U+0-FFFFF"
-FAIL="u+0??????" is invalid
-FAIL="u+0?a" is invalid
-FAIL="u+0a" => "U+A"
-FAIL="u+0a0000" => "U+A0000"
-FAIL="u+0a00000" is invalid
-FAIL="u+0a????" => "U+A0000-AFFFF"
-FAIL="u+0a?????" is invalid
-FAIL="u+0aaaaa" => "U+AAAAA"
-FAIL="u+0aaaaa0" is invalid
-FAIL="u+0aaaaaa" is invalid
-FAIL="u+1e-20" => "U+1E-20"
-FAIL="u+1e3" => "U+1E3"
-FAIL="u+1e9a" => "U+1E9A"
-FAIL="u+222222" is invalid
-FAIL="u+222222-22222a" is invalid
-FAIL="u+22222a" is invalid
-FAIL="u+2?????" is invalid
-FAIL="u+?" => "U+0-F"
-FAIL="u+?????" => "u+0-FFFFF"
-FAIL="u+??????" is invalid
-FAIL="u+???????" is invalid
-FAIL="u+?a" is invalid
-FAIL="u+ABC" => "U+ABC"
-FAIL="u+AbC" => "U+ABC"
-FAIL="u+a" => "U+A"
-FAIL="u+a?" => "U+A0-AF"
-FAIL="u+a??" => "U+A00-AFF"
-FAIL="u+a???" => "U+A000-AFFF"
-FAIL="u+a????" => "U+A0000-AFFFF"
-FAIL="u+a?????" is invalid
-FAIL="u+a??????" is invalid
-FAIL="u+a?a" is invalid
-FAIL="u+aa" => "U+AA"
-FAIL="u+aa?????" is invalid
-FAIL="u+aaa" => "U+AAA"
-FAIL="u+aaa????" is invalid
-FAIL="u+aaaa" => "U+AAAA"
-FAIL="u+aaaa???" is invalid
-FAIL="u+aaaaa" => "U+AAAAA"
-FAIL="u+aaaaa??" is invalid
-FAIL="u+aaaaaa" is invalid
-FAIL="u+aaaaaa?" is invalid
-FAIL="u+aaaaaaa" is invalid
-FAIL="u+abc" => "U+ABC"
-FAIL="u+efg" is invalid
-FAIL="u-0+1" is invalid
-FAIL="u-0-1" is invalid
-FAIL="u/**/+/**/?" => "U+0-F"
-FAIL="u/**/+/**/a/**/?" => "U+A0-AF"
-FAIL="u/**/+0/**/-0a" => "U+0-A"
-FAIL="u/**/+0/**/-1" => "U+0-1"
-FAIL="u/**/+0/**/?" => "U+0-F"
-FAIL="u/**/+0a/**/?" => "U+A0-AF"
-FAIL="u/**/0" is invalid
-FAIL=u+a is a valid selector
 [css/css-syntax/url-whitespace-consumption.html]
 FAIL=whitespace is optional between url( token and the string token
 [css/css-syntax/var-with-blocks.html]
-FAIL=In-block var() with leading token
-FAIL=In-block var() with leading token (custom property)
-FAIL=In-block var() with trailing token
-FAIL=In-block var() with trailing token (custom property)
-FAIL=Leading block, trailing var()
-FAIL=Leading block, trailing var() (custom property)
 FAIL=Plain var()
-FAIL=Plain var() (custom property)
-FAIL=Trailing block, leading var()
-FAIL=Trailing block, leading var() (custom property)
 FAIL=Whole-value block with var()
-FAIL=Whole-value block with var() (custom property)
 FAIL=Whole-value block with var() (spaces)
-FAIL=Whole-value block with var() (spaces, custom property)
 [css/css-tables/absolute-tables-001.html]
 FAIL=.tbl 1
 FAIL=.tbl 2
@@ -73635,8 +73294,6 @@ FAIL=Values of CSSImportRule attributes
 FAIL=Values of CSSRule attributes
 [css/cssom/cssom-fontfacerule-constructors.html]
 FAIL=The style attribute must return a CSSFontFaceDescriptors block
-[css/cssom/cssom-fontfacerule.html]
-FAIL=CSSStyleDeclaration values are represented within CSSFontFaceRule
 [css/cssom/cssom-pagerule.html]
 FAIL=Set selectorText to named page after rule was removed
 [css/cssom/cssstyledeclaration-all-shorthand.html]
@@ -73911,16 +73568,6 @@ FAIL=CSSPageDescriptors properties tests
 FAIL=Preferred stylesheet where insertion order is reversed tree order
 [css/cssom/preferred-stylesheet-reversed-order.html]
 FAIL=Preferred stylesheet where insertion order is tree order
-[css/cssom/property-accessors.html]
-FAIL=-apple-color-filter
-FAIL=-apple-pay-button-style
-FAIL=-epub-writing-mode
-FAIL=-webkit-flex
-FAIL=gap
-FAIL=grid-gap
-FAIL=overscroll-behavior
-FAIL=src
-FAIL=unicode-range
 [css/cssom/resolved-border-width.html]
 FAIL=checkbox
 FAIL=radio
@@ -73941,16 +73588,8 @@ FAIL=escaped character in attribute prefix
 FAIL=escaped character in both attribute prefix and name
 FAIL=single pseudo (simple) selector "lang" which accepts arguments in the sequence of simple selectors that is not a universal selector
 [css/cssom/serialize-custom-props.html]
-FAIL=An <integer> custom prop can take a 12-digit integer
 FAIL=An <integer> custom prop can take a 25-digit integer
-FAIL=An <integer> custom prop can take a 4-digit integer
-FAIL=An <integer> custom prop can take a 6-digit integer
-FAIL=An <integer> custom prop can take a 8-digit integer
-FAIL=An unregistered custom prop can take a 12-digit integer
 FAIL=An unregistered custom prop can take a 25-digit integer
-FAIL=An unregistered custom prop can take a 4-digit integer
-FAIL=An unregistered custom prop can take a 6-digit integer
-FAIL=An unregistered custom prop can take a 8-digit integer
 FAIL=z-index can take a 12-digit integer
 FAIL=z-index can take a 25-digit integer
 [css/cssom/serialize-media-rule.html]
