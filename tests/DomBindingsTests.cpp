@@ -1987,6 +1987,47 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "TypeError");
   });
 
+  AddTest(tests, "DomBindings/FileReaderReadsABlobAsText", [] {
+    Bound bound = Bind("<body></body>");
+    bindings::TimerQueue timers;
+    timers.Install(*bound.interpreter, 0);
+    bound.interpreter->Run(
+        "globalThis.seen = '';"
+        "globalThis.reader = new FileReader();"
+        "reader.onload = () => { seen = reader.readyState + ':' + reader.result };"
+        "reader.readAsText(new Blob(['hello']));");
+    ExpectEqString(js::ToString(bound.interpreter->Run("reader.readyState").value), "1",
+                   "LOADING after readAsText");
+    Expect(timers.RunDue(*bound.interpreter, 0), "loadstart is a host task");
+    Expect(timers.RunDue(*bound.interpreter, 0), "completion is a later turn");
+    ExpectEqString(js::ToString(bound.interpreter->Run("seen").value), "2:hello",
+                   "load fires with DONE and the body");
+    ExpectEqString(
+        js::ToString(bound.interpreter->Run(
+                         "(() => { try { FileReader(); return 'no' } catch (e) { return e.name } })() + "
+                         "',' + FileReader.EMPTY + FileReader.LOADING + FileReader.DONE")
+                         .value),
+        "TypeError,012", "requires new; constants on the constructor");
+  });
+
+  AddTest(tests, "DomBindings/FileReaderAbortDuringLoadstart", [] {
+    Bound bound = Bind("<body></body>");
+    bindings::TimerQueue timers;
+    timers.Install(*bound.interpreter, 0);
+    bound.interpreter->Run(
+        "globalThis.order = [];"
+        "const r = new FileReader();"
+        "r.onloadstart = () => { order.push('start'); r.abort(); };"
+        "r.onabort = () => order.push('abort');"
+        "r.onload = () => order.push('load');"
+        "r.onloadend = () => order.push('end:' + (r.result === null));"
+        "r.readAsText(new Blob(['x']));");
+    timers.RunDue(*bound.interpreter, 0);
+    timers.RunDue(*bound.interpreter, 0);
+    ExpectEqString(js::ToString(bound.interpreter->Run("order.join(',')").value),
+                   "start,abort,end:true", "abort+loadend sync in loadstart; no load");
+  });
+
   AddTest(tests, "DomBindings/IframeInsertCompletesEsmsFeatureDetection", [] {
     auto document = html::ParseDocument("<html><head></head><body></body></html>");
     auto interpreter = std::make_unique<js::Interpreter>();

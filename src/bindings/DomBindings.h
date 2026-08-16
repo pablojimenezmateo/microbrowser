@@ -630,6 +630,7 @@ class DomBindings {
   void InstallMediaSource();
   void InstallObjectUrls();
   void InstallBlob();
+  void InstallFileReader(); friend struct FileReaderAccess;
   bool IsBlobValue(const js::Value& value) const;
   std::string BlobBodyOf(const js::Value& blob) const;
   std::string BlobTypeOf(const js::Value& blob) const;

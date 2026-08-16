@@ -490,6 +490,7 @@ void DomBindings::InstallBlob() {
     interpreter_->Global()->Set("File", file_constructor);
     interpreter_->GlobalScope()->Declare("File", file_constructor, false);
   }
+  InstallFileReader();
 }
 
 bool DomBindings::IsBlobValue(const js::Value& value) const { return IsBlob(value); }
