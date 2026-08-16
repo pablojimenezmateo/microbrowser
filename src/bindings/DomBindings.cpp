@@ -647,6 +647,16 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
                        Matches(static_cast<dom::Element&>(*self),
                                js::ToString(Argument(call.arguments, 0))));
   });
+  // The prefixed spelling every engine still ships. The selectors suite has a
+  // whole file that is `matches` with this name, and without the alias every
+  // subtest is `el.webkitMatchesSelector is not a function` rather than a
+  // selector question.
+  method("webkitMatchesSelector", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    return Value::Bool(self != nullptr && self->IsElement() &&
+                       Matches(static_cast<dom::Element&>(*self),
+                               js::ToString(Argument(call.arguments, 0))));
+  });
   method("closest", [](NativeCall& call) {
     // This element or the nearest ancestor that matches, which is how a
     // click handler finds the row a button is in.

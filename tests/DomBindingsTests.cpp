@@ -1483,6 +1483,8 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage, "document.getElementsByClassName('head').length", "1");
     ExpectScript(kPage, "document.getElementById('title').matches('.big')", "true");
     ExpectScript(kPage, "document.getElementById('title').matches('.bi')", "false");
+    ExpectScript(kPage, "document.getElementById('title').webkitMatchesSelector('.big')", "true");
+    ExpectScript(kPage, "document.getElementById('title').webkitMatchesSelector('.bi')", "false");
     // `closest` is this element or the nearest ancestor, which is how a click
     // handler finds the row a button is in.
     ExpectScript(kPage, "document.querySelector('p').closest('#list').tagName", "DIV");
