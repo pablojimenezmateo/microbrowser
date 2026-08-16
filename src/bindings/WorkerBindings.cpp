@@ -71,6 +71,10 @@ void DomBindings::InstallWorkerScope() {
   // under ADR 0012's rule a script that finds a name and gets something that never answers has no
   // fallback left.
   InstallStructuredClone();
+  // `DOMException` is a WorkerGlobalScope name. Without it,
+  // `new URLSearchParams(DOMException)` in a worker is `new URLSearchParams(undefined)`
+  // rather than a record of the legacy code constants.
+  InstallDomException(*interpreter_);
   InstallUrlConstructor();
   InstallUrlSearchParams();
   InstallTextEncoding();

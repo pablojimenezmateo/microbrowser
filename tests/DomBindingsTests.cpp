@@ -2081,6 +2081,10 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
       worker.InstallWorkerScope();
       ExpectEqString(js::ToString(interpreter->Run("typeof MessageChannel").value), "function",
                      "workers expose MessageChannel");
+      ExpectEqString(js::ToString(interpreter->Run("typeof DOMException").value), "function",
+                     "workers expose DOMException");
+      ExpectEqString(js::ToString(interpreter->Run("DOMException.INDEX_SIZE_ERR").value), "1",
+                     "and its legacy constants");
       ExpectEqString(js::ToString(interpreter
                                       ->Run("const buffer = new ArrayBuffer(4);"
                                             "new Uint8Array(buffer)[0] = 65;"
@@ -2555,6 +2559,11 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage, "new URLSearchParams({x: '1', y: '2'}).toString()", "x=1&y=2");
     ExpectScript(kPage, "new URLSearchParams([['k','v'],['k','w']]).toString()", "k=v&k=w");
     ExpectScript(kPage, "new URLSearchParams().toString()", "");
+    // Web IDL readonly: assignment throws even without 'use strict'.
+    ExpectScript(kPage,
+                 "try { new URL('http://example.org/').searchParams = 1; 'no' } "
+                 "catch (e) { e.name }",
+                 "TypeError");
     // A copy, not an alias: writing to one must not show up in the other.
     ExpectScript(kPage,
                  "const a = new URLSearchParams('n=1'); const b = new URLSearchParams(a);"

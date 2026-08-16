@@ -340,9 +340,19 @@ void DomBindings::InstallUrlConstructor() {
         }
         return params;
       });
+  // Web IDL readonly: assignment throws TypeError even in sloppy mode. A
+  // getter-only accessor would be a silent no-op here, and
+  // `url.searchParams = x` is how the suite asks whether the attribute is
+  // actually readonly.
+  const Value search_params_set = interpreter_->NewNativeValue(
+      "searchParams", [](NativeCall& call) -> Value {
+        return call.Throw("TypeError", "Cannot set property searchParams which has only a getter");
+      });
   if (search_params_get.IsObject()) {
     search_params_get.object->Set(kOwnerSlot, OwnerValue(this));
-    prototype.object->DefineAccessor("searchParams", search_params_get.object, nullptr);
+    prototype.object->DefineAccessor("searchParams", search_params_get.object,
+                                     search_params_set.IsObject() ? search_params_set.object
+                                                                  : nullptr);
   }
 
   // `toString` and `toJSON` both answer with `href`, which is what makes a URL usable everywhere a
