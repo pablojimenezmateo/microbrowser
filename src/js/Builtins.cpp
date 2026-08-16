@@ -155,11 +155,14 @@ Object* Interpreter::NewNative(const char* name, NativeFunction function) {
   }
   object->SetPrototype(intrinsics().function_prototype);
   object->MakeNative(std::move(function));
-  // Non-enumerable, which is what the specification says a function's `name` is -- and it matters
-  // beyond tidiness. Anything that walks an object's own enumerable keys (`Object.keys`, a spread,
-  // Web IDL's `record` conversion) would otherwise find `name` on every function and on every
-  // interface object; `new URLSearchParams(DOMException)` is where that was noticed.
-  object->SetHidden("name", Value::String(name));
+  // Own, non-enumerable, non-writable: that is what a function's `name` is, and
+  // idlharness checks all three. Hidden-only made `URL.name` unwritable in
+  // appearance to `for...in` but `writable: true` on the descriptor.
+  Object::Property name_property;
+  name_property.value = Value::String(name);
+  name_property.writable = false;
+  name_property.enumerable = false;
+  object->Define("name", std::move(name_property));
   return object;
 }
 

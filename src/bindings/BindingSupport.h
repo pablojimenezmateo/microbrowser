@@ -700,9 +700,14 @@ bool IsCharacterDataNode(const dom::Node& node);
 // general gap -- every native binding should carry its IDL arity -- is written
 // down here because this is where the next person will look.
 inline void SetFunctionLength(const js::Value& function, double length) {
-  if (function.IsObject()) {
-    function.object->Set("length", js::Value::Number(length));
+  if (!function.IsObject()) {
+    return;
   }
+  js::Object::Property property;
+  property.value = js::Value::Number(length);
+  property.writable = false;
+  property.enumerable = false;
+  function.object->Define("length", std::move(property));
 }
 
 // Web IDL interface objects, `.prototype.constructor`, and the global's copy
