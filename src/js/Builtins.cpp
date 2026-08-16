@@ -367,25 +367,49 @@ void Interpreter::InstallGlobals() {
     if (converted.IsAbrupt()) {
       return call.ThrowValue(converted.value);
     }
+    const auto present = [&descriptor](const char* name) {
+      return descriptor.object->GetProperty(name) != nullptr;
+    };
     const auto flag = [&call, &descriptor](const char* name) {
       const Value read = call.interpreter.GetPropertyValue(descriptor, name);
       return ToBoolean(read);
     };
+    // A *new* property defaults every omitted attribute to false, which is
+    // defineProperty's whole difference from assignment. An *existing*
+    // configurable property keeps whatever the descriptor does not name:
+    // `{value: "Test"}` on a configurable @@toStringTag must not clear
+    // configurable, or `delete obj[Symbol.toStringTag]` then fails.
     Object::Property property;
-    property.enumerable = flag("enumerable");
-    property.configurable = flag("configurable");
+    if (const Object::Property* current = target.object->GetOwnProperty(key)) {
+      property = *current;
+    } else {
+      property.enumerable = false;
+      property.configurable = false;
+      property.writable = false;
+    }
+    if (present("enumerable")) {
+      property.enumerable = flag("enumerable");
+    }
+    if (present("configurable")) {
+      property.configurable = flag("configurable");
+    }
     const Value getter = call.interpreter.GetPropertyValue(descriptor, "get");
     const Value setter = call.interpreter.GetPropertyValue(descriptor, "set");
-    if (getter.IsObject() || setter.IsObject()) {
+    if (present("get") || present("set")) {
       property.getter = getter.IsObject() ? getter.object : nullptr;
       property.setter = setter.IsObject() ? setter.object : nullptr;
-      // An accessor has no `writable`; a setter is what makes it assignable.
-      property.writable = true;
+      property.value = Value::Undefined();
       target.object->Define(std::move(key), std::move(property));
       return target;
     }
-    property.writable = flag("writable");
-    property.value = call.interpreter.GetPropertyValue(descriptor, "value");
+    if (present("writable")) {
+      property.writable = flag("writable");
+    }
+    if (present("value")) {
+      property.value = call.interpreter.GetPropertyValue(descriptor, "value");
+      property.getter = nullptr;
+      property.setter = nullptr;
+    }
     target.object->Define(std::move(key), std::move(property));
     return target;
   });

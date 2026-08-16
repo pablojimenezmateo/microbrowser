@@ -2501,6 +2501,13 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     // An array's indices live in element storage rather than the property map,
     // so they have to be listed separately or they go missing.
     ExpectEval("Object.getOwnPropertyNames([7, 8]).join(',')", "0,1,length");
+    // An incomplete descriptor on an existing property keeps the attributes it
+    // does not name. `{value: 2}` must not clear configurable, or a later
+    // `delete` fails -- which is how console's @@toStringTag tests were lost.
+    ExpectEval("const o = {}; Object.defineProperty(o, 'x', { value: 1, configurable: true }); "
+               "Object.defineProperty(o, 'x', { value: 2 }); "
+               "delete o.x",
+               "true");
   });
 
   AddTest(tests, "JsInterpreter/ObjectPrototypeHasItsOwnMethods", [] {
