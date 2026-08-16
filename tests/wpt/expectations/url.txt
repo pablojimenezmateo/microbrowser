@@ -2,5 +2,3 @@
 harness=TIMEOUT
 [url/javascript-urls.window.html]
 harness=TIMEOUT
-[url/percent-encoding.window.html]
-FAIL=Input A with encoding iso-2022-jp
