@@ -4028,7 +4028,8 @@ document.addEventListener("DOMContentLoaded",async function(){var e=document.for
                    "importScripts('/lib.js');"
                    "postMessage('lib=' + LIB + ' scope=' +"
                    "  (self instanceof DedicatedWorkerGlobalScope) + ',' +"
-                   "  (self instanceof WorkerGlobalScope) + ' path=' + location.pathname);"
+                   "  (self instanceof WorkerGlobalScope) + ' hop=' +"
+                   "  (typeof self.hasOwnProperty) + ' path=' + location.pathname);"
                    // A timer on the worker's own thread, and a listener rather than a property.
                    "setTimeout(function() { postMessage('timer'); }, 1);"
                    "self.addEventListener('message', function(e) { postMessage('echo:' + e.data); });"
@@ -4068,6 +4069,8 @@ document.addEventListener("DOMContentLoaded",async function(){var e=document.for
            "importScripts ran the script and the *next line* saw what it defined: " + log);
     Expect(log.find("scope=true,true ") != std::string::npos,
            "the global is a DedicatedWorkerGlobalScope and a WorkerGlobalScope: " + log);
+    Expect(log.find("hop=function ") != std::string::npos,
+           "Object.prototype stays on the worker global's chain: " + log);
     Expect(log.find("path=/w.js") != std::string::npos,
            "and `location` is the worker's own URL, parsed on the main thread: " + log);
     Expect(log.find("got:timer") != std::string::npos,

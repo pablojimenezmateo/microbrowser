@@ -184,9 +184,12 @@ void WorkerScope::InstallGlobalScopeTypes() {
   if (!worker_proto.IsObject() || !dedicated_proto.IsObject() || global == nullptr) {
     return;
   }
-  // Object.prototype stays at the end of the chain: the global is still an ordinary object and
-  // `self.hasOwnProperty` must keep working.
-  worker_proto.object->SetPrototype(global->Prototype());
+  // Object.prototype stays at the end of the chain. NewObject already put it
+  // there; copying `global->Prototype()` would *remove* it, because PopulateRealm
+  // allocates the global with no prototype. The window path then sets Window.prototype
+  // (NodeInterfaces); a worker that copied the still-null prototype made
+  // `self.hasOwnProperty` undefined, which is how testharness.js died on
+  // console-is-a-namespace.any.worker.html.
   dedicated_proto.object->SetPrototype(worker_proto.object);
   global->SetPrototype(dedicated_proto.object);
 
