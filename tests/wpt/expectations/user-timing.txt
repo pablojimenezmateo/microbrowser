@@ -8,29 +8,6 @@ harness=TIMEOUT
 FAIL=mark entries' detail and startTime are customizable.
 [user-timing/mark.html]
 harness=TIMEOUT
-[user-timing/measure-exceptions.html]
-FAIL=Passing 'domComplete' as a mark to measure API should cause error when the mark is empty.
-FAIL=Passing 'domContentLoadedEventEnd' as a mark to measure API should cause error when the mark is empty.
-FAIL=Passing 'domContentLoadedEventStart' as a mark to measure API should cause error when the mark is empty.
-FAIL=Passing 'domInteractive' as a mark to measure API should cause error when the mark is empty.
-FAIL=Passing 'loadEventEnd' as a mark to measure API should cause error when the mark is empty.
-FAIL=Passing 'loadEventStart' as a mark to measure API should cause error when the mark is empty.
-FAIL=Passing 'redirectEnd' as a mark to measure API should cause error when the mark is empty.
-FAIL=Passing 'redirectStart' as a mark to measure API should cause error when the mark is empty.
-FAIL=Passing 'secureConnectionStart' as a mark to measure API should cause error when the mark is empty.
-FAIL=Passing 'unloadEventEnd' as a mark to measure API should cause error when the mark is empty.
-FAIL=Passing 'unloadEventStart' as a mark to measure API should cause error when the mark is empty.
-FAIL=Passing 51.15 as a mark to measure API should cause error.
-FAIL=Passing DoesNotExist as a mark to measure API should cause error.
-[user-timing/measure-l3.any.html]
-FAIL=When the end mark is given and the start is unprovided, the end time of the measure entry should be the end mark's time, the start time should be 0.
-FAIL=When the start mark is given and the end is unprovided, the start time of the measure entry should be the start mark's time, the end should be now.
-[user-timing/measure-l3.any.worker.html]
-FAIL=When the end mark is given and the start is unprovided, the end time of the measure entry should be the end mark's time, the start time should be 0.
-FAIL=When the start mark is given and the end is unprovided, the start time of the measure entry should be the start mark's time, the end should be now.
-[user-timing/measure-with-dict.any.html]
-FAIL=measure entries' detail and start/end are customizable
-FAIL=measure should throw a TypeError when passed an invalid argument combination
 [user-timing/measure-with-dict.any.worker.html]
 FAIL=measure entries' detail and start/end are customizable
 FAIL=measure should throw a TypeError when passed an invalid argument combination
@@ -38,56 +15,9 @@ FAIL=measure should throw a TypeError when passed an invalid argument combinatio
 harness=TIMEOUT
 [user-timing/measure_associated_with_navigation_timing.html]
 harness=TIMEOUT
-[user-timing/measure_exception.html]
-FAIL=Invocation of performance.measure("Exception1", "NonExistMark1") should throw SYNTAX_ERR Exception.
-FAIL=Invocation of performance.measure("Exception2", "NonExistMark1", "navigationStart") should throw SYNTAX_ERR Exception.
-FAIL=Invocation of performance.measure("Exception3", "navigationStart", "NonExistMark1") should throw SYNTAX_ERR Exception.
-FAIL=Invocation of performance.measure("Exception4", "NonExistMark1", "ExistMark") should throw SYNTAX_ERR Exception.
-FAIL=Invocation of performance.measure("Exception5", "ExistMark", "NonExistMark1") should throw SYNTAX_ERR Exception.
-FAIL=Invocation of performance.measure("Exception6", "NonExistMark1", "NonExistMark2") should throw SYNTAX_ERR Exception.
-FAIL=Invocation of performance.measure("Exception7", "redirectStart") should throw INVALID_ACCESS_ERR Exception.
-FAIL=Invocation of performance.measure("Exception8", {"detail": "non-empty"}) should throw TypeError Exception.
-FAIL=Invocation of performance.measure("Exception9", {"start": 1, "duration": 2, "end": 3}) should throw TypeError Exception.
-FAIL=Invocation of performance.measure() should throw TypeError Exception.
-[user-timing/measure_exceptions_navigation_timing.html]
-FAIL=window.performance.measure("measure", "loadEventEnd"), where "loadEventEnd" is a navigation timing attribute with a value of 0, throws a InvalidAccessError exception.
-FAIL=window.performance.measure("measure", "loadEventEnd", "loadEventEnd"), where "loadEventEnd" is a navigation timing attribute with a value of 0, throws a InvalidAccessError exception.
-FAIL=window.performance.measure("measure", "loadEventEnd", "responseEnd"), where "loadEventEnd" is a navigation timing attribute with a value of 0, throws a InvalidAccessError exception.
-FAIL=window.performance.measure("measure", "navigationStart", "loadEventEnd"), where "loadEventEnd" is a navigation timing attribute with a value of 0, throws a InvalidAccessError exception.
 [user-timing/measure_navigation_timing.html]
 harness=TIMEOUT
-[user-timing/measure_syntax_err.any.html]
-FAIL=self.performance.measure("measure", "existing_mark", "mark"), where "mark" is a non-existent mark, throws a SyntaxError exception.
-FAIL=self.performance.measure("measure", "mark"), where "mark" is a non-existent mark, throws a SyntaxError exception.
-FAIL=self.performance.measure("measure", "mark", "existing_mark"), where "mark" is a non-existent mark, throws a SyntaxError exception.
-FAIL=self.performance.measure("measure", "mark", "mark"), where "mark" is a non-existent mark, throws a SyntaxError exception.
-[user-timing/measure_syntax_err.any.worker.html]
-FAIL=self.performance.measure("measure", "existing_mark", "mark"), where "mark" is a non-existent mark, throws a SyntaxError exception.
-FAIL=self.performance.measure("measure", "mark"), where "mark" is a non-existent mark, throws a SyntaxError exception.
-FAIL=self.performance.measure("measure", "mark", "existing_mark"), where "mark" is a non-existent mark, throws a SyntaxError exception.
-FAIL=self.performance.measure("measure", "mark", "mark"), where "mark" is a non-existent mark, throws a SyntaxError exception.
 [user-timing/measures.html]
 harness=TIMEOUT
-[user-timing/performance-measure-invalid.worker.html]
-FAIL=When converting 'navigationStart' to a timestamp and a mark named 'navigationStart' exists, the global object has to be a Window object.
-FAIL=When converting 'navigationStart' to a timestamp, the global object has to be a Window object.
-[user-timing/structured-serialize-detail.any.html]
-FAIL=Mark: Throw an exception when the detail property cannot be structured-serialized.
-FAIL=Measure: Throw an exception when the detail property cannot be structured-serialized.
-FAIL=The detail object is cloned when passed to mark API.
-FAIL=The detail property in the mark constructor should be structured-clone.
-FAIL=The detail property in the mark method should be structured-clone.
-FAIL=The detail property in the measure method should be structured-clone.
-FAIL=When accessing detail from a mark entry and the detail is not provided, just return a null value.
-FAIL=When accessing detail from a measure entry and the detail is not provided, just return a null value.
-[user-timing/structured-serialize-detail.any.worker.html]
-FAIL=Mark: Throw an exception when the detail property cannot be structured-serialized.
-FAIL=Measure: Throw an exception when the detail property cannot be structured-serialized.
-FAIL=The detail object is cloned when passed to mark API.
-FAIL=The detail property in the mark constructor should be structured-clone.
-FAIL=The detail property in the mark method should be structured-clone.
-FAIL=The detail property in the measure method should be structured-clone.
-FAIL=When accessing detail from a mark entry and the detail is not provided, just return a null value.
-FAIL=When accessing detail from a measure entry and the detail is not provided, just return a null value.
 [user-timing/supported-usertiming-types.any.worker.html]
 harness=TIMEOUT
