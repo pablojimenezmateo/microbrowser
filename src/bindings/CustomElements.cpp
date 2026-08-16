@@ -22,6 +22,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/TagInterfaces.h"
 #include "util/PerformanceCounters.h"
 
 namespace microbrowser::bindings {
@@ -45,11 +46,10 @@ constexpr const char* kUpgradedSlot = "#upgraded";
 // The specification's own state, in the only per-element place this module has.
 constexpr const char* kConnectedSlot = "#connected";
 
-// A custom element name has a dash. That is the whole rule, and it is what
-// keeps a page from redefining `<div>`.
-bool IsValidCustomElementName(const std::string& name) {
-  return !name.empty() && name.front() != '-' && name.find('-') != std::string::npos;
-}
+// A custom element name is HTML's production, not "contains a dash". The
+// dash is what keeps a page from redefining `<div>`; the rest is what keeps
+// `Foo-bar` and `font-face` from registering. The check lives in TagInterfaces.h
+// so createElement and define cannot disagree.
 
 js::Object* WhenDefinedPending(js::Interpreter& interpreter, js::Object& registry) {
   const Value* existing = registry.GetOwn(kWhenDefinedPendingSlot);
@@ -418,11 +418,12 @@ void DomBindings::InstallCustomElements() {
     if (owner == nullptr) {
       return Value::Undefined();
     }
-    const std::string name = LowerCase(js::ToString(Argument(call.arguments, 0)));
+    const std::string name = js::ToString(Argument(call.arguments, 0));
     const Value constructor = Argument(call.arguments, 1);
     if (!IsValidCustomElementName(name)) {
-      // The dash rule, enforced rather than assumed: without it a page could
-      // redefine `div` and every element in the document would be upgraded.
+      // The production, enforced rather than assumed: without the dash a page
+      // could redefine `div`; without the rest, `Foo-bar` and `font-face` would
+      // register. Folding case first is how the former became the latter.
       return ThrowDom(call, "SyntaxError", "'" + name + "' is not a valid custom element name");
     }
     if (!constructor.IsObject() || !constructor.object->IsCallable()) {
@@ -473,9 +474,19 @@ void DomBindings::InstallCustomElements() {
     if (owner == nullptr) {
       return Value::Undefined();
     }
-    const std::string name = LowerCase(js::ToString(Argument(call.arguments, 0)));
+    const std::string name = js::ToString(Argument(call.arguments, 0));
     if (!IsValidCustomElementName(name)) {
-      return call.Throw("TypeError", "'" + name + "' is not a valid custom element name");
+      // A rejected promise, not a throw: the specification returns one, and
+      // `promise_rejects_dom` is what the registries suite uses to read it.
+      const Value promise = call.interpreter.NewPromiseValue();
+      if (promise.IsObject()) {
+        call.interpreter.SettleAsyncResult(
+            promise.object,
+            MakeDomException(call.interpreter, "SyntaxError",
+                             "'" + name + "' is not a valid custom element name"),
+            true);
+      }
+      return promise;
     }
     const Value registry_object = owner->CustomElementRegistry();
     if (!registry_object.IsObject()) {
@@ -517,7 +528,7 @@ void DomBindings::InstallCustomElements() {
       return Value::Undefined();
     }
     const Value* definition =
-        registry_object.object->GetOwn(LowerCase(js::ToString(Argument(call.arguments, 0))));
+        registry_object.object->GetOwn(js::ToString(Argument(call.arguments, 0)));
     if (definition == nullptr || !definition->IsObject()) {
       return Value::Undefined();
     }

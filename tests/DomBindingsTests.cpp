@@ -701,12 +701,39 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "e.setAttribute('other', 'z'); log.join('|')",
                  "v:null->1|v:1->2");
 
-    // The dash rule, enforced: without it a page could redefine `div` and
-    // every element in the document would be upgraded.
+    // HTML's production, not "contains a dash": without the dash a page could
+    // redefine `div`; without the rest, `Foo-bar` and `font-face` would register.
     ExpectScript(kPage,
                  "(() => { try { customElements.define('div', class extends HTMLElement {}) }"
                  "  catch (e) { return e.name } })()",
                  "SyntaxError");
+    ExpectScript(kPage,
+                 "(() => { try { customElements.define('Foo-bar', class extends HTMLElement {}) }"
+                 "  catch (e) { return e.name } })()",
+                 "SyntaxError");
+    ExpectScript(kPage,
+                 "(() => { try { customElements.define('font-face', class extends HTMLElement {}) }"
+                 "  catch (e) { return e.name } })()",
+                 "SyntaxError");
+    ExpectScript(kPage,
+                 "(() => { class A extends HTMLElement {} customElements.define('a-0', A);"
+                 "  return customElements.get('a-0') === A })()",
+                 "true");
+    ExpectScript(kPage,
+                 "(() => { class A extends HTMLElement {}"
+                 "  customElements.define('annotation-xml-custom', A);"
+                 "  return customElements.get('annotation-xml-custom') === A })()",
+                 "true");
+    {
+      Bound bound = Bind(kPage);
+      (void)bound.interpreter->Run(
+          "customElements.whenDefined('div').then("
+          "  function(){ globalThis._wd = 'ok' },"
+          "  function(e){ globalThis._wd = e.name });");
+      bound.interpreter->DrainMicrotasks();
+      ExpectEqString(js::ToString(bound.interpreter->Run("globalThis._wd").value), "SyntaxError",
+                     "whenDefined rejects invalid names with a SyntaxError promise");
+    }
     ExpectScript(kPage,
                  "(() => { class A extends HTMLElement {} customElements.define('x-a', A);"
                  "  try { customElements.define('x-a', A) } catch (e) { return e.name } })()",

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <string_view>
 
 // **Which tag gets which interface**, and nothing else.
@@ -148,30 +149,47 @@ constexpr std::string_view kPlainHtmlElements[] = {
     "small", "strike", "strong", "sub", "summary", "sup", "tt", "u", "var", "wbr"
 };
 
-// A valid custom element name, which HTML gives `HTMLElement` rather than `HTMLUnknownElement`:
-// starts with a lowercase ASCII letter, contains a hyphen, and holds no uppercase. `foo-bar` is
-// one and `foo-BAR` is not -- the suite tests exactly that pair, because a name a page *cannot*
-// register must not answer as though it could.
+// A valid custom element name: ASCII-lowercase, contains a hyphen, is an HTML
+// element local name (no whitespace, NUL, `/` or `>`), and is not one of the
+// SVG names HTML reserves. Folding case *before* this check is how `Foo-bar`
+// became registerable; the registries suite is 1,753 names that exist to
+// catch exactly that. `foo-bar` is one and `foo-BAR` is not.
 inline bool IsValidCustomElementName(std::string_view tag) {
   if (tag.empty() || tag.front() < 'a' || tag.front() > 'z') {
     return false;
   }
   bool hyphen = false;
-  for (const char c : tag) {
+  for (std::size_t i = 0; i < tag.size(); ++i) {
+    const auto c = static_cast<unsigned char>(tag[i]);
     if (c == '-') {
       hyphen = true;
     }
-    if (c >= 'A' && c <= 'Z') {
+    if ((c >= 'A' && c <= 'Z') || c == '\0' || c == '\t' || c == '\n' || c == '\f' ||
+        c == '\r' || c == ' ' || c == '/' || c == '>') {
       return false;
     }
   }
-  return hyphen;
+  if (!hyphen) {
+    return false;
+  }
+  // HTML's "not one of these" list. Each would otherwise pass the production
+  // above; they are SVG element names, and a page that registered `font-face`
+  // would shadow a real one.
+  static constexpr std::string_view kReserved[] = {
+      "annotation-xml", "color-profile",    "font-face",        "font-face-src",
+      "font-face-uri",  "font-face-format", "font-face-name",   "missing-glyph"};
+  for (const std::string_view reserved : kReserved) {
+    if (tag == reserved) {
+      return false;
+    }
+  }
+  return true;
 }
 
 // The interface for `tag`, or `"HTMLUnknownElement"` when HTML defines no element by that name.
 // Never the empty string: the caller used to read one as "HTMLElement", which is the answer that
 // hid this whole distinction.
-const char* InterfaceForTag(std::string_view tag) {
+inline const char* InterfaceForTag(std::string_view tag) {
   for (const TagInterface& entry : kTagInterfaces) {
     if (entry.tag == tag) {
       return entry.interface;
