@@ -120,6 +120,20 @@ void RegisterWptHandlerTests(std::vector<TestCase>& tests) {
            "html.escape quotes the label, so a quote in it cannot break the attribute");
   });
 
+  AddTest(tests, "WptHandlers/UrlPercentEncodingPyEmitsNumericReferences", [] {
+    // url/resources/percent-encoding.py: the query-encoding iframe tests fetch
+    // this. `QQ==` is base64("A"); the file turns each code point into a numeric
+    // character reference so the HTML parser, not this handler, does the encoding.
+    wpt::Stash stash;
+    const HandlerResponse page = wpt::RunHandler(
+        Get("url/resources/percent-encoding.py", "encoding=utf-8&value=QQ=="), stash);
+    Expect(page.handled, "percent-encoding.py is on the list");
+    Expect(HeaderOf(page, "Content-Type") == "text/html;charset=utf-8",
+           "and Content-Type carries the encoding it was asked for");
+    Expect(page.body.find("?&#x41;#&#x41;") != std::string::npos,
+           "A is U+0041, twice: query and fragment");
+  });
+
   AddTest(tests, "WptHandlers/DefaultsAreTheOnesTheFilesWrite", [] {
     wpt::Stash stash;
     // common/slow.py: `float(request.GET.first(b"delay", 2000))`.

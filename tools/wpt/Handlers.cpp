@@ -5,8 +5,12 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdint>
 #include <cstdlib>
+#include <optional>
 #include <string>
+
+#include "util/Base64.h"
 
 namespace microbrowser::wpt {
 
@@ -892,6 +896,89 @@ HandlerResponse DomNodesEncodingHandler(const Query& query) {
   return response;
 }
 
+// --- url/resources/percent-encoding.py --------------------------------------
+//
+//   value = request.GET.first(b"value").replace(b" ", b"+")
+//   encoding = request.GET.first(b"encoding")
+//   output_value = numeric_references(base64.b64decode(value).decode("utf-8"))
+//   return ([(b"Content-Type", b"text/html;charset=" + encoding)],
+//           b"""<!doctype html>
+//   <a href="https://doesnotmatter.invalid/?%s#%s">test</a>
+//   """ % (output_value, output_value))
+//
+// Numeric references rather than encoded bytes, so the HTML parser inserts the
+// code points and this handler does not have to implement the Encoding Standard.
+std::string NumericCharacterReferences(std::string_view utf8) {
+  std::string out;
+  out.reserve(utf8.size() * 8);
+  const auto hex = [](std::uint32_t cp) {
+    std::string digits;
+    if (cp == 0) {
+      return std::string("0");
+    }
+    char buf[8];
+    int n = 0;
+    while (cp != 0 && n < 8) {
+      buf[n++] = "0123456789ABCDEF"[cp & 15];
+      cp >>= 4;
+    }
+    while (n > 0) {
+      digits.push_back(buf[--n]);
+    }
+    return digits;
+  };
+  for (std::size_t i = 0; i < utf8.size();) {
+    const unsigned char lead = static_cast<unsigned char>(utf8[i]);
+    std::uint32_t cp = 0;
+    std::size_t width = 1;
+    if (lead < 0x80) {
+      cp = lead;
+    } else if (lead < 0xE0 && i + 1 < utf8.size()) {
+      width = 2;
+      cp = (static_cast<std::uint32_t>(lead & 0x1F) << 6) |
+           (static_cast<unsigned char>(utf8[i + 1]) & 0x3F);
+    } else if (lead < 0xF0 && i + 2 < utf8.size()) {
+      width = 3;
+      cp = (static_cast<std::uint32_t>(lead & 0x0F) << 12) |
+           ((static_cast<unsigned char>(utf8[i + 1]) & 0x3F) << 6) |
+           (static_cast<unsigned char>(utf8[i + 2]) & 0x3F);
+    } else if (lead < 0xF8 && i + 3 < utf8.size()) {
+      width = 4;
+      cp = (static_cast<std::uint32_t>(lead & 0x07) << 18) |
+           ((static_cast<unsigned char>(utf8[i + 1]) & 0x3F) << 12) |
+           ((static_cast<unsigned char>(utf8[i + 2]) & 0x3F) << 6) |
+           (static_cast<unsigned char>(utf8[i + 3]) & 0x3F);
+    } else {
+      cp = 0xFFFD;
+    }
+    out += "&#x";
+    out += hex(cp);
+    out += ";";
+    i += width;
+  }
+  return out;
+}
+
+HandlerResponse UrlPercentEncodingHandler(const Query& query) {
+  HandlerResponse response;
+  response.handled = true;
+  // QueryFirst already maps `+` to space (application/x-www-form-urlencoded).
+  // The Python then maps spaces back to `+` so base64 still sees the alphabet.
+  std::string value = QueryFirst(query, "value");
+  for (char& c : value) {
+    if (c == ' ') {
+      c = '+';
+    }
+  }
+  const std::string encoding = QueryFirst(query, "encoding");
+  const std::optional<std::string> decoded = util::Base64Decode(value);
+  const std::string refs = NumericCharacterReferences(decoded.value_or(std::string()));
+  SetHeader(response, "Content-Type", "text/html;charset=" + encoding);
+  response.body = "<!doctype html>\n<a href=\"https://doesnotmatter.invalid/?" + refs + "#" +
+                  refs + "\">test</a>\n";
+  return response;
+}
+
 }  // namespace
 
 HandlerResponse RunHandler(const HandlerRequest& request, Stash& stash) {
@@ -989,6 +1076,9 @@ HandlerResponse RunHandler(const HandlerRequest& request, Stash& stash) {
   }
   if (path == "dom/nodes/encoding.py") {
     return DomNodesEncodingHandler(query);
+  }
+  if (path == "url/resources/percent-encoding.py") {
+    return UrlPercentEncodingHandler(query);
   }
   return HandlerResponse{};
 }
