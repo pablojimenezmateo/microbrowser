@@ -184,7 +184,6 @@ FAIL=Fetch with HEAD
 FAIL=Fetch with POST with Blob body
 FAIL=Fetch with POST with Blob body with mime type
 FAIL=Fetch with POST with Float16Array body
-FAIL=Fetch with POST with FormData body
 FAIL=Fetch with POST with URLSearchParams body
 FAIL=Fetch with POST without body
 FAIL=Fetch with PUT without body
@@ -2160,14 +2159,12 @@ FAIL=Testing null Response body
 [fetch/api/response/response-init-contenttype.any.html]
 FAIL=Can override Content-Type for Response with ReadableStream body
 FAIL=Default Content-Type for Response with Blob body (set type)
-FAIL=Default Content-Type for Response with FormData body
 FAIL=Default Content-Type for Response with ReadableStream body
 FAIL=Default Content-Type for Response with URLSearchParams body
 FAIL=Default Content-Type for Response with string body
 [fetch/api/response/response-init-contenttype.any.worker.html]
 FAIL=Can override Content-Type for Response with ReadableStream body
 FAIL=Default Content-Type for Response with Blob body (set type)
-FAIL=Default Content-Type for Response with FormData body
 FAIL=Default Content-Type for Response with ReadableStream body
 FAIL=Default Content-Type for Response with URLSearchParams body
 FAIL=Default Content-Type for Response with string body
