@@ -4212,9 +4212,11 @@ document.addEventListener("DOMContentLoaded",async function(){var e=document.for
         "<script type='text/javascript1.3'>r.push('js1.3');</" "script>"
         "<script language='JavaScript1.2'>r.push('language');</" "script>"
         "<script language=''>r.push('language-empty');</" "script>"
-        // And the three that must not run: a bare word is not a MIME type, `vbscript` is not on the
-        // list, and `text/plain` is what a page uses to park data in a script tag.
+        // And the four that must not run: a bare word is not a MIME type, a type
+        // of only spaces is not the empty string, `vbscript` is not on the list,
+        // and `text/plain` is what a page uses to park data in a script tag.
         "<script type='javascript'>r.push('BAD-bare');</" "script>"
+        "<script type=' '>r.push('BAD-space');</" "script>"
         "<script language='vbscript'>r.push('BAD-vbscript');</" "script>"
         "<script type='text/plain'>r.push('BAD-plain');</" "script>"
         "<script>console.log('ran:' + r.join(','));</" "script>",

@@ -53,7 +53,14 @@ constexpr std::string_view kJavaScriptMimeTypes[] = {
 std::string ScriptTypeString(const dom::Element& element) {
   if (const std::string* type = element.GetAttribute("type"); type != nullptr) {
     const std::string trimmed(util::TrimHtmlWhitespace(*type));
-    return trimmed.empty() ? std::string("text/javascript") : trimmed;
+    // Empty `type=""` is JavaScript. `type=" "` is not: the attribute is present
+    // and not empty, stripping leaves nothing, and the empty string is not a
+    // JavaScript MIME type. WPT's script-type-and-language-js.html draws that
+    // line; collapsing both to `text/javascript` ran the space.
+    if (trimmed.empty()) {
+      return type->empty() ? std::string("text/javascript") : std::string();
+    }
+    return trimmed;
   }
   if (const std::string* language = element.GetAttribute("language"); language != nullptr) {
     return language->empty() ? std::string("text/javascript") : "text/" + *language;
