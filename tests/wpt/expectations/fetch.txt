@@ -181,8 +181,6 @@ FAIL=Multiple headers with the same name, different case (THIS-is-A-test first)
 FAIL=Fetch with GET
 FAIL=Fetch with GET and mode "cors" does not need an Origin header
 FAIL=Fetch with HEAD
-FAIL=Fetch with POST with Blob body
-FAIL=Fetch with POST with Blob body with mime type
 FAIL=Fetch with POST with Float16Array body
 FAIL=Fetch with POST with URLSearchParams body
 FAIL=Fetch with POST without body
@@ -1952,18 +1950,12 @@ FAIL=Check request values when initialized from url and init values
 FAIL=Check request values when initialized from url string
 [fetch/api/request/request-init-contenttype.any.html]
 FAIL=Can override Content-Type for Request with ReadableStream body
-FAIL=Default Content-Type for Request with Blob body (set type)
-FAIL=Default Content-Type for Request with FormData body
 FAIL=Default Content-Type for Request with ReadableStream body
 FAIL=Default Content-Type for Request with URLSearchParams body
-FAIL=Default Content-Type for Request with string body
 [fetch/api/request/request-init-contenttype.any.worker.html]
 FAIL=Can override Content-Type for Request with ReadableStream body
-FAIL=Default Content-Type for Request with Blob body (set type)
-FAIL=Default Content-Type for Request with FormData body
 FAIL=Default Content-Type for Request with ReadableStream body
 FAIL=Default Content-Type for Request with URLSearchParams body
-FAIL=Default Content-Type for Request with string body
 [fetch/api/request/request-init-priority.any.html]
 FAIL=fetch() with an invalid priority returns a rejected promise with a TypeError
 FAIL=new Request() throws a TypeError if any of RequestInit's members' values are invalid
@@ -2158,16 +2150,12 @@ FAIL=Testing empty Response Content-Type header
 FAIL=Testing null Response body
 [fetch/api/response/response-init-contenttype.any.html]
 FAIL=Can override Content-Type for Response with ReadableStream body
-FAIL=Default Content-Type for Response with Blob body (set type)
 FAIL=Default Content-Type for Response with ReadableStream body
 FAIL=Default Content-Type for Response with URLSearchParams body
-FAIL=Default Content-Type for Response with string body
 [fetch/api/response/response-init-contenttype.any.worker.html]
 FAIL=Can override Content-Type for Response with ReadableStream body
-FAIL=Default Content-Type for Response with Blob body (set type)
 FAIL=Default Content-Type for Response with ReadableStream body
 FAIL=Default Content-Type for Response with URLSearchParams body
-FAIL=Default Content-Type for Response with string body
 [fetch/api/response/response-static-error.any.html]
 FAIL=Check response returned by static method error()
 FAIL=the 'guard' of the Headers instance should be immutable
