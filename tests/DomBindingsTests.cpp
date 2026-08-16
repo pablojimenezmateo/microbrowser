@@ -1982,6 +1982,9 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "(() => { try { Blob(); return 'no' } catch (e) { return e.name } })() + ',' +"
                  "new File(['bits'], 'n', {lastModified: 42}).lastModified",
                  "TypeError,42");
+    ExpectScript("<body></body>",
+                 "(() => { try { new Blob([], {endings: 'NATIVE'}); return 'no' } catch (e) { return e.name } })()",
+                 "TypeError");
   });
 
   AddTest(tests, "DomBindings/IframeInsertCompletesEsmsFeatureDetection", [] {

@@ -55,30 +55,6 @@ FAIL=A platform object that supports indexed properties should be treated as a s
 FAIL=Passing an platform object that supports indexed properties as the blobParts array should work (attributes).
 FAIL=Passing an platform object that supports indexed properties as the blobParts array should work (select).
 FAIL=Passing platform objects for blobParts should throw a TypeError.
-[FileAPI/blob/Blob-constructor-endings.any.html]
-FAIL=Exception propagation from options
-FAIL=Invalid "endings" value: ""
-FAIL=Invalid "endings" value: "NATIVE"
-FAIL=Invalid "endings" value: "Transparent"
-FAIL=Invalid "endings" value: "invalidEnumValue"
-FAIL=Invalid "endings" value: 0
-FAIL=Invalid "endings" value: null
-FAIL=Invalid "endings" value: {}
-FAIL=The "endings" options property is used
-FAIL=Valid "endings" value: "native"
-FAIL=Valid "endings" value: "transparent"
-[FileAPI/blob/Blob-constructor-endings.any.worker.html]
-FAIL=Exception propagation from options
-FAIL=Invalid "endings" value: ""
-FAIL=Invalid "endings" value: "NATIVE"
-FAIL=Invalid "endings" value: "Transparent"
-FAIL=Invalid "endings" value: "invalidEnumValue"
-FAIL=Invalid "endings" value: 0
-FAIL=Invalid "endings" value: null
-FAIL=Invalid "endings" value: {}
-FAIL=The "endings" options property is used
-FAIL=Valid "endings" value: "native"
-FAIL=Valid "endings" value: "transparent"
 [FileAPI/blob/Blob-constructor-endings.html]
 FAIL=CR/LF in adjacent input strings
 FAIL=Input CR with endings 'native'
@@ -180,30 +156,6 @@ FAIL=Blob.textStream() ignores type charset (iso-8859-1)
 FAIL=Blob.textStream() with empty blob
 FAIL=Blob.textStream() with multi-part blob
 FAIL=textStream method existence
-[FileAPI/file/File-constructor-endings.any.html]
-FAIL=Exception propagation from options
-FAIL=Invalid "endings" value: ""
-FAIL=Invalid "endings" value: "NATIVE"
-FAIL=Invalid "endings" value: "Transparent"
-FAIL=Invalid "endings" value: "invalidEnumValue"
-FAIL=Invalid "endings" value: 0
-FAIL=Invalid "endings" value: null
-FAIL=Invalid "endings" value: {}
-FAIL=The "endings" options property is used
-FAIL=Valid "endings" value: "native"
-FAIL=Valid "endings" value: "transparent"
-[FileAPI/file/File-constructor-endings.any.worker.html]
-FAIL=Exception propagation from options
-FAIL=Invalid "endings" value: ""
-FAIL=Invalid "endings" value: "NATIVE"
-FAIL=Invalid "endings" value: "Transparent"
-FAIL=Invalid "endings" value: "invalidEnumValue"
-FAIL=Invalid "endings" value: 0
-FAIL=Invalid "endings" value: null
-FAIL=Invalid "endings" value: {}
-FAIL=The "endings" options property is used
-FAIL=Valid "endings" value: "native"
-FAIL=Valid "endings" value: "transparent"
 [FileAPI/file/File-constructor-endings.html]
 FAIL=CR/LF in adjacent input strings
 FAIL=Input CR with endings 'native'

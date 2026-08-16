@@ -201,8 +201,10 @@ bool OptionsType(NativeCall& call, const Value& options, std::string& type,
   if (!ReadDictionaryMember(call, options, "endings", endings, has_endings)) {
     return false;
   }
-  (void)endings;
-  (void)has_endings;
+  if (has_endings && endings != "native" && endings != "transparent") {
+    (void)call.Throw("TypeError", "endings must be \"native\" or \"transparent\"");
+    return false;
+  }
   if (last_modified != nullptr) {
     js::Result abrupt = js::Result::Normal();
     const Value value =
