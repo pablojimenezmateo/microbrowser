@@ -99,7 +99,9 @@ bool AppendPart(NativeCall& call, std::vector<std::pair<std::string, bool>>& par
     (void)call.ThrowValue(converted.value);
     return false;
   }
-  parts.emplace_back(std::move(text), true);
+  // Blob parts that are strings are USVStrings: one U+FFFD per unpaired
+  // UTF-16 code unit, not three from a byte-oriented UTF-8 decode.
+  parts.emplace_back(util::ScrubLoneSurrogates(text), true);
   return true;
 }
 
