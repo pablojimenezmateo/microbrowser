@@ -26,6 +26,20 @@ namespace microbrowser::bindings {
 using js::NativeCall;
 using js::Value;
 
+bool CompileQuerySelector(NativeCall& call, std::vector<css::Selector>& compiled) {
+  if (call.arguments.empty()) {
+    (void)call.Throw("TypeError", "1 argument required, but only 0 present");
+    return false;
+  }
+  compiled = css::ParseSelectorList(js::ToString(call.arguments[0]));
+  if (compiled.empty()) {
+    (void)ThrowDom(call, "SyntaxError",
+                   "'" + js::ToString(call.arguments[0]) + "' is not a valid selector");
+    return false;
+  }
+  return true;
+}
+
 namespace {
 
 // "A and B are equal": the DOM's structural comparison, recursive over
@@ -575,8 +589,10 @@ void DomBindings::InstallParentQueries(const js::Value& target) {
     if (owner == nullptr || self == nullptr) {
       return Value::Null();
     }
-    const std::string selector = js::ToString(Argument(call.arguments, 0));
-    const std::vector<css::Selector> compiled = css::ParseSelectorList(selector);
+    std::vector<css::Selector> compiled;
+    if (!CompileQuerySelector(call, compiled)) {
+      return call.ThrownValue();
+    }
     dom::Element* found = nullptr;
     EachDescendantElement(*self, [&](dom::Element& element) {
       if (found == nullptr && MatchesSelectorList(element, compiled)) {
@@ -589,9 +605,11 @@ void DomBindings::InstallParentQueries(const js::Value& target) {
     DomBindings* owner = OwnerOf(call);
     dom::Node* self = NodeOf(call.self);
     std::vector<Value> found;
+    std::vector<css::Selector> compiled;
+    if (!CompileQuerySelector(call, compiled)) {
+      return call.ThrownValue();
+    }
     if (owner != nullptr && self != nullptr) {
-      const std::string selector = js::ToString(Argument(call.arguments, 0));
-      const std::vector<css::Selector> compiled = css::ParseSelectorList(selector);
       EachDescendantElement(*self, [&](dom::Element& element) {
         if (MatchesSelectorList(element, compiled)) {
           found.push_back(owner->WrapperFor(&element));

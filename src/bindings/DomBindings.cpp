@@ -662,9 +662,12 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
   });
   method("matches", [](NativeCall& call) {
     dom::Node* self = NodeOf(call.self);
+    std::vector<css::Selector> compiled;
+    if (!CompileQuerySelector(call, compiled)) {
+      return call.ThrownValue();
+    }
     return Value::Bool(self != nullptr && self->IsElement() &&
-                       Matches(static_cast<dom::Element&>(*self),
-                               js::ToString(Argument(call.arguments, 0))));
+                       MatchesSelectorList(static_cast<dom::Element&>(*self), compiled));
   });
   // The prefixed spelling every engine still ships. The selectors suite has a
   // whole file that is `matches` with this name, and without the alias every
@@ -672,9 +675,12 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
   // selector question.
   method("webkitMatchesSelector", [](NativeCall& call) {
     dom::Node* self = NodeOf(call.self);
+    std::vector<css::Selector> compiled;
+    if (!CompileQuerySelector(call, compiled)) {
+      return call.ThrownValue();
+    }
     return Value::Bool(self != nullptr && self->IsElement() &&
-                       Matches(static_cast<dom::Element&>(*self),
-                               js::ToString(Argument(call.arguments, 0))));
+                       MatchesSelectorList(static_cast<dom::Element&>(*self), compiled));
   });
   method("closest", [](NativeCall& call) {
     // This element or the nearest ancestor that matches, which is how a
@@ -684,9 +690,13 @@ void DomBindings::InstallElementInterface(const js::Value& target) {
     if (owner == nullptr || self == nullptr) {
       return Value::Null();
     }
-    const std::string selector = js::ToString(Argument(call.arguments, 0));
+    std::vector<css::Selector> compiled;
+    if (!CompileQuerySelector(call, compiled)) {
+      return call.ThrownValue();
+    }
     for (dom::Node* walk = self; walk != nullptr; walk = walk->Parent()) {
-      if (walk->IsElement() && Matches(static_cast<dom::Element&>(*walk), selector)) {
+      if (walk->IsElement() &&
+          MatchesSelectorList(static_cast<dom::Element&>(*walk), compiled)) {
         return owner->WrapperFor(walk);
       }
     }

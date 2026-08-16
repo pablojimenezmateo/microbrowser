@@ -1490,6 +1490,12 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage, "document.querySelector('p').closest('#list').tagName", "DIV");
     ExpectScript(kPage, "document.querySelector('p').closest('p').tagName", "P");
     ExpectScript(kPage, "document.querySelector('p').closest('.nothing') === null", "true");
+    ExpectScript(kPage,
+                 "try { document.querySelector('(') } catch (e) { e.name }", "SyntaxError");
+    ExpectScript(kPage,
+                 "try { document.body.matches('') } catch (e) { e.name }", "SyntaxError");
+    ExpectScript(kPage,
+                 "try { document.querySelector() } catch (e) { e.name }", "TypeError");
   });
 
   AddTest(tests, "DomBindings/TheTreeCanBeWalkedInEveryDirection", [] {

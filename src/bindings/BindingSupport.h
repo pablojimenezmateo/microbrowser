@@ -13,6 +13,10 @@
 #include "js/Value.h"
 #include "util/StringUtil.h"
 
+namespace microbrowser::css {
+struct Selector;
+}
+
 // Shared by the binding translation units, and private to the module: a
 // binding is an implementation detail of the seam, not part of its interface,
 // so this header is deliberately absent from MODULE.deps' `public:` list.
@@ -268,6 +272,12 @@ void InstallDomException(js::Interpreter& interpreter);
 js::Value MakeDomException(js::Interpreter& interpreter, std::string_view name,
                            std::string message);
 js::Value ThrowDom(js::NativeCall& call, std::string_view name, std::string message);
+
+// querySelector / matches / closest: a missing argument is TypeError, an
+// unparseable selector is a SyntaxError DOMException. An empty parse is how
+// the stylesheet path drops a bad rule; here it has to be loud, or invalid
+// selectors silently match nothing.
+bool CompileQuerySelector(js::NativeCall& call, std::vector<css::Selector>& compiled);
 
 class DomBindings;
 

@@ -90,8 +90,10 @@ void DomBindings::Install() {
     if (owner == nullptr) {
       return Value::Null();
     }
-    const std::string selector = js::ToString(Argument(call.arguments, 0));
-    const std::vector<css::Selector> compiled = css::ParseSelectorList(selector);
+    std::vector<css::Selector> compiled;
+    if (!CompileQuerySelector(call, compiled)) {
+      return call.ThrownValue();
+    }
     return owner->WrapperFor(FindElementIn(
         *owner->DocumentOf(call.self), [&compiled](const dom::Element& element) {
           return MatchesSelectorList(element, compiled);
@@ -99,8 +101,10 @@ void DomBindings::Install() {
   });
   method("querySelectorAll", [](NativeCall& call) {
     DomBindings* owner = OwnerOf(call);
-    const std::string selector = js::ToString(Argument(call.arguments, 0));
-    const std::vector<css::Selector> compiled = css::ParseSelectorList(selector);
+    std::vector<css::Selector> compiled;
+    if (!CompileQuerySelector(call, compiled)) {
+      return call.ThrownValue();
+    }
     std::vector<Value> found;
     if (owner != nullptr) {
       ForEachElementIn(*owner->DocumentOf(call.self), [&](dom::Element& element) {
