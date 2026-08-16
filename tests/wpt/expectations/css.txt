@@ -73658,107 +73658,77 @@ FAIL=custom property '--\'
 FAIL=custom property '--a'
 FAIL=custom property '--a;b'
 FAIL=custom property '--ab'
-[css/selectors/active-after-relayouts.html]
-FAIL=:active pseudo-class works properly when triggering a layout that changes the target's position
-[css/selectors/active-display-none-001.html]
-FAIL=:active on ancestor with display:none does not prevent click from bubbling
 [css/selectors/active-observable.html]
-harness=ERROR
+FAIL=:active applies on press and clears on release with preventDefault() on mousedown
+FAIL=:active applies on press and clears on release with preventDefault() on pointerdown
+FAIL=:active is cleared on release even when mouseup listener calls preventDefault()
+FAIL=:active is cleared on release even when pointerup listener calls preventDefault()
+FAIL=:active is set while held and cleared after the pointer is released
+FAIL=:active persists while the held pointer moves within the target
+FAIL=Ancestor of clicked element matches :active within mousedown listener
+FAIL=Ancestor of clicked element matches :active within pointerdown listener
+FAIL=Clicked element matches :active within its mousedown listener
+FAIL=Clicked element matches :active within its pointerdown listener
+FAIL=Non-primary (middle) button press activates :active
+FAIL=Non-primary (right) button press activates :active
+FAIL=Text node press target activates its parent element (mousedown)
+FAIL=Text node press target activates its parent element (pointerdown)
 [css/selectors/active-toplayer-001.html]
-FAIL=Clicking inside a modal dialog should not propagate :active beyond the dialog.
-FAIL=Clicking inside a popover should not propagate :active beyond the popover.
-FAIL=With nested top layer elements, :active should stop at the innermost top layer boundary.
+harness=TIMEOUT
 [css/selectors/attribute-selectors/attribute-case/cssom.html]
-FAIL=[*|foo="bar" i] getting CSSRule#cssText
-FAIL=[*|foo="bar" i] getting CSSRule#cssText in @media
-FAIL=[*|foo="bar" i] getting CSSStyleRule#selectorText
-FAIL=[*|foo="bar" i] getting CSSStyleRule#selectorText in @media
-FAIL=[*|foo="bar" i] insertRule
-FAIL=[*|foo="bar" i] insertRule in @media
-FAIL=[*|foo="bar" i] setting CSSStyleRule#selectorText
 FAIL=[*|foo="bar" i] setting CSSStyleRule#selectorText in @media
-FAIL=[*|foo="bar" s] getting CSSRule#cssText
-FAIL=[*|foo="bar" s] getting CSSRule#cssText in @media
-FAIL=[*|foo="bar" s] getting CSSStyleRule#selectorText
-FAIL=[*|foo="bar" s] getting CSSStyleRule#selectorText in @media
-FAIL=[*|foo="bar" s] insertRule
-FAIL=[*|foo="bar" s] insertRule in @media
-FAIL=[*|foo="bar" s] setting CSSStyleRule#selectorText
 FAIL=[*|foo="bar" s] setting CSSStyleRule#selectorText in @media
-FAIL=[foo="bar" /**/ i] getting CSSRule#cssText
-FAIL=[foo="bar" /**/ i] getting CSSRule#cssText in @media
-FAIL=[foo="bar" /**/ i] getting CSSStyleRule#selectorText
-FAIL=[foo="bar" /**/ i] getting CSSStyleRule#selectorText in @media
-FAIL=[foo="bar" /**/ i] insertRule
-FAIL=[foo="bar" /**/ i] insertRule in @media
-FAIL=[foo="bar" /**/ i] setting CSSStyleRule#selectorText
 FAIL=[foo="bar" /**/ i] setting CSSStyleRule#selectorText in @media
-FAIL=[foo="bar" /**/ s] getting CSSRule#cssText
-FAIL=[foo="bar" /**/ s] getting CSSRule#cssText in @media
-FAIL=[foo="bar" /**/ s] getting CSSStyleRule#selectorText
-FAIL=[foo="bar" /**/ s] getting CSSStyleRule#selectorText in @media
-FAIL=[foo="bar" /**/ s] insertRule
-FAIL=[foo="bar" /**/ s] insertRule in @media
-FAIL=[foo="bar" /**/ s] setting CSSStyleRule#selectorText
 FAIL=[foo="bar" /**/ s] setting CSSStyleRule#selectorText in @media
-FAIL=[foo="bar" i] getting CSSRule#cssText
-FAIL=[foo="bar" i] getting CSSRule#cssText in @media
-FAIL=[foo="bar" i] getting CSSStyleRule#selectorText
-FAIL=[foo="bar" i] getting CSSStyleRule#selectorText in @media
-FAIL=[foo="bar" i] insertRule
-FAIL=[foo="bar" i] insertRule in @media
-FAIL=[foo="bar" i] setting CSSStyleRule#selectorText
 FAIL=[foo="bar" i] setting CSSStyleRule#selectorText in @media
-FAIL=[foo="bar" s] getting CSSRule#cssText
-FAIL=[foo="bar" s] getting CSSRule#cssText in @media
-FAIL=[foo="bar" s] getting CSSStyleRule#selectorText
-FAIL=[foo="bar" s] getting CSSStyleRule#selectorText in @media
-FAIL=[foo="bar" s] insertRule
-FAIL=[foo="bar" s] insertRule in @media
-FAIL=[foo="bar" s] setting CSSStyleRule#selectorText
 FAIL=[foo="bar" s] setting CSSStyleRule#selectorText in @media
-FAIL=[foo="bar"/**/i] getting CSSRule#cssText
-FAIL=[foo="bar"/**/i] getting CSSRule#cssText in @media
-FAIL=[foo="bar"/**/i] getting CSSStyleRule#selectorText
-FAIL=[foo="bar"/**/i] getting CSSStyleRule#selectorText in @media
-FAIL=[foo="bar"/**/i] insertRule
-FAIL=[foo="bar"/**/i] insertRule in @media
-FAIL=[foo="bar"/**/i] setting CSSStyleRule#selectorText
 FAIL=[foo="bar"/**/i] setting CSSStyleRule#selectorText in @media
-FAIL=[foo="bar"/**/s] getting CSSRule#cssText
-FAIL=[foo="bar"/**/s] getting CSSRule#cssText in @media
-FAIL=[foo="bar"/**/s] getting CSSStyleRule#selectorText
-FAIL=[foo="bar"/**/s] getting CSSStyleRule#selectorText in @media
-FAIL=[foo="bar"/**/s] insertRule
-FAIL=[foo="bar"/**/s] insertRule in @media
-FAIL=[foo="bar"/**/s] setting CSSStyleRule#selectorText
 FAIL=[foo="bar"/**/s] setting CSSStyleRule#selectorText in @media
-FAIL=[foo="bar"] /* sanity check */ getting CSSRule#cssText
-FAIL=[foo="bar"] /* sanity check */ getting CSSRule#cssText in @media
-FAIL=[foo="bar"] /* sanity check */ getting CSSStyleRule#selectorText
-FAIL=[foo="bar"] /* sanity check */ getting CSSStyleRule#selectorText in @media
-FAIL=[foo="bar"] /* sanity check */ insertRule
-FAIL=[foo="bar"] /* sanity check */ insertRule in @media
-FAIL=[foo="bar"] /* sanity check */ setting CSSStyleRule#selectorText
 FAIL=[foo="bar"] /* sanity check */ setting CSSStyleRule#selectorText in @media
 [css/selectors/attribute-selectors/attribute-case/semantics.html]
-harness=TIMEOUT
+FAIL=@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' i] <div {http://www.w3.org/XML/1998/namespace}lang="a"> in XML
+FAIL=@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' i] <div {http://www.w3.org/XML/1998/namespace}lang="a"> in quirks mode
+FAIL=@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' i] <div {http://www.w3.org/XML/1998/namespace}lang="a"> in standards mode
+FAIL=@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' s] <div {http://www.w3.org/XML/1998/namespace}lang="A"> in XML
+FAIL=@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' s] <div {http://www.w3.org/XML/1998/namespace}lang="A"> in quirks mode
+FAIL=@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' s] <div {http://www.w3.org/XML/1998/namespace}lang="A"> in standards mode
+FAIL=@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A'] /* sanity check (match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in XML
+FAIL=@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A'] /* sanity check (match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in quirks mode
+FAIL=@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A'] /* sanity check (match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in standards mode
+FAIL=[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> in XML
+FAIL=[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> in quirks mode
+FAIL=[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> in standards mode
+FAIL=[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> with querySelector in XML
+FAIL=[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> with querySelector in quirks mode
+FAIL=[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> with querySelector in standards mode
+FAIL=[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in XML
+FAIL=[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in quirks mode
+FAIL=[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in standards mode
+FAIL=[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> with querySelector in XML
+FAIL=[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> with querySelector in quirks mode
+FAIL=[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> with querySelector in standards mode
 [css/selectors/attribute-selectors/attribute-case/syntax.html]
-harness=TIMEOUT
+FAIL=[foo='bar' \\69] in XML
+FAIL=[foo='bar' \\69] in quirks mode
+FAIL=[foo='bar' \\69] in standards mode
+FAIL=[foo='bar' \\i] in XML
+FAIL=[foo='bar' \\i] in quirks mode
+FAIL=[foo='bar' \\i] in standards mode
+FAIL=[foo='bar']i in XML
+FAIL=[foo='bar']i in quirks mode
+FAIL=[foo='bar']i in standards mode
+FAIL=[foo='bar']i with querySelector in XML
+FAIL=[foo='bar']i with querySelector in quirks mode
+FAIL=[foo='bar']i with querySelector in standards mode
 [css/selectors/attribute-selectors/attribute-case/value-case-sensitivity-svg.html]
 FAIL=Empty-namespace element matches legacy attribute value case-sensitively.
 [css/selectors/attribute-selectors/style-attribute-selector.html]
 FAIL=Dynamically change style with Element.setAttribute
 FAIL=Dynamically change style with Element.style
 FAIL=Dynamically change style with Element.style.property
-FAIL=Dynamically remove style with Element.removeAttribute
 FAIL=Dynamically remove style with Element.style
 FAIL=Dynamically remove style with Element.style.property
 FAIL=Dynamically remove style with Element.style.removeProperty
-FAIL=Initially no style attribute to match
-FAIL=Match style attribute with background value
-FAIL=Match style attribute with empty value
-FAIL=Match style attribute with no value
 [css/selectors/child-indexed-during-parse.html]
 FAIL=:last-child against an element still being parsed
 FAIL=:last-of-type against an element still being parsed
@@ -73773,11 +73743,14 @@ FAIL=input element whose type attribute is in the reset state
 FAIL=input element whose type attribute is in the submit state
 FAIL=input element whose type attribute is in the telephone state in a RTL block
 [css/selectors/dir-selector-auto.html]
-harness=TIMEOUT
-[css/selectors/dir-selector-querySelector.html]
-FAIL=:dir() requires exactly an ident argument
-FAIL=:dir() works in complex selectors
-FAIL=:dir() works in compound selectors
+FAIL=Initial  directionality of element div2 is rtl
+FAIL=Initial  directionality of element div2_1 is rtl
+FAIL=Updated  directionality of element div1 is rtl
+FAIL=Updated  directionality of element div1_1 is rtl
+FAIL=Updated  directionality of element div3 is rtl
+FAIL=Updated  directionality of element div4 is rtl
+FAIL=Updated  directionality of element div4_1 is rtl
+FAIL=Updated  directionality of element div4_1_1 is rtl
 [css/selectors/focus-display-none-001.html]
 FAIL=Test ':focus' after 'display:none' on input
 FAIL=Test ':focus' after 'display:none' on input's parent
@@ -73794,9 +73767,9 @@ harness=TIMEOUT
 [css/selectors/focus-visible-004.html]
 harness=TIMEOUT
 [css/selectors/focus-visible-005.html]
-harness=TIMEOUT
+FAIL=Programmatic focus after click should not match :focus-visible
 [css/selectors/focus-visible-006.html]
-FAIL=Focus should always match :focus-visible on content editable divs
+harness=TIMEOUT
 [css/selectors/focus-visible-007.html]
 harness=TIMEOUT
 [css/selectors/focus-visible-008.html]
@@ -73806,19 +73779,18 @@ FAIL=Autofocus should match :focus-visible
 [css/selectors/focus-visible-010.html]
 FAIL=Programmatic focus on page load should match :focus-visible
 [css/selectors/focus-visible-011.html]
-harness=TIMEOUT
+FAIL=:focus-visible matches even if preventDefault() is called
 [css/selectors/focus-visible-012.html]
-harness=TIMEOUT
+FAIL=Keyboard focus should match :focus-visible
 [css/selectors/focus-visible-013.html]
 harness=TIMEOUT
 [css/selectors/focus-visible-014.html]
 FAIL=:focus-visible matches after script focus move
 [css/selectors/focus-visible-015.html]
-harness=TIMEOUT
+FAIL=:focus-visible does not match after script focus move
 [css/selectors/focus-visible-016.html]
-harness=TIMEOUT
+FAIL=:focus-visible always match on text inputs
 [css/selectors/focus-visible-017-2.html]
-FAIL=":focus-visible" should be a valid selector
 FAIL=By default initial programatic focus matches ':focus-visible', so the element ABBR shows a focus ring with 'outline-style: auto'
 FAIL=By default initial programatic focus matches ':focus-visible', so the element ADDRESS shows a focus ring with 'outline-style: auto'
 FAIL=By default initial programatic focus matches ':focus-visible', so the element BDI shows a focus ring with 'outline-style: auto'
@@ -73857,57 +73829,47 @@ FAIL=By default initial programatic focus matches ':focus-visible', so the eleme
 FAIL=By default initial programatic focus matches ':focus-visible', so the element U shows a focus ring with 'outline-style: auto'
 FAIL=By default initial programatic focus matches ':focus-visible', so the element UL shows a focus ring with 'outline-style: auto'
 [css/selectors/focus-visible-017.html]
-FAIL=":focus-visible" should be a valid selector
 FAIL=By default initial programatic focus matches ':focus-visible', so the element shows a focus ring with 'outline-style: auto'
 [css/selectors/focus-visible-018-2.html]
 harness=TIMEOUT
 [css/selectors/focus-visible-018.html]
 harness=TIMEOUT
 [css/selectors/focus-visible-019.html]
-FAIL=":focus-visible" should be a valid selector
 FAIL=Focus via script on keyboard event handler matches ':focus-visible'
 [css/selectors/focus-visible-020.html]
-harness=TIMEOUT
+FAIL=:focus-visible doesn't match on ShadowRoot
 [css/selectors/focus-visible-021.html]
-FAIL=":focus-visible" should be a valid selector
 FAIL=Ctrl key doesn't make an element to stop matching :focus-visible
 [css/selectors/focus-visible-022.tentative.html]
 FAIL=focus-visible-022
 [css/selectors/focus-visible-023.html]
-FAIL=":focus-visible" should be a valid selector
 FAIL=:focus-visible stop matching after blur
 [css/selectors/focus-visible-024.html]
-FAIL=":focus-visible" should be a valid selector
 FAIL=:focus-visible matches after accesskey on BUTTON
 FAIL=:focus-visible matches after accesskey on DIV
 [css/selectors/focus-visible-025.html]
-FAIL=":focus-visible" should be a valid selector
 FAIL=:focus-visible matches after accesskey on BUTTON after previous mouse focus
 FAIL=:focus-visible matches after accesskey on DIV after previous mouse focus
 [css/selectors/focus-visible-026.html]
-FAIL=":focus-visible" should be a valid selector
 FAIL=:focus-visible does NOT match when a checkbox is focused via click on the associated label
 [css/selectors/focus-visible-027.html]
 FAIL=CSS Test (Selectors): :focus-visible after click and input type change
 [css/selectors/focus-visible-028.html]
-harness=TIMEOUT
+FAIL=Programmatic focus after click and keyboard interaction should match :focus-visible
 [css/selectors/focus-visible-script-focus-001.html]
-FAIL=":focus-visible" should be a valid selector
 FAIL=Script focus without any previous user interaction matches :focus-visible
 [css/selectors/focus-visible-script-focus-002.tentative.html]
 harness=TIMEOUT
 [css/selectors/focus-visible-script-focus-003.tentative.html]
 harness=TIMEOUT
 [css/selectors/focus-visible-script-focus-004.html]
-FAIL=":focus-visible" should be a valid selector
-FAIL=Script focus after keyboard event does match :focus-visible
+harness=TIMEOUT
 [css/selectors/focus-visible-script-focus-005.html]
-FAIL=":focus-visible" should be a valid selector
-FAIL=Script focus after blur after keyboard event does match :focus-visible
+harness=TIMEOUT
 [css/selectors/focus-visible-script-focus-006.tentative.html]
-harness=TIMEOUT
+FAIL=Script focus after mouse click on a NOT focusable element does match :focus-visible
 [css/selectors/focus-visible-script-focus-007.tentative.html]
-harness=TIMEOUT
+FAIL=Script focus after blur after mouse click on a NOT focusable element does match :focus-visible
 [css/selectors/focus-visible-script-focus-008-b.html]
 harness=TIMEOUT
 [css/selectors/focus-visible-script-focus-008.html]
@@ -73919,13 +73881,13 @@ harness=TIMEOUT
 [css/selectors/focus-visible-script-focus-011.html]
 harness=TIMEOUT
 [css/selectors/focus-visible-script-focus-012.html]
-FAIL=":focus-visible" should be a valid selector
+FAIL=Script focus after keyboard focus does match :focus-visible
 [css/selectors/focus-visible-script-focus-013.html]
-FAIL=":focus-visible" should be a valid selector
+FAIL=Script focus after blur after keyboard focus does match :focus-visible
 [css/selectors/focus-visible-script-focus-014.html]
-FAIL=":focus-visible" should be a valid selector
+harness=TIMEOUT
 [css/selectors/focus-visible-script-focus-015.html]
-FAIL=":focus-visible" should be a valid selector
+harness=TIMEOUT
 [css/selectors/focus-visible-script-focus-016.tentative.html]
 harness=TIMEOUT
 [css/selectors/focus-visible-script-focus-017.tentative.html]
@@ -73947,33 +73909,14 @@ FAIL=Focus 'target2' once again
 [css/selectors/focus-within-display-none-001.html]
 FAIL=Test ':focus-within' after 'display:none' on input
 FAIL=Test ':focus-within' after 'display:none' on input's parent
-[css/selectors/focus-within-focus-move.html]
-FAIL=Moving focus from its own focus() call doesn't leave stale :focus-within state
 [css/selectors/focus-within-toplayer-001.html]
 FAIL=Focusing inside a modal dialog should not propagate :focus-within beyond the dialog.
 FAIL=Focusing inside a popover should not propagate :focus-within beyond the popover.
 FAIL=With nested top layer elements, :focus-within should stop at the innermost top layer boundary.
 [css/selectors/has-argument-with-explicit-scope.html]
-harness=TIMEOUT
-[css/selectors/has-basic.html]
-FAIL=:has(#a) matches expected elements
+FAIL=.a:has(:scope) .c matches expected elements on scope1
 [css/selectors/has-focus-display-change.html]
 FAIL=:has(:focus) doesn't cause focusability to be lost
-[css/selectors/has-relative-argument.html]
-harness=TIMEOUT
-[css/selectors/has-specificity.html]
-FAIL=:has(#foo) wins over :has(.foo)
-FAIL=:has(.bar, #foo) has same specificity as :has(#foo, .bar)
-FAIL=:has(.bar, #foo) wins over :has(.foo, .bar)
-FAIL=:has(span + span) wins over :has(span)
-FAIL=:has(span#foo) wins over :has(#foo)
-FAIL=:has(span, li, p) wins over :has(span, lo, p)
-FAIL=latter .baz wins over :has(.foo)
-FAIL=latter :has(.foo) wins over .baz
-[css/selectors/hash-collision-cssom.html]
-FAIL=Test string hash collision in bucketing
-[css/selectors/hash-collision.html]
-FAIL=Test string hash collision in bucketing
 [css/selectors/heading-prefixed.html]
 FAIL=:heading(1) matches <h:h1> in the HTML namespace
 FAIL=:heading(2) matches <h:h2> in the HTML namespace
@@ -73982,27 +73925,182 @@ FAIL=:heading(4) matches <h:h4> in the HTML namespace
 FAIL=:heading(5) matches <h:h5> in the HTML namespace
 FAIL=:heading(6) matches <h:h6> in the HTML namespace
 [css/selectors/heading.html]
+FAIL=<h0 data-expect-match=""></h0> :heading(0)
+FAIL=<h0 data-expect-match=""></h0> :heading(0, 1, 2)
+FAIL=<h0 data-expect-match=""></h0> :heading(1)
+FAIL=<h0 data-expect-match=""></h0> :heading(2)
+FAIL=<h0 data-expect-match=""></h0> :heading(3)
+FAIL=<h0 data-expect-match=""></h0> :heading(4)
+FAIL=<h0 data-expect-match=""></h0> :heading(5)
+FAIL=<h0 data-expect-match=""></h0> :heading(6)
+FAIL=<h0 data-expect-match=""></h0> :heading(6, 7)
+FAIL=<h0 data-expect-match=""></h0> :heading(7)
+FAIL=<h0 data-expect-match=""></h0> :heading(8)
+FAIL=<h0 data-expect-match=""></h0> :heading(9)
 FAIL=<h1 data-expect-match="1" aria-level="2"></h1> :heading
+FAIL=<h1 data-expect-match="1" aria-level="2"></h1> :heading(0)
 FAIL=<h1 data-expect-match="1" aria-level="2"></h1> :heading(0, 1, 2)
 FAIL=<h1 data-expect-match="1" aria-level="2"></h1> :heading(1)
+FAIL=<h1 data-expect-match="1" aria-level="2"></h1> :heading(2)
+FAIL=<h1 data-expect-match="1" aria-level="2"></h1> :heading(3)
+FAIL=<h1 data-expect-match="1" aria-level="2"></h1> :heading(4)
+FAIL=<h1 data-expect-match="1" aria-level="2"></h1> :heading(5)
+FAIL=<h1 data-expect-match="1" aria-level="2"></h1> :heading(6)
+FAIL=<h1 data-expect-match="1" aria-level="2"></h1> :heading(6, 7)
+FAIL=<h1 data-expect-match="1" aria-level="2"></h1> :heading(7)
+FAIL=<h1 data-expect-match="1" aria-level="2"></h1> :heading(8)
+FAIL=<h1 data-expect-match="1" aria-level="2"></h1> :heading(9)
 FAIL=<h1 data-expect-match="1"></h1> :heading
+FAIL=<h1 data-expect-match="1"></h1> :heading(0)
 FAIL=<h1 data-expect-match="1"></h1> :heading(0, 1, 2)
 FAIL=<h1 data-expect-match="1"></h1> :heading(1)
+FAIL=<h1 data-expect-match="1"></h1> :heading(2)
+FAIL=<h1 data-expect-match="1"></h1> :heading(3)
+FAIL=<h1 data-expect-match="1"></h1> :heading(4)
+FAIL=<h1 data-expect-match="1"></h1> :heading(5)
+FAIL=<h1 data-expect-match="1"></h1> :heading(6)
+FAIL=<h1 data-expect-match="1"></h1> :heading(6, 7)
+FAIL=<h1 data-expect-match="1"></h1> :heading(7)
+FAIL=<h1 data-expect-match="1"></h1> :heading(8)
+FAIL=<h1 data-expect-match="1"></h1> :heading(9)
 FAIL=<h1 data-expect-match="1"></h1> in section :heading
+FAIL=<h1 data-expect-match="1"></h1> in section :heading(0)
 FAIL=<h1 data-expect-match="1"></h1> in section :heading(0, 1, 2)
 FAIL=<h1 data-expect-match="1"></h1> in section :heading(1)
+FAIL=<h1 data-expect-match="1"></h1> in section :heading(2)
+FAIL=<h1 data-expect-match="1"></h1> in section :heading(3)
+FAIL=<h1 data-expect-match="1"></h1> in section :heading(4)
+FAIL=<h1 data-expect-match="1"></h1> in section :heading(5)
+FAIL=<h1 data-expect-match="1"></h1> in section :heading(6)
+FAIL=<h1 data-expect-match="1"></h1> in section :heading(6, 7)
+FAIL=<h1 data-expect-match="1"></h1> in section :heading(7)
+FAIL=<h1 data-expect-match="1"></h1> in section :heading(8)
+FAIL=<h1 data-expect-match="1"></h1> in section :heading(9)
 FAIL=<h2 data-expect-match="2"></h2> :heading
+FAIL=<h2 data-expect-match="2"></h2> :heading(0)
 FAIL=<h2 data-expect-match="2"></h2> :heading(0, 1, 2)
+FAIL=<h2 data-expect-match="2"></h2> :heading(1)
 FAIL=<h2 data-expect-match="2"></h2> :heading(2)
+FAIL=<h2 data-expect-match="2"></h2> :heading(3)
+FAIL=<h2 data-expect-match="2"></h2> :heading(4)
+FAIL=<h2 data-expect-match="2"></h2> :heading(5)
+FAIL=<h2 data-expect-match="2"></h2> :heading(6)
+FAIL=<h2 data-expect-match="2"></h2> :heading(6, 7)
+FAIL=<h2 data-expect-match="2"></h2> :heading(7)
+FAIL=<h2 data-expect-match="2"></h2> :heading(8)
+FAIL=<h2 data-expect-match="2"></h2> :heading(9)
 FAIL=<h3 data-expect-match="3"></h3> :heading
+FAIL=<h3 data-expect-match="3"></h3> :heading(0)
+FAIL=<h3 data-expect-match="3"></h3> :heading(0, 1, 2)
+FAIL=<h3 data-expect-match="3"></h3> :heading(1)
+FAIL=<h3 data-expect-match="3"></h3> :heading(2)
 FAIL=<h3 data-expect-match="3"></h3> :heading(3)
+FAIL=<h3 data-expect-match="3"></h3> :heading(4)
+FAIL=<h3 data-expect-match="3"></h3> :heading(5)
+FAIL=<h3 data-expect-match="3"></h3> :heading(6)
+FAIL=<h3 data-expect-match="3"></h3> :heading(6, 7)
+FAIL=<h3 data-expect-match="3"></h3> :heading(7)
+FAIL=<h3 data-expect-match="3"></h3> :heading(8)
+FAIL=<h3 data-expect-match="3"></h3> :heading(9)
 FAIL=<h4 data-expect-match="4"></h4> :heading
+FAIL=<h4 data-expect-match="4"></h4> :heading(0)
+FAIL=<h4 data-expect-match="4"></h4> :heading(0, 1, 2)
+FAIL=<h4 data-expect-match="4"></h4> :heading(1)
+FAIL=<h4 data-expect-match="4"></h4> :heading(2)
+FAIL=<h4 data-expect-match="4"></h4> :heading(3)
 FAIL=<h4 data-expect-match="4"></h4> :heading(4)
+FAIL=<h4 data-expect-match="4"></h4> :heading(5)
+FAIL=<h4 data-expect-match="4"></h4> :heading(6)
+FAIL=<h4 data-expect-match="4"></h4> :heading(6, 7)
+FAIL=<h4 data-expect-match="4"></h4> :heading(7)
+FAIL=<h4 data-expect-match="4"></h4> :heading(8)
+FAIL=<h4 data-expect-match="4"></h4> :heading(9)
 FAIL=<h5 data-expect-match="5"></h5> :heading
+FAIL=<h5 data-expect-match="5"></h5> :heading(0)
+FAIL=<h5 data-expect-match="5"></h5> :heading(0, 1, 2)
+FAIL=<h5 data-expect-match="5"></h5> :heading(1)
+FAIL=<h5 data-expect-match="5"></h5> :heading(2)
+FAIL=<h5 data-expect-match="5"></h5> :heading(3)
+FAIL=<h5 data-expect-match="5"></h5> :heading(4)
 FAIL=<h5 data-expect-match="5"></h5> :heading(5)
+FAIL=<h5 data-expect-match="5"></h5> :heading(6)
+FAIL=<h5 data-expect-match="5"></h5> :heading(6, 7)
+FAIL=<h5 data-expect-match="5"></h5> :heading(7)
+FAIL=<h5 data-expect-match="5"></h5> :heading(8)
+FAIL=<h5 data-expect-match="5"></h5> :heading(9)
 FAIL=<h6 data-expect-match="6"></h6> :heading
+FAIL=<h6 data-expect-match="6"></h6> :heading(0)
+FAIL=<h6 data-expect-match="6"></h6> :heading(0, 1, 2)
+FAIL=<h6 data-expect-match="6"></h6> :heading(1)
+FAIL=<h6 data-expect-match="6"></h6> :heading(2)
+FAIL=<h6 data-expect-match="6"></h6> :heading(3)
+FAIL=<h6 data-expect-match="6"></h6> :heading(4)
+FAIL=<h6 data-expect-match="6"></h6> :heading(5)
 FAIL=<h6 data-expect-match="6"></h6> :heading(6)
 FAIL=<h6 data-expect-match="6"></h6> :heading(6, 7)
+FAIL=<h6 data-expect-match="6"></h6> :heading(7)
+FAIL=<h6 data-expect-match="6"></h6> :heading(8)
+FAIL=<h6 data-expect-match="6"></h6> :heading(9)
+FAIL=<h7 data-expect-match=""></h7> :heading(0)
+FAIL=<h7 data-expect-match=""></h7> :heading(0, 1, 2)
+FAIL=<h7 data-expect-match=""></h7> :heading(1)
+FAIL=<h7 data-expect-match=""></h7> :heading(2)
+FAIL=<h7 data-expect-match=""></h7> :heading(3)
+FAIL=<h7 data-expect-match=""></h7> :heading(4)
+FAIL=<h7 data-expect-match=""></h7> :heading(5)
+FAIL=<h7 data-expect-match=""></h7> :heading(6)
+FAIL=<h7 data-expect-match=""></h7> :heading(6, 7)
+FAIL=<h7 data-expect-match=""></h7> :heading(7)
+FAIL=<h7 data-expect-match=""></h7> :heading(8)
+FAIL=<h7 data-expect-match=""></h7> :heading(9)
+FAIL=<h8 data-expect-match=""></h8> :heading(0)
+FAIL=<h8 data-expect-match=""></h8> :heading(0, 1, 2)
+FAIL=<h8 data-expect-match=""></h8> :heading(1)
+FAIL=<h8 data-expect-match=""></h8> :heading(2)
+FAIL=<h8 data-expect-match=""></h8> :heading(3)
+FAIL=<h8 data-expect-match=""></h8> :heading(4)
+FAIL=<h8 data-expect-match=""></h8> :heading(5)
+FAIL=<h8 data-expect-match=""></h8> :heading(6)
+FAIL=<h8 data-expect-match=""></h8> :heading(6, 7)
+FAIL=<h8 data-expect-match=""></h8> :heading(7)
+FAIL=<h8 data-expect-match=""></h8> :heading(8)
+FAIL=<h8 data-expect-match=""></h8> :heading(9)
+FAIL=<h9 data-expect-match=""></h9> :heading(0)
+FAIL=<h9 data-expect-match=""></h9> :heading(0, 1, 2)
+FAIL=<h9 data-expect-match=""></h9> :heading(1)
+FAIL=<h9 data-expect-match=""></h9> :heading(2)
+FAIL=<h9 data-expect-match=""></h9> :heading(3)
+FAIL=<h9 data-expect-match=""></h9> :heading(4)
+FAIL=<h9 data-expect-match=""></h9> :heading(5)
+FAIL=<h9 data-expect-match=""></h9> :heading(6)
+FAIL=<h9 data-expect-match=""></h9> :heading(6, 7)
+FAIL=<h9 data-expect-match=""></h9> :heading(7)
+FAIL=<h9 data-expect-match=""></h9> :heading(8)
+FAIL=<h9 data-expect-match=""></h9> :heading(9)
+FAIL=<hgroup data-expect-match=""></hgroup> :heading(0)
+FAIL=<hgroup data-expect-match=""></hgroup> :heading(0, 1, 2)
+FAIL=<hgroup data-expect-match=""></hgroup> :heading(1)
+FAIL=<hgroup data-expect-match=""></hgroup> :heading(2)
+FAIL=<hgroup data-expect-match=""></hgroup> :heading(3)
+FAIL=<hgroup data-expect-match=""></hgroup> :heading(4)
+FAIL=<hgroup data-expect-match=""></hgroup> :heading(5)
+FAIL=<hgroup data-expect-match=""></hgroup> :heading(6)
+FAIL=<hgroup data-expect-match=""></hgroup> :heading(6, 7)
+FAIL=<hgroup data-expect-match=""></hgroup> :heading(7)
+FAIL=<hgroup data-expect-match=""></hgroup> :heading(8)
+FAIL=<hgroup data-expect-match=""></hgroup> :heading(9)
+FAIL=<p role="heading" aria-level="1" data-expect-match=""></p> :heading(0)
+FAIL=<p role="heading" aria-level="1" data-expect-match=""></p> :heading(0, 1, 2)
+FAIL=<p role="heading" aria-level="1" data-expect-match=""></p> :heading(1)
+FAIL=<p role="heading" aria-level="1" data-expect-match=""></p> :heading(2)
+FAIL=<p role="heading" aria-level="1" data-expect-match=""></p> :heading(3)
+FAIL=<p role="heading" aria-level="1" data-expect-match=""></p> :heading(4)
+FAIL=<p role="heading" aria-level="1" data-expect-match=""></p> :heading(5)
+FAIL=<p role="heading" aria-level="1" data-expect-match=""></p> :heading(6)
+FAIL=<p role="heading" aria-level="1" data-expect-match=""></p> :heading(6, 7)
+FAIL=<p role="heading" aria-level="1" data-expect-match=""></p> :heading(7)
+FAIL=<p role="heading" aria-level="1" data-expect-match=""></p> :heading(8)
+FAIL=<p role="heading" aria-level="1" data-expect-match=""></p> :heading(9)
 [css/selectors/hover-002.html]
 harness=TIMEOUT
 [css/selectors/hover-toplayer-001.html]
@@ -74011,14 +74109,16 @@ FAIL=Hovering inside a popover should not propagate :hover beyond the popover.
 FAIL=With nested top layer elements, :hover should stop at the innermost top layer boundary.
 [css/selectors/i18n/css3-selectors-lang-016.html]
 FAIL=A :lang value that matches an identical xml:lang attribute value will NOT produce styling in pages served as HTML.
-[css/selectors/i18n/lang-pseudo-class-disconnected.html]
-FAIL=:lang pseudo class should work in a disconnected subtree
 [css/selectors/i18n/lang-pseudo-class-empty-attribute.xhtml]
 FAIL=Test if empty language attributes are supported
 [css/selectors/invalidation/any-link-pseudo.html]
 FAIL=Style was recalculated for the :any-link pseudo class.
 [css/selectors/invalidation/attribute-or-elemental-selectors-in-has.html]
-harness=TIMEOUT
+FAIL=add .child to #div_child: div#div_subject.color
+FAIL=add .descendant to #div_child: div#div_subject.color
+FAIL=add .descendant to #div_grandchild: div#div_subject.color
+FAIL=change #div_grandchild to #div_descendant: div#div_subject.color
+FAIL=set descendant to #div_grandchild[attrname]: div#div_subject.color
 [css/selectors/invalidation/attribute.html]
 FAIL=#id selector is effective
 FAIL=.class selector is effective
@@ -74026,13 +74126,6 @@ FAIL=[att=val] selector is effective
 FAIL=[att] selector is effective
 FAIL=[att|=val] selector is effective
 FAIL=[att~=val] selector is effective
-[css/selectors/invalidation/child-indexed-pseudo-classes-in-has.html]
-FAIL=Initial colors: #first_child
-FAIL=Initial colors: #last_child
-FAIL=Initial colors: #nth_child_3n
-FAIL=Initial colors: #nth_child_3n_1
-FAIL=Initial colors: #nth_child_3n_2
-FAIL=Initial colors: #only_child
 [css/selectors/invalidation/defined-in-has.html]
 FAIL=Test :has() invalidation with :defined pseudo-class
 [css/selectors/invalidation/defined.html]
@@ -74042,191 +74135,762 @@ FAIL=Visible after inserting non-empty element into #child
 FAIL=Visible after inserting text into #child
 FAIL=Visible after inserting text into empty #child
 FAIL=Visible again after inserting text into empty #child
-[css/selectors/invalidation/empty-pseudo-in-has.html]
-FAIL=Empty #subject
-[css/selectors/invalidation/enabled-disabled.html]
-FAIL=Element updates when disabled
-FAIL=Element updates when enabled
 [css/selectors/invalidation/fullscreen-pseudo-class-in-has.html]
-FAIL=:fullscreen pseudo-class invalidation with requestFullscreen + exitFullscreen
-FAIL=:fullscreen pseudo-class invalidation with requestFullscreen + remove
+harness=TIMEOUT
 [css/selectors/invalidation/has-complexity.html]
-FAIL=Before appending 25000 elements
+harness=TIMEOUT
 [css/selectors/invalidation/has-css-nesting-shared.html]
-harness=TIMEOUT
+FAIL=add .test to trigger1 - check subject1_1
+FAIL=add .test to trigger1 - check subject1_2
+FAIL=add .test to trigger2 - check subject2_1
+FAIL=add .test to trigger2 - check subject2_2
+FAIL=add .test to trigger3 - check subject3_1
+FAIL=add .test to trigger3 - check subject3_2
 [css/selectors/invalidation/has-in-adjacent-position.html]
-FAIL=Initial color
+FAIL=add .test to next_sibling
+FAIL=add .test to next_sibling_child
+FAIL=add .test to next_sibling_descendant
+FAIL=add .test to previous_sibling_child
+FAIL=add .test to previous_sibling_descendant
+FAIL=add the class 'test' to the element in the tree inserted again after next_sibling
+FAIL=add the class 'test' to the element in the tree inserted again after next_sibling_child
+FAIL=add the class 'test' to the element in the tree inserted again after next_sibling_descendant
+FAIL=add the class 'test' to the element in the tree inserted again after previous_sibling
+FAIL=add the class 'test' to the element in the tree inserted again after previous_sibling_child
+FAIL=add the class 'test' to the element in the tree inserted again after previous_sibling_descendant
+FAIL=add the class 'test' to the element in the tree inserted again after subject
+FAIL=add the class 'test' to the element in the tree inserted again before next_sibling
+FAIL=add the class 'test' to the element in the tree inserted again before next_sibling_child
+FAIL=add the class 'test' to the element in the tree inserted again before next_sibling_descendant
+FAIL=add the class 'test' to the element in the tree inserted again before previous_sibling_child
+FAIL=add the class 'test' to the element in the tree inserted again before previous_sibling_descendant
+FAIL=add the class 'test' to the element in the tree inserted again before subject
+FAIL=add the class 'test' to the element inserted again after next_sibling
+FAIL=add the class 'test' to the element inserted again after next_sibling_child
+FAIL=add the class 'test' to the element inserted again after next_sibling_descendant
+FAIL=add the class 'test' to the element inserted again after previous_sibling_child
+FAIL=add the class 'test' to the element inserted again after previous_sibling_descendant
+FAIL=add the class 'test' to the element inserted again after subject
+FAIL=add the class 'test' to the element inserted again before next_sibling
+FAIL=add the class 'test' to the element inserted again before next_sibling_child
+FAIL=add the class 'test' to the element inserted again before next_sibling_descendant
+FAIL=add the class 'test' to the element inserted again before previous_sibling_child
+FAIL=add the class 'test' to the element inserted again before previous_sibling_descendant
+FAIL=insert element div>div[test_attr] after next_sibling
+FAIL=insert element div>div[test_attr] after next_sibling_child
+FAIL=insert element div>div[test_attr] after next_sibling_descendant
+FAIL=insert element div>div[test_attr] after previous_sibling
+FAIL=insert element div>div[test_attr] after previous_sibling_child
+FAIL=insert element div>div[test_attr] after previous_sibling_descendant
+FAIL=insert element div>div[test_attr] after subject
+FAIL=insert element div>div[test_attr] before next_sibling
+FAIL=insert element div>div[test_attr] before next_sibling_child
+FAIL=insert element div>div[test_attr] before next_sibling_descendant
+FAIL=insert element div>div[test_attr] before previous_sibling_child
+FAIL=insert element div>div[test_attr] before previous_sibling_descendant
+FAIL=insert element div>div[test_attr] before subject
+FAIL=insert element div[test_attr] after next_sibling
+FAIL=insert element div[test_attr] after next_sibling_child
+FAIL=insert element div[test_attr] after next_sibling_descendant
+FAIL=insert element div[test_attr] after previous_sibling_child
+FAIL=insert element div[test_attr] after previous_sibling_descendant
+FAIL=insert element div[test_attr] after subject
+FAIL=insert element div[test_attr] before next_sibling
+FAIL=insert element div[test_attr] before next_sibling_child
+FAIL=insert element div[test_attr] before next_sibling_descendant
+FAIL=insert element div[test_attr] before previous_sibling_child
+FAIL=insert element div[test_attr] before previous_sibling_descendant
+FAIL=remove the class 'test' from the element in the tree inserted after next_sibling
+FAIL=remove the class 'test' from the element in the tree inserted after next_sibling_child
+FAIL=remove the class 'test' from the element in the tree inserted after next_sibling_descendant
+FAIL=remove the class 'test' from the element in the tree inserted after previous_sibling
+FAIL=remove the class 'test' from the element in the tree inserted after previous_sibling_child
+FAIL=remove the class 'test' from the element in the tree inserted after previous_sibling_descendant
+FAIL=remove the class 'test' from the element in the tree inserted after subject
+FAIL=remove the class 'test' from the element in the tree inserted before next_sibling
+FAIL=remove the class 'test' from the element in the tree inserted before next_sibling_child
+FAIL=remove the class 'test' from the element in the tree inserted before next_sibling_descendant
+FAIL=remove the class 'test' from the element in the tree inserted before previous_sibling_child
+FAIL=remove the class 'test' from the element in the tree inserted before previous_sibling_descendant
+FAIL=remove the class 'test' from the element in the tree inserted before subject
+FAIL=remove the class 'test' from the element inserted after next_sibling
+FAIL=remove the class 'test' from the element inserted after next_sibling_child
+FAIL=remove the class 'test' from the element inserted after next_sibling_descendant
+FAIL=remove the class 'test' from the element inserted after previous_sibling_child
+FAIL=remove the class 'test' from the element inserted after previous_sibling_descendant
+FAIL=remove the class 'test' from the element inserted after subject
+FAIL=remove the class 'test' from the element inserted before next_sibling
+FAIL=remove the class 'test' from the element inserted before next_sibling_child
+FAIL=remove the class 'test' from the element inserted before next_sibling_descendant
+FAIL=remove the class 'test' from the element inserted before previous_sibling_child
+FAIL=remove the class 'test' from the element inserted before previous_sibling_descendant
 [css/selectors/invalidation/has-in-ancestor-position.html]
-FAIL=Initial color
-[css/selectors/invalidation/has-in-is-non-subject-compound.html]
-FAIL=initial: #subject is grey
-FAIL=insert .test under #trigger: #subject becomes red
-FAIL=remove .test: #subject returns to grey
+FAIL=add .test to next_sibling
+FAIL=add .test to next_sibling_child
+FAIL=add .test to next_sibling_descendant
+FAIL=add .test to subject_child
+FAIL=add .test to subject_descendant
+FAIL=add the class 'test' again to the element in the tree inserted after next_sibling_child
+FAIL=add the class 'test' again to the element in the tree inserted after next_sibling_descendant
+FAIL=add the class 'test' again to the element in the tree inserted after subject_ancestor
+FAIL=add the class 'test' again to the element in the tree inserted after subject_parent
+FAIL=add the class 'test' again to the element in the tree inserted before next_sibling
+FAIL=add the class 'test' again to the element in the tree inserted before next_sibling_child
+FAIL=add the class 'test' again to the element in the tree inserted before next_sibling_descendant
+FAIL=add the class 'test' again to the element inserted after next_sibling_child
+FAIL=add the class 'test' again to the element inserted after next_sibling_descendant
+FAIL=add the class 'test' again to the element inserted before next_sibling_child
+FAIL=add the class 'test' again to the element inserted before next_sibling_descendant
+FAIL=add the class 'test' to the element in the tree inserted again after next_sibling
+FAIL=add the class 'test' to the element in the tree inserted again after next_sibling_child
+FAIL=add the class 'test' to the element in the tree inserted again after next_sibling_descendant
+FAIL=add the class 'test' to the element in the tree inserted again after subject
+FAIL=add the class 'test' to the element in the tree inserted again after subject_ancestor
+FAIL=add the class 'test' to the element in the tree inserted again after subject_child
+FAIL=add the class 'test' to the element in the tree inserted again after subject_descendant
+FAIL=add the class 'test' to the element in the tree inserted again after subject_parent
+FAIL=add the class 'test' to the element in the tree inserted again before next_sibling
+FAIL=add the class 'test' to the element in the tree inserted again before next_sibling_child
+FAIL=add the class 'test' to the element in the tree inserted again before next_sibling_descendant
+FAIL=add the class 'test' to the element in the tree inserted again before subject
+FAIL=add the class 'test' to the element in the tree inserted again before subject_child
+FAIL=add the class 'test' to the element in the tree inserted again before subject_descendant
+FAIL=add the class 'test' to the element in the tree inserted again before subject_parent
+FAIL=add the class 'test' to the element inserted again after next_sibling
+FAIL=add the class 'test' to the element inserted again after next_sibling_child
+FAIL=add the class 'test' to the element inserted again after next_sibling_descendant
+FAIL=add the class 'test' to the element inserted again after subject
+FAIL=add the class 'test' to the element inserted again after subject_ancestor
+FAIL=add the class 'test' to the element inserted again after subject_child
+FAIL=add the class 'test' to the element inserted again after subject_descendant
+FAIL=add the class 'test' to the element inserted again after subject_parent
+FAIL=add the class 'test' to the element inserted again before next_sibling
+FAIL=add the class 'test' to the element inserted again before next_sibling_child
+FAIL=add the class 'test' to the element inserted again before next_sibling_descendant
+FAIL=add the class 'test' to the element inserted again before subject
+FAIL=add the class 'test' to the element inserted again before subject_child
+FAIL=add the class 'test' to the element inserted again before subject_descendant
+FAIL=add the class 'test' to the element inserted again before subject_parent
+FAIL=insert element div.test after next_sibling_child
+FAIL=insert element div.test after next_sibling_descendant
+FAIL=insert element div.test before next_sibling_child
+FAIL=insert element div.test before next_sibling_descendant
+FAIL=insert element div>div[test_attr] after next_sibling
+FAIL=insert element div>div[test_attr] after next_sibling_child
+FAIL=insert element div>div[test_attr] after next_sibling_descendant
+FAIL=insert element div>div[test_attr] after subject
+FAIL=insert element div>div[test_attr] after subject_ancestor
+FAIL=insert element div>div[test_attr] after subject_child
+FAIL=insert element div>div[test_attr] after subject_descendant
+FAIL=insert element div>div[test_attr] after subject_parent
+FAIL=insert element div>div[test_attr] before next_sibling
+FAIL=insert element div>div[test_attr] before next_sibling_child
+FAIL=insert element div>div[test_attr] before next_sibling_descendant
+FAIL=insert element div>div[test_attr] before subject
+FAIL=insert element div>div[test_attr] before subject_child
+FAIL=insert element div>div[test_attr] before subject_descendant
+FAIL=insert element div>div[test_attr] before subject_parent
+FAIL=insert element div[test_attr] after next_sibling
+FAIL=insert element div[test_attr] after next_sibling_child
+FAIL=insert element div[test_attr] after next_sibling_descendant
+FAIL=insert element div[test_attr] after subject
+FAIL=insert element div[test_attr] after subject_ancestor
+FAIL=insert element div[test_attr] after subject_child
+FAIL=insert element div[test_attr] after subject_descendant
+FAIL=insert element div[test_attr] after subject_parent
+FAIL=insert element div[test_attr] before next_sibling
+FAIL=insert element div[test_attr] before next_sibling_child
+FAIL=insert element div[test_attr] before next_sibling_descendant
+FAIL=insert element div[test_attr] before subject
+FAIL=insert element div[test_attr] before subject_child
+FAIL=insert element div[test_attr] before subject_descendant
+FAIL=insert element div[test_attr] before subject_parent
+FAIL=insert tree div>div.test after next_sibling_child
+FAIL=insert tree div>div.test after next_sibling_descendant
+FAIL=insert tree div>div.test after subject_ancestor
+FAIL=insert tree div>div.test after subject_parent
+FAIL=insert tree div>div.test before next_sibling
+FAIL=insert tree div>div.test before next_sibling_child
+FAIL=insert tree div>div.test before next_sibling_descendant
+FAIL=remove the class 'test' from the element in the tree inserted after next_sibling
+FAIL=remove the class 'test' from the element in the tree inserted after next_sibling_child
+FAIL=remove the class 'test' from the element in the tree inserted after next_sibling_descendant
+FAIL=remove the class 'test' from the element in the tree inserted after subject
+FAIL=remove the class 'test' from the element in the tree inserted after subject_ancestor
+FAIL=remove the class 'test' from the element in the tree inserted after subject_child
+FAIL=remove the class 'test' from the element in the tree inserted after subject_descendant
+FAIL=remove the class 'test' from the element in the tree inserted after subject_parent
+FAIL=remove the class 'test' from the element in the tree inserted before next_sibling
+FAIL=remove the class 'test' from the element in the tree inserted before next_sibling_child
+FAIL=remove the class 'test' from the element in the tree inserted before next_sibling_descendant
+FAIL=remove the class 'test' from the element in the tree inserted before subject
+FAIL=remove the class 'test' from the element in the tree inserted before subject_child
+FAIL=remove the class 'test' from the element in the tree inserted before subject_descendant
+FAIL=remove the class 'test' from the element in the tree inserted before subject_parent
+FAIL=remove the class 'test' from the element inserted after next_sibling
+FAIL=remove the class 'test' from the element inserted after next_sibling_child
+FAIL=remove the class 'test' from the element inserted after next_sibling_descendant
+FAIL=remove the class 'test' from the element inserted after subject
+FAIL=remove the class 'test' from the element inserted after subject_ancestor
+FAIL=remove the class 'test' from the element inserted after subject_child
+FAIL=remove the class 'test' from the element inserted after subject_descendant
+FAIL=remove the class 'test' from the element inserted after subject_parent
+FAIL=remove the class 'test' from the element inserted before next_sibling
+FAIL=remove the class 'test' from the element inserted before next_sibling_child
+FAIL=remove the class 'test' from the element inserted before next_sibling_descendant
+FAIL=remove the class 'test' from the element inserted before subject
+FAIL=remove the class 'test' from the element inserted before subject_child
+FAIL=remove the class 'test' from the element inserted before subject_descendant
+FAIL=remove the class 'test' from the element inserted before subject_parent
 [css/selectors/invalidation/has-in-parent-position.html]
-FAIL=Initial color
+FAIL=add .test to subject_child
+FAIL=add .test to subject_descendant
+FAIL=add the class 'test' again to the element in the tree inserted after subject_parent
+FAIL=add the class 'test' to the element in the tree inserted again after subject
+FAIL=add the class 'test' to the element in the tree inserted again after subject_child
+FAIL=add the class 'test' to the element in the tree inserted again after subject_descendant
+FAIL=add the class 'test' to the element in the tree inserted again after subject_parent
+FAIL=add the class 'test' to the element in the tree inserted again before subject
+FAIL=add the class 'test' to the element in the tree inserted again before subject_child
+FAIL=add the class 'test' to the element in the tree inserted again before subject_descendant
+FAIL=add the class 'test' to the element inserted again after subject
+FAIL=add the class 'test' to the element inserted again after subject_child
+FAIL=add the class 'test' to the element inserted again after subject_descendant
+FAIL=add the class 'test' to the element inserted again after subject_parent
+FAIL=add the class 'test' to the element inserted again before subject
+FAIL=add the class 'test' to the element inserted again before subject_child
+FAIL=add the class 'test' to the element inserted again before subject_descendant
+FAIL=insert element div>div[test_attr] after subject
+FAIL=insert element div>div[test_attr] after subject_child
+FAIL=insert element div>div[test_attr] after subject_descendant
+FAIL=insert element div>div[test_attr] after subject_parent
+FAIL=insert element div>div[test_attr] before subject
+FAIL=insert element div>div[test_attr] before subject_child
+FAIL=insert element div>div[test_attr] before subject_descendant
+FAIL=insert element div[test_attr] after subject
+FAIL=insert element div[test_attr] after subject_child
+FAIL=insert element div[test_attr] after subject_descendant
+FAIL=insert element div[test_attr] after subject_parent
+FAIL=insert element div[test_attr] before subject
+FAIL=insert element div[test_attr] before subject_child
+FAIL=insert element div[test_attr] before subject_descendant
+FAIL=insert tree div>div.test after subject_parent
+FAIL=remove the class 'test' from the element in the tree inserted after subject
+FAIL=remove the class 'test' from the element in the tree inserted after subject_child
+FAIL=remove the class 'test' from the element in the tree inserted after subject_descendant
+FAIL=remove the class 'test' from the element in the tree inserted after subject_parent
+FAIL=remove the class 'test' from the element in the tree inserted before subject
+FAIL=remove the class 'test' from the element in the tree inserted before subject_child
+FAIL=remove the class 'test' from the element in the tree inserted before subject_descendant
+FAIL=remove the class 'test' from the element inserted after subject
+FAIL=remove the class 'test' from the element inserted after subject_child
+FAIL=remove the class 'test' from the element inserted after subject_descendant
+FAIL=remove the class 'test' from the element inserted after subject_parent
+FAIL=remove the class 'test' from the element inserted before subject
+FAIL=remove the class 'test' from the element inserted before subject_child
+FAIL=remove the class 'test' from the element inserted before subject_descendant
 [css/selectors/invalidation/has-in-sibling-position.html]
-FAIL=Initial color
-[css/selectors/invalidation/has-invalidation-after-removing-non-first-element.html]
-harness=TIMEOUT
+FAIL=add .test to next_sibling
+FAIL=add .test to next_sibling_child
+FAIL=add .test to next_sibling_descendant
+FAIL=add .test to previous_sibling_child
+FAIL=add .test to previous_sibling_descendant
+FAIL=add the class 'test' again to the element in the tree inserted after previous_sibling
+FAIL=add the class 'test' again to the element in the tree inserted before subject
+FAIL=add the class 'test' to the element in the tree inserted again after next_sibling
+FAIL=add the class 'test' to the element in the tree inserted again after next_sibling_child
+FAIL=add the class 'test' to the element in the tree inserted again after next_sibling_descendant
+FAIL=add the class 'test' to the element in the tree inserted again after previous_sibling
+FAIL=add the class 'test' to the element in the tree inserted again after previous_sibling_child
+FAIL=add the class 'test' to the element in the tree inserted again after previous_sibling_descendant
+FAIL=add the class 'test' to the element in the tree inserted again after subject
+FAIL=add the class 'test' to the element in the tree inserted again before next_sibling
+FAIL=add the class 'test' to the element in the tree inserted again before next_sibling_child
+FAIL=add the class 'test' to the element in the tree inserted again before next_sibling_descendant
+FAIL=add the class 'test' to the element in the tree inserted again before previous_sibling
+FAIL=add the class 'test' to the element in the tree inserted again before previous_sibling_child
+FAIL=add the class 'test' to the element in the tree inserted again before previous_sibling_descendant
+FAIL=add the class 'test' to the element in the tree inserted again before subject
+FAIL=add the class 'test' to the element inserted again after next_sibling
+FAIL=add the class 'test' to the element inserted again after next_sibling_child
+FAIL=add the class 'test' to the element inserted again after next_sibling_descendant
+FAIL=add the class 'test' to the element inserted again after previous_sibling
+FAIL=add the class 'test' to the element inserted again after previous_sibling_child
+FAIL=add the class 'test' to the element inserted again after previous_sibling_descendant
+FAIL=add the class 'test' to the element inserted again after subject
+FAIL=add the class 'test' to the element inserted again before next_sibling
+FAIL=add the class 'test' to the element inserted again before next_sibling_child
+FAIL=add the class 'test' to the element inserted again before next_sibling_descendant
+FAIL=add the class 'test' to the element inserted again before previous_sibling_child
+FAIL=add the class 'test' to the element inserted again before previous_sibling_descendant
+FAIL=add the class 'test' to the element inserted again before subject
+FAIL=insert element div>div[test_attr] after next_sibling
+FAIL=insert element div>div[test_attr] after next_sibling_child
+FAIL=insert element div>div[test_attr] after next_sibling_descendant
+FAIL=insert element div>div[test_attr] after previous_sibling
+FAIL=insert element div>div[test_attr] after previous_sibling_child
+FAIL=insert element div>div[test_attr] after previous_sibling_descendant
+FAIL=insert element div>div[test_attr] after subject
+FAIL=insert element div>div[test_attr] before next_sibling
+FAIL=insert element div>div[test_attr] before next_sibling_child
+FAIL=insert element div>div[test_attr] before next_sibling_descendant
+FAIL=insert element div>div[test_attr] before previous_sibling
+FAIL=insert element div>div[test_attr] before previous_sibling_child
+FAIL=insert element div>div[test_attr] before previous_sibling_descendant
+FAIL=insert element div>div[test_attr] before subject
+FAIL=insert element div[test_attr] after next_sibling
+FAIL=insert element div[test_attr] after next_sibling_child
+FAIL=insert element div[test_attr] after next_sibling_descendant
+FAIL=insert element div[test_attr] after previous_sibling
+FAIL=insert element div[test_attr] after previous_sibling_child
+FAIL=insert element div[test_attr] after previous_sibling_descendant
+FAIL=insert element div[test_attr] after subject
+FAIL=insert element div[test_attr] before next_sibling
+FAIL=insert element div[test_attr] before next_sibling_child
+FAIL=insert element div[test_attr] before next_sibling_descendant
+FAIL=insert element div[test_attr] before previous_sibling_child
+FAIL=insert element div[test_attr] before previous_sibling_descendant
+FAIL=insert element div[test_attr] before subject
+FAIL=insert tree div>div.test after previous_sibling
+FAIL=insert tree div>div.test before subject
+FAIL=remove the class 'test' from the element in the tree inserted after next_sibling
+FAIL=remove the class 'test' from the element in the tree inserted after next_sibling_child
+FAIL=remove the class 'test' from the element in the tree inserted after next_sibling_descendant
+FAIL=remove the class 'test' from the element in the tree inserted after previous_sibling
+FAIL=remove the class 'test' from the element in the tree inserted after previous_sibling_child
+FAIL=remove the class 'test' from the element in the tree inserted after previous_sibling_descendant
+FAIL=remove the class 'test' from the element in the tree inserted after subject
+FAIL=remove the class 'test' from the element in the tree inserted before next_sibling
+FAIL=remove the class 'test' from the element in the tree inserted before next_sibling_child
+FAIL=remove the class 'test' from the element in the tree inserted before next_sibling_descendant
+FAIL=remove the class 'test' from the element in the tree inserted before previous_sibling
+FAIL=remove the class 'test' from the element in the tree inserted before previous_sibling_child
+FAIL=remove the class 'test' from the element in the tree inserted before previous_sibling_descendant
+FAIL=remove the class 'test' from the element in the tree inserted before subject
+FAIL=remove the class 'test' from the element inserted after next_sibling
+FAIL=remove the class 'test' from the element inserted after next_sibling_child
+FAIL=remove the class 'test' from the element inserted after next_sibling_descendant
+FAIL=remove the class 'test' from the element inserted after previous_sibling
+FAIL=remove the class 'test' from the element inserted after previous_sibling_child
+FAIL=remove the class 'test' from the element inserted after previous_sibling_descendant
+FAIL=remove the class 'test' from the element inserted after subject
+FAIL=remove the class 'test' from the element inserted before next_sibling
+FAIL=remove the class 'test' from the element inserted before next_sibling_child
+FAIL=remove the class 'test' from the element inserted before next_sibling_descendant
+FAIL=remove the class 'test' from the element inserted before previous_sibling_child
+FAIL=remove the class 'test' from the element inserted before previous_sibling_descendant
+FAIL=remove the class 'test' from the element inserted before subject
 [css/selectors/invalidation/has-invalidation-first-in-sibling-chain.html]
-harness=TIMEOUT
-[css/selectors/invalidation/has-invalidation-for-wiping-an-element.html]
-harness=TIMEOUT
+FAIL=#subject2 invalidated after adding first sibling
+FAIL=#subject4 invalidated after adding first sibling
 [css/selectors/invalidation/has-pseudo-element-subject-child-mutation.html]
 FAIL=Initially 5px
 FAIL=Pseudo-element ::before invalidates when a matching child is added (attribute selector, child combinator)
 FAIL=Pseudo-element ::before invalidates when a matching child is added (class selector, child combinator)
 FAIL=Pseudo-element ::before invalidates when a matching descendant is added (class selector, descendant combinator)
-[css/selectors/invalidation/has-pseudoclass-only.html]
-harness=TIMEOUT
-[css/selectors/invalidation/has-sibling-insertion-removal.html]
-harness=TIMEOUT
 [css/selectors/invalidation/has-sibling.html]
-FAIL=initial_color
-[css/selectors/invalidation/has-side-effect.html]
-FAIL=Initial colors
+FAIL=add .test to first_sibling
+FAIL=add .test to first_sibling_child
+FAIL=add .test to first_sibling_descendant
+FAIL=add .test to second_sibling
+FAIL=add .test to third_sibling
+FAIL=add .test to third_sibling_child
+FAIL=add .test to third_sibling_descendant
+FAIL=insert element div.test after first_sibling_child
+FAIL=insert element div.test before first_sibling_child
+FAIL=insert tree div>div.test before first_sibling
 [css/selectors/invalidation/has-unstyled.html]
-FAIL=Initial color
+FAIL=add test to sibling_descendant
+FAIL=add test to subject_descendant
+FAIL=add test_inner to sibling_child
+FAIL=add test_inner to subject_child
 [css/selectors/invalidation/has-with-is-child-combinator.html]
-FAIL=Initial color
+FAIL=add .child to direct_child
+FAIL=add .deep-parent to direct_child
+FAIL=add .descendant to direct_child
 [css/selectors/invalidation/has-with-nesting-parent-containing-complex.html]
-harness=TIMEOUT
+FAIL=#anchor1 becomes rgb(0, 0, 255) after adding .ancestor to #grand_parent1
+FAIL=#anchor1 becomes rgb(0, 0, 255) after adding .ancestor to #parent1
+FAIL=#anchor2 becomes rgb(173, 216, 230) after adding .ancestor to #grand_parent2
+FAIL=#anchor2 becomes rgb(173, 216, 230) after adding .ancestor to #parent2
+FAIL=#anchor3 becomes rgb(154, 205, 50) after adding .ancestor to #grand_parent3
+FAIL=#anchor3 becomes rgb(154, 205, 50) after adding .ancestor to #parent3
+FAIL=#anchor3 becomes rgb(255, 255, 0) after adding .ancestor_prev to #anchor_direct_prev3
+FAIL=#anchor3 becomes rgb(255, 255, 0) after adding .ancestor_prev to #anchor_indirect_prev3
+FAIL=#anchor3 becomes rgb(255, 255, 0) after adding .ancestor_prev to #grand_parent_direct_prev3
+FAIL=#anchor3 becomes rgb(255, 255, 0) after adding .ancestor_prev to #grand_parent_indirect_prev3
+FAIL=#anchor3 becomes rgb(255, 255, 0) after adding .ancestor_prev to #parent_direct_prev3
+FAIL=#anchor3 becomes rgb(255, 255, 0) after adding .ancestor_prev to #parent_indirect_prev3
+FAIL=#anchor3 becomes rgb(255, 255, 0) after removing .ancestor from #grand_parent3
+FAIL=#anchor3 becomes rgb(255, 255, 0) after removing .ancestor from #parent3
+FAIL=#anchor4 becomes rgb(0, 128, 0) after adding .prev to #direct_prev4
+FAIL=#anchor4 becomes rgb(0, 128, 0) after adding .prev to #indirect_prev4
+FAIL=#anchor5 becomes rgb(144, 238, 144) after adding .prev to #direct_prev5
+FAIL=#anchor5 becomes rgb(144, 238, 144) after adding .prev to #indirect_prev5
 [css/selectors/invalidation/has-with-nesting-parent-containing-hover.html]
 FAIL=CSS Selector Invalidation: :has() with nesting parent containing :hover
 [css/selectors/invalidation/has-with-not.html]
-FAIL=Initial color
-[css/selectors/invalidation/has-with-nth-child.html]
-FAIL=:nth-child() in non-subject no longer matching after removal
-FAIL=:nth-child() no longer matching after removal
-FAIL=:nth-last-child() in non-subject no longer matching after removal
-FAIL=:nth-last-child() no longer matching after removal
-FAIL=Initially red
+FAIL=remove .test to subject_child
+FAIL=remove .test to subject_descendant
 [css/selectors/invalidation/has-with-pseudo-class.html]
-harness=TIMEOUT
+FAIL=Set checked on checkbox, testing subject
 [css/selectors/invalidation/heading-pseudo-class-in-has-with-headingoffset.html]
 FAIL=Initial colors: #has_heading_1
 FAIL=Initial colors: #has_heading_1_2
-FAIL=Initial colors: #has_heading_2
-FAIL=Initial colors: #has_heading_3
+FAIL=ancestor with headingoffset removed: #has_heading_1
+FAIL=ancestor with headingoffset removed: #has_heading_1_2
+FAIL=ancestor[headingoffset=1]: #has_heading_1_2
+FAIL=ancestor[headingoffset=1]: #has_heading_2
+FAIL=ancestor[headingoffset=2] again: #has_heading_3
+FAIL=ancestor[headingoffset=2]: #has_heading_3
+FAIL=h1 with headingoffset removed: #has_heading_1
+FAIL=h1 with headingoffset removed: #has_heading_1_2
+FAIL=h1 with headingreset removed: #has_heading_3
+FAIL=h1.headingOffset = 0: #has_heading_1
+FAIL=h1.headingOffset = 0: #has_heading_1_2
+FAIL=h1.headingOffset = 1: #has_heading_1_2
+FAIL=h1.headingOffset = 1: #has_heading_2
+FAIL=h1.headingReset = false: #has_heading_3
+FAIL=h1.headingReset = true: #has_heading_1
+FAIL=h1.headingReset = true: #has_heading_1_2
+FAIL=h1[headingoffset=1]: #has_heading_1_2
+FAIL=h1[headingoffset=1]: #has_heading_2
+FAIL=h1[headingoffset=2]: #has_heading_3
+FAIL=h1[headingreset] (cuts ancestor offset): #has_heading_1
+FAIL=h1[headingreset] (cuts ancestor offset): #has_heading_1_2
 [css/selectors/invalidation/heading-pseudo-class-in-has-with-slot-reassignment.html]
-harness=TIMEOUT
+FAIL=Initial (h1 slotted into slot_a): #has_heading_1
+FAIL=Re-insert slot_a: #has_heading_1
+FAIL=Reset slot names: #has_heading_1
+FAIL=ancestor with headingoffset removed: #has_heading_1
+FAIL=ancestor[headingoffset=2]: #has_heading_3
+FAIL=ancestor[headingoffset=4]: #has_heading_5
+FAIL=h1.slot = 'a': #has_heading_1
+FAIL=h1.slot = 'b' with ancestor[headingoffset=2]: #has_heading_3
+FAIL=h1.slot = 'b': #has_heading_1
+FAIL=h1.slot = 'nonexistent': #has_heading_1
+FAIL=slotA.name = 'c': #has_heading_1
+FAIL=slotA.remove(): #has_heading_1
+FAIL=slotB.name = 'a': #has_heading_1
 [css/selectors/invalidation/heading-pseudo-class-in-has.html]
-FAIL=Initial colors: #adjacent_heading_1
-FAIL=Initial colors: #has_adjacent_heading_1
-FAIL=Initial colors: #has_heading_1
-FAIL=Initial colors: #has_heading_1_2
-FAIL=Initial colors: #has_heading_2
-FAIL=Initial colors: #has_heading_3
+FAIL=Append h1 to #ancestor: #has_heading_1
+FAIL=Append h1 to #ancestor: #has_heading_1_2
+FAIL=Append h2 to #ancestor: #has_heading_1
+FAIL=Append h2 to #ancestor: #has_heading_1_2
+FAIL=Append h2 to #ancestor: #has_heading_2
+FAIL=Append h3 to #ancestor: #has_heading_1
+FAIL=Append h3 to #ancestor: #has_heading_1_2
+FAIL=Append h3 to #ancestor: #has_heading_2
+FAIL=Append h3 to #ancestor: #has_heading_3
+FAIL=Insert h1 adjacent to #sibling: #adjacent_heading_1
+FAIL=Insert h1 adjacent to #sibling: #has_adjacent_heading_1
+FAIL=Remove h1 from #ancestor: #has_heading_1_2
+FAIL=Remove h1 from #ancestor: #has_heading_2
+FAIL=Remove h1 from #ancestor: #has_heading_3
+FAIL=Remove h2 from #ancestor: #has_heading_3
+FAIL=Replace div with h1 in #ancestor: #has_heading_1
+FAIL=Replace div with h1 in #ancestor: #has_heading_1_2
 [css/selectors/invalidation/host-context-pseudo-class-in-has.html]
-harness=TIMEOUT
+FAIL=After adding 'a' to #host_parent: Check #subject1 color
+FAIL=After adding 'a' to #host_parent: Check #subject2 color
 [css/selectors/invalidation/host-has-shadow-tree-element-at-nonsubject-position.html]
-harness=TIMEOUT
+FAIL=Add .ancestor to #shadow_child:has(.descendant)
+FAIL=Add .child to #shadow_child
+FAIL=Add .child to #shadow_child:has(.descendant)
+FAIL=Add .descendant to #shadow_child
+FAIL=Add .descendant to #shadow_descendant
+FAIL=Add .descendant to #shadow_descendant.grand_child
+FAIL=Add .grand_child to #shadow_descendant
+FAIL=Add .host_context to #host
+FAIL=Insert #child_in_middle.descendant before #shadow_child
+FAIL=Insert #first_child.descendant to shadow root
+FAIL=Insert #grand_child.descendant before #shadow_descendant
+FAIL=Insert #last_child.descendant to shadow root
+FAIL=Remove .ancestor from #shadow_child:has(.descendant)
+FAIL=Remove .child from #shadow_child:has(.descendant)
+FAIL=Remove .descendant from #shadow_descendant.grand_child
+FAIL=Remove .grand_child from #shadow_descendant
 [css/selectors/invalidation/host-has-shadow-tree-element-at-subject-position.html]
-harness=TIMEOUT
+FAIL=Add .child to #shadow_child
+FAIL=Add .child to #shadow_child:has(.descendant)
+FAIL=Add .child to #shadow_descendant
+FAIL=Add .descendant to #shadow_child
+FAIL=Add .descendant to #shadow_descendant
+FAIL=Add .descendant to #shadow_descendant.grand_child
+FAIL=Add .grand_child to #shadow_descendant
+FAIL=Add .host_context to #host
+FAIL=Initial color
+FAIL=Insert #child_in_middle.descendant before #shadow_child
+FAIL=Insert #first_child.descendant to shadow root
+FAIL=Insert #grand_child.descendant before #shadow_descendant
+FAIL=Insert #last_child.descendant to shadow root
+FAIL=Remove #child_in_middle.descendant from shadow root
+FAIL=Remove #first_child.descendant from shadow root
+FAIL=Remove #grand_child.descendant from shadow tree
+FAIL=Remove #last_child.descendant from shadow root
+FAIL=Remove .ancestor from #shadow_child:has(.descendant)
+FAIL=Remove .child from #shadow_child
+FAIL=Remove .child from #shadow_child:has(.descendant)
+FAIL=Remove .child from #shadow_descendant
+FAIL=Remove .descendant from #shadow_child
+FAIL=Remove .descendant from #shadow_descendant
+FAIL=Remove .descendant from #shadow_descendant.grand_child
+FAIL=Remove .grand_child from #shadow_descendant
 [css/selectors/invalidation/host-pseudo-class-in-has.html]
-harness=TIMEOUT
+FAIL=After adding 'a' to #host: Check #subject1 color
+FAIL=After adding 'a' to #host: Check #subject2 color
 [css/selectors/invalidation/input-in-range-in-has-with-readonly.html]
-harness=ERROR
+FAIL=:in-range in :has() invalidation when removing readonly
+FAIL=:in-range in :has() invalidation when setting readonly
+FAIL=:out-of-range in :has() invalidation when removing readonly
+FAIL=:out-of-range in :has() invalidation when setting readonly
 [css/selectors/invalidation/input-pseudo-classes-in-has.html]
-harness=ERROR
+FAIL=:checked & :indeterminate invalidation on <input>
+FAIL=:default invalidation with input[type=checkbox] and assignment to .checked
+FAIL=:default invalidation with input[type=radio]
+FAIL=:disabled invalidation
+FAIL=:indeterminate invalidation on <progress>
+FAIL=:out-of-range invalidation
+FAIL=:placeholder-shown invalidation
+FAIL=:read-only invalidation
+FAIL=:required invalidation
+FAIL=:valid invalidation
 [css/selectors/invalidation/is-pseudo-containing-complex-in-has.html]
-harness=TIMEOUT
+FAIL=[ .blue:has(~ #indirect_next:is(.p + .f_has_scope ~ .g)) ] #direct_next.classList.add('f_has_scope') : check #has_scope color
+FAIL=[ .blue:has(~ #indirect_next:is(.p + .f_has_scope ~ .g)) ] #direct_next.classList.remove('f_has_scope') : check #has_scope color
+FAIL=[ .blue:has(~ #indirect_next:is(.p + .f_has_scope ~ .g)) ] #previous.classList.add('f_has_scope') : check #has_scope color
+FAIL=[ .blue:has(~ #indirect_next:is(.p + .f_has_scope ~ .g)) ] #previous.classList.remove('f_has_scope') : check #has_scope color
+FAIL=[ .darkblue:has(~ #indirect_next:is(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #direct_next.classList.add('f_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .darkblue:has(~ #indirect_next:is(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('f_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .darkblue:has(~ #indirect_next:is(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #previous.classList.add('f_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .darkblue:has(~ #indirect_next:is(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .f_indirect_next_child before #direct_next) : (insertion) check #indirect_next_child color
+FAIL=[ .darkblue:has(~ #indirect_next:is(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .f_indirect_next_child before #previous) : (insertion) check #indirect_next_child color
+FAIL=[ .darkblue:has(~ #indirect_next:is(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #direct_next) : (removal) check #indirect_next_child color
+FAIL=[ .darkblue:has(~ #indirect_next:is(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #previous) : (removal) check #indirect_next_child color
+FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #child_previous.classList.add('c_indirect_next') : check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #parent_previous.classList.add('c_indirect_next') : check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #previous.classList.add('c_indirect_next') : check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #child_previous) : (insertion) check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #parent_previous) : (insertion) check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #previous) : (insertion) check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #child_previous) : (removal) check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #parent_previous) : (removal) check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #previous) : (removal) check #indirect_next color
+FAIL=[ .darkred:has(#descendant:is(.a_indirect_next .b)) ~ #indirect_next ] #child.classList.add('a_indirect_next') : check #indirect_next color
+FAIL=[ .darkred:has(#descendant:is(.a_indirect_next .b)) ~ #indirect_next ] #has_scope.classList.add('a_indirect_next') : check #indirect_next color
+FAIL=[ .darkred:has(#descendant:is(.a_indirect_next .b)) ~ #indirect_next ] #parent.classList.add('a_indirect_next') : check #indirect_next color
+FAIL=[ .green:has(#descendant:is(.p + .c_has_scope ~ .d .e)) ] #child_previous.classList.add('c_has_scope') : check #has_scope color
+FAIL=[ .green:has(#descendant:is(.p + .c_has_scope ~ .d .e)) ] #child_previous.classList.remove('c_has_scope') : check #has_scope color
+FAIL=[ .green:has(#descendant:is(.p + .c_has_scope ~ .d .e)) ] #parent_previous.classList.add('c_has_scope') : check #has_scope color
+FAIL=[ .green:has(#descendant:is(.p + .c_has_scope ~ .d .e)) ] #parent_previous.classList.remove('c_has_scope') : check #has_scope color
+FAIL=[ .green:has(#descendant:is(.p + .c_has_scope ~ .d .e)) ] #previous.classList.add('c_has_scope') : check #has_scope color
+FAIL=[ .green:has(#descendant:is(.p + .c_has_scope ~ .d .e)) ] #previous.classList.remove('c_has_scope') : check #has_scope color
+FAIL=[ .greenyellow:has(~ #indirect_next:is(.h_indirect_next .i)) ~ #indirect_next ] #parent.classList.add('h_indirect_next') : check #indirect_next color
+FAIL=[ .ivory:has(~ #indirect_next:is(.h_descendant .i)) #descendant ] #parent.classList.add('h_descendant') : check #descendant color
+FAIL=[ .khaki:has(~ #indirect_next:is(.h_indirect_next_child .i)) ~ #indirect_next #indirect_next_child ] #parent.classList.add('h_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .lightblue:has(~ #indirect_next:is(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #direct_next.classList.add('f_indirect_next') : check #indirect_next color
+FAIL=[ .lightblue:has(~ #indirect_next:is(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #has_scope.classList.add('f_indirect_next') : check #indirect_next color
+FAIL=[ .lightblue:has(~ #indirect_next:is(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #previous.classList.add('f_indirect_next') : check #indirect_next color
+FAIL=[ .lightblue:has(~ #indirect_next:is(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .f_indirect_next before #direct_next) : (insertion) check #indirect_next color
+FAIL=[ .lightblue:has(~ #indirect_next:is(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .f_indirect_next before #previous) : (insertion) check #indirect_next color
+FAIL=[ .lightblue:has(~ #indirect_next:is(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .invalid before #direct_next) : (removal) check #indirect_next color
+FAIL=[ .lightblue:has(~ #indirect_next:is(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .invalid before #previous) : (removal) check #indirect_next color
+FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] #child_previous.classList.add('c_descendant') : check #descendant color
+FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] #parent_previous.classList.add('c_descendant') : check #descendant color
+FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] #previous.classList.add('c_descendant') : check #descendant color
+FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #child_previous) : (insertion) check #descendant color
+FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #parent_previous) : (insertion) check #descendant color
+FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #previous) : (insertion) check #descendant color
+FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #child_previous) : (removal) check #descendant color
+FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #parent_previous) : (removal) check #descendant color
+FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #previous) : (removal) check #descendant color
+FAIL=[ .orange:has(#descendant:is(:is(.m, .n) .o)) ] #child.classList.add('m') : check #has_scope color
+FAIL=[ .orange:has(#descendant:is(:is(.m, .n) .o)) ] #child.classList.add('n') : check #has_scope color
+FAIL=[ .orangered:has(#descendant:is(.a_descendant .b)) #descendant ] #child.classList.add('a_descendant') : check #descendant color
+FAIL=[ .orangered:has(#descendant:is(.a_descendant .b)) #descendant ] #has_scope.classList.add('a_descendant') : check #descendant color
+FAIL=[ .orangered:has(#descendant:is(.a_descendant .b)) #descendant ] #parent.classList.add('a_descendant') : check #descendant color
+FAIL=[ .orchid:has(~ #indirect_next:is(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] #parent_previous.classList.add('j_indirect_next') : check #indirect_next color
+FAIL=[ .orchid:has(~ #indirect_next:is(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] insert/remove .invalid before #parent_previous) : (removal) check #indirect_next color
+FAIL=[ .orchid:has(~ #indirect_next:is(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] insert/remove .j_indirect_next before #parent_previous) : (insertion) check #indirect_next color
+FAIL=[ .pink:has(#descendant:is(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #child.classList.add('a_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .pink:has(#descendant:is(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('a_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .pink:has(#descendant:is(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #parent.classList.add('a_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .plum:has(~ #indirect_next:is(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] #parent_previous.classList.add('j_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .plum:has(~ #indirect_next:is(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #parent_previous) : (removal) check #indirect_next_child color
+FAIL=[ .plum:has(~ #indirect_next:is(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] insert/remove .j_indirect_next_child before #parent_previous) : (insertion) check #indirect_next_child color
+FAIL=[ .purple:has(~ #indirect_next:is(.p + .j_has_scope ~ .k .l)) ] #parent_previous.classList.add('j_has_scope') : check #has_scope color
+FAIL=[ .purple:has(~ #indirect_next:is(.p + .j_has_scope ~ .k .l)) ] #parent_previous.classList.remove('j_has_scope') : check #has_scope color
+FAIL=[ .red:has(#descendant:is(.a_has_scope .b)) ] #child.classList.add('a_has_scope') : check #has_scope color
+FAIL=[ .skyblue:has(~ #indirect_next:is(.p + .f_descendant ~ .g)) #descendant ] #direct_next.classList.add('f_descendant') : check #descendant color
+FAIL=[ .skyblue:has(~ #indirect_next:is(.p + .f_descendant ~ .g)) #descendant ] #has_scope.classList.add('f_descendant') : check #descendant color
+FAIL=[ .skyblue:has(~ #indirect_next:is(.p + .f_descendant ~ .g)) #descendant ] #previous.classList.add('f_descendant') : check #descendant color
+FAIL=[ .skyblue:has(~ #indirect_next:is(.p + .f_descendant ~ .g)) #descendant ] insert/remove .f_descendant before #direct_next) : (insertion) check #descendant color
+FAIL=[ .skyblue:has(~ #indirect_next:is(.p + .f_descendant ~ .g)) #descendant ] insert/remove .f_descendant before #previous) : (insertion) check #descendant color
+FAIL=[ .skyblue:has(~ #indirect_next:is(.p + .f_descendant ~ .g)) #descendant ] insert/remove .invalid before #direct_next) : (removal) check #descendant color
+FAIL=[ .skyblue:has(~ #indirect_next:is(.p + .f_descendant ~ .g)) #descendant ] insert/remove .invalid before #previous) : (removal) check #descendant color
+FAIL=[ .violet:has(~ #indirect_next:is(.p + .j_descendant ~ .k .l)) #descendant ] #parent_previous.classList.add('j_descendant') : check #descendant color
+FAIL=[ .violet:has(~ #indirect_next:is(.p + .j_descendant ~ .k .l)) #descendant ] insert/remove .invalid before #parent_previous) : (removal) check #descendant color
+FAIL=[ .violet:has(~ #indirect_next:is(.p + .j_descendant ~ .k .l)) #descendant ] insert/remove .j_descendant before #parent_previous) : (insertion) check #descendant color
+FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #child_previous.classList.add('c_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #parent_previous.classList.add('c_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #previous.classList.add('c_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #child_previous) : (insertion) check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #parent_previous) : (insertion) check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #previous) : (insertion) check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #child_previous) : (removal) check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #parent_previous) : (removal) check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #previous) : (removal) check #indirect_next_child color
 [css/selectors/invalidation/is-pseudo-containing-sibling-relationship-in-has.html]
-FAIL=:nth-child() enclosed by :is() no longer matching after removal (1)
-FAIL=:nth-child() enclosed by :is() no longer matching after removal (2)
-FAIL=:nth-child() in non-subject enclosed by :is() no longer matching after removal (1)
-FAIL=:nth-child() in non-subject enclosed by :is() no longer matching after removal (2)
-FAIL=:nth-last-child() enclosed by :is() no longer matching after removal (1)
-FAIL=:nth-last-child() enclosed by :is() no longer matching after removal (2)
-FAIL=:nth-last-child() in non-subject enclosed by :is() no longer matching after removal (1)
-FAIL=:nth-last-child() in non-subject enclosed by :is() no longer matching after removal (2)
 FAIL=Initially red
-FAIL=sibling selector enclosed by :is() no longer matching after removal (1)
-FAIL=sibling selector enclosed by :is() no longer matching after removal (2)
-FAIL=sibling selector enclosed by :is() no longer matching after removal (3)
-FAIL=sibling selector enclosed by :is() no longer matching after removal (4)
-FAIL=sibling selector in non-subject enclosed by :is() no longer matching after removal (1)
-FAIL=sibling selector in non-subject enclosed by :is() no longer matching after removal (2)
-FAIL=sibling selector in non-subject enclosed by :is() no longer matching after removal (3)
-FAIL=sibling selector in non-subject enclosed by :is() no longer matching after removal (4)
-FAIL=sibling selector in non-subject enclosed by :is() no longer matching after removal (5)
-FAIL=sibling selector in parent selector enclosed by :is() no longer matching after removal
-FAIL=sibling selector in parent selector non-subject position enclosed by :is() no longer matching after removal (1)
-FAIL=sibling selector in parent selector non-subject position enclosed by :is() no longer matching after removal (2)
 [css/selectors/invalidation/is-where-pseudo-containing-hard-pseudo-and-never-matching.html]
-harness=TIMEOUT
+FAIL=subject1 color after focus is red
+FAIL=subject2 color after focus is orangered
+FAIL=subject3 color after focus is darkred
+FAIL=subject4 color after focus is pink
 [css/selectors/invalidation/is-where-pseudo-containing-hard-pseudo.html]
-harness=TIMEOUT
+FAIL=subject1 is orangered when .parent added to parent
+FAIL=subject2 is darkred when .other-match added
+FAIL=subject2 is pink when .parent added to parent
+FAIL=subject2 is pink when .parent removed from parent
+FAIL=subject3 is lightgreen when .parent added to parent
+FAIL=subject4 is darkgreen when .other-match added
+FAIL=subject4 is yellowgreen when .parent added to parent
+FAIL=subject4 is yellowgreen when .parent removed from parent
 [css/selectors/invalidation/is.html]
-FAIL=Invalidate :is() for complex selector arguments.
-FAIL=Invalidate :is() for compound selector arguments.
-FAIL=Invalidate :is() for simple selector arguments.
-FAIL=Invalidate :is() in non-subject compound
 FAIL=Invalidate nested :is().
-FAIL=Preconditions.
-FAIL=Test specificity of :is().
 [css/selectors/invalidation/link-pseudo-class-in-has.html]
 FAIL=:any-link & :link pseudo-class invalidation with an HTML link
 FAIL=:any-link & :link pseudo-class invalidation with an SVG link
 [css/selectors/invalidation/link-pseudo-in-has.html]
 FAIL=CSS Selectors Invalidation: :link, :visited :any-link, pseudo-class in :has() argument
-[css/selectors/invalidation/location-pseudo-classes-in-has.html]
-FAIL=CSS Selectors Invalidation: location pseudo classes in :has() argument
 [css/selectors/invalidation/media-loading-pseudo-classes-in-has.sub.html]
-FAIL=Test :has(:buffering) invalidation
-FAIL=Test :has(:stalled) invalidation
+harness=TIMEOUT
 [css/selectors/invalidation/media-pseudo-classes-in-has.html]
-FAIL=Test :muted pseudo-class
-FAIL=Test :playing pseudo-class
-FAIL=Test :seeking pseudo-class
+harness=TIMEOUT
 [css/selectors/invalidation/modal-pseudo-class-in-has.html]
-FAIL=:modal pseudo-class invalidation with requestFullscreen + exitFullscreen
-FAIL=:modal pseudo-class invalidation with requestFullscreen + remove
-FAIL=:modal pseudo-class invalidation with showModal + close
-FAIL=:modal pseudo-class invalidation with showModal + remove
-FAIL=:modal pseudo-class is not active with dialog.show()
+harness=TIMEOUT
 [css/selectors/invalidation/not-001.html]
 FAIL=Invalidation of sibling combinators in :not()
 [css/selectors/invalidation/not-002.html]
-FAIL=Invalidate :not() for complex selector arguments.
-FAIL=Invalidate :not() for compound selector arguments.
-FAIL=Invalidate :not() for simple selector arguments.
 FAIL=Invalidate nested :is() inside :not().
-FAIL=Preconditions.
-FAIL=Test specificity of :not().
 [css/selectors/invalidation/not-pseudo-containing-complex-in-has.html]
-harness=TIMEOUT
-[css/selectors/invalidation/not-pseudo-containing-sibling-relationship-in-has.html]
-FAIL=:nth-child() enclosed by :not() matching after insertion
-FAIL=:nth-last-child() enclosed by :not() matching after insertion
-FAIL=Initially red
+FAIL=[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #direct_next.classList.add('f_has_scope') : check #has_scope color
+FAIL=[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #previous.classList.add('f_has_scope') : check #has_scope color
+FAIL=[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #direct_next.classList.remove('f_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('darkblue') : check #indirect_next_child color
+FAIL=[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('f_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #previous.classList.remove('f_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .f_indirect_next_child before #direct_next) : (removal) check #indirect_next_child color
+FAIL=[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .f_indirect_next_child before #previous) : (removal) check #indirect_next_child color
+FAIL=[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #direct_next) : (insertion) check #indirect_next_child color
+FAIL=[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #previous) : (insertion) check #indirect_next_child color
+FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #child_previous.classList.remove('c_indirect_next') : check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #has_scope.classList.add('darkgreen') : check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #parent_previous.classList.remove('c_indirect_next') : check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #previous.classList.remove('c_indirect_next') : check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #child_previous) : (removal) check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #parent_previous) : (removal) check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #previous) : (removal) check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #child_previous) : (insertion) check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #parent_previous) : (insertion) check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #previous) : (insertion) check #indirect_next color
+FAIL=[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #child.classList.remove('a_indirect_next') : check #indirect_next color
+FAIL=[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #has_scope.classList.add('darkred') : check #indirect_next color
+FAIL=[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #has_scope.classList.remove('a_indirect_next') : check #indirect_next color
+FAIL=[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #parent.classList.remove('a_indirect_next') : check #indirect_next color
+FAIL=[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #child_previous.classList.add('c_has_scope') : check #has_scope color
+FAIL=[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #child_previous.classList.remove('c_has_scope') : check #has_scope color
+FAIL=[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #parent_previous.classList.add('c_has_scope') : check #has_scope color
+FAIL=[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #parent_previous.classList.remove('c_has_scope') : check #has_scope color
+FAIL=[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #previous.classList.add('c_has_scope') : check #has_scope color
+FAIL=[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #previous.classList.remove('c_has_scope') : check #has_scope color
+FAIL=[ .greenyellow:has(~ #indirect_next:not(.h_indirect_next .i)) ~ #indirect_next ] #has_scope.classList.add('greenyellow') : check #indirect_next color
+FAIL=[ .greenyellow:has(~ #indirect_next:not(.h_indirect_next .i)) ~ #indirect_next ] #parent.classList.remove('h_indirect_next') : check #indirect_next color
+FAIL=[ .ivory:has(~ #indirect_next:not(.h_descendant .i)) #descendant ] #has_scope.classList.add('ivory') : check #descendant color
+FAIL=[ .ivory:has(~ #indirect_next:not(.h_descendant .i)) #descendant ] #parent.classList.remove('h_descendant') : check #descendant color
+FAIL=[ .khaki:has(~ #indirect_next:not(.h_indirect_next_child .i)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('khaki') : check #indirect_next_child color
+FAIL=[ .khaki:has(~ #indirect_next:not(.h_indirect_next_child .i)) ~ #indirect_next #indirect_next_child ] #parent.classList.remove('h_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #direct_next.classList.remove('f_indirect_next') : check #indirect_next color
+FAIL=[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #has_scope.classList.add('lightblue') : check #indirect_next color
+FAIL=[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #has_scope.classList.remove('f_indirect_next') : check #indirect_next color
+FAIL=[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #previous.classList.remove('f_indirect_next') : check #indirect_next color
+FAIL=[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .f_indirect_next before #direct_next) : (removal) check #indirect_next color
+FAIL=[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .f_indirect_next before #previous) : (removal) check #indirect_next color
+FAIL=[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .invalid before #direct_next) : (insertion) check #indirect_next color
+FAIL=[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .invalid before #previous) : (insertion) check #indirect_next color
+FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #child_previous.classList.remove('c_descendant') : check #descendant color
+FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #has_scope.classList.add('lightgreen') : check #descendant color
+FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #parent_previous.classList.remove('c_descendant') : check #descendant color
+FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #previous.classList.remove('c_descendant') : check #descendant color
+FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #child_previous) : (removal) check #descendant color
+FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #parent_previous) : (removal) check #descendant color
+FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #previous) : (removal) check #descendant color
+FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #child_previous) : (insertion) check #descendant color
+FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #parent_previous) : (insertion) check #descendant color
+FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #previous) : (insertion) check #descendant color
+FAIL=[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #child.classList.add('m') : check #has_scope color
+FAIL=[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #child.classList.remove('n') : check #has_scope color
+FAIL=[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #child.classList.remove('a_descendant') : check #descendant color
+FAIL=[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #has_scope.classList.add('orangered') : check #descendant color
+FAIL=[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #has_scope.classList.remove('a_descendant') : check #descendant color
+FAIL=[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #parent.classList.remove('a_descendant') : check #descendant color
+FAIL=[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] #has_scope.classList.add('orchid') : check #indirect_next color
+FAIL=[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] #parent_previous.classList.remove('j_indirect_next') : check #indirect_next color
+FAIL=[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] insert/remove .invalid before #parent_previous) : (insertion) check #indirect_next color
+FAIL=[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] insert/remove .j_indirect_next before #parent_previous) : (removal) check #indirect_next color
+FAIL=[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #child.classList.remove('a_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('pink') : check #indirect_next_child color
+FAIL=[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('a_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #parent.classList.remove('a_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('plum') : check #indirect_next_child color
+FAIL=[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] #parent_previous.classList.remove('j_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #parent_previous) : (insertion) check #indirect_next_child color
+FAIL=[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] insert/remove .j_indirect_next_child before #parent_previous) : (removal) check #indirect_next_child color
+FAIL=[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] #parent_previous.classList.add('j_has_scope') : check #has_scope color
+FAIL=[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] #parent_previous.classList.remove('j_has_scope') : check #has_scope color
+FAIL=[ .red:has(#descendant:not(.a_has_scope .b)) ] #child.classList.add('a_has_scope') : check #has_scope color
+FAIL=[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #direct_next.classList.remove('f_descendant') : check #descendant color
+FAIL=[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #has_scope.classList.add('skyblue') : check #descendant color
+FAIL=[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #has_scope.classList.remove('f_descendant') : check #descendant color
+FAIL=[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #previous.classList.remove('f_descendant') : check #descendant color
+FAIL=[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] insert/remove .f_descendant before #direct_next) : (removal) check #descendant color
+FAIL=[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] insert/remove .f_descendant before #previous) : (removal) check #descendant color
+FAIL=[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] #has_scope.classList.add('violet') : check #descendant color
+FAIL=[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] #parent_previous.classList.remove('j_descendant') : check #descendant color
+FAIL=[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] insert/remove .invalid before #parent_previous) : (insertion) check #descendant color
+FAIL=[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] insert/remove .j_descendant before #parent_previous) : (removal) check #descendant color
+FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #child_previous.classList.remove('c_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('yellowgreen') : check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #parent_previous.classList.remove('c_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #previous.classList.remove('c_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #child_previous) : (removal) check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #parent_previous) : (removal) check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #previous) : (removal) check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #child_previous) : (insertion) check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #parent_previous) : (insertion) check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #previous) : (insertion) check #indirect_next_child color
 [css/selectors/invalidation/nth-child-whole-subtree.html]
 FAIL=CSS Selectors Invalidation: :nth-child(... of :not()) combined with whole subtree invalidation
 [css/selectors/invalidation/open-pseudo-class-in-has.html]
 harness=ERROR
 [css/selectors/invalidation/option-disabled-when-ancestor-changes.html]
-harness=ERROR
+FAIL=optgroup :disabled and :has(optgroup:disabled) invalidate when ancestor select disabled toggles
+FAIL=option :disabled and :has(option:disabled) invalidate when ancestor select disabled toggles
 [css/selectors/invalidation/part-dir.html]
-harness=ERROR
+FAIL=::part():dir() invalidation
+FAIL=::part():dir() invalidation from setAttribute
 [css/selectors/invalidation/part-lang.html]
-harness=ERROR
+FAIL=::part():lang() invalidation
+FAIL=::part():lang() invalidation from setAttribute
 [css/selectors/invalidation/placeholder-shown.html]
 FAIL=Added placeholder text
-FAIL=Initially no placeholder text
-FAIL=Removed placeholder attribute
 FAIL=Set placeholder text to empty string
 [css/selectors/invalidation/quirks-mode-stylesheet-dynamic-add-001.html]
 FAIL=Style should've changed to a green background
-[css/selectors/invalidation/selectorText-dynamic-001.html]
-FAIL=Style should be recomputed correctly when the selector it depends on changes
-[css/selectors/invalidation/sheet-going-away-001.html]
-FAIL=Style should be recomputed correctly when the stylesheet it depends on goes away
 [css/selectors/invalidation/sibling.html]
 FAIL=Adjacent class
 FAIL=Adjacent universal
-FAIL=Adjacent with universal selector
 FAIL=Indirect adjacent with two adjacent selectors
-FAIL=Indirect adjacent with universal selector
 FAIL=Sibling descendant through a universal selector
 FAIL=Sibling subtree through an indirect adjacent combinator
 [css/selectors/invalidation/state-in-has.html]
@@ -74235,13 +74899,6 @@ FAIL=Test :has() invalidation with :state() pseudo-classes
 FAIL=CSS Selectors Invalidation: subject :has() invalidation with display: none anchor element
 [css/selectors/invalidation/target-pseudo-in-has.html]
 FAIL=CSS Selectors Invalidation: :target pseudo-class in :has() argument
-[css/selectors/invalidation/typed-child-indexed-pseudo-classes-in-has.html]
-FAIL=Initial colors: #first_of_type
-FAIL=Initial colors: #last_of_type
-FAIL=Initial colors: #nth_of_type_3n
-FAIL=Initial colors: #nth_of_type_3n_1
-FAIL=Initial colors: #nth_of_type_3n_2
-FAIL=Initial colors: #only_of_type
 [css/selectors/invalidation/user-action-pseudo-classes-in-has.html]
 FAIL=CSS Selectors Invalidation: user-action pseudo classes in :has() argument
 [css/selectors/invalidation/user-valid-user-invalid.html]
@@ -74249,71 +74906,35 @@ FAIL=:user-valid and :user-invalid should invalidate after user input.
 [css/selectors/invalidation/where.html]
 FAIL=Invalidate :where() for complex selector arguments.
 FAIL=Invalidate :where() for compound selector arguments.
-FAIL=Invalidate :where() for simple selector arguments.
-FAIL=Invalidate nested :where().
-FAIL=Preconditions.
-[css/selectors/is-nested.html]
-FAIL=Test nested :is() chooses highest specificity for class outside :is().
-FAIL=Test nested :is() specificity for class within arguments.
-[css/selectors/is-specificity-shadow.html]
-FAIL=Specificity of :host() inside :is()
-[css/selectors/is-specificity.html]
-FAIL=Test :is() uses highest possible specificity
-[css/selectors/is-where-basic.html]
-FAIL=:is() matches expected elements
 [css/selectors/is-where-error-recovery.html]
-harness=TIMEOUT
-[css/selectors/is-where-not.html]
-harness=TIMEOUT
-[css/selectors/is-where-pseudo-classes.html]
-FAIL=:is() combined with pseudo-classes
+FAIL=CSS Selectors: :is() and :where() error recovery
 [css/selectors/is-where-shadow.html]
-harness=TIMEOUT
+FAIL=:is() inside :host()
+FAIL=:is() inside :host-context()
 [css/selectors/media/media-loading-state-timing.sub.html]
-FAIL=Test :stalled timing relative to waiting and timeupdate events
+harness=TIMEOUT
 [css/selectors/media/media-loading-state.sub.html]
-FAIL=Test :buffering pseudo-class
-FAIL=Test :stalled pseudo-class
+harness=TIMEOUT
 [css/selectors/media/media-playback-state-timing.html]
-FAIL=Test :playing and :paused timing with a media resource
-FAIL=Test :playing and :paused timing without media resource
-FAIL=Test :seeking timing when setting currentTime
+harness=TIMEOUT
 [css/selectors/media/media-playback-state.html]
-FAIL=Test :paused pseudo-class
-FAIL=Test :playing pseudo-class
-FAIL=Test :seeking pseudo-class
-FAIL=Test that non-media elements do not match :playing, :paused, or :seeking
+harness=TIMEOUT
 [css/selectors/media/media-playing-paused-style-invalidation.html]
-FAIL=CSS invalidation fires for :paused when no :playing rule is present
-FAIL=CSS invalidation fires for :playing when no :paused rule is present
-FAIL=CSS invalidation fires for both :playing and :paused rules
+harness=TIMEOUT
 [css/selectors/media/sound-state.html]
-FAIL=Test :muted matches .muted for content attribute default
-FAIL=Test :muted pseudo-class
+harness=TIMEOUT
 [css/selectors/missing-right-token.html]
 FAIL=attribute selectors with missing right tokens succeed
 [css/selectors/modal-pseudo-class.html]
 FAIL=Test that :modal matches modal <dialog>
 FAIL=Test that :modal matches the fullscreen element
-[css/selectors/not-complex.html]
-harness=TIMEOUT
-[css/selectors/not-specificity.html]
-FAIL=:not(#foo) wins over :not(.foo)
-FAIL=:not(.bar, #foo) has same specificity as :not(#foo, .bar)
-FAIL=:not(.bar, #foo) wins over :not(.foo, .bar)
-FAIL=:not(div#foo) wins over :not(#foo)
-FAIL=:not(span + span) wins over :not(span)
-FAIL=:not(span, #foo, p) wins over :not(span, :where(.a#foo), p)
-FAIL=:not(span, :not(:not(.a#foo)), p) wins over :not(span, #foo, p)
-FAIL=:not(span, li, p) wins over :not(span, lo, p)
 [css/selectors/nth-child-large-anplusb-clamp.html]
 FAIL=a term (DimensionToken path) is clamped to INT_MAX
 FAIL=b term (NumberToken path) is clamped to INT_MAX
 FAIL=b term following an a coefficient is clamped to INT_MAX
-[css/selectors/nth-last-child-invalid.html]
-FAIL=CSS Selectors: :nth-last-child() with no argument
 [css/selectors/nth-of-type-namespace.html]
-harness=ERROR
+FAIL=:nth-of-type selectors matching takes element namespace into account (http://dummy1/)
+FAIL=:nth-of-type selectors matching takes element namespace into account (http://dummy2/)
 [css/selectors/open-pseudo.html]
 FAIL=The details element should support :open.
 FAIL=The dialog element should support :open.
@@ -74329,168 +74950,27 @@ FAIL=":-webkit-full-page-media" should be an invalid selector
 FAIL=":-webkit-full-screen-ancestor" should be an invalid selector
 FAIL=":-webkit-full-screen-controls-hidden" should be an invalid selector
 FAIL=":-webkit-full-screen-document" should be an invalid selector
-FAIL="::-apple-attachment-controls-container" should be an invalid selector
-FAIL="::-internal-loading-auto-fill-button" should be an invalid selector
 [css/selectors/parsing/parse-anplusb.html]
-FAIL=:nth-child(  12 n ) should not parse
-FAIL=:nth-child(  N- 123) should be parsed and serialized correctly
-FAIL=:nth-child(  n +12 3) should not parse
-FAIL=:nth-child( +n + 7 ) should be parsed and serialized correctly
-FAIL:esc=:nth-child( 23n\n\n+\n\n123 ) should be parsed and serialized correctly
-FAIL=:nth-child(+ 1n) should not parse
-FAIL=:nth-child(+ n + 7) should not parse
-FAIL=:nth-child(+12 N ) should not parse
-FAIL=:nth-child(+12N -- 1) should not parse
-FAIL=:nth-child(+12n-0+1) should not parse
-FAIL=:nth-child(+n+3) should be parsed and serialized correctly
-FAIL=:nth-child(-1n- b1) should not parse
-FAIL:esc=:nth-child(-n\n- 1) should be parsed and serialized correctly
-FAIL=:nth-child(-n -b1) should not parse
-FAIL=:nth-child(-n) should be parsed and serialized correctly
 FAIL=:nth-child(-n+0) should be parsed and serialized correctly
-FAIL=:nth-child(-n+n) should not parse
-FAIL=:nth-child(-n-+1) should not parse
-FAIL=:nth-child(-n-13b1) should not parse
 FAIL=:nth-child(1n+0) should be parsed and serialized correctly
-FAIL=:nth-child(N) should be parsed and serialized correctly
-FAIL=:nth-child(n) should be parsed and serialized correctly
 FAIL=:nth-child(n+0) should be parsed and serialized correctly
-FAIL=:nth-child(n- 1 2) should not parse
-FAIL=:nth-child(n- 10) should be parsed and serialized correctly
-FAIL=:nth-child(n-+1) should not parse
-FAIL=:nth-child(n-1n) should not parse
-FAIL=:nth-child(n-b1) should not parse
-FAIL=:nth-last-child(  12 n ) should not parse
-FAIL=:nth-last-child(  N- 123) should be parsed and serialized correctly
-FAIL=:nth-last-child(  n +12 3) should not parse
-FAIL=:nth-last-child( +n + 7 ) should be parsed and serialized correctly
-FAIL:esc=:nth-last-child( 23n\n\n+\n\n123 ) should be parsed and serialized correctly
-FAIL=:nth-last-child(+ 1n) should not parse
-FAIL=:nth-last-child(+ n + 7) should not parse
-FAIL=:nth-last-child(+12 N ) should not parse
-FAIL=:nth-last-child(+12N -- 1) should not parse
-FAIL=:nth-last-child(+12n-0+1) should not parse
-FAIL=:nth-last-child(+n+3) should be parsed and serialized correctly
-FAIL=:nth-last-child(-1n- b1) should not parse
-FAIL:esc=:nth-last-child(-n\n- 1) should be parsed and serialized correctly
-FAIL=:nth-last-child(-n -b1) should not parse
-FAIL=:nth-last-child(-n) should be parsed and serialized correctly
 FAIL=:nth-last-child(-n+0) should be parsed and serialized correctly
-FAIL=:nth-last-child(-n+n) should not parse
-FAIL=:nth-last-child(-n-+1) should not parse
-FAIL=:nth-last-child(-n-13b1) should not parse
 FAIL=:nth-last-child(1n+0) should be parsed and serialized correctly
-FAIL=:nth-last-child(N) should be parsed and serialized correctly
-FAIL=:nth-last-child(n) should be parsed and serialized correctly
 FAIL=:nth-last-child(n+0) should be parsed and serialized correctly
-FAIL=:nth-last-child(n- 1 2) should not parse
-FAIL=:nth-last-child(n- 10) should be parsed and serialized correctly
-FAIL=:nth-last-child(n-+1) should not parse
-FAIL=:nth-last-child(n-1n) should not parse
-FAIL=:nth-last-child(n-b1) should not parse
-FAIL=:nth-last-of-type(  12 n ) should not parse
-FAIL=:nth-last-of-type(  N- 123) should be parsed and serialized correctly
-FAIL=:nth-last-of-type(  n +12 3) should not parse
-FAIL=:nth-last-of-type( +n + 7 ) should be parsed and serialized correctly
-FAIL:esc=:nth-last-of-type( 23n\n\n+\n\n123 ) should be parsed and serialized correctly
-FAIL=:nth-last-of-type(+ 1n) should not parse
-FAIL=:nth-last-of-type(+ n + 7) should not parse
-FAIL=:nth-last-of-type(+12 N ) should not parse
-FAIL=:nth-last-of-type(+12N -- 1) should not parse
-FAIL=:nth-last-of-type(+12n-0+1) should not parse
-FAIL=:nth-last-of-type(+n+3) should be parsed and serialized correctly
-FAIL=:nth-last-of-type(-1n- b1) should not parse
-FAIL:esc=:nth-last-of-type(-n\n- 1) should be parsed and serialized correctly
-FAIL=:nth-last-of-type(-n -b1) should not parse
-FAIL=:nth-last-of-type(-n) should be parsed and serialized correctly
 FAIL=:nth-last-of-type(-n+0) should be parsed and serialized correctly
-FAIL=:nth-last-of-type(-n+n) should not parse
-FAIL=:nth-last-of-type(-n-+1) should not parse
-FAIL=:nth-last-of-type(-n-13b1) should not parse
 FAIL=:nth-last-of-type(1n+0) should be parsed and serialized correctly
-FAIL=:nth-last-of-type(N) should be parsed and serialized correctly
-FAIL=:nth-last-of-type(n) should be parsed and serialized correctly
 FAIL=:nth-last-of-type(n+0) should be parsed and serialized correctly
-FAIL=:nth-last-of-type(n- 1 2) should not parse
-FAIL=:nth-last-of-type(n- 10) should be parsed and serialized correctly
-FAIL=:nth-last-of-type(n-+1) should not parse
-FAIL=:nth-last-of-type(n-1n) should not parse
-FAIL=:nth-last-of-type(n-b1) should not parse
-FAIL=:nth-of-type(  12 n ) should not parse
-FAIL=:nth-of-type(  N- 123) should be parsed and serialized correctly
-FAIL=:nth-of-type(  n +12 3) should not parse
-FAIL=:nth-of-type( +n + 7 ) should be parsed and serialized correctly
-FAIL:esc=:nth-of-type( 23n\n\n+\n\n123 ) should be parsed and serialized correctly
-FAIL=:nth-of-type(+ 1n) should not parse
-FAIL=:nth-of-type(+ n + 7) should not parse
-FAIL=:nth-of-type(+12 N ) should not parse
-FAIL=:nth-of-type(+12N -- 1) should not parse
-FAIL=:nth-of-type(+12n-0+1) should not parse
-FAIL=:nth-of-type(+n+3) should be parsed and serialized correctly
-FAIL=:nth-of-type(-1n- b1) should not parse
-FAIL:esc=:nth-of-type(-n\n- 1) should be parsed and serialized correctly
-FAIL=:nth-of-type(-n -b1) should not parse
-FAIL=:nth-of-type(-n) should be parsed and serialized correctly
 FAIL=:nth-of-type(-n+0) should be parsed and serialized correctly
-FAIL=:nth-of-type(-n+n) should not parse
-FAIL=:nth-of-type(-n-+1) should not parse
-FAIL=:nth-of-type(-n-13b1) should not parse
 FAIL=:nth-of-type(1n+0) should be parsed and serialized correctly
-FAIL=:nth-of-type(N) should be parsed and serialized correctly
-FAIL=:nth-of-type(n) should be parsed and serialized correctly
 FAIL=:nth-of-type(n+0) should be parsed and serialized correctly
-FAIL=:nth-of-type(n- 1 2) should not parse
-FAIL=:nth-of-type(n- 10) should be parsed and serialized correctly
-FAIL=:nth-of-type(n-+1) should not parse
-FAIL=:nth-of-type(n-1n) should not parse
-FAIL=:nth-of-type(n-b1) should not parse
-[css/selectors/parsing/parse-attribute.html]
-FAIL="[*|att]" should be a valid selector
-FAIL="[att$=val]" should be a valid selector
-FAIL="[att*=val]" should be a valid selector
-FAIL="[att=val]" should be a valid selector
-FAIL="[att]" should be a valid selector
-FAIL="[att^=val]" should be a valid selector
-FAIL="[att|=val]" should be a valid selector
-FAIL="[att~=val]" should be a valid selector
-FAIL="[|att]" should be a valid selector
-FAIL="a[href$=\".html\"]" should be a valid selector
-FAIL="a[hreflang=fr]" should be a valid selector
-FAIL="a[hreflang|='en']" should be a valid selector
-FAIL="h1[title]" should be a valid selector
-FAIL="object[type^=\"image/\"]" should be a valid selector
-FAIL="p[title*=\"hello\"]" should be a valid selector
-FAIL="span[class='example']" should be a valid selector
-[css/selectors/parsing/parse-child.html]
-FAIL="body > p" should be a valid selector
-FAIL="div ol>li p" should be a valid selector
-[css/selectors/parsing/parse-class.html]
-FAIL="*.pastoral" should be a valid selector
-FAIL=".pastoral" should be a valid selector
-FAIL="h1.pastoral" should be a valid selector
-FAIL="p.pastoral.marine" should be a valid selector
-[css/selectors/parsing/parse-descendant.html]
-FAIL="div * p" should be a valid selector
-FAIL="div p *[href]" should be a valid selector
-FAIL="h1 em" should be a valid selector
-[css/selectors/parsing/parse-focus-visible.html]
-FAIL=":focus-visible" should be a valid selector
-FAIL=":focus:not(:focus-visible)" should be a valid selector
-FAIL="a:focus-visible" should be a valid selector
-[css/selectors/parsing/parse-has-disallow-nesting-has-inside-has.html]
-FAIL=".a:has(.b:has(.c))" should be an invalid selector
 [css/selectors/parsing/parse-has-forgiving-selector.html]
 FAIL=":has(:is(.a, 123))" should be a valid selector
 FAIL=":has(:is(:has(*)))" should be a valid selector
 FAIL=":has(:where(:has(*)))" should be a valid selector
 [css/selectors/parsing/parse-has-slotted.tentative.html]
-FAIL="::has-slotted(foo)" should be an invalid selector
-FAIL=":has-slotted" should be a valid selector
 FAIL=":has-slotted(#id)" should be a valid selector
-FAIL=":has-slotted()" should be an invalid selector
 FAIL=":has-slotted(*)" should be a valid selector
 FAIL=":has-slotted(.class)" should be a valid selector
-FAIL=":has-slotted(0)" should be an invalid selector
 FAIL=":has-slotted(:first-child)" should be a valid selector
 FAIL=":has-slotted(:hover)" should be a valid selector
 FAIL=":has-slotted(:not(:nth-last-of-type(2)):not([slot=\"foo\"]))" should be a valid selector
@@ -74498,7 +74978,6 @@ FAIL=":has-slotted(:not(foo))" should be a valid selector
 FAIL=":has-slotted([attr=\"foo\"])" should be a valid selector
 FAIL=":has-slotted(bar)" should be a valid selector
 FAIL=":has-slotted(div + div)" should be a valid selector
-FAIL=":has-slotted(div > span)" should be an invalid selector
 FAIL=":has-slotted(div:has(> span))" should be a valid selector
 FAIL=":has-slotted(foo) + :has-slotted(bar)" should be a valid selector
 FAIL=":has-slotted(foo):dir(ltr)" should be a valid selector
@@ -74507,69 +74986,15 @@ FAIL=":has-slotted(foo):focus" should be a valid selector
 FAIL=":has-slotted(foo):hover" should be a valid selector
 FAIL=":has-slotted(foo):lang(en)" should be a valid selector
 FAIL=":not(:has-slotted(foo))" should be a valid selector
-[css/selectors/parsing/parse-has.html]
-FAIL="*:has(.a)" should be a valid selector
-FAIL="*|*:has(*)" should be a valid selector
-FAIL=".a .b:has(.c .d) .e" should be a valid selector
-FAIL=".a .b:has(.c .d)" should be a valid selector
-FAIL=".a .b:has(.c)" should be a valid selector
-FAIL=".a:has b" should be an invalid selector
-FAIL=".a:has" should be an invalid selector
-FAIL=".a:has(+ .b)" should be a valid selector
-FAIL=".a:has(.b) .c" should be a valid selector
-FAIL=".a:has(.b)" should be a valid selector
-FAIL=".a:has(.b):has(.c)" should be a valid selector
-FAIL=".a:has(.b:is(.c .d))" should be a valid selector
-FAIL=".a:has(:not(.b))" should be a valid selector
-FAIL=".a:has(> .b)" should be a valid selector
-FAIL=".a:has(~ .b)" should be a valid selector
-FAIL=".a:is(.b:has(.c) .d)" should be a valid selector
-FAIL=".a:not(:has(.b))" should be a valid selector
-FAIL=":has" should be an invalid selector
-FAIL=":has(#a)" should be a valid selector
-FAIL=":has()" should be an invalid selector
-FAIL=":has(*|*)" should be a valid selector
-FAIL=":has(.a)" should be a valid selector
-FAIL=":has(.a, 123)" should be an invalid selector
-FAIL=":has(123)" should be an invalid selector
-FAIL=":has(:hover)" should be a valid selector
-FAIL=":has([a=\"b\"])" should be a valid selector
-FAIL=":has([a])" should be a valid selector
-FAIL=":has([a|=\"b\"])" should be a valid selector
-FAIL=":has(a)" should be a valid selector
 [css/selectors/parsing/parse-heading.html]
-FAIL=":heading" should be a valid selector
-FAIL=":heading()" should be an invalid selector
 FAIL=":heading(-1)" should be a valid selector
-FAIL=":heading(-n+3)" should be an invalid selector
 FAIL=":heading(0)" should be a valid selector
 FAIL=":heading(0, 1, 2)" should be a valid selector
 FAIL=":heading(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)" should be a valid selector
-FAIL=":heading(1.0)" should be an invalid selector
-FAIL=":heading(1.4)" should be an invalid selector
-FAIL=":heading(2 of .foo)" should be an invalid selector
 FAIL=":heading(2)" should be a valid selector
-FAIL=":heading(2, 3n)" should be an invalid selector
-FAIL=":heading(2n of .foo)" should be an invalid selector
-FAIL=":heading(2n)" should be an invalid selector
-FAIL=":heading(2n+1)" should be an invalid selector
-FAIL=":heading(2n+2)" should be an invalid selector
-FAIL=":heading(2n, 3n)" should be an invalid selector
 FAIL=":heading(99999)" should be a valid selector
-FAIL=":heading(calc(1))" should be an invalid selector
-FAIL=":heading(even)" should be an invalid selector
-FAIL=":heading(max(1, 2))" should be an invalid selector
-FAIL=":heading(min(1, 2)" should be an invalid selector
-FAIL=":heading(n)" should be an invalid selector
-FAIL=":heading(odd)" should be an invalid selector
-FAIL=":heading(var(--level))" should be an invalid selector
-FAIL="h1:heading" should be a valid selector
 FAIL="h1:heading(1)" should be a valid selector
 FAIL="h1:heading(2)" should be a valid selector
-[css/selectors/parsing/parse-id.html]
-FAIL="#chapter1" should be a valid selector
-FAIL="*#z98y" should be a valid selector
-FAIL="h1#chapter1" should be a valid selector
 [css/selectors/parsing/parse-is-where.html]
 FAIL="::part(foo):is(:hover)" should be a valid selector
 FAIL="::part(foo):is([attr='value'])" should be a valid selector
@@ -74579,77 +75004,25 @@ FAIL=":has(:is(:has(.a+.b)))" should be a valid selector
 FAIL=":has(:where(:has(.a+.b)))" should be a valid selector
 FAIL=":host(:is(,,,))" should be a valid selector
 FAIL=":host(:is(.a, .b+.c, .d))" should be a valid selector
-FAIL=":host(:is(div ))" should be a valid selector
 FAIL=":host(:is(div .foo))" should be a valid selector
-FAIL=":host(:is(div))" should be a valid selector
 FAIL=":host(:where(,,,))" should be a valid selector
 FAIL=":host(:where(.a, .b+.c, .d))" should be a valid selector
-FAIL=":host(:where(div ))" should be a valid selector
 FAIL=":host(:where(div .foo))" should be a valid selector
-FAIL=":host(:where(div))" should be a valid selector
-FAIL=":is(# C4U+454U+430U+43dU+439U+442U+436U+2555/U+2518U+413U+401U+436U+42eU+425U+454U+430U+2593U+2510U+401U+42dU+411U+41cU+454U+430U+421U+435U+401U+42dU+416U+410%=[U+44fU+43cU+43c0)" should be an invalid selector
+FAIL=":is(# C4U+d1U+201dU+d0U+b0U+d0U+bdU+d0U+b9U+d1U+201aU+d0U+b6U+e2U+2022U+2022/U+e2U+201dU+2dcU+d0U+201cU+d0U+81U+d0U+b6U+d0U+aeU+d0U+a5U+d1U+201dU+d0U+b0U+e2U+2013U+201cU+e2U+201dU+90U+d0U+81U+d0U+adU+d0U+2018U+d0U+153U+d1U+201dU+d0U+b0U+d0U+a1U+d0U+b5U+d0U+81U+d0U+adU+d0U+2013U+d0U+90%=[U+d1U+8fU+d0U+bcU+d0U+bc0)" should be an invalid selector
 FAIL=":is(,,,)" should be a valid selector
 FAIL=":is(::before)" should be a valid selector
 FAIL=":is(::before:HOVER  )" should be a valid selector
 FAIL=":is(::before:HOVER, .a)" should be a valid selector
-FAIL=":is(:hover, :active)" should be a valid selector
-FAIL=":is(:is(div))" should be a valid selector
-FAIL=":is(:where(div))" should be a valid selector
-FAIL=":is(div )" should be a valid selector
-FAIL=":is(div + bar, div ~ .baz)" should be a valid selector
-FAIL=":is(div) + bar" should be a valid selector
-FAIL=":is(div)::before" should be a valid selector
-FAIL=":is(div):hover" should be a valid selector
-FAIL=":not(:is(div .foo))" should be a valid selector
-FAIL=":not(:is(div))" should be a valid selector
-FAIL=":not(:where(div .foo))" should be a valid selector
-FAIL=":not(:where(div))" should be a valid selector
 FAIL=":where(,,,)" should be a valid selector
 FAIL=":where(::before)" should be a valid selector
 FAIL=":where(::before:HOVER  )" should be a valid selector
 FAIL=":where(::before:HOVER, .a)" should be a valid selector
-FAIL=":where(:hover, :active)" should be a valid selector
-FAIL=":where(:is(div))" should be a valid selector
-FAIL=":where(:where(div))" should be a valid selector
-FAIL=":where(div )" should be a valid selector
-FAIL=":where(div + bar, div ~ .baz)" should be a valid selector
-FAIL=":where(div) + bar" should be a valid selector
-FAIL=":where(div)::before" should be a valid selector
-FAIL=":where(div):hover" should be a valid selector
-[css/selectors/parsing/parse-is.html]
-FAIL=".a.b ~ .c.d:is(span.e + .f, .g.h > .i.j .k)" should be a valid selector
-FAIL=".a.b ~ :is(.c.d ~ .e.f)" should be a valid selector
-FAIL=":is(#a)" should be a valid selector
-FAIL=":is(:hover,:focus)" should be a valid selector
-FAIL=":is(ul,ol,.list) > [hidden]" should be a valid selector
-FAIL="a:is(:not(:hover))" should be a valid selector
 [css/selectors/parsing/parse-not.html]
-FAIL="*:not(foo)" should be a valid selector
-FAIL="*|*:not(*)" should be a valid selector
 FAIL=":host(:not(.a .b))" should be an invalid selector
-FAIL=":host(:not(.a))" should be a valid selector
-FAIL=":not()" should be an invalid selector
-FAIL=":not(*|*)" should be a valid selector
-FAIL=":not(.a + .b)" should be a valid selector
-FAIL=":not(.a .b ~ c)" should be a valid selector
-FAIL=":not(.a .b ~ c, .d .e)" should be a valid selector
-FAIL=":not(.a .b)" should be a valid selector
 FAIL=":not(.a, :unknownpseudo)" should be an invalid selector
 FAIL=":not(::before)" should be an invalid selector
-FAIL=":not(:host(.a))" should be a valid selector
-FAIL=":not(:host(:not(.a)))" should be a valid selector
-FAIL=":not(:host)" should be a valid selector
-FAIL=":not(:hover)" should be a valid selector
-FAIL=":not(:link):not(:visited)" should be a valid selector
-FAIL=":not(:not())" should be an invalid selector
-FAIL=":not(:not(foo))" should be a valid selector
 FAIL=":not(:unknownpseudo)" should be an invalid selector
 FAIL=":not(:unknownpseudo, .a)" should be an invalid selector
-FAIL=":not([disabled],[selected])" should be a valid selector
-FAIL=":not([disabled][selected])" should be a valid selector
-FAIL=":not(span.a, div.b)" should be a valid selector
-FAIL="button:not([disabled])" should be a valid selector
-FAIL="foo:not(bar)" should be a valid selector
 [css/selectors/parsing/parse-part.html]
 FAIL="::part(--)" should be a valid selector
 FAIL="::part(--0)" should be a valid selector
@@ -74657,7 +75030,6 @@ FAIL="::part(--foo)" should be a valid selector
 FAIL="::part(-foo bar)" should be a valid selector
 FAIL="::part(bar)" should be a valid selector
 FAIL="::part(foo bar)" should be a valid selector
-FAIL="::part(foo) + ::part(bar)" should be an invalid selector
 FAIL="::part(foo)::after" should be a valid selector
 FAIL="::part(foo)::before" should be a valid selector
 FAIL="::part(foo)::file-selector-button" should be a valid selector
@@ -74669,7 +75041,6 @@ FAIL="::part(foo):dir(ltr)" should be a valid selector
 FAIL="::part(foo):disabled" should be a valid selector
 FAIL="::part(foo):focus" should be a valid selector
 FAIL="::part(foo):focus-within" should be a valid selector
-FAIL="::part(foo):has(li)" should be an invalid selector
 FAIL="::part(foo):hover" should be a valid selector
 FAIL="::part(foo):is(:focus)" should be a valid selector
 FAIL="::part(foo):is(nav ul)" should be a valid selector
@@ -74679,98 +75050,43 @@ FAIL="::part(foo):where(nav ul)" should be a valid selector
 FAIL="::part(foo):where(ul)" should be a valid selector
 FAIL=":dir(ltr)::part(foo)" should be a valid selector
 FAIL=":lang(en)::part(foo)" should be a valid selector
-FAIL=":part('foo')" should be an invalid selector
-FAIL=":part()" should be an invalid selector
-FAIL=":part(0)" should be an invalid selector
-FAIL=":part([foo])" should be an invalid selector
-[css/selectors/parsing/parse-sibling.html]
-FAIL="h1 ~ pre" should be a valid selector
-FAIL="h1.opener + h2" should be a valid selector
-FAIL="math + p" should be a valid selector
 [css/selectors/parsing/parse-slotted.html]
-FAIL="::slotted" should be an invalid selector
-FAIL="::slotted()" should be an invalid selector
-FAIL="::slotted(*)" should be a valid selector
-FAIL="::slotted(.class)" should be a valid selector
-FAIL="::slotted(0)" should be an invalid selector
-FAIL="::slotted(:first-child)" should be a valid selector
-FAIL="::slotted(:has(:first-child:last-child))" should be a valid selector
-FAIL="::slotted(:hover)" should be a valid selector
-FAIL="::slotted(:not(:nth-last-of-type(2)):not([slot=\"foo\"]))" should be a valid selector
-FAIL="::slotted(:not(foo))" should be a valid selector
-FAIL="::slotted([attr=\"foo\"])" should be a valid selector
-FAIL="::slotted(bar)" should be a valid selector
 FAIL="::slotted(foo) + ::slotted(bar)" should be an invalid selector
 FAIL="::slotted(foo):dir(ltr)" should be an invalid selector
 FAIL="::slotted(foo):first-child" should be an invalid selector
 FAIL="::slotted(foo):focus" should be an invalid selector
 FAIL="::slotted(foo):hover" should be an invalid selector
 FAIL="::slotted(foo):lang(en)" should be an invalid selector
-FAIL=":slotted(foo)" should be an invalid selector
 [css/selectors/parsing/parse-state.html]
 FAIL="::part(inner):state(bar)::after" should be a valid selector
-FAIL="::part(inner):state(bar)::after:state(foo)" should be an invalid selector
 FAIL="::part(inner):state(bar)::before" should be a valid selector
-FAIL="::part(inner):state(bar)::before:state(foo)" should be an invalid selector
-FAIL="::slotted(foo):state(foo)" should be an invalid selector
 FAIL=":host(:state(--foo))" should be a valid selector
-FAIL=":state" should be an invalid selector
-FAIL=":state(" should be an invalid selector
-FAIL=":state()" should be an invalid selector
 FAIL=":state(--)" should be a valid selector
 FAIL=":state(--0)" should be a valid selector
 FAIL=":state(--foo)" should be a valid selector
-FAIL=":state(0)" should be an invalid selector
-FAIL=":state(0rem)" should be an invalid selector
-FAIL=":state(:host)" should be an invalid selector
 FAIL=":state(bar)" should be a valid selector
-FAIL=":state(foo(1))" should be an invalid selector
-FAIL=":state(url())" should be an invalid selector
-FAIL="my-input::after:state(foo)" should be an invalid selector
-FAIL="my-input::first-letter:state(foo)" should be an invalid selector
 FAIL="my-input[type=\"foo\"]:state(--0)::before" should be a valid selector
 FAIL="my-input[type=\"foo\"]:state(--0)::part(inner)" should be a valid selector
 FAIL="my-input[type=\"foo\"]:state(--0)::part(inner):state(bar)" should be a valid selector
 FAIL="my-input[type=\"foo\"]:state(checked)" should be a valid selector
-[css/selectors/parsing/parse-universal.html]
-FAIL="*" should be a valid selector
-FAIL="div *:first-child" should be a valid selector
-FAIL="div :first-child" should be a valid selector
-[css/selectors/parsing/parse-where.html]
-FAIL=".a.b ~ .c.d:where(span.e + .f, .g.h > .i.j .k)" should be a valid selector
-FAIL=".a.b ~ :where(.c.d ~ .e.f)" should be a valid selector
-FAIL=":where(#a)" should be a valid selector
-FAIL=":where(:hover,:focus)" should be a valid selector
-FAIL=":where(ul,ol,.list) > [hidden]" should be a valid selector
-FAIL="a:where(:not(:hover))" should be a valid selector
 [css/selectors/placeholder-shown.html]
-FAIL=CSS Selectors Test: :placeholder-shown matching
 FAIL=CSS Selectors Test: :placeholder-shown matching 1
 FAIL=CSS Selectors Test: :placeholder-shown matching 2
-FAIL=CSS Selectors Test: :placeholder-shown matching 3
-FAIL=CSS Selectors Test: :placeholder-shown matching 4
-FAIL=CSS Selectors Test: :placeholder-shown matching 5
-FAIL=CSS Selectors Test: :placeholder-shown matching 6
 [css/selectors/pseudo-enabled-disabled.html]
 FAIL=:enabeld should match to enabled controls
 FAIL=:not(:disabled) should match to enabled controls and non-controls
 [css/selectors/scope-selector.html]
 FAIL=querySelector() with ":scope" should return the document element, if present in the subtree
-[css/selectors/selectors-case-sensitive-001.html]
-harness=TIMEOUT
 [css/selectors/toplayer-transition-001.html]
-harness=ERROR
+FAIL=:focus-within should be adjusted on ancestors when popover enters/exits top layer.
+FAIL=:hover should be adjusted on ancestors when popover enters/exits top layer.
 [css/selectors/user-action-pseudo-top-layer.html]
-harness=ERROR
+PRECONDITION_FAILED=User action pseudo-classes on customizable-select (open)
+FAIL=User action pseudo-classes on dialog (modal)
+FAIL=User action pseudo-classes on dialog (non-modal)
+FAIL=User action pseudo-classes on popover (popover)
 [css/selectors/user-invalid.html]
-FAIL=:user-error selector should not be supported
-FAIL=:user-invalid selector properly interacts with submit & reset buttons
-FAIL=:user-invalid selector should respond to user action
-FAIL=A required checkbox should match :user-invalid if the user unchecks it and blurs.
-FAIL=A required date should match :user-invalid if the user unchecks it and blurs.
-FAIL=A required radio should match :user-invalid if it is not checked.
-FAIL=required-input: A required input or textarea should match :user-invalid if a user types into it and then clears it before blurring.
-FAIL=required-textarea: A required input or textarea should match :user-invalid if a user types into it and then clears it before blurring.
+harness=TIMEOUT
 [css/selectors/user-valid-user-invalid-multifield-inputs.tentative.html]
 FAIL=<input type=date> keyboard behavior for :user-valid/:user-invalid.
 FAIL=<input type=datetime-local> keyboard behavior for :user-valid/:user-invalid.
@@ -74784,7 +75100,8 @@ FAIL=Radios should match :user-valid after the user clicks on it.
 [css/selectors/valid-invalid-form-fieldset.html]
 FAIL=form and fieldset elements should match :valid/:invalid but not :user-valid/:user-invalid.
 [css/selectors/webkit-pseudo-element.html]
-FAIL=Nested pseudos are invalid
+FAIL=User-action pseudo-classes are valid
+FAIL=qS and qSA shouldn't throw exception
 FAIL=rules include webkit-prefixed pseudo-element should be cascaded
 FAIL=webkit-prefix without dash is invalid
 FAIL=webkit-prefixed pseudo-element selectors should be accessible from CSSOM

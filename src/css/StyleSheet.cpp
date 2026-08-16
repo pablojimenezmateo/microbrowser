@@ -179,11 +179,13 @@ bool SupportsDeclarationInParens(const std::vector<Token>& tokens, std::size_t f
   return SupportsDeclaration(property, ReconstructTokens(tokens, from, to));
 }
 
-// `( … )` or `function( … )`. The second is `<general-enclosed>`: a form this
-// engine does not recognize, which the specification says evaluates to unknown
-// and which a boolean context reads as false. `selector()` and `font-tech()`
-// land there, and false is the answer that sends a page to its fallback rather
-// than into a branch nothing here implements.
+// `( … )` or `function( … )`. `selector()` is CSS Conditional 4's
+// `<supports-selector-fn>`: it asks the same parser a stylesheet uses, so
+// `CSS.supports('selector(:is(div))')` cannot disagree with whether
+// `querySelector(':is(div)')` would throw. Other functions (`font-tech()`, a
+// typo) stay `<general-enclosed>` — unknown, which a boolean context reads as
+// false, sending a page to its fallback rather than into a branch nothing
+// here implements.
 bool SupportsInParens(const std::vector<Token>& tokens, std::size_t& at, std::size_t to,
                       int depth) {
   SkipWhitespace(tokens, at, to);
@@ -191,8 +193,15 @@ bool SupportsInParens(const std::vector<Token>& tokens, std::size_t& at, std::si
     return false;
   }
   if (tokens[at].kind == Token::Kind::Function) {
-    at = MatchingParen(tokens, at, to).value_or(to);
-    return false;
+    const std::string name = Lowered(tokens[at].value);
+    const std::optional<std::size_t> close = MatchingParen(tokens, at, to);
+    const std::size_t inner_from = at + 1;
+    at = close.value_or(to);
+    if (name != "selector" || !close.has_value()) {
+      return false;
+    }
+    const std::size_t inner_to = *close > inner_from ? *close - 1 : inner_from;
+    return !ParseSelectorList(ReconstructTokens(tokens, inner_from, inner_to)).empty();
   }
   if (tokens[at].kind != Token::Kind::LeftParen) {
     return false;

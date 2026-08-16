@@ -317,9 +317,10 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
                    "",
                    "`and` mixed with `or` and no parentheses is a syntax error, not a "
                    "precedence question -- and a prelude that does not parse is false");
-    ExpectEqString(selectors("@supports selector(a > b) { a { x: y } }"), "",
-                   "an enclosed form this grammar does not recognize is unknown, which reads "
-                   "as false and sends the page to its fallback");
+    ExpectEqString(selectors("@supports selector(a > b) { a { x: y } }"), "a ",
+                   "selector() asks the same parser a stylesheet uses");
+    ExpectEqString(selectors("@supports selector(!!) { a { x: y } }"), "",
+                   "an invalid selector is unsupported, not a crash");
     ExpectEqString(selectors("@supports (display: flex) garbage { a { x: y } }"), "",
                    "and so does a prelude with something left over");
     ExpectEqString(selectors("@supports (--x: 1) { a { x: y } }"), "a ",
