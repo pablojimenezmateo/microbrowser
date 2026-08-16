@@ -115,12 +115,10 @@ FAIL=Input LFLF with endings 'native'
 FAIL=Input LFLF with endings 'transparent'
 FAIL=Input LFLF with endings unspecified
 [FileAPI/blob/Blob-constructor.any.html]
-FAIL=Blob constructor with no arguments, without 'new'
 FAIL=Passing BigInt typed arrays as elements of the blobParts array should work.
 FAIL=Passing a Float16Array as element of the blobParts array should work.
 FAIL=Passing a FrozenArray as the blobParts array should work (FrozenArray<MessagePort>).
 [FileAPI/blob/Blob-constructor.any.worker.html]
-FAIL=Blob constructor with no arguments, without 'new'
 FAIL=Passing BigInt typed arrays as elements of the blobParts array should work.
 FAIL=Passing a Float16Array as element of the blobParts array should work.
 FAIL=Passing a FrozenArray as the blobParts array should work (FrozenArray<MessagePort>).
@@ -241,15 +239,6 @@ FAIL=Input LFCRLFCR with endings unspecified
 FAIL=Input LFLF with endings 'native'
 FAIL=Input LFLF with endings 'transparent'
 FAIL=Input LFLF with endings unspecified
-[FileAPI/file/File-constructor.any.html]
-FAIL=Blob fileBits
-FAIL=DOMString fileBits
-FAIL=Empty Blob fileBits
-FAIL=File interface object exists
-FAIL=Required arguments
-FAIL=String object fileBits
-FAIL=Unicode DOMString fileBits
-FAIL=empty fileBits
 [FileAPI/file/File-constructor.any.worker.html]
 harness=ERROR
 [FileAPI/file/Worker-read-file-constructor.worker.html]

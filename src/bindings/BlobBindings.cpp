@@ -184,7 +184,8 @@ bool ReadDictionaryMember(NativeCall& call, const Value& options, const char* na
   return true;
 }
 
-bool OptionsType(NativeCall& call, const Value& options, std::string& type) {
+bool OptionsType(NativeCall& call, const Value& options, std::string& type,
+                 std::int64_t* last_modified) {
   if (options.IsUndefined() || options.IsNull()) {
     type.clear();
     return true;
@@ -193,9 +194,8 @@ bool OptionsType(NativeCall& call, const Value& options, std::string& type) {
     (void)call.Throw("TypeError", "Blob options must be an object");
     return false;
   }
-  // WebIDL dictionary order is lexicographic: `endings` then `type`. A getter
-  // or a toString on either has to run in that order even when we ignore
-  // `endings`.
+  // WebIDL dictionary order is lexicographic on the flattened bag:
+  // `endings`, then `lastModified` (File), then `type`.
   std::string endings;
   bool has_endings = false;
   if (!ReadDictionaryMember(call, options, "endings", endings, has_endings)) {
@@ -203,6 +203,32 @@ bool OptionsType(NativeCall& call, const Value& options, std::string& type) {
   }
   (void)endings;
   (void)has_endings;
+  if (last_modified != nullptr) {
+    js::Result abrupt = js::Result::Normal();
+    const Value value =
+        call.interpreter.GetPropertyOrThrow(options, "lastModified", abrupt);
+    if (abrupt.IsAbrupt()) {
+      (void)call.ThrowValue(abrupt.value);
+      return false;
+    }
+    if (!value.IsUndefined()) {
+      double number = 0;
+      const js::Result converted = call.interpreter.ToNumberOf(value, number);
+      if (converted.IsAbrupt()) {
+        (void)call.ThrowValue(converted.value);
+        return false;
+      }
+      if (!std::isfinite(number)) {
+        *last_modified = 0;
+      } else if (number >= static_cast<double>(std::numeric_limits<std::int64_t>::max())) {
+        *last_modified = std::numeric_limits<std::int64_t>::max();
+      } else if (number <= static_cast<double>(std::numeric_limits<std::int64_t>::min())) {
+        *last_modified = std::numeric_limits<std::int64_t>::min();
+      } else {
+        *last_modified = static_cast<std::int64_t>(std::nearbyint(number));
+      }
+    }
+  }
   std::string raw;
   bool has_type = false;
   if (!ReadDictionaryMember(call, options, "type", raw, has_type)) {
@@ -300,6 +326,9 @@ void DomBindings::InstallBlob() {
   }
   const Value prototype = interpreter_->NewObjectValue();
   const Value constructor = interpreter_->NewNativeValue("Blob", [prototype](NativeCall& call) {
+    if (!call.interpreter.IsConstructCall(call.self)) {
+      return call.Throw("TypeError", "Blob constructor requires 'new'");
+    }
     const Value object = call.interpreter.NewObjectValue();
     if (!object.IsObject()) {
       return Value::Undefined();
@@ -310,7 +339,7 @@ void DomBindings::InstallBlob() {
     std::string body;
     std::string type;
     if (!BodyFromBlobParts(call, Argument(call.arguments, 0), body) ||
-        !OptionsType(call, Argument(call.arguments, 1), type)) {
+        !OptionsType(call, Argument(call.arguments, 1), type, nullptr)) {
       return call.ThrownValue();
     }
     object.object->SetHidden(kBlobBodySlot, Value::String(std::move(body)));
@@ -395,6 +424,12 @@ void DomBindings::InstallBlob() {
   }
   const Value file_constructor =
       interpreter_->NewNativeValue("File", [file_prototype](NativeCall& call) {
+        if (!call.interpreter.IsConstructCall(call.self)) {
+          return call.Throw("TypeError", "File constructor requires 'new'");
+        }
+        if (call.arguments.size() < 2) {
+          return call.Throw("TypeError", "File requires bits and name");
+        }
         const Value object = call.interpreter.NewObjectValue();
         if (!object.IsObject()) {
           return Value::Undefined();
@@ -404,18 +439,30 @@ void DomBindings::InstallBlob() {
         }
         std::string body;
         std::string type;
-        if (!BodyFromBlobParts(call, Argument(call.arguments, 0), body) ||
-            !OptionsType(call, Argument(call.arguments, 2), type)) {
+        std::int64_t last_modified =
+            static_cast<std::int64_t>(call.interpreter.NowMilliseconds());
+        if (!BodyFromBlobParts(call, Argument(call.arguments, 0), body)) {
+          return call.ThrownValue();
+        }
+        std::string name;
+        const js::Result named = call.interpreter.ToStringOf(call.arguments[1], name);
+        if (named.IsAbrupt()) {
+          return call.ThrowValue(named.value);
+        }
+        if (!OptionsType(call, Argument(call.arguments, 2), type, &last_modified)) {
           return call.ThrownValue();
         }
         object.object->SetHidden(kBlobBodySlot, Value::String(std::move(body)));
         object.object->SetHidden(kBlobTypeSlot, Value::String(std::move(type)));
         object.object->SetHidden(kBlobMarkerSlot, Value::Bool(true));
-        object.object->SetHidden(kBlobNameSlot, Value::String(js::ToString(Argument(call.arguments, 1))));
+        object.object->SetHidden(kBlobNameSlot, Value::String(std::move(name)));
+        object.object->SetHidden(kBlobLastModifiedSlot,
+                                 Value::Number(static_cast<double>(last_modified)));
         return object;
       });
   if (file_constructor.IsObject()) {
     file_constructor.object->Set(kOwnerSlot, OwnerValue(this));
+    file_constructor.object->Set("length", Value::Number(2));
     if (file_prototype.IsObject()) {
       file_constructor.object->Set("prototype", file_prototype);
       const Value name_get = interpreter_->NewNativeValue("name", [](NativeCall& call) {
@@ -425,6 +472,14 @@ void DomBindings::InstallBlob() {
       });
       if (name_get.IsObject()) {
         file_prototype.object->DefineAccessor("name", name_get.object, nullptr);
+      }
+      const Value modified_get = interpreter_->NewNativeValue("lastModified", [](NativeCall& call) {
+        const Value* at =
+            call.self.IsObject() ? call.self.object->GetOwn(kBlobLastModifiedSlot) : nullptr;
+        return at == nullptr || !at->IsNumber() ? Value::Number(0) : *at;
+      });
+      if (modified_get.IsObject()) {
+        file_prototype.object->DefineAccessor("lastModified", modified_get.object, nullptr);
       }
       if (js::Object* tag = interpreter_->SymbolToStringTag()) {
         file_prototype.object->SetHidden(js::PropertyKey::Symbol(tag), Value::String("File"));

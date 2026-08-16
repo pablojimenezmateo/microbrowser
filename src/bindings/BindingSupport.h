@@ -28,6 +28,7 @@ inline constexpr const char* kBlobBodySlot = "#blobBody";
 inline constexpr const char* kBlobTypeSlot = "#blobType";
 inline constexpr const char* kBlobMarkerSlot = "#isBlob";
 inline constexpr const char* kBlobNameSlot = "#blobName";
+inline constexpr const char* kBlobLastModifiedSlot = "#blobLastModified";
 
 // A Blob with the given bytes and already-canonical MIME type. `new Blob` and
 // `Response.prototype.blob` share this so a page cannot tell them apart by
