@@ -114,6 +114,7 @@ js::Value DomBindings::MakeUrlSearchParams(const std::string& query) {
     made.object->SetPrototype(prototype->object);
   }
   ResetUrlSearchParams(made, query);
+  made.object->SetHidden(kSearchParamsMarkerSlot, Value::Bool(true));
   return made;
 }
 
@@ -448,6 +449,7 @@ void DomBindings::InstallUrlSearchParams() {
           }
         }
         made.object->SetHidden(kPairsSlot, call.interpreter.NewArrayValue(std::move(pairs)));
+        made.object->SetHidden(kSearchParamsMarkerSlot, Value::Bool(true));
         // Not clonable, for the reason a `URL` is not: see `MarkHostObject`.
         made.object->MarkHostObject();
         return made;
@@ -459,6 +461,11 @@ void DomBindings::InstallUrlSearchParams() {
     interpreter_->Global()->Set("URLSearchParams", constructor);
     interpreter_->GlobalScope()->Declare("URLSearchParams", constructor, false);
   }
+}
+
+bool EncodeUrlSearchParamsBody(const js::Value& params, std::string& out) {
+  out = SerializePairs(params);
+  return true;
 }
 
 }  // namespace microbrowser::bindings

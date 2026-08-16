@@ -408,6 +408,22 @@ void RegisterFetchApiTests(std::vector<TestCase>& tests) {
            "a Blob's type becomes Content-Type");
   });
 
+  AddTest(tests, "Fetch/UrlSearchParamsBodyIsUrlencoded", [] {
+    Session session;
+    session.Serve("page.example", OkResponse("text/plain", "ok"));
+    session.Run(
+        "const p = new URLSearchParams('a=1&b=2');"
+        "const req = new Request('/q', {method: 'POST', body: p});"
+        "console.log(req.headers.get('content-type'));"
+        "fetch('/q', {method: 'POST', body: p})"
+        "  .then(r => r.text()).then(t => console.log(t));");
+    ExpectEqString(session.Console(),
+                   "application/x-www-form-urlencoded;charset=UTF-8|ok", session.Errors());
+    const std::string& wire = session.factory.log.requests.at(1);
+    Expect(wire.find("\r\n\r\na=1&b=2") != std::string::npos,
+           "URLSearchParams serializes through the urlencoded encoder, not String(params)");
+  });
+
   AddTest(tests, "Fetch/APageCannotSetAForbiddenHeader", [] {
     Session session;
     session.Serve("page.example", OkResponse("text/plain", "ok"));

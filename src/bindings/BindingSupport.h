@@ -30,6 +30,7 @@ inline constexpr const char* kBlobMarkerSlot = "#isBlob";
 inline constexpr const char* kBlobNameSlot = "#blobName";
 inline constexpr const char* kBlobLastModifiedSlot = "#blobLastModified";
 inline constexpr const char* kFormDataMarkerSlot = "#isFormData";
+inline constexpr const char* kSearchParamsMarkerSlot = "#isURLSearchParams";
 inline constexpr const char* kFileListFilesSlot = "#fileListFiles";
 inline constexpr const char* kInputFileListSlot = "#inputFileList";
 
@@ -46,6 +47,14 @@ inline bool IsFormDataValue(const js::Value& value) {
     return false;
   }
   const js::Value* marker = value.object->GetOwn(kFormDataMarkerSlot);
+  return marker != nullptr && marker->type == js::ValueType::Boolean && marker->boolean;
+}
+
+inline bool IsSearchParamsValue(const js::Value& value) {
+  if (!value.IsObject()) {
+    return false;
+  }
+  const js::Value* marker = value.object->GetOwn(kSearchParamsMarkerSlot);
   return marker != nullptr && marker->type == js::ValueType::Boolean && marker->boolean;
 }
 

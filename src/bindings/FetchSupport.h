@@ -72,6 +72,7 @@ js::Value MakeBodyStream(js::Interpreter& interpreter, const js::Value& response
 // Multipart bytes and `Content-Type` for a `FormData` body. Defined in
 // FormDataBindings.cpp so the encoder lives next to the entry list it reads.
 bool EncodeFormDataBody(const js::Value& form_data, std::string& out, std::string& content_type);
+bool EncodeUrlSearchParamsBody(const js::Value& params, std::string& out);
 
 inline void MaybeSetExtractedContentType(std::vector<ScriptHeader>& headers,
                                          const std::string& type) {
@@ -138,6 +139,16 @@ inline bool ExtractRequestBody(const js::Value& value, std::string& out, bool& f
       if (type != nullptr && type->IsString() && !type->AsString().empty()) {
         *content_type = type->AsString();
       }
+    }
+    return true;
+  }
+  if (IsSearchParamsValue(value)) {
+    if (!EncodeUrlSearchParamsBody(value, out)) {
+      return false;
+    }
+    from_string = false;
+    if (content_type != nullptr) {
+      *content_type = "application/x-www-form-urlencoded;charset=UTF-8";
     }
     return true;
   }
