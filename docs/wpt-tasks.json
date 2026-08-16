@@ -521,8 +521,8 @@
         "D3"
       ],
       "target": "97%",
-      "status": "not_started",
-      "agent": null,
+      "status": "in_progress",
+      "agent": "wpt-d7",
       "adr": "",
       "notes": "",
       "ceiling_source": "firefox",
