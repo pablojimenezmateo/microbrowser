@@ -677,14 +677,17 @@ Result Interpreter::ApplyBinary(BinaryOp op, const Value& a, const Value& b) {
         return Result::Normal(Value::Bool(true));
       }
       // Same "one namespace, two spellings" rule GetProperty/SetProperty use on
-      // the global object: builtins and `MakeInterface` constructors live as
-      // scope bindings rather than own properties (so a page that assigns
-      // `window.ShadowRoot = …` cannot fork the bare name from the property).
-      // `'IDBTransaction' in self` must therefore see the binding too —
-      // youtube's `yPS` refuses IndexedDB entirely when this answers false.
-      if (!key.IsSymbol() && b.object == Global() && GlobalScope() != nullptr &&
-          GlobalScope()->Lookup(key.Text()) != nullptr) {
-        return Result::Normal(Value::Bool(true));
+      // a global object: builtins and `function` declarations live as scope
+      // bindings rather than own properties. `'setupRangeTests' in
+      // iframe.contentWindow` has to consult *that* realm's scope --
+      // `b.object == Global()` is only the caller's window.
+      if (!key.IsSymbol()) {
+        if (Object* const global = GlobalOf(b.object->RealmIndex()); global == b.object) {
+          if (Environment* const scope = GlobalScopeOf(b.object->RealmIndex());
+              scope != nullptr && scope->Lookup(key.Text()) != nullptr) {
+            return Result::Normal(Value::Bool(true));
+          }
+        }
       }
       return Result::Normal(Value::Bool(false));
     }

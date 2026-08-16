@@ -388,6 +388,29 @@ void RegisterJsRealmTests(std::vector<TestCase>& tests) {
     ExpectEqString(EvalIn(interpreter, js::kMainRealm, "who"), "parent",
                    "so the parent realm is intact");
   });
+
+  AddTest(tests, "JsRealm/AFunctionDeclarationIsVisibleOnAnotherRealmsGlobal", [] {
+    // `function f(){}` at script top level is a binding in that realm's global
+    // *scope*, not a property of its global *object*. GetProperty used to consult
+    // the running realm's scope only when the object was *that* realm's global, so
+    // `iframe.contentWindow.setupRangeTests` was undefined after the child's
+    // common.js had run -- Range-insertNode's 1840 failures.
+    Interpreter interpreter;
+    const RealmId second = SecondRealm(interpreter);
+    ExpectEqString(EvalIn(interpreter, second,
+                          "'use strict'; function setup(){ return 'from-child' } var n = 7; 'ok'"),
+                   "ok", "the child declares a function and a var");
+
+    interpreter.GlobalOf(js::kMainRealm)->Set("other", js::Value::Obj(interpreter.GlobalOf(second)));
+    ExpectEqString(EvalIn(interpreter, js::kMainRealm, "typeof other.setup"), "function",
+                   "the parent reads the child's function declaration off the child's global");
+    ExpectEqString(EvalIn(interpreter, js::kMainRealm, "other.setup()"), "from-child",
+                   "and calling it runs the child's body");
+    ExpectEqString(EvalIn(interpreter, js::kMainRealm, "'setup' in other"), "true",
+                   "and `in` sees the binding too");
+    ExpectEqString(EvalIn(interpreter, js::kMainRealm, "other.n"), "7",
+                   "and a top-level var is the same namespace");
+  });
 }
 
 }  // namespace microbrowser::tests

@@ -217,6 +217,43 @@ void RegisterFrameTests(std::vector<TestCase>& tests) {
                    "a child's relative script src resolves against the child, not the embedder");
   });
 
+  AddTest(tests, "Frames/AChildsFunctionDeclarationIsVisibleOnContentWindow", [] {
+    // Range-insertNode's common.js is `"use strict"; function setupRangeTests(){}`.
+    // The script ran; the parent still saw undefined, because a function
+    // declaration is a global-scope binding and contentWindow reads went to the
+    // embedder's scope.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html",
+                   "<body></body>"
+                   "<script>"
+                   "var f = document.createElement('iframe');"
+                   "document.body.appendChild(f);"
+                   "f.onload = function () {"
+                   "  console.log(typeof f.contentWindow.setupRangeTests);"
+                   "  f.contentWindow.setupRangeTests();"
+                   "  console.log(String(f.contentWindow.flag));"
+                   "};"
+                   "f.src = '/child.html';"
+                   "</" "script>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html", "<script src='/common.js'></script>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/javascript",
+                   "\"use strict\";\nfunction setupRangeTests() { window.flag = 'ok'; }\n")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://page.example/"});
+
+    ExpectEqString(Joined(session.engine.ConsoleOutput()), "function|ok",
+                   "the parent can call a function the child's classic script declared");
+  });
+
   AddTest(tests, "Frames/AssigningSrcRenavigatesTheFrame", [] {
     // `iframe.src = other` is an *attribute* write, so it moves the document's mutation version
     // and leaves its structure version alone. The collection pass is gated on structure -- it has

@@ -711,13 +711,18 @@ Value Interpreter::GetProperty(const Value& base, const PropertyKey& key, Result
       return object->GetElement(*index);
     }
   }
-  if (object == realm_->global && named && object->GetOwnProperty(key) == nullptr) {
-    // `globalThis.Math`. The builtins are bindings in the global *scope*
-    // rather than properties of the global *object*, because that is where a
-    // name lookup finds them -- so reading one off `globalThis` has to reach
-    // the same place. One namespace with two spellings, not two that overlap.
-    if (Value* binding = realm_->global_scope->Lookup(key.Text())) {
-      return *binding;
+  if (named && object->GetOwnProperty(key) == nullptr) {
+    // Bindings live in the global *scope*, not on the object. Reading them off
+    // `globalThis` -- or `frames[0]` -- has to consult *that object's* realm.
+    // `object == realm_->global` is only the caller's window, so a parent doing
+    // `iframe.contentWindow.setupRangeTests` otherwise misses a function
+    // declaration the child just ran. Range-insertNode is that call.
+    if (Object* const global = GlobalOf(object->RealmIndex()); global == object) {
+      if (Environment* const scope = GlobalScopeOf(object->RealmIndex())) {
+        if (Value* binding = scope->Lookup(key.Text())) {
+          return *binding;
+        }
+      }
     }
   }
   if (object->GetKind() == Object::Kind::Array && named) {
@@ -745,16 +750,18 @@ Value Interpreter::GetProperty(const Value& base, const PropertyKey& key, Result
 }
 
 Result Interpreter::SetProperty(const Value& base, const PropertyKey& key, const Value& value) {
-  if (base.IsObject() && base.object == realm_->global && !key.IsSymbol() &&
-      base.object->GetOwnProperty(key) == nullptr) {
-    // The other direction of the same rule: `globalThis.Math = x` has to be
-    // the assignment `Math = x`, or the two spellings would disagree from the
-    // next read on.
-    if (realm_->global_scope->HasOwn(key.Text())) {
-      if (realm_->global_scope->Assign(key.Text(), value) == Environment::AssignResult::Constant) {
-        return Throw("TypeError", "assignment to constant variable '" + key.Text() + "'");
+  if (base.IsObject() && !key.IsSymbol() && base.object->GetOwnProperty(key) == nullptr) {
+    // The other direction of the same rule: `frames[0].Math = x` has to be the
+    // assignment `Math = x` in *that* realm, or the two spellings would
+    // disagree from the next read on.
+    if (Object* const global = GlobalOf(base.object->RealmIndex()); global == base.object) {
+      if (Environment* const scope = GlobalScopeOf(base.object->RealmIndex());
+          scope != nullptr && scope->HasOwn(key.Text())) {
+        if (scope->Assign(key.Text(), value) == Environment::AssignResult::Constant) {
+          return Throw("TypeError", "assignment to constant variable '" + key.Text() + "'");
+        }
+        return Result::Normal(value);
       }
-      return Result::Normal(value);
     }
   }
   if (base.IsObject() && base.object->GetKind() == Object::Kind::Proxy) {
