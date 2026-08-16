@@ -9,6 +9,7 @@
 #include "bindings/BindingSupport.h"
 #include "bindings/Fingerprint.h"
 #include "bindings/PerformanceEntries.h"
+#include "bindings/WebIdl.h"
 #include "util/PerformanceCounters.h"
 
 namespace microbrowser::bindings {
@@ -295,6 +296,9 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
     if (!RequirePerformanceThis(call)) {
       return call.ThrownValue();
     }
+    if (!RequireArguments(call, "Performance", "mark", 1)) {
+      return call.ThrownValue();
+    }
     const std::string name = js::ToString(Argument(call.arguments, 0));
     // `{startTime}` in the options, which reddit's page-load timer uses to stamp
     // a mark at a moment that has already passed.
@@ -318,6 +322,9 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
 
   const Value measure = interpreter.NewNativeValue("measure", [](NativeCall& call) {
     if (!RequirePerformanceThis(call)) {
+      return call.ThrownValue();
+    }
+    if (!RequireArguments(call, "Performance", "measure", 1)) {
       return call.ThrownValue();
     }
     const std::string name = js::ToString(Argument(call.arguments, 0));
