@@ -361,7 +361,8 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
         "console.log(s.getPropertyValue('padding-left'));"
         "console.log(s.display);"
         "console.log(s.color);"
-        "console.log(s.transform === '');"
+        "console.log(s.transform);"
+        "console.log(s.getPropertyValue('shape-outside') === '');"
         "</script></body>");
     // 800 viewport less two 6px paddings: the used value, which no amount of
     // reading the cascade would produce.
@@ -370,7 +371,8 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
     ExpectEqString(Line(output, 2), "6px", "getPropertyValue and the property agree");
     ExpectEqString(Line(output, 3), "block", "a keyword property is the computed value");
     ExpectEqString(Line(output, 4), "rgb(0, 0, 0)", "a colour is rgb(), which is what engines say");
-    ExpectEqString(Line(output, 5), "true",
+    ExpectEqString(Line(output, 5), "none", "transform's initial computed value, for offsetParent");
+    ExpectEqString(Line(output, 6), "true",
                    "a property this engine does not have reads back empty, not invented");
   });
 
@@ -685,6 +687,87 @@ void RegisterGeometryQueryTests(std::vector<TestCase>& tests) {
     ExpectEqString(Line(output, 2), "null", "below the viewport");
     ExpectEqString(Line(output, 3), "null", "left of the viewport");
     ExpectEqString(Line(output, 4), "null", "right of the viewport");
+  });
+
+  AddTest(tests, "Geometry/ClientRectsAreADomRectList", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    const std::vector<std::string> output = RunAndCollect(
+        page,
+        "<body style='margin:0'><div id='x'>x</div><script>"
+        "var list = document.getElementById('x').getClientRects();"
+        "console.log(Object.prototype.toString.call(list));"
+        "console.log(Object.prototype.toString.call(list.item(0)));"
+        "console.log(list.item(0) === list[0]);"
+        "var range = new Range(); range.selectNodeContents(document.getElementById('x'));"
+        "console.log(Object.prototype.toString.call(range.getClientRects()));"
+        "console.log(Object.prototype.toString.call(range.getBoundingClientRect()));"
+        "</script></body>");
+    ExpectEqString(Line(output, 0), "[object DOMRectList]", "getClientRects returns a DOMRectList");
+    ExpectEqString(Line(output, 1), "[object DOMRect]", "item(0) is a DOMRect");
+    ExpectEqString(Line(output, 2), "true", "item(0) is list[0]");
+    ExpectEqString(Line(output, 3), "[object DOMRectList]", "Range.getClientRects is the same type");
+    ExpectEqString(Line(output, 4), "[object DOMRect]", "Range.getBoundingClientRect is a DOMRect");
+  });
+
+  AddTest(tests, "Geometry/OffsetParentIsOnHTMLElement", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    const std::vector<std::string> output = RunAndCollect(
+        page,
+        "<body style='margin:0'>"
+        "<div id='rel' style='position:relative'><div id='child'></div></div>"
+        "<div id='fixed' style='position:fixed'></div>"
+        "<div id='none' style='display:none'><p id='hidden'></p></div>"
+        "<svg id='svg'></svg>"
+        "<script>"
+        "console.log(document.documentElement.offsetParent);"
+        "console.log(document.body.offsetParent);"
+        "console.log(document.getElementById('child').offsetParent.id);"
+        "console.log(document.getElementById('fixed').offsetParent);"
+        "console.log(document.getElementById('hidden').offsetParent);"
+        "console.log(typeof document.getElementById('svg').offsetParent);"
+        "var e = document.getElementById('rel');"
+        "console.log(e.clientTop + ',' + e.clientLeft);"
+        "</script></body>");
+    ExpectEqString(Line(output, 0), "null", "html has no offsetParent");
+    ExpectEqString(Line(output, 1), "null", "body has no offsetParent");
+    ExpectEqString(Line(output, 2), "rel", "positioned ancestor is the offsetParent");
+    ExpectEqString(Line(output, 3), "null", "fixed has no offsetParent");
+    ExpectEqString(Line(output, 4), "null", "display:none has no offsetParent");
+    ExpectEqString(Line(output, 5), "undefined", "SVGElement does not grow offsetParent");
+    ExpectEqString(Line(output, 6), "0,0", "clientTop/clientLeft are the border widths");
+  });
+
+  AddTest(tests, "Geometry/ScrollAliasAndArgumentChecks", [] {
+    TestFonts fonts;
+    engine::Page page(fonts.catalog);
+    const std::vector<std::string> output = RunAndCollect(
+        page,
+        "<!doctype html><body style='margin:0'>"
+        "<div id='s' style='width:80px;height:80px;overflow:scroll'>"
+        "<div style='width:200px;height:200px'></div></div>"
+        "<script>"
+        "var s = document.getElementById('s');"
+        "s.scroll(10, 20);"
+        "console.log(s.scrollLeft + ',' + s.scrollTop);"
+        "console.log(typeof document.elementsFromPoint);"
+        "console.log(document.scrollingElement === document.documentElement);"
+        "try { document.elementFromPoint(); console.log('no'); } catch (e) { console.log(e.name); }"
+        "try { document.elementFromPoint(0, Infinity); console.log('no'); } catch (e) { console.log(e.name); }"
+        "var hit = document.elementsFromPoint(10, 10);"
+        "console.log(hit.length > 0 && hit[hit.length-1] === document.documentElement);"
+        "s.scroll(1).then(function(){console.log('no');}, function(e){console.log(e.name);});"
+        "s.scrollTo({behavior:'nope'}).then(function(){console.log('no');}, function(e){console.log(e.name);});"
+        "</script></body>");
+    ExpectEqString(Line(output, 0), "10,20", "element.scroll is an alias of scrollTo");
+    ExpectEqString(Line(output, 1), "function", "elementsFromPoint exists");
+    ExpectEqString(Line(output, 2), "true", "scrollingElement is the document element");
+    ExpectEqString(Line(output, 3), "TypeError", "elementFromPoint arity");
+    ExpectEqString(Line(output, 4), "TypeError", "elementFromPoint rejects Infinity");
+    ExpectEqString(Line(output, 5), "true", "elementsFromPoint ends at the document element");
+    ExpectEqString(Line(output, 6), "TypeError", "one non-dictionary argument");
+    ExpectEqString(Line(output, 7), "TypeError", "invalid ScrollBehavior");
   });
 }
 

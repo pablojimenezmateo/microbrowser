@@ -247,6 +247,10 @@ void DomBindings::EnsureInterfaces() {
   InstallElementInterface(element);
   InstallParentQueries(element);
   InstallElementIdentity(element);
+  // HTMLElement before geometry: `offsetParent`/`offsetTop`/`offsetLeft` live
+  // on HTMLElement (CSSOM View), not Element -- `svg.offsetParent` must be
+  // undefined rather than null. InstallGeometry hangs those on this prototype.
+  const Value html_element = MakeInterface("HTMLElement", element);
   InstallGeometry(element);
   // `innerHTML`, `outerHTML` and `insertAdjacentHTML`, on Element because that
   // is where the specification puts them and because a Text node with an
@@ -257,7 +261,6 @@ void DomBindings::EnsureInterfaces() {
   // Web Animations: after Element exists so `animate` lands on the prototype a
   // page feature-detects. Absent when no AnimationSource (ADR 0012 / TD-0021).
   InstallWaapi(element);
-  const Value html_element = MakeInterface("HTMLElement", element);
   InstallDraggable(*interpreter_, html_element, this);
   InstallPopover(*interpreter_, html_element, this);
   InstallElementInternals(*this, *interpreter_, html_element);

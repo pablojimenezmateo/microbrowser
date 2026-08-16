@@ -524,6 +524,38 @@ void DomBindings::InstallRange() {
   // A no-op in the current specification, kept because old code calls it.
   method("detach", [](NativeCall&) { return Value::Undefined(); });
 
+  // CSSOM View: a Range's boxes are the boxes of the nodes it covers. One
+  // fragment today, from the start container's element — enough for
+  // `assert_class_string` and for a collapsed range on an element to answer.
+  method("getClientRects", [](NativeCall& call) -> Value {
+    std::vector<Value> rects;
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* start = NodeSlot(call.self, kStartNodeSlot);
+    while (start != nullptr && !start->IsElement()) {
+      start = start->Parent();
+    }
+    if (owner != nullptr && owner->geometry_ != nullptr && start != nullptr) {
+      if (const std::optional<BoxGeometry> found = owner->geometry_->QueryBox(*start)) {
+        rects.push_back(MakeDomRect(call.interpreter, found->border_box));
+      }
+    }
+    return MakeDomRectList(call.interpreter, std::move(rects));
+  });
+  method("getBoundingClientRect", [](NativeCall& call) -> Value {
+    GeometryRect box;
+    DomBindings* owner = OwnerOf(call);
+    dom::Node* start = NodeSlot(call.self, kStartNodeSlot);
+    while (start != nullptr && !start->IsElement()) {
+      start = start->Parent();
+    }
+    if (owner != nullptr && owner->geometry_ != nullptr && start != nullptr) {
+      if (const std::optional<BoxGeometry> found = owner->geometry_->QueryBox(*start)) {
+        box = found->border_box;
+      }
+    }
+    return MakeDomRect(call.interpreter, box);
+  });
+
   // The five that change the tree, in RangeContents.cpp.
   InstallRangeContents(range_interface);
 

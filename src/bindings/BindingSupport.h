@@ -599,6 +599,11 @@ js::Value MakeDetachedAttr(DomBindings& owner, js::Interpreter& interpreter,
 // to answer with the same object shape. Defined in GeometryBindings.cpp.
 js::Value MakeDomRect(js::Interpreter& interpreter, const GeometryRect& rect);
 
+// `getClientRects`: a `DOMRectList` (array-like, `item()`, `@@toStringTag`), not
+// a plain Array. The local tests read `list[0]` and `list.length`; WPT's
+// `assert_class_string` reads the tag.
+js::Value MakeDomRectList(js::Interpreter& interpreter, std::vector<js::Value> rects);
+
 // The one ASCII lower-caser, in util. This name stays because it is used at
 // forty call sites in this module and `util::` on each of them buys nothing.
 inline std::string LowerCase(std::string_view text) { return util::AsciiLowerCase(text); }

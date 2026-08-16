@@ -11,6 +11,7 @@
 // Nothing in this file knows what a box is. It asks a question and formats an
 // answer, and every value it receives is a copy that outlives nothing.
 
+#include <algorithm>
 #include <cmath>
 #include <string>
 #include <vector>
@@ -83,6 +84,81 @@ ScrollTarget ScrollTargetFrom(js::NativeCall& call, const BoxGeometry& current, 
                                       relative ? 0.0f : current.scroll_y - base_y)};
 }
 
+// CSSOM View: `scroll`/`scrollTo`/`scrollBy` return a Promise. Argument
+// conversion failures reject it; a completed (instant) scroll fulfills. The
+// tests read both through `await` and `promise_rejects_js`.
+js::Value CompleteScroll(NativeCall& call, bool relative, dom::Node* target,
+                         GeometrySource* geometry) {
+  const Value promise = call.interpreter.NewPromiseValue();
+  if (!promise.IsObject()) {
+    return promise;
+  }
+  const auto reject = [&](const Value& error) {
+    call.interpreter.SettleAsyncResult(promise.object, error, true);
+    return promise;
+  };
+  if (call.arguments.size() == 1 && !call.arguments[0].IsObject()) {
+    return reject(call.interpreter.MakeError(
+        "TypeError", "The provided value is not of type 'ScrollToOptions'."));
+  }
+  if (!call.arguments.empty() && call.arguments[0].IsObject()) {
+    const Value behavior = call.interpreter.GetPropertyValue(call.arguments[0], "behavior");
+    if (!behavior.IsUndefined()) {
+      std::string text;
+      if (!ToDomString(call, behavior, text)) {
+        return reject(call.ThrownValue());
+      }
+      if (text != "auto" && text != "instant" && text != "smooth") {
+        return reject(call.interpreter.MakeError(
+            "TypeError", "The provided value '" + text +
+                             "' is not a valid enum value of type ScrollBehavior."));
+      }
+    }
+  }
+  if (target != nullptr && geometry != nullptr) {
+    if (const std::optional<BoxGeometry> found = geometry->QueryBox(*target)) {
+      const ScrollTarget wanted = ScrollTargetFrom(call, *found, relative);
+      geometry->SetScrollOffset(*target, wanted.x, wanted.y);
+    }
+  }
+  call.interpreter.SettleAsyncResult(promise.object, Value::Undefined(), false);
+  return promise;
+}
+
+}  // namespace
+
+namespace {
+
+constexpr const char* kRectX = "#domRectX";
+constexpr const char* kRectY = "#domRectY";
+constexpr const char* kRectW = "#domRectW";
+constexpr const char* kRectH = "#domRectH";
+
+double RectSlot(const js::Value& object, const char* slot) {
+  if (!object.IsObject()) {
+    return 0.0;
+  }
+  const js::Value* found = object.object->GetOwn(slot);
+  return found != nullptr && found->IsNumber() ? found->number : 0.0;
+}
+
+void SetRectSlot(const js::Value& object, const char* slot, const js::Value& value) {
+  if (!object.IsObject()) {
+    return;
+  }
+  const double converted = js::ToNumber(value);
+  object.object->SetHidden(slot, Value::Number(std::isfinite(converted) ? converted : 0.0));
+}
+
+js::Object* DomRectPrototype(js::Interpreter& interpreter, const char* name) {
+  const Value* ctor = interpreter.GlobalScope()->Lookup(name);
+  if (ctor == nullptr || !ctor->IsObject()) {
+    return nullptr;
+  }
+  const Value* proto = ctor->object->Get("prototype");
+  return proto != nullptr && proto->IsObject() ? proto->object : nullptr;
+}
+
 }  // namespace
 
 js::Value MakeDomRect(js::Interpreter& interpreter, const GeometryRect& rect) {
@@ -90,19 +166,148 @@ js::Value MakeDomRect(js::Interpreter& interpreter, const GeometryRect& rect) {
   if (!result.IsObject()) {
     return Value::Undefined();
   }
-  const auto number = [](float value) { return Value::Number(static_cast<double>(value)); };
-  result.object->Set("x", number(rect.x));
-  result.object->Set("y", number(rect.y));
-  result.object->Set("width", number(rect.width));
-  result.object->Set("height", number(rect.height));
-  result.object->Set("left", number(rect.x));
-  result.object->Set("top", number(rect.y));
-  result.object->Set("right", number(rect.x + rect.width));
-  result.object->Set("bottom", number(rect.y + rect.height));
+  if (js::Object* proto = DomRectPrototype(interpreter, "DOMRect")) {
+    result.object->SetPrototype(proto);
+  }
+  result.object->SetHidden(kRectX, Value::Number(static_cast<double>(rect.x)));
+  result.object->SetHidden(kRectY, Value::Number(static_cast<double>(rect.y)));
+  result.object->SetHidden(kRectW, Value::Number(static_cast<double>(rect.width)));
+  result.object->SetHidden(kRectH, Value::Number(static_cast<double>(rect.height)));
   return result;
 }
 
+js::Value MakeDomRectList(js::Interpreter& interpreter, std::vector<Value> rects) {
+  const Value list = interpreter.NewArrayValue(std::move(rects));
+  if (!list.IsObject()) {
+    return list;
+  }
+  if (js::Object* proto = DomRectPrototype(interpreter, "DOMRectList")) {
+    list.object->SetPrototype(proto);
+  }
+  return list;
+}
+
 void DomBindings::InstallGeometry(const js::Value& element_interface) {
+  // DOMRect is a Window global whether or not this layer has a layout behind
+  // it: `new DOMRect()` is how a page makes one, and getBoundingClientRect
+  // has to answer with an instance of the same type.
+  const Value readonly_proto = MakeInterface("DOMRectReadOnly", Value::Undefined());
+  const Value rect_proto = MakeInterface("DOMRect", readonly_proto);
+  const Value list_proto = MakeInterface("DOMRectList", Value::Undefined());
+  if (readonly_proto.IsObject()) {
+    const auto getter = [&](const char* name, auto read) {
+      const Value fn = interpreter_->NewNativeValue(name, [read](NativeCall& call) {
+        return Value::Number(read(call.self));
+      });
+      if (fn.IsObject()) {
+        readonly_proto.object->DefineAccessor(name, fn.object, nullptr);
+      }
+    };
+    getter("x", [](const Value& self) { return RectSlot(self, kRectX); });
+    getter("y", [](const Value& self) { return RectSlot(self, kRectY); });
+    getter("width", [](const Value& self) { return RectSlot(self, kRectW); });
+    getter("height", [](const Value& self) { return RectSlot(self, kRectH); });
+    getter("left", [](const Value& self) {
+      const double x = RectSlot(self, kRectX);
+      const double w = RectSlot(self, kRectW);
+      return std::min(x, x + w);
+    });
+    getter("top", [](const Value& self) {
+      const double y = RectSlot(self, kRectY);
+      const double h = RectSlot(self, kRectH);
+      return std::min(y, y + h);
+    });
+    getter("right", [](const Value& self) {
+      const double x = RectSlot(self, kRectX);
+      const double w = RectSlot(self, kRectW);
+      return std::max(x, x + w);
+    });
+    getter("bottom", [](const Value& self) {
+      const double y = RectSlot(self, kRectY);
+      const double h = RectSlot(self, kRectH);
+      return std::max(y, y + h);
+    });
+  }
+  if (rect_proto.IsObject()) {
+    const auto setter = [&](const char* name, const char* slot) {
+      const Value get = interpreter_->NewNativeValue(name, [slot](NativeCall& call) {
+        return Value::Number(RectSlot(call.self, slot));
+      });
+      const Value set = interpreter_->NewNativeValue(name, [slot](NativeCall& call) {
+        SetRectSlot(call.self, slot, Argument(call.arguments, 0));
+        return Value::Undefined();
+      });
+      if (get.IsObject() && set.IsObject()) {
+        rect_proto.object->DefineAccessor(name, get.object, set.object);
+      }
+    };
+    setter("x", kRectX);
+    setter("y", kRectY);
+    setter("width", kRectW);
+    setter("height", kRectH);
+  }
+  const auto construct_rect = [](const char* iface) {
+    return [iface](NativeCall& call) -> Value {
+      const Value result = call.interpreter.NewObjectValue();
+      if (!result.IsObject()) {
+        return Value::Undefined();
+      }
+      if (js::Object* proto = DomRectPrototype(call.interpreter, iface)) {
+        result.object->SetPrototype(proto);
+      }
+      const auto number = [&](std::size_t index) {
+        if (index >= call.arguments.size()) {
+          return 0.0;
+        }
+        return js::ToNumber(call.arguments[index]);
+      };
+      result.object->SetHidden(kRectX, Value::Number(number(0)));
+      result.object->SetHidden(kRectY, Value::Number(number(1)));
+      result.object->SetHidden(kRectW, Value::Number(number(2)));
+      result.object->SetHidden(kRectH, Value::Number(number(3)));
+      return result;
+    };
+  };
+  const auto install_ctor = [this](const char* name, const Value& prototype,
+                                   js::NativeFunction make) {
+    const Value ctor = interpreter_->NewNativeValue(name, std::move(make));
+    if (!ctor.IsObject() || !prototype.IsObject()) {
+      return;
+    }
+    ctor.object->Set("prototype", prototype);
+    prototype.object->Set("constructor", ctor);
+    interpreter_->Global()->Set(name, ctor);
+    interpreter_->GlobalScope()->Declare(name, ctor, false);
+  };
+  install_ctor("DOMRectReadOnly", readonly_proto, construct_rect("DOMRectReadOnly"));
+  install_ctor("DOMRect", rect_proto, construct_rect("DOMRect"));
+  if (list_proto.IsObject()) {
+    const Value length = interpreter_->NewNativeValue("length", [](NativeCall& call) {
+      return Value::Number(call.self.IsObject()
+                               ? static_cast<double>(call.self.object->ElementCount())
+                               : 0.0);
+    });
+    if (length.IsObject()) {
+      list_proto.object->DefineAccessor("length", length.object, nullptr);
+    }
+    const Value item = interpreter_->NewNativeValue("item", [](NativeCall& call) -> Value {
+      if (!RequireArguments(call, "DOMRectList", "item", 1)) {
+        return call.ThrownValue();
+      }
+      if (!call.self.IsObject()) {
+        return Value::Null();
+      }
+      const std::uint32_t index = js::ToUint32(js::ToNumber(Argument(call.arguments, 0)));
+      if (static_cast<std::size_t>(index) >= call.self.object->ElementCount()) {
+        return Value::Null();
+      }
+      return call.self.object->GetElement(index);
+    });
+    if (item.IsObject()) {
+      list_proto.object->Set("item", item);
+    }
+  }
+
   if (geometry_ == nullptr || !element_interface.IsObject()) {
     return;
   }
@@ -148,7 +353,7 @@ void DomBindings::InstallGeometry(const js::Value& element_interface) {
         if (const std::optional<BoxGeometry> found = owner->geometry_->QueryBox(*self)) {
           rects.push_back(MakeDomRect(*owner->interpreter_, found->border_box));
         }
-        return owner->interpreter_->NewArrayValue(std::move(rects));
+        return MakeDomRectList(*owner->interpreter_, std::move(rects));
       });
   if (rects_of.IsObject()) {
     rects_of.object->Set(kOwnerSlot, OwnerValue(this));
@@ -197,6 +402,121 @@ void DomBindings::InstallGeometry(const js::Value& element_interface) {
     // No setter. These are read-only in the specification, and a page that
     // assigns one is writing into a value the layout decides.
     element_interface.object->DefineAccessor(metric.name, getter.object, nullptr);
+  }
+
+  // `clientTop`/`clientLeft` are the top/left border widths. CSSOM View puts
+  // them next to `clientWidth`; a page that centres by subtracting them from
+  // `offsetWidth` is off by the border if they stay at zero.
+  for (const char* name : {"clientLeft", "clientTop"}) {
+    const bool vertical = name[6] == 'T';
+    const Value getter = interpreter_->NewNativeValue(name, [vertical](NativeCall& call) {
+      DomBindings* owner = OwnerOf(call);
+      dom::Node* self = NodeOf(call.self);
+      if (owner == nullptr || self == nullptr || owner->geometry_ == nullptr) {
+        return Value::Number(0.0);
+      }
+      const std::optional<BoxGeometry> found = owner->geometry_->QueryBox(*self);
+      if (!found.has_value()) {
+        return Value::Number(0.0);
+      }
+      const float edge = vertical ? found->padding_box.y - found->border_box.y
+                                  : found->padding_box.x - found->border_box.x;
+      return Value::Number(Rounded(edge));
+    });
+    if (getter.IsObject()) {
+      getter.object->Set(kOwnerSlot, OwnerValue(this));
+      element_interface.object->DefineAccessor(name, getter.object, nullptr);
+    }
+  }
+
+  // `offsetParent` / `offsetTop` / `offsetLeft` are HTMLElement, not Element:
+  // an SVG element must not grow them (offsetParent_element_test.html).
+  const Value html_element = InterfaceNamed("HTMLElement");
+  if (html_element.IsObject()) {
+    const Value parent_of = interpreter_->NewNativeValue(
+        "offsetParent", [](NativeCall& call) -> Value {
+          DomBindings* owner = OwnerOf(call);
+          dom::Node* self = NodeOf(call.self);
+          if (owner == nullptr || self == nullptr || !self->IsElement() ||
+              owner->geometry_ == nullptr) {
+            return Value::Null();
+          }
+          auto* element = static_cast<dom::Element*>(self);
+          if (!owner->geometry_->QueryBox(*element).has_value()) {
+            return Value::Null();
+          }
+          if (owner->document_ != nullptr && owner->document_->DocumentElement() == element) {
+            return Value::Null();
+          }
+          if (element->TagName() == "body") {
+            return Value::Null();
+          }
+          if (const std::optional<std::string> position =
+                  owner->geometry_->QueryUsedValue(*element, "position");
+              position.has_value() && *position == "fixed") {
+            return Value::Null();
+          }
+          for (dom::Node* at = element->Parent(); at != nullptr; at = at->Parent()) {
+            if (!at->IsElement()) {
+              continue;
+            }
+            auto* ancestor = static_cast<dom::Element*>(at);
+            const std::string& tag = ancestor->TagName();
+            if (tag == "body" || tag == "td" || tag == "th" || tag == "table") {
+              return owner->WrapperFor(ancestor);
+            }
+            if (const std::optional<std::string> position =
+                    owner->geometry_->QueryUsedValue(*ancestor, "position");
+                position.has_value() && *position != "static") {
+              return owner->WrapperFor(ancestor);
+            }
+            if (const std::optional<std::string> transform =
+                    owner->geometry_->QueryUsedValue(*ancestor, "transform");
+                transform.has_value() && *transform != "none") {
+              return owner->WrapperFor(ancestor);
+            }
+          }
+          return Value::Null();
+        });
+    if (parent_of.IsObject()) {
+      parent_of.object->Set(kOwnerSlot, OwnerValue(this));
+      html_element.object->DefineAccessor("offsetParent", parent_of.object, nullptr);
+    }
+    for (const char* name : {"offsetLeft", "offsetTop"}) {
+      const bool vertical = name[6] == 'T';
+      const Value getter = interpreter_->NewNativeValue(name, [vertical](NativeCall& call) {
+        DomBindings* owner = OwnerOf(call);
+        dom::Node* self = NodeOf(call.self);
+        if (owner == nullptr || self == nullptr || !self->IsElement() ||
+            owner->geometry_ == nullptr) {
+          return Value::Number(0.0);
+        }
+        auto* element = static_cast<dom::Element*>(self);
+        const std::optional<BoxGeometry> box = owner->geometry_->QueryBox(*element);
+        if (!box.has_value()) {
+          return Value::Number(0.0);
+        }
+        const Value parent = call.interpreter.GetPropertyValue(call.self, "offsetParent");
+        dom::Element* offset_parent = ElementOf(parent);
+        if (offset_parent == nullptr) {
+          return Value::Number(
+              Rounded(vertical ? box->border_box.y : box->border_box.x));
+        }
+        const std::optional<BoxGeometry> ancestor = owner->geometry_->QueryBox(*offset_parent);
+        if (!ancestor.has_value()) {
+          return Value::Number(0.0);
+        }
+        const float child_edge = vertical ? box->border_box.y : box->border_box.x;
+        const float parent_edge =
+            vertical ? ancestor->padding_box.y : ancestor->padding_box.x;
+        const float scrolled = vertical ? ancestor->scroll_y : ancestor->scroll_x;
+        return Value::Number(Rounded(child_edge - parent_edge + scrolled));
+      });
+      if (getter.IsObject()) {
+        getter.object->Set(kOwnerSlot, OwnerValue(this));
+        html_element.object->DefineAccessor(name, getter.object, nullptr);
+      }
+    }
   }
 
   InstallScroll(element_interface);
@@ -288,23 +608,14 @@ void DomBindings::InstallScroll(const js::Value& element_interface) {
   // `scrollTo`, `scrollBy` and `scrollIntoView`. The first two are the same
   // write with the arithmetic done for the caller; the third is the one worth
   // implementing carefully, because it has to move *every* scrolling ancestor.
-  static constexpr Method kMethods[] = {{"scrollTo", false}, {"scrollBy", true}};
+  static constexpr Method kMethods[] = {{"scrollTo", false}, {"scroll", false}, {"scrollBy", true}};
   for (const Method& method : kMethods) {
     const bool relative = method.relative;
     const Value fn =
         interpreter_->NewNativeValue(method.name, [relative](NativeCall& call) -> Value {
           DomBindings* owner = OwnerOf(call);
-          dom::Node* self = NodeOf(call.self);
-          if (owner == nullptr || self == nullptr || owner->geometry_ == nullptr) {
-            return Value::Undefined();
-          }
-          const std::optional<BoxGeometry> found = owner->geometry_->QueryBox(*self);
-          if (!found.has_value()) {
-            return Value::Undefined();
-          }
-          const ScrollTarget wanted = ScrollTargetFrom(call, *found, relative);
-          owner->geometry_->SetScrollOffset(*self, wanted.x, wanted.y);
-          return Value::Undefined();
+          return CompleteScroll(call, relative, NodeOf(call.self),
+                                owner == nullptr ? nullptr : owner->geometry_);
         });
     if (fn.IsObject()) {
       fn.object->Set(kOwnerSlot, OwnerValue(this));
@@ -418,7 +729,8 @@ void DomBindings::InstallWindowScroll() {
     }
   }
 
-  static constexpr Method kWindowMethods[] = {{"scrollTo", false}, {"scrollBy", true}};
+  static constexpr Method kWindowMethods[] = {
+      {"scrollTo", false}, {"scroll", false}, {"scrollBy", true}};
   for (const Method& method : kWindowMethods) {
     const bool relative = method.relative;
     const Value fn =
@@ -427,16 +739,8 @@ void DomBindings::InstallWindowScroll() {
           dom::Element* element = owner == nullptr || owner->document_ == nullptr
                                       ? nullptr
                                       : owner->document_->DocumentElement();
-          if (owner == nullptr || element == nullptr || owner->geometry_ == nullptr) {
-            return Value::Undefined();
-          }
-          const std::optional<BoxGeometry> found = owner->geometry_->QueryBox(*element);
-          if (!found.has_value()) {
-            return Value::Undefined();
-          }
-          const ScrollTarget wanted = ScrollTargetFrom(call, *found, relative);
-          owner->geometry_->SetScrollOffset(*element, wanted.x, wanted.y);
-          return Value::Undefined();
+          return CompleteScroll(call, relative, element,
+                                owner == nullptr ? nullptr : owner->geometry_);
         });
     if (fn.IsObject()) {
       fn.object->Set(kOwnerSlot, OwnerValue(this));

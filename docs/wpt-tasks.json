@@ -475,7 +475,7 @@
       "status": "in_progress",
       "agent": "wpt-d4",
       "adr": "0018",
-      "notes": "",
+      "notes": "In progress 2026-08-16: css/cssom-view testharness is 797/2121 (37.6%) against a Firefox ceiling of 86.3% (was 365/1349, 27.1%). Check (>=70%) not yet met. What landed: DOMRect/DOMRectList, offsetParent on HTMLElement, clientTop/clientLeft, root client* = viewport, scroll/scrollTo Promise aliases with ScrollBehavior checks, elementsFromPoint, elementFromPoint arity/finite, scrollingElement, transform none-vs-not-none. Remaining: GeometryUtils, visualViewport/caret/checkVisibility (ADR 0012), smooth-scroll, scrollWidth/Height layout, idlharness Screen/MediaQueryListEvent, iframe UAF CRASH in scrolling-quirks-vs-nonquirks.html.",
       "ceiling_source": "firefox",
       "firefox_ceiling": "86.3%"
     },

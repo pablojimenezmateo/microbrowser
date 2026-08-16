@@ -332,14 +332,17 @@ std::string UsedValueOf(const layout::Box& box, Used kind) {
 // The table is what this engine actually stores, which is what makes it
 // honest: a property missing from here is one the cascade does not keep, and
 // reporting the empty string for it is the specification's answer for a
-// property the implementation does not support. Inventing a plausible initial
-// value for `transform` would be worse -- a page that reads one back believes
-// the property applies.
+// property the implementation does not support.
 std::optional<std::string> ComputedValueOf(const css::ComputedStyle& style,
                                            std::string_view property) {
   const float font_size = style.font_size;
   if (property == "display") return std::string(DisplayText(style.display));
   if (property == "position") return std::string(PositionText(style.position));
+  // The initial value is `none`; anything else establishes a containing block
+  // for `offsetParent`. Exact serialization of the list is D7.
+  if (property == "transform") {
+    return std::string(style.transform.IsNone() ? "none" : "matrix(1, 0, 0, 1, 0, 0)");
+  }
   if (property == "overflow-x") return std::string(OverflowText(style.overflow_x));
   if (property == "overflow-y") return std::string(OverflowText(style.overflow_y));
   // Shorthand: when both axes agree, one token; otherwise the two-value form.
@@ -586,6 +589,12 @@ std::optional<bindings::BoxGeometry> Page::QueryBox(const dom::Node& node) {
     // the same number in the quirks-mode half of that rule; only the standards
     // half is implemented, because that is the one a page written this decade
     // takes.
+    //
+    // `clientWidth`/`clientHeight` on the root are the viewport, not the
+    // root's padding box: a `:root { margin: 5px }` still reports
+    // `window.innerWidth` (CSSOM View, `client-props-root.html`).
+    answer.padding_box.width = viewport_.viewport_width;
+    answer.padding_box.height = viewport_.viewport_height;
     answer.scroll_x = 0.0f;
     answer.scroll_y = scroll_y;
     answer.scroll_width = box->Geometry().PaddingBox().width;

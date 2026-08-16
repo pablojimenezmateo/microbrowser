@@ -728,6 +728,30 @@ void RegisterFrameTests(std::vector<TestCase>& tests) {
     ExpectEqString(Joined(session.engine.ConsoleOutput()), "win=null doc=null len=0",
                    "a cross-origin child is invisible to its embedder, window and all");
   });
+
+  AddTest(tests, "Frames/ChildDocumentElementScrollDoesNotCrash", [] {
+    // css/cssom-view/scrolling-quirks-vs-nonquirks.html: iframe onload calls
+    // contentDocument.documentElement.scroll(). A missing child layout used to
+    // segfault inside QueryBox rather than no-op.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html",
+                   "<iframe id=f></iframe>"
+                   "<script>document.getElementById('f').onload = function () {"
+                   "  var d = this.contentDocument;"
+                   "  d.body.style.overflow = 'hidden';"
+                   "  d.body.innerHTML = \"<div style='height:2000px;width:2000px'></div>\";"
+                   "  d.documentElement.scroll(50, 60);"
+                   "  console.log('scroll=' + d.documentElement.scrollTop + ' se=' + (d.scrollingElement && d.scrollingElement.tagName));"
+                   "};</" "script>")});
+    session.engine.PageLoader().SetTransport(factory);
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://page.example/"});
+    ExpectEqString(Joined(session.engine.ConsoleOutput()).substr(0, 7), "scroll=",
+                   "child documentElement.scroll returns rather than crashing");
+  });
 }
 
 }  // namespace microbrowser::tests

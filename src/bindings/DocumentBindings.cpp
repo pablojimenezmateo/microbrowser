@@ -7,6 +7,7 @@
 // page reaches through the `document` global -- while the rest of the module
 // is about nodes in general.
 
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -21,6 +22,25 @@ namespace microbrowser::bindings {
 
 using js::NativeCall;
 using js::Value;
+
+namespace {
+
+bool ToFinitePoint(NativeCall& call, const char* operation, float& x, float& y) {
+  if (!RequireArguments(call, "Document", operation, 2)) {
+    return false;
+  }
+  const double nx = js::ToNumber(Argument(call.arguments, 0));
+  const double ny = js::ToNumber(Argument(call.arguments, 1));
+  if (!std::isfinite(nx) || !std::isfinite(ny)) {
+    (void)call.Throw("TypeError", "The provided value is not a finite floating-point value.");
+    return false;
+  }
+  x = static_cast<float>(nx);
+  y = static_cast<float>(ny);
+  return true;
+}
+
+}  // namespace
 
 void DomBindings::Install() {
   const Value document = WrapperFor(document_);
@@ -897,23 +917,88 @@ void DomBindings::InstallPageVisibility(const js::Value& document_interface) {
     document_interface.object->Set("hasFocus", has_focus);
   }
 
+  const Value scrolling_element = interpreter_->NewNativeValue(
+      "scrollingElement", [](NativeCall& call) -> Value {
+        DomBindings* owner = OwnerOf(call);
+        if (owner == nullptr || owner->document_ == nullptr) {
+          return Value::Null();
+        }
+        // CSSOM View: the viewport's scrolling element. Quirks mode names
+        // `<body>`; standards mode names the document element. The overflow
+        // exception in quirks (both axes not visible → null) is left for a
+        // later pass — iframe Blob documents are what those subtests need.
+        if (owner->document_->InQuirksMode()) {
+          return owner->WrapperFor(owner->document_->Body());
+        }
+        return owner->WrapperFor(owner->document_->DocumentElement());
+      });
+  if (scrolling_element.IsObject()) {
+    scrolling_element.object->Set(kOwnerSlot, OwnerValue(this));
+    document_interface.object->DefineAccessor("scrollingElement", scrolling_element.object,
+                                              nullptr);
+  }
+
   if (geometry_ == nullptr) {
     return;
   }
   const Value element_from_point = interpreter_->NewNativeValue(
       "elementFromPoint", [](NativeCall& call) -> Value {
+        float x = 0.0f;
+        float y = 0.0f;
+        if (!ToFinitePoint(call, "elementFromPoint", x, y)) {
+          return call.ThrownValue();
+        }
         DomBindings* owner = OwnerOf(call);
-        if (owner == nullptr || owner->geometry_ == nullptr || call.arguments.size() < 2) {
+        if (owner == nullptr || owner->geometry_ == nullptr) {
           return Value::Null();
         }
-        const float x = static_cast<float>(js::ToNumber(Argument(call.arguments, 0)));
-        const float y = static_cast<float>(js::ToNumber(Argument(call.arguments, 1)));
-        dom::Element* hit = owner->geometry_->ElementAtViewport(x, y);
-        return owner->WrapperFor(hit);
+        return owner->WrapperFor(owner->geometry_->ElementAtViewport(x, y));
       });
   if (element_from_point.IsObject()) {
     element_from_point.object->Set(kOwnerSlot, OwnerValue(this));
     document_interface.object->Set("elementFromPoint", element_from_point);
+  }
+
+  const Value elements_from_point = interpreter_->NewNativeValue(
+      "elementsFromPoint", [](NativeCall& call) -> Value {
+        float x = 0.0f;
+        float y = 0.0f;
+        if (!ToFinitePoint(call, "elementsFromPoint", x, y)) {
+          return call.ThrownValue();
+        }
+        DomBindings* owner = OwnerOf(call);
+        if (owner == nullptr || owner->geometry_ == nullptr || owner->document_ == nullptr) {
+          return call.interpreter.NewArrayValue({});
+        }
+        const GeometryRect viewport = owner->geometry_->QueryViewport();
+        if (x < 0.0f || y < 0.0f || (viewport.width > 0.0f && x >= viewport.width) ||
+            (viewport.height > 0.0f && y >= viewport.height)) {
+          return call.interpreter.NewArrayValue({});
+        }
+        std::vector<Value> found;
+        for (dom::Node* at = owner->geometry_->ElementAtViewport(x, y); at != nullptr;
+             at = at->Parent()) {
+          if (at->IsElement()) {
+            found.push_back(owner->WrapperFor(at));
+          }
+        }
+        if (dom::Element* root = owner->document_->DocumentElement()) {
+          bool has_root = false;
+          for (const Value& entry : found) {
+            if (NodeOf(entry) == root) {
+              has_root = true;
+              break;
+            }
+          }
+          if (!has_root) {
+            found.push_back(owner->WrapperFor(root));
+          }
+        }
+        return call.interpreter.NewArrayValue(std::move(found));
+      });
+  if (elements_from_point.IsObject()) {
+    elements_from_point.object->Set(kOwnerSlot, OwnerValue(this));
+    document_interface.object->Set("elementsFromPoint", elements_from_point);
   }
   WireTrustedScriptHooks();
 }
