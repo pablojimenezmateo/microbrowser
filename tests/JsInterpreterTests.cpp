@@ -2639,6 +2639,13 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEval("Object.getPrototypeOf(new Proxy({}, {})) === Object.prototype", "true");
     ExpectEval("Object.getPrototypeOf(new Proxy([], {})) === Array.prototype", "true");
     ExpectEval("Object.hasOwn(new Proxy({a:1}, {}), 'a')", "true");
+    // Array.prototype.push is generic: a Proxy over an array is not Kind::Array,
+    // so the fast path would leave length 0. WebIDL2 parent-wraps every
+    // members array that way.
+    ExpectEval("const a = []; const p = new Proxy(a, { "
+               "get(t, k){ return t[k] }, set(t, k, v){ t[k] = v; return true } }); "
+               "p.push(1, 2); a.join(',') + ':' + a.length",
+               "1,2:2");
   });
 
   AddTest(tests, "JsInterpreter/InSeesSymbolKeys", [] {

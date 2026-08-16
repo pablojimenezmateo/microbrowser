@@ -156,17 +156,46 @@ void Interpreter::InstallArrayPrototype() {
   // --- Adding and removing --------------------------------------------------
 
   method("push", [](NativeCall& call) {
-    Object* self = Self(call);
-    if (self == nullptr) {
+    if (!call.self.IsObject()) {
       return Value::Undefined();
     }
-    if (self->ElementCount() + call.arguments.size() > kMaxAllocationLength) {
+    Object* self = call.self.object;
+    if (self->GetKind() == Object::Kind::Array) {
+      if (self->ElementCount() + call.arguments.size() > kMaxAllocationLength) {
+        return call.Throw("RangeError", "array is too long");
+      }
+      for (const Value& argument : call.arguments) {
+        self->PushElement(argument);
+      }
+      return Value::Number(static_cast<double>(self->ElementCount()));
+    }
+    // Generic Array.prototype.push: LengthOfArrayLike, then [[Set]] per index.
+    // A Proxy is not Kind::Array, and WebIDL2's autoParenter wraps every
+    // `members` array so parent pointers stick -- push has to hit the set trap
+    // or the parsed IDL is silently empty and idlharness never sees a member.
+    double len = ToNumber(call.interpreter.GetPropertyValue(call.self, "length"));
+    if (!std::isfinite(len) || len < 0) {
+      len = 0;
+    }
+    len = std::floor(len);
+    if (len + static_cast<double>(call.arguments.size()) >
+        static_cast<double>(kMaxAllocationLength)) {
       return call.Throw("RangeError", "array is too long");
     }
     for (const Value& argument : call.arguments) {
-      self->PushElement(argument);
+      const Result stored =
+          call.interpreter.SetProperty(call.self, KeyFrom(Value::Number(len)), argument);
+      if (stored.IsAbrupt()) {
+        return call.ThrowValue(stored.value);
+      }
+      ++len;
     }
-    return Value::Number(static_cast<double>(self->ElementCount()));
+    const Result stored_length =
+        call.interpreter.SetProperty(call.self, PropertyKey("length"), Value::Number(len));
+    if (stored_length.IsAbrupt()) {
+      return call.ThrowValue(stored_length.value);
+    }
+    return Value::Number(len);
   });
 
   method("pop", [](NativeCall& call) {
