@@ -104,7 +104,7 @@ void RegisterPerformanceApiTests(std::vector<TestCase>& tests) {
   AddTest(tests, "PerformanceApi/MarkAndMeasureAreEntriesAPageCanReadBack", [] {
     Session session;
     session.Run("",
-                "performance.mark('a');"
+                "performance.mark('a', {startTime: 0});"
                 "performance.mark('b', {startTime: 50});"
                 "performance.measure('span', 'a', 'b');"
                 "const m = performance.getEntriesByName('span')[0];"
@@ -261,11 +261,14 @@ void RegisterPerformanceApiTests(std::vector<TestCase>& tests) {
                 "console.log(performance.now() > 0 && performance.now() < 3600000);"
                 "console.log(performance.timeOrigin);"
                 "console.log(typeof performance.toJSON);"
-                "console.log(typeof performance.addEventListener);");
+                "console.log(typeof performance.addEventListener);"
+                "console.log(performance instanceof Performance);"
+                "console.log(Performance.name);"
+                "try { Performance.prototype.now() } catch (e) { console.log(e.name) }");
     // Small and positive: a duration since this document started. A wall
     // clock would be about 1.7e12, which is the number this must never be.
     // toJSON and EventTarget are what hr-time/basic and performance-tojson ask.
-    ExpectEqString(session.Console(), "number|true|0|function|function",
+    ExpectEqString(session.Console(), "number|true|0|function|function|true|Performance|TypeError",
                    "Errors: " + session.Errors());
   });
 

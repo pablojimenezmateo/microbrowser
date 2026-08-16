@@ -29,6 +29,23 @@ constexpr const char* kObserversSlot = "#performance:observers";
 // Set on an observer while it has records queued, so the frame step can skip a
 // page whose observers are all idle without walking their queues.
 constexpr const char* kQueuedSlot = "#queued";
+constexpr const char* kPerformanceMarker = "#isPerformance";
+
+bool IsPerformance(const Value& value) {
+  if (!value.IsObject()) {
+    return false;
+  }
+  const Value* marker = value.object->GetOwn(kPerformanceMarker);
+  return marker != nullptr && marker->type == js::ValueType::Boolean && marker->boolean;
+}
+
+bool RequirePerformanceThis(NativeCall& call) {
+  if (IsPerformance(call.self)) {
+    return true;
+  }
+  (void)call.Throw("TypeError", "Illegal invocation");
+  return false;
+}
 
 // The entry types this browser actually delivers.
 //
@@ -210,14 +227,48 @@ Value MakeEntryList(js::Interpreter& interpreter, std::vector<Value> entries) {
 
 void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
   origin_ms_ = now_ms;
+  const Value interface_prototype = interpreter.NewObjectValue();
   const Value performance = interpreter.NewObjectValue();
-  if (!performance.IsObject()) {
+  if (!interface_prototype.IsObject() || !performance.IsObject()) {
     return;
+  }
+
+  // `Performance` is an EventTarget. The chain is instance → Performance.prototype
+  // → EventTarget.prototype, which is what makes `performance instanceof Performance`
+  // and `performance.addEventListener` both true. Putting methods on the instance
+  // skipped the interface object, and every hr-time idlharness check failed.
+  if (const Value* event_target = interpreter.GlobalScope()->Lookup("EventTarget");
+      event_target != nullptr && event_target->IsObject()) {
+    if (const Value* proto = event_target->object->Get("prototype");
+        proto != nullptr && proto->IsObject()) {
+      interface_prototype.object->SetPrototype(proto->object);
+    }
+  }
+  performance.object->SetPrototype(interface_prototype.object);
+  performance.object->SetHidden(kPerformanceMarker, Value::Bool(true));
+
+  const Value interface_constructor = interpreter.NewNativeValue(
+      "Performance", [](NativeCall& call) -> Value {
+        return call.Throw("TypeError", "Illegal constructor: Performance");
+      });
+  if (interface_constructor.IsObject()) {
+    SetFunctionLength(interface_constructor, 0);
+    DefinePrototypeSlot(interface_constructor.object, interface_prototype);
+    DefineNonEnumerable(interface_prototype.object, "constructor", interface_constructor);
+    interpreter.GlobalScope()->Declare("Performance", interface_constructor, false);
+    DefineNonEnumerable(interpreter.Global(), "Performance", interface_constructor);
+  }
+  if (js::Object* tag = interpreter.SymbolToStringTag()) {
+    interface_prototype.object->SetHidden(js::PropertyKey::Symbol(tag),
+                                          Value::String("Performance"));
   }
 
   // `now()`. The page's clock, and the only reason this is a native rather than a
   // stored number: a page reads it repeatedly and expects it to move.
   const Value now = interpreter.NewNativeValue("now", [](NativeCall& call) {
+    if (!RequirePerformanceThis(call)) {
+      return call.ThrownValue();
+    }
     // The clock the host last told this object about. A native cannot ask the
     // system what time it is -- that is what makes the number a duration since
     // the document started rather than a wall clock, which would be a
@@ -226,21 +277,24 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
     return Value::Number(last == nullptr ? 0.0 : js::ToNumber(*last));
   });
   if (now.IsObject()) {
-    performance.object->Set("now", now);
+    SetFunctionLength(now, 0);
+    interface_prototype.object->Set("now", now);
   }
-  performance.object->Set("timeOrigin", Value::Number(0.0));
-  // `Performance` is an EventTarget. Without the prototype,
-  // `performance.addEventListener` is undefined and hr-time/basic.any.html's
-  // last subtest is a TypeError rather than a dispatch.
-  if (const Value* event_target = interpreter.GlobalScope()->Lookup("EventTarget");
-      event_target != nullptr && event_target->IsObject()) {
-    if (const Value* proto = event_target->object->Get("prototype");
-        proto != nullptr && proto->IsObject()) {
-      performance.object->SetPrototype(proto->object);
+  const Value time_origin = interpreter.NewNativeValue("get timeOrigin", [](NativeCall& call) {
+    if (!RequirePerformanceThis(call)) {
+      return call.ThrownValue();
     }
+    return Value::Number(0.0);
+  });
+  if (time_origin.IsObject()) {
+    SetFunctionLength(time_origin, 0);
+    interface_prototype.object->DefineAccessor("timeOrigin", time_origin.object, nullptr);
   }
 
   const Value mark = interpreter.NewNativeValue("mark", [](NativeCall& call) {
+    if (!RequirePerformanceThis(call)) {
+      return call.ThrownValue();
+    }
     const std::string name = js::ToString(Argument(call.arguments, 0));
     // `{startTime}` in the options, which reddit's page-load timer uses to stamp
     // a mark at a moment that has already passed.
@@ -258,10 +312,14 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
     return entry;
   });
   if (mark.IsObject()) {
-    performance.object->Set("mark", mark);
+    SetFunctionLength(mark, 1);
+    interface_prototype.object->Set("mark", mark);
   }
 
   const Value measure = interpreter.NewNativeValue("measure", [](NativeCall& call) {
+    if (!RequirePerformanceThis(call)) {
+      return call.ThrownValue();
+    }
     const std::string name = js::ToString(Argument(call.arguments, 0));
     // Two shapes: `measure(name, startMark, endMark)` and
     // `measure(name, {start, end})`. Both are in the wild and reddit uses the
@@ -311,10 +369,14 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
     return entry;
   });
   if (measure.IsObject()) {
-    performance.object->Set("measure", measure);
+    SetFunctionLength(measure, 1);
+    interface_prototype.object->Set("measure", measure);
   }
 
   const auto query = [](NativeCall& call, const char* field) {
+    if (!RequirePerformanceThis(call)) {
+      return call.ThrownValue();
+    }
     const Value* entries = call.interpreter.Global()->GetOwn(kEntriesSlot);
     if (entries == nullptr || !entries->IsObject()) {
       return call.interpreter.NewArrayValue({});
@@ -339,19 +401,25 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
   const Value by_name = interpreter.NewNativeValue(
       "getEntriesByName", [query](NativeCall& call) { return query(call, "name"); });
   if (get_entries.IsObject()) {
-    performance.object->Set("getEntries", get_entries);
+    SetFunctionLength(get_entries, 0);
+    interface_prototype.object->Set("getEntries", get_entries);
   }
   if (by_type.IsObject()) {
-    performance.object->Set("getEntriesByType", by_type);
+    SetFunctionLength(by_type, 1);
+    interface_prototype.object->Set("getEntriesByType", by_type);
   }
   if (by_name.IsObject()) {
-    performance.object->Set("getEntriesByName", by_name);
+    SetFunctionLength(by_name, 1);
+    interface_prototype.object->Set("getEntriesByName", by_name);
   }
 
   // `clearMarks` and `clearMeasures`, because a page that instruments a route
   // change clears between routes and would otherwise grow the list until the
   // bound above starts dropping the entries it is about to read.
   const auto clear = [](NativeCall& call, const char* type) {
+    if (!RequirePerformanceThis(call)) {
+      return call.ThrownValue();
+    }
     const Value* entries = call.interpreter.Global()->GetOwn(kEntriesSlot);
     if (entries == nullptr || !entries->IsObject()) {
       return Value::Undefined();
@@ -375,10 +443,12 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
   const Value clear_measures = interpreter.NewNativeValue(
       "clearMeasures", [clear](NativeCall& call) { return clear(call, "measure"); });
   if (clear_marks.IsObject()) {
-    performance.object->Set("clearMarks", clear_marks);
+    SetFunctionLength(clear_marks, 0);
+    interface_prototype.object->Set("clearMarks", clear_marks);
   }
   if (clear_measures.IsObject()) {
-    performance.object->Set("clearMeasures", clear_measures);
+    SetFunctionLength(clear_measures, 0);
+    interface_prototype.object->Set("clearMeasures", clear_measures);
   }
 
   // `timing`, from whatever the engine has already told this object. Built here
@@ -389,8 +459,11 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
   InstallTiming(interpreter, performance);
 
   const Value to_json = interpreter.NewNativeValue("toJSON", [](NativeCall& call) {
+    if (!RequirePerformanceThis(call)) {
+      return call.ThrownValue();
+    }
     const Value json = call.interpreter.NewObjectValue();
-    if (!json.IsObject() || !call.self.IsObject()) {
+    if (!json.IsObject()) {
       return json;
     }
     json.object->Set("timeOrigin",
@@ -401,10 +474,11 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
     return json;
   });
   if (to_json.IsObject()) {
-    performance.object->Set("toJSON", to_json);
+    SetFunctionLength(to_json, 0);
+    interface_prototype.object->Set("toJSON", to_json);
   }
 
-  interpreter.Global()->Set("performance", performance);
+  DefineNonEnumerable(interpreter.Global(), "performance", performance);
   interpreter.GlobalScope()->Declare("performance", performance, false);
   interpreter.Global()->SetHidden("#performance:now", Value::Number(kTimerResolutionMs));
 
