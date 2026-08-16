@@ -1,8 +1,6 @@
 [url/data-uri-fragment.html]
 harness=TIMEOUT
 [url/idlharness.any.html]
-FAIL=Stringification of new URL("http://foo")
-FAIL=Stringification of new URLSearchParams("hi=there&thank=you")
 FAIL=URL interface object length
 FAIL=URL interface object name
 FAIL=URL interface: attribute hash
@@ -17,14 +15,6 @@ FAIL=URL interface: attribute protocol
 FAIL=URL interface: attribute search
 FAIL=URL interface: attribute searchParams
 FAIL=URL interface: attribute username
-FAIL=URL interface: calling canParse(USVString, optional USVString) on new URL("http://foo") with too few arguments must throw TypeError
-FAIL=URL interface: calling parse(USVString, optional USVString) on new URL("http://foo") with too few arguments must throw TypeError
-FAIL=URL interface: existence and properties of interface object
-FAIL=URL interface: existence and properties of interface prototype object
-FAIL=URL interface: existence and properties of interface prototype object's "constructor" property
-FAIL=URL interface: legacy window alias
-FAIL=URL interface: operation canParse(USVString, optional USVString)
-FAIL=URL interface: operation parse(USVString, optional USVString)
 FAIL=URL interface: operation toJSON()
 FAIL=URL interface: stringifier
 FAIL=URLSearchParams interface object length
@@ -37,7 +27,6 @@ FAIL=URLSearchParams interface: calling getAll(USVString) on new URLSearchParams
 FAIL=URLSearchParams interface: calling has(USVString, optional USVString) on new URLSearchParams("hi=there&thank=you") with too few arguments must throw TypeError
 FAIL=URLSearchParams interface: calling set(USVString, USVString) on new URLSearchParams("hi=there&thank=you") with too few arguments must throw TypeError
 FAIL=URLSearchParams interface: existence and properties of interface object
-FAIL=URLSearchParams interface: existence and properties of interface prototype object
 FAIL=URLSearchParams interface: iterable<USVString, USVString>
 FAIL=URLSearchParams interface: operation append(USVString, USVString)
 FAIL=URLSearchParams interface: operation delete(USVString, optional USVString)
@@ -48,8 +37,6 @@ FAIL=URLSearchParams interface: operation set(USVString, USVString)
 FAIL=URLSearchParams interface: operation sort()
 FAIL=URLSearchParams interface: stringifier
 [url/idlharness.any.worker.html]
-FAIL=Stringification of new URL("http://foo")
-FAIL=Stringification of new URLSearchParams("hi=there&thank=you")
 FAIL=URL interface object length
 FAIL=URL interface object name
 FAIL=URL interface: attribute hash
@@ -64,13 +51,6 @@ FAIL=URL interface: attribute protocol
 FAIL=URL interface: attribute search
 FAIL=URL interface: attribute searchParams
 FAIL=URL interface: attribute username
-FAIL=URL interface: calling canParse(USVString, optional USVString) on new URL("http://foo") with too few arguments must throw TypeError
-FAIL=URL interface: calling parse(USVString, optional USVString) on new URL("http://foo") with too few arguments must throw TypeError
-FAIL=URL interface: existence and properties of interface object
-FAIL=URL interface: existence and properties of interface prototype object
-FAIL=URL interface: existence and properties of interface prototype object's "constructor" property
-FAIL=URL interface: operation canParse(USVString, optional USVString)
-FAIL=URL interface: operation parse(USVString, optional USVString)
 FAIL=URL interface: operation toJSON()
 FAIL=URL interface: stringifier
 FAIL=URLSearchParams interface object length
@@ -83,7 +63,6 @@ FAIL=URLSearchParams interface: calling getAll(USVString) on new URLSearchParams
 FAIL=URLSearchParams interface: calling has(USVString, optional USVString) on new URLSearchParams("hi=there&thank=you") with too few arguments must throw TypeError
 FAIL=URLSearchParams interface: calling set(USVString, USVString) on new URLSearchParams("hi=there&thank=you") with too few arguments must throw TypeError
 FAIL=URLSearchParams interface: existence and properties of interface object
-FAIL=URLSearchParams interface: existence and properties of interface prototype object
 FAIL=URLSearchParams interface: iterable<USVString, USVString>
 FAIL=URLSearchParams interface: operation append(USVString, USVString)
 FAIL=URLSearchParams interface: operation delete(USVString, optional USVString)
