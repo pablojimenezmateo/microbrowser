@@ -172,8 +172,8 @@ class Encoder {
   // a page's string, which may be any sequence of UTF-16 code units at all.
   //
   // `error_code_point`, when given, is the code point the Encoding Standard's error carries. It is
-  // usually `code_point`; ISO-2022-JP's ASCII/Roman state reports U+FFFD for U+000E/000F/001B
-  // instead, so a URL cannot inject ESC/SI/SO as `&#14;`.
+  // usually `code_point`; ISO-2022-JP reports U+FFFD for U+000E/000F/001B in every state, so a URL
+  // cannot inject ESC/SI/SO as `&#14;` after a kanji run that has just escaped back to ASCII.
   bool Encode(std::uint32_t code_point, std::string& out,
               std::uint32_t* error_code_point = nullptr);
 

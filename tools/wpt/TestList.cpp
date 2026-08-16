@@ -161,6 +161,60 @@ bool HasLongTimeout(std::string_view head) {
          head.find("long", at) - at < 40;
 }
 
+// `<meta name="variant" content="?1-1000">` on a plain HTML test. Generated
+// `.any.js` files use `// META: variant=` (ParseMeta); these do not, and
+// leaving them unexpanded is how encoding/legacy-mb-* ran 13,000 subtests in
+// one process and TIMED OUT, and how a `?mode=open` test ran with mode=null.
+std::vector<std::string> ParseHtmlVariants(std::string_view head) {
+  std::vector<std::string> variants;
+  std::size_t position = 0;
+  while (position < head.size()) {
+    const std::size_t quoted = head.find("name=\"variant\"", position);
+    const std::size_t single = head.find("name='variant'", position);
+    const std::size_t bare = head.find("name=variant", position);
+    std::size_t at = std::string_view::npos;
+    if (quoted != std::string_view::npos) {
+      at = quoted;
+    }
+    if (single != std::string_view::npos && (at == std::string_view::npos || single < at)) {
+      at = single;
+    }
+    if (bare != std::string_view::npos && (at == std::string_view::npos || bare < at)) {
+      at = bare;
+    }
+    if (at == std::string_view::npos) {
+      break;
+    }
+    const std::size_t tag_start = head.rfind('<', at);
+    const std::size_t tag_end = head.find('>', at);
+    if (tag_start == std::string_view::npos || tag_end == std::string_view::npos) {
+      break;
+    }
+    const std::string_view tag = head.substr(tag_start, tag_end - tag_start);
+    const std::size_t content = tag.find("content=");
+    if (content != std::string_view::npos) {
+      std::string_view value = tag.substr(content + 8);
+      char quote = '\0';
+      if (!value.empty() && (value.front() == '"' || value.front() == '\'')) {
+        quote = value.front();
+        value.remove_prefix(1);
+      }
+      const std::size_t end =
+          quote != '\0' ? value.find(quote) : value.find_first_of(" \t");
+      if (end != std::string_view::npos && end > 0) {
+        variants.emplace_back(value.substr(0, end));
+      }
+    }
+    position = tag_end + 1;
+  }
+  return variants;
+}
+
+// Bumped when the walk's classification changes. The cache is keyed by the
+// checkout's HEAD, which does not move when this file does -- without a version
+// here, expanding HTML variants would keep serving the unsplit list.
+constexpr std::string_view kManifestVersion = "2";
+
 std::filesystem::path CachePath(const std::string& wpt_root) {
   return std::filesystem::path(wpt_root) / ".microbrowser-manifest.tsv";
 }
@@ -181,7 +235,8 @@ bool LoadCache(const std::string& wpt_root, const std::string& revision,
     return false;
   }
   std::string line;
-  if (!std::getline(stream, line) || line != "#revision\t" + revision) {
+  if (!std::getline(stream, line) ||
+      line != std::string("#manifest\t") + std::string(kManifestVersion) + "\t" + revision) {
     return false;
   }
   while (std::getline(stream, line)) {
@@ -218,7 +273,7 @@ void SaveCache(const std::string& wpt_root, const std::string& revision,
   if (!stream) {
     return;
   }
-  stream << "#revision\t" << revision << "\n";
+  stream << "#manifest\t" << kManifestVersion << "\t" << revision << "\n";
   for (const WptTest& test : tests) {
     stream << (test.kind == TestKind::Reftest ? "R" : "T") << '\t' << test.url_path << '\t'
            << test.reference << '\t' << (test.reference_mismatch ? '1' : '0') << '\t'
@@ -329,7 +384,7 @@ std::vector<WptTest> EnumerateTests(const std::string& wpt_root,
       test.long_timeout = HasLongTimeout(head);
       if (head.find("/resources/testharness.js") != std::string::npos) {
         test.kind = TestKind::Testharness;
-        all.push_back(std::move(test));
+        AppendVariants(test, ParseHtmlVariants(head), all);
         continue;
       }
       std::string reference;
@@ -338,7 +393,7 @@ std::vector<WptTest> EnumerateTests(const std::string& wpt_root,
         test.kind = TestKind::Reftest;
         test.reference = ResolveReference(relative, reference);
         test.reference_mismatch = mismatch;
-        all.push_back(std::move(test));
+        AppendVariants(test, ParseHtmlVariants(head), all);
       }
     }
     std::sort(all.begin(), all.end(),

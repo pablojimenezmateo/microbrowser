@@ -966,8 +966,8 @@ class DomBindings {
   // Nodes script removed. Held rather than freed, for the reason on
   // DetachFromTree.
   std::vector<std::unique_ptr<dom::Node>> detached_;
-  // The submission a script asked for. See PendingSubmit for why it waits.
-  std::optional<PendingSubmit> pending_submit_;
+  // Submissions a script asked for. A list: two iframe targets are two navigations.
+  std::vector<PendingSubmit> pending_submit_;
   // The elements a script's `click()` activated, waiting for the engine.
   //
   // A *list*, and one element was a bug: four `click()` calls in one turn --

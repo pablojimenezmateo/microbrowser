@@ -5,6 +5,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -242,6 +243,8 @@ class Engine : private bindings::NetworkSource,
   // frames are re-collected -- a script that appends an `<iframe>` creates a
   // context the same way the parser does.
   void StartFrameRequests();
+  // GET form `target` naming an iframe navigates that frame, not the document.
+  bool SubmitIntoNamedFrame(std::string_view name, const std::string& url);
   // Re-collects the child contexts, fetches the new ones, and fires the `load` events owed to
   // those whose documents arrived. True when a handler ran, so the document may have moved.
   bool ProcessDynamicFrames();

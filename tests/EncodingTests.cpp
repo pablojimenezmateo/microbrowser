@@ -509,6 +509,8 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
     // `\u000EA` → `%26%2365533%3BA`.
     ExpectEqString(encode("\x0E" "A", Encoding::Iso2022Jp), "&#65533;A",
                    "U+000E encodes as a replacement, not as itself");
+    ExpectEqString(encode("日\x0E", Encoding::Iso2022Jp), "\x1B$B" "F|" "\x1B(B" "&#65533;",
+                   "and after a kanji run the error is still FFFD, not &#14;");
     html::DocumentQueryEncoder query(Encoding::Iso2022Jp);
     std::string encoded;
     query.EncodeQuery(std::string("\x0E") + "A", [](unsigned char) { return false; }, encoded);

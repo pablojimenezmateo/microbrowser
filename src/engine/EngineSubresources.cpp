@@ -15,12 +15,14 @@
 
 #include <cstddef>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
 #include "csp/SubresourceIntegrity.h"
 #include "engine/Clock.h"
 #include "engine/Engine.h"
+#include "engine/Frames.h"
 #include "url/Origin.h"
 #include "url/Url.h"
 #include "util/PerformanceCounters.h"
@@ -267,6 +269,29 @@ void Engine::StartFrameRequests() {
       post_load_.frames[id] = index;
     }
   }
+}
+
+bool Engine::SubmitIntoNamedFrame(std::string_view name, const std::string& url) {
+  if (name.empty() || name == "_self" || name == "_parent" || name == "_top" ||
+      name == "_blank") {
+    return false;
+  }
+  for (Frame& frame : page_.MutableFrames().MutableFrames()) {
+    if (frame.element == nullptr) {
+      continue;
+    }
+    const std::string* frame_name = frame.element->GetAttribute("name");
+    const std::string* frame_id = frame.element->GetAttribute("id");
+    if ((frame_name == nullptr || *frame_name != name) &&
+        (frame_id == nullptr || *frame_id != name)) {
+      continue;
+    }
+    frame.element->SetAttribute("src", url);
+    page_.CollectFrames();
+    StartFrameRequests();
+    return true;
+  }
+  return false;
 }
 
 bool Engine::OnFrameFetch(Loader::Completion completion, const PendingResource& resource) {

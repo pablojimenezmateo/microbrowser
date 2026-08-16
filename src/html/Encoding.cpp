@@ -658,10 +658,14 @@ std::string DecodeToUtf8(std::string_view bytes, Encoding encoding) {
 
 bool Encoder::Encode(std::uint32_t code_point, std::string& out, std::uint32_t* error_code_point) {
   if (error_code_point != nullptr) {
-    // Encoding Standard, iso-2022-jp encoder: U+000E/000F/001B in ASCII or Roman
-    // return error with U+FFFD rather than the control, to prevent attacks.
+    // Encoding Standard, iso-2022-jp encoder: U+000E/000F/001B return error with
+    // U+FFFD rather than the control, to prevent attacks. The check is *not*
+    // gated on the current shift state: a jis0208 run first emits ESC ( B and
+    // then fails, so the error the caller writes is always FFFD. Reading state_
+    // here used to report `&#14;` after a katakana, which is the injection the
+    // rule exists to refuse.
     const bool iso2022_control =
-        encoding_ == Encoding::Iso2022Jp && (state_ == 0 || state_ == 1) &&
+        encoding_ == Encoding::Iso2022Jp &&
         (code_point == 0x000E || code_point == 0x000F || code_point == 0x001B);
     *error_code_point = iso2022_control ? 0xFFFD : code_point;
   }

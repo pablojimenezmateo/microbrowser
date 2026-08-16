@@ -109,6 +109,114 @@ void RegisterFrameTests(std::vector<TestCase>& tests) {
                    "load fires at the element, after the handler was attached, with the document");
   });
 
+  AddTest(tests, "Frames/BodyOnloadContentAttributeRunsWhenTheWindowLoads", [] {
+    // The parser writes `onload` on `<body>`; the event fires at the window.
+    // Forwarding only from a scripted setAttribute left every `body onload`
+    // in markup as a TIMEOUT -- encoding/legacy-mb-* decode files included.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html",
+                   "<body onload=\"console.log('from-body')\">"
+                   "<script>console.log('script')</script></body>")});
+    session.engine.PageLoader().SetTransport(factory);
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://page.example/"});
+    ExpectEqString(Joined(session.engine.ConsoleOutput()), "script|from-body",
+                   "inline script first, then the parsed body onload as window.onload");
+  });
+
+  AddTest(tests, "Frames/BodyOnloadSeesAParsedIframeDocument", [] {
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html",
+                   "<body onload=\"console.log(document.getElementById('f').contentDocument.title)\">"
+                   "<iframe id=f src='/child.html'></iframe></body>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true, OkResponse("text/html", "<title>child</title><p>hi</p>")});
+    session.engine.PageLoader().SetTransport(factory);
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://page.example/"});
+    ExpectEqString(Joined(session.engine.ConsoleOutput()), "child",
+                   "body onload waits for the iframe, then contentDocument is readable");
+  });
+
+  AddTest(tests, "Frames/AFormTargetingAnIframeNavigatesThatFrame", [] {
+    // encoding/legacy-mb-* encode-form: form.submit() with target=iframe, then
+    // read the child's location.search. Navigating the parent instead is a
+    // TIMEOUT -- testharness was the parent.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html",
+                   "<iframe id=t name=t></iframe>"
+                   "<form id=f action='/blank' target=t>"
+                   "<input name=q value=hello></form>"
+                   "<script>"
+                   "document.getElementById('t').onload = function () {"
+                   "  if (this.contentWindow.location.search) {"
+                   "    console.log(this.contentWindow.location.search);"
+                   "  }"
+                   "};"
+                   "document.getElementById('f').submit();"
+                   "</" "script>")});
+    factory.script.push_back(
+        ScriptedTransport::Exchange{"page.example", 443, true, OkResponse("text/html", "")});
+    session.engine.PageLoader().SetTransport(factory);
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://page.example/"});
+    ExpectEqString(Joined(session.engine.ConsoleOutput()), "?q=hello",
+                   "the child loaded the form's GET. errors=" + [&] {
+                     std::string e;
+                     for (const auto& line : session.engine.ScriptErrors()) {
+                       e += line + ";";
+                     }
+                     return e;
+                   }());
+  });
+
+  AddTest(tests, "Frames/TwoFormSubmitsInOneTurnEachNavigateTheirIframe", [] {
+    // encode-form-common.js starts two worker iframes from one window `load`
+    // handler. One pending-submit slot dropped the second, so half the
+    // async_tests never called done() and testharness timed out.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html",
+                   "<iframe id=a name=a></iframe><iframe id=b name=b></iframe>"
+                   "<form id=fa action='/blank' target=a>"
+                   "<input name=q value=one></form>"
+                   "<form id=fb action='/blank' target=b>"
+                   "<input name=q value=two></form>"
+                   "<script>"
+                   "function arm(id, form) {"
+                   "  document.getElementById(id).onload = function () {"
+                   "    if (this.contentWindow.location.search) {"
+                   "      console.log(id + this.contentWindow.location.search);"
+                   "    }"
+                   "  };"
+                   "  document.getElementById(form).submit();"
+                   "}"
+                   "arm('a','fa');"
+                   "arm('b','fb');"
+                   "</" "script>")});
+    factory.script.push_back(
+        ScriptedTransport::Exchange{"page.example", 443, true, OkResponse("text/html", "")});
+    factory.script.push_back(
+        ScriptedTransport::Exchange{"page.example", 443, true, OkResponse("text/html", "")});
+    session.engine.PageLoader().SetTransport(factory);
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://page.example/"});
+    const std::string got = Joined(session.engine.ConsoleOutput());
+    const bool both = (got == "a?q=one|b?q=two" || got == "b?q=two|a?q=one");
+    Expect(both, "both child frames loaded their form GET, got " + got);
+  });
+
   AddTest(tests, "Frames/AChildsExternalScriptRunsBeforeLoad", [] {
     // Range-insertNode's iframe loads common.js then calls setupRangeTests from onload. Fetching
     // the child's HTML and firing `load` without its `<script src>` left that name undefined.

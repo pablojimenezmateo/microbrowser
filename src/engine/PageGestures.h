@@ -35,6 +35,8 @@ struct FormSubmission {
   std::string method = "GET";
   std::string body;
   std::string content_type;
+  // Browsing context name from `target` / `formtarget`. Empty is `_self`.
+  std::string target;
 };
 
 struct DispatchOutcome {

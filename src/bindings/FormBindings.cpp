@@ -92,8 +92,11 @@ js::Value DomBindings::MakeNamedCollection(const std::vector<dom::Element*>& ele
 }
 
 std::optional<PendingSubmit> DomBindings::TakePendingSubmit() {
-  std::optional<PendingSubmit> taken;
-  taken.swap(pending_submit_);
+  if (pending_submit_.empty()) {
+    return std::nullopt;
+  }
+  PendingSubmit taken = pending_submit_.front();
+  pending_submit_.erase(pending_submit_.begin());
   return taken;
 }
 
@@ -403,13 +406,16 @@ void DomBindings::InstallFormApis() {
 }
 
 void DomBindings::RecordSubmit(dom::Element& form, dom::Element* submitter) {
-  if (pending_submit_.has_value()) {
-    // The first one wins. A script that submits twice in one turn gets one
-    // navigation, because the first is what tears this document down -- which
-    // is what would have happened had the navigation been synchronous.
+  // A list, not "first one wins". Two submits that target two iframes are two
+  // child navigations and this document stays; dropping the second is how
+  // encode-form's second worker iframe never loaded and testharness hung.
+  // A submit that replaces *this* document still ends the queue: the engine
+  // stops draining once the parent is loading.
+  constexpr std::size_t kMaxPendingSubmits = 256;
+  if (pending_submit_.size() >= kMaxPendingSubmits) {
     return;
   }
-  pending_submit_ = PendingSubmit{&form, submitter};
+  pending_submit_.push_back(PendingSubmit{&form, submitter});
 }
 
 }  // namespace microbrowser::bindings

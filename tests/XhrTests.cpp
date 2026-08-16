@@ -321,6 +321,34 @@ void RegisterXhrTests(std::vector<TestCase>& tests) {
     }
   });
 
+  AddTest(tests, "Xhr/OverrideMimeTypeNamesTheCharsetTheBodyIsDecodedAs", [] {
+    // Encoding Standard tests name a charset through overrideMimeType on a
+    // response that would otherwise be UTF-8. The replacement encoding is the
+    // one that makes a missing method obvious: any non-empty body is one U+FFFD.
+    Session session;
+    const std::string body = "ABC";
+    session.Serve("HTTP/1.1 200 OK\r\nContent-Type: text/plain;charset=utf-8\r\n"
+                  "Content-Length: " +
+                  std::to_string(body.size()) + "\r\n\r\n" + body);
+    session.Serve("HTTP/1.1 200 OK\r\nContent-Type: text/plain;charset=utf-8\r\n"
+                  "Content-Length: 0\r\n\r\n");
+    session.Run(
+        "var a = new XMLHttpRequest();"
+        "a.open('GET', '/raw');"
+        "a.overrideMimeType('text/plain;charset=\"iso-2022-kr\"');"
+        "a.onload = function () {"
+        "  console.log('nonempty ' + a.responseText.charCodeAt(0).toString(16));"
+        "  var b = new XMLHttpRequest();"
+        "  b.open('GET', '/empty');"
+        "  b.overrideMimeType('text/plain;charset=iso-2022-kr');"
+        "  b.onload = function () { console.log('empty ' + b.responseText.length) };"
+        "  b.send();"
+        "};"
+        "a.send();");
+    ExpectEqString(session.Console(), "nonempty fffd|empty 0",
+                   "replacement encoding via overrideMimeType. Errors: " + session.Errors());
+  });
+
   AddTest(tests, "Xhr/IsAbsentWhenThereIsNoNetworkBehindTheBindings", [] {
     // The one property ADR 0012 cares about most, asked of a Page with no
     // NetworkSource: the constructor is not defined, so a page falls back

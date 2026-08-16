@@ -252,6 +252,12 @@ std::optional<FormSubmission> BuildFormSubmission(const dom::Element& form,
   const html::Encoding charset = FormEncodingCharset(form, document_encoding);
   FormSubmission submission;
   submission.method = FormMethod(form, submitter);
+  const std::string* target = submitter != nullptr && submitter->HasAttribute("formtarget")
+                                  ? submitter->GetAttribute("formtarget")
+                                  : form.GetAttribute("target");
+  if (target != nullptr) {
+    submission.target = *target;
+  }
   if (submission.method == "POST") {
     if (encoding == FormEncoding::Unsupported) {
       return std::nullopt;

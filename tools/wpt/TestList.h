@@ -30,8 +30,11 @@ struct WptTest {
 // is Python and takes minutes. This reads the files instead -- a test is a
 // testharness test because it loads testharness.js, and a reftest because it
 // has a `rel=match` link, both of which are visible in the first few kilobytes.
-// The result is cached beside the checkout keyed by its revision, so the walk
-// happens once per `fetch.sh` rather than once per run.
+// `<meta name="variant">` on a plain HTML file is expanded the same way
+// `// META: variant=` is on a generated `.any.js` -- one process per variant,
+// because a 13,000-subtest page is a TIMEOUT rather than a measurement.
+// The result is cached beside the checkout keyed by its revision and a
+// manifest version, so a classification change in this file invalidates it.
 //
 // `prefixes` filters by root-relative path prefix; empty means everything.
 std::vector<WptTest> EnumerateTests(const std::string& wpt_root,

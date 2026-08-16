@@ -18,11 +18,13 @@
 //     legible failure at the call; a stub that quietly ran asynchronously would
 //     return with `responseText` empty and the page would carry on as if it had
 //     data.
-//   * **`timeout`, `upload`, `overrideMimeType` and the non-text response types
-//     are not defined at all.** Each of them is a property a page sets and then
-//     trusts. A `timeout` that never fired, or a `responseType =
-//     "arraybuffer"` that answered with a string, is worse than the name being
-//     missing -- which is the whole of ADR 0012's rule.
+//   * **`timeout`, `upload` and the non-text response types are not defined at
+//     all.** Each of them is a property a page sets and then trusts. A `timeout`
+//     that never fired, or a `responseType = "arraybuffer"` that answered with a
+//     string, is worse than the name being missing -- which is the whole of
+//     ADR 0012's rule. `overrideMimeType` is implemented: it is how the Encoding
+//     Standard's XHR tests name a charset, and a missing method there is a
+//     TypeError rather than a wrong document.
 
 #include <algorithm>
 #include <cstddef>
@@ -39,6 +41,7 @@
 #include "bindings/FetchSupport.h"
 #include "bindings/Network.h"
 #include "html/Encoding.h"
+#include "util/MimeType.h"
 #include "util/PerformanceCounters.h"
 #include "util/StringUtil.h"
 
@@ -62,6 +65,7 @@ constexpr const char* kXhrHeadersSlot = "#xhr:requestHeaders";
 constexpr const char* kXhrSentSlot = "#xhr:sent";
 constexpr const char* kXhrResponseHeadersSlot = "#xhr:responseHeaders";
 constexpr const char* kXhrResponseTypeSlot = "#xhr:responseType";
+constexpr const char* kXhrOverrideMimeSlot = "#xhr:overrideMime";
 
 // The five readyState values, spelled out because a page compares against the
 // constants and against the numbers interchangeably.
@@ -97,17 +101,26 @@ js::Value ParseJsonThrough(js::Interpreter& interpreter, std::string_view text) 
   return result.completion == js::Completion::Throw ? Value::Null() : result.value;
 }
 
-// XHR's text decoder: the charset of `Content-Type`, or UTF-8. Not the document
-// sniffer -- that one falls through to windows-1252, and a JSON endpoint with
-// no charset would become mojibake rather than a parse error.
-std::string DecodeXhrBody(const ScriptResponse& response) {
+// XHR's text decoder: overrideMimeType's charset if the page named one, else
+// the charset of `Content-Type`, else UTF-8. Not the document sniffer -- that
+// one falls through to windows-1252, and a JSON endpoint with no charset would
+// become mojibake rather than a parse error.
+std::string DecodeXhrBody(const Value& xhr, const ScriptResponse& response) {
   html::Encoding encoding = html::Encoding::Utf8;
-  for (const ScriptHeader& header : response.headers) {
-    if (util::EqualsAsciiCaseInsensitive(header.name, "content-type")) {
-      if (const std::optional<html::Encoding> found = html::EncodingFromMimeType(header.value)) {
-        encoding = *found;
+  const Value* override_mime =
+      xhr.IsObject() ? xhr.object->GetOwn(kXhrOverrideMimeSlot) : nullptr;
+  if (override_mime != nullptr && override_mime->IsString()) {
+    if (const std::optional<html::Encoding> found = html::EncodingFromMimeType(override_mime->AsString())) {
+      encoding = *found;
+    }
+  } else {
+    for (const ScriptHeader& header : response.headers) {
+      if (util::EqualsAsciiCaseInsensitive(header.name, "content-type")) {
+        if (const std::optional<html::Encoding> found = html::EncodingFromMimeType(header.value)) {
+          encoding = *found;
+        }
+        break;
       }
-      break;
     }
   }
   return html::DecodeToUtf8(response.body, encoding);
@@ -360,6 +373,30 @@ void DomBindings::InstallXhr() {
                                      response_type_set.object);
   }
 
+  // XHR's way to name a charset the `Content-Type` did not. Encoding Standard
+  // tests reach a decoder through this rather than through TextDecoder, and a
+  // missing method is a TypeError on every one of them.
+  const Value override_mime_type =
+      interpreter_->NewNativeValue("overrideMimeType", [](NativeCall& call) {
+        if (!call.self.IsObject() || call.self.object->GetOwn(kXhrSlot) == nullptr) {
+          return call.Throw("TypeError", "overrideMimeType called on something that is not an XHR");
+        }
+        const double state = ReadyStateOf(call.self);
+        if (state == kLoading || state == kDone) {
+          return ThrowDom(call, "InvalidStateError",
+                          "overrideMimeType after the response has started");
+        }
+        std::string mime;
+        if (!CoerceToString(call, Argument(call.arguments, 0), mime)) {
+          return call.ThrownValue();
+        }
+        if (!util::ParseMimeType(mime).has_value()) {
+          mime = "application/octet-stream";
+        }
+        call.self.object->SetHidden(kXhrOverrideMimeSlot, Value::String(std::move(mime)));
+        return Value::Undefined();
+      });
+
   for (const auto& [name, method] :
        std::initializer_list<std::pair<const char*, Value>>{
            {"open", open},
@@ -367,7 +404,8 @@ void DomBindings::InstallXhr() {
            {"send", send},
            {"abort", abort},
            {"getResponseHeader", get_response_header},
-           {"getAllResponseHeaders", get_all_response_headers}}) {
+           {"getAllResponseHeaders", get_all_response_headers},
+           {"overrideMimeType", override_mime_type}}) {
     if (method.IsObject()) {
       method.object->Set(kOwnerSlot, OwnerValue(this));
       prototype.object->Set(name, method);
@@ -527,7 +565,7 @@ void DomBindings::DeliverToXhr(const js::Value& xhr, const ScriptResponse& respo
   xhr.object->Set("status", Value::Number(static_cast<double>(response.status)));
   xhr.object->Set("statusText", Value::String(response.status_text));
   xhr.object->Set("responseURL", Value::String(response.url));
-  const std::string text = DecodeXhrBody(response);
+  const std::string text = DecodeXhrBody(xhr, response);
   xhr.object->Set("responseText", Value::String(text));
 
   // `response` is `responseText` unless the page asked for JSON, in which case

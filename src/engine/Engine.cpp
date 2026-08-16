@@ -875,10 +875,11 @@ bool Engine::FollowScriptNavigation() {
       return true;
     }
   }
-  const std::optional<FormSubmission> submission = page_.TakeScriptFormSubmission();
-  if (submission.has_value()) {
+  while (const std::optional<FormSubmission> submission = page_.TakeScriptFormSubmission()) {
     AddPerformanceCounter(PerfCounterId::EngineScriptNavigations);
-    return Navigate(*submission);
+    if (Navigate(*submission) && IsLoading()) {
+      return true;  // this document is going away; later submits die with it
+    }
   }
   // And the activation behaviour of an `element.click()` a script ran, which
   // is the same walk a real pointer release takes -- one algorithm, because
@@ -930,6 +931,9 @@ bool Engine::Navigate(const FormSubmission& submission) {
     return false;
   }
   util::LoadTimeline::MarkWith("navigation.form", *resolved);
+  if (SubmitIntoNamedFrame(submission.target, *resolved)) {
+    return true;
+  }
   NavigateFromCurrentDocument(*resolved, FetchOptionsForSubmission(submission));
   return true;
 }

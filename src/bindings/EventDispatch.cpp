@@ -665,9 +665,26 @@ bool DomBindings::DispatchAtWindowWith(const char* type, const js::Value& event)
   // Same root as DispatchEventTo: the drain below can Collect.
   const js::Interpreter::ValueRoot rooted_event(*interpreter_, event);
   const Value window = Value::Obj(interpreter_->Global());
+  // `<body onload>` in markup is a content attribute the parser wrote, and the
+  // event fires at the window, never at the body. The write-time forward only
+  // runs when script sets the attribute; a parsed document would otherwise
+  // reach load with window.onload unset, which is every encoding/legacy-mb
+  // decode file and encoding/remove-only-one-bom.html.
+  const std::string on_name = std::string("on") + type;
+  if (IsWindowReflectedHandlerName(on_name)) {
+    const Value* existing = window.object->Get(on_name);
+    const bool already =
+        existing != nullptr && existing->IsObject() && existing->object->IsCallable();
+    if (!already && document_ != nullptr) {
+      if (dom::Element* body = document_->Body();
+          body != nullptr && body->GetAttribute(on_name) != nullptr) {
+        ForwardWindowReflectedHandler(*body, on_name);
+      }
+    }
+  }
   const std::string slot = std::string("#on:") + type;
   const bool listening =
-      window.object->GetOwn(slot) != nullptr || window.object->Get(std::string("on") + type) != nullptr;
+      window.object->GetOwn(slot) != nullptr || window.object->Get(on_name) != nullptr;
   if (!listening) {
     // Asked before the listeners run rather than before the event is built,
     // because a caller that put fields on the event -- `popstate`'s `state`, a

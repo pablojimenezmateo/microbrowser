@@ -110,6 +110,11 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "d.decode(new Uint8Array([0xEF,0xBB]), {stream:true});"
                  "return d.decode(new Uint8Array([0xBF,0x61])); })()",
                  "a");
+    ExpectScript("<html><body></body></html>",
+                 "(() => { const d = new TextDecoder();"
+                 "d.decode(new Uint8Array([0xC9]), {stream:true});"
+                 "return d.decode(undefined) === '\uFFFD'; })()",
+                 "true");
   });
 
   AddTest(tests, "DomBindings/CharacterSetIsTheDocumentsEncodingNotTheRealms", [] {

@@ -178,7 +178,10 @@ max_tu_lines: 1001
 # The three paragraphs above are two worktrees off one base -- the worker's imports on one, the
 # child contexts and their script half on the other -- so neither branch's count described this
 # header once both were in the tree. The number is measured after the merge.
-budget: Engine header_lines=590 public_methods=22 members=28
+# Raised to 591 for SubmitIntoNamedFrame: a GET form whose target names an iframe
+# navigates that child rather than replacing the document that contains the form
+# (encoding/legacy-mb-* encode-form).
+budget: Engine header_lines=591 public_methods=22 members=28
 # Raised for deferred location navigation (pending_location_ + replacing_document_)
 # — ADR 0026 §3 assign/replace/reload without tearing the document under script.
 # The network half, kept off Engine on purpose: policy, sockets, cookies and

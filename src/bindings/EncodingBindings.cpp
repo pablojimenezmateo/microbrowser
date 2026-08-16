@@ -170,8 +170,15 @@ bool CopyBufferBytes(const Value& value, std::string& out) {
     return false;
   }
   const js::BufferView* view = value.object->View();
-  if (view == nullptr || view->bytes == nullptr) {
+  if (view == nullptr) {
     return false;
+  }
+  // A detached buffer is an empty byte sequence, not a TypeError: Web IDL
+  // converts the options dictionary first, and a getter there may detach the
+  // input before the algorithm copies it.
+  if (view->bytes == nullptr) {
+    out.clear();
+    return true;
   }
   const std::size_t element_size = js::ElementSize(view->kind);
   const std::size_t byte_length = view->length * element_size;
@@ -371,6 +378,16 @@ void DomBindings::InstallTextEncoding() {
     if (!IsDecoder(call.self)) {
       return call.Throw("TypeError", "Illegal invocation");
     }
+    // Web IDL converts `options` before the algorithm copies `input`. A getter
+    // on `stream` may detach the buffer; the copy then sees empty bytes.
+    bool stream = false;
+    if (Argument(call.arguments, 1).IsObject()) {
+      Value stream_flag;
+      if (!ReadProperty(call, Argument(call.arguments, 1), "stream", stream_flag)) {
+        return call.ThrownValue();
+      }
+      stream = js::ToBoolean(stream_flag);
+    }
     std::string bytes;
     if (!CopyBufferBytes(Argument(call.arguments, 0), bytes)) {
       return call.Throw("TypeError", "The provided value is not of type BufferSource");
@@ -389,13 +406,6 @@ void DomBindings::InstallTextEncoding() {
       }
     } else {
       call.self.object->SetHidden(kDecoderBomSeen, Value::Bool(false));
-    }
-    bool stream = false;
-    if (Argument(call.arguments, 1).IsObject()) {
-      const Value* stream_flag = Argument(call.arguments, 1).object->Get("stream");
-      if (stream_flag != nullptr) {
-        stream = js::ToBoolean(*stream_flag);
-      }
     }
     call.self.object->SetHidden(kDecoderDoNotFlush, Value::Bool(stream));
 
