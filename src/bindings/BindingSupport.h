@@ -27,6 +27,12 @@ inline constexpr const char* kOwnerSlot = "#bindings";
 inline constexpr const char* kBlobBodySlot = "#blobBody";
 inline constexpr const char* kBlobTypeSlot = "#blobType";
 inline constexpr const char* kBlobMarkerSlot = "#isBlob";
+inline constexpr const char* kBlobNameSlot = "#blobName";
+
+// A Blob with the given bytes and already-canonical MIME type. `new Blob` and
+// `Response.prototype.blob` share this so a page cannot tell them apart by
+// looking at `type`.
+js::Value MakeBlobValue(js::Interpreter& interpreter, std::string body, std::string type);
 // Where the document wrapper keeps its `readyState`. A hidden property rather
 // than a C++ member, because the collector can see a property and cannot see a
 // `js::Value` in a field -- the same rule the wrapper cache follows.

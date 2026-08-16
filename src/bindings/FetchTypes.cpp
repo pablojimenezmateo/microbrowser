@@ -26,6 +26,7 @@
 #include "bindings/DomBindings.h"
 #include "bindings/FetchSupport.h"
 #include "bindings/Network.h"
+#include "util/MimeType.h"
 #include "util/PerformanceCounters.h"
 
 namespace microbrowser::bindings {
@@ -41,6 +42,63 @@ using util::PerfCounterId;
 // `headers.get('Content-Type')` and `headers.get('content-type')` the same
 // question. The value keeps its case: only the name is case-insensitive.
 std::string FoldName(const Value& value) { return LowerCase(js::ToString(value)); }
+
+bool AppendValidatedHeader(NativeCall& call, std::vector<Value>& pairs, std::string name,
+                           std::string value) {
+  // Fetch: a header name is an HTTP token and a header value is a byte
+  // sequence with no NUL/LF/CR. Throwing here is what makes
+  // `new Request(url, {headers: [["Content-Type", "\0"]]})` a TypeError
+  // rather than a Blob whose type silently vanished.
+  if (name.empty() || !util::IsHttpToken(name) || !util::IsHttpHeaderValue(value)) {
+    call.Throw("TypeError", "invalid header");
+    return false;
+  }
+  pairs.push_back(MakePair(call.interpreter, LowerCase(std::move(name)), std::move(value)));
+  return true;
+}
+
+bool FillHeaderPairs(NativeCall& call, const Value& init, std::vector<Value>& pairs) {
+  if (!init.IsObject()) {
+    return true;
+  }
+  if (init.object->GetOwn(kHeaderPairsSlot) != nullptr) {
+    for (const Value& pair : ReadPairs(init, kHeaderPairsSlot)) {
+      if (!AppendValidatedHeader(call, pairs, PairPart(pair, 0), PairPart(pair, 1))) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (init.object->ElementCount() > 0) {
+    for (std::size_t i = 0; i < init.object->ElementCount(); ++i) {
+      const Value entry = init.object->GetElement(i);
+      if (!AppendValidatedHeader(call, pairs, PairPart(entry, 0), PairPart(entry, 1))) {
+        return false;
+      }
+    }
+    return true;
+  }
+  for (const std::string& key : init.object->EnumerableKeys()) {
+    const Value* value = init.object->Get(key);
+    if (!AppendValidatedHeader(call, pairs, key,
+                               value == nullptr ? std::string() : js::ToString(*value))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool FillScriptHeaders(NativeCall& call, const Value& init, std::vector<ScriptHeader>& out) {
+  std::vector<Value> pairs;
+  if (!FillHeaderPairs(call, init, pairs)) {
+    return false;
+  }
+  out.clear();
+  for (const Value& pair : pairs) {
+    out.push_back(ScriptHeader{PairPart(pair, 0), PairPart(pair, 1)});
+  }
+  return true;
+}
 
 }  // namespace
 
@@ -113,8 +171,13 @@ void DomBindings::InstallHeaders() {
     return Value::Bool(false);
   });
   method("set", [](NativeCall& call) {
-    const std::string name = FoldName(Argument(call.arguments, 0));
-    const std::string value = js::ToString(Argument(call.arguments, 1));
+    std::vector<Value> dummy;
+    if (!AppendValidatedHeader(call, dummy, js::ToString(Argument(call.arguments, 0)),
+                               js::ToString(Argument(call.arguments, 1)))) {
+      return call.ThrownValue();
+    }
+    const std::string name = PairPart(dummy.back(), 0);
+    const std::string value = PairPart(dummy.back(), 1);
     std::vector<Value> kept;
     bool written = false;
     for (const Value& pair : ReadPairs(call.self, kHeaderPairsSlot)) {
@@ -126,21 +189,22 @@ void DomBindings::InstallHeaders() {
         // In place, because `set` replaces the value and keeps the position:
         // a page that sets a header twice and then iterates must not see it
         // move to the end.
-        kept.push_back(MakePair(call.interpreter, name, value));
+        kept.push_back(dummy.back());
         written = true;
       }
     }
     if (!written) {
-      kept.push_back(MakePair(call.interpreter, name, value));
+      kept.push_back(dummy.back());
     }
     WritePairs(call.interpreter, call.self, kHeaderPairsSlot, std::move(kept));
     return Value::Undefined();
   });
   method("append", [](NativeCall& call) {
-    const std::string name = FoldName(Argument(call.arguments, 0));
     std::vector<Value> pairs = ReadPairs(call.self, kHeaderPairsSlot);
-    pairs.push_back(MakePair(call.interpreter, name,
-                             js::ToString(Argument(call.arguments, 1))));
+    if (!AppendValidatedHeader(call, pairs, js::ToString(Argument(call.arguments, 0)),
+                               js::ToString(Argument(call.arguments, 1)))) {
+      return call.ThrownValue();
+    }
     WritePairs(call.interpreter, call.self, kHeaderPairsSlot, std::move(pairs));
     return Value::Undefined();
   });
@@ -218,37 +282,11 @@ void DomBindings::InstallHeaders() {
           return Value::Undefined();
         }
         made.object->SetPrototype(prototype.object);
-        WritePairs(call.interpreter, made, kHeaderPairsSlot, {});
-        const Value init = Argument(call.arguments, 0);
-        if (init.IsObject()) {
-          const Value* existing = init.object->GetOwn(kHeaderPairsSlot);
-          if (existing != nullptr) {
-            // Copied rather than shared: `new Headers(other)` is a snapshot,
-            // and aliasing the array would make a write to one show up in both.
-            std::vector<Value> copy;
-            for (const Value& pair : ReadPairs(init, kHeaderPairsSlot)) {
-              copy.push_back(
-                  MakePair(call.interpreter, PairPart(pair, 0), PairPart(pair, 1)));
-            }
-            WritePairs(call.interpreter, made, kHeaderPairsSlot, std::move(copy));
-          } else if (init.object->ElementCount() > 0) {
-            std::vector<Value> copy;
-            for (std::size_t i = 0; i < init.object->ElementCount(); ++i) {
-              const Value entry = init.object->GetElement(i);
-              copy.push_back(MakePair(call.interpreter, LowerCase(PairPart(entry, 0)),
-                                      PairPart(entry, 1)));
-            }
-            WritePairs(call.interpreter, made, kHeaderPairsSlot, std::move(copy));
-          } else {
-            std::vector<Value> copy;
-            for (const std::string& key : init.object->EnumerableKeys()) {
-              const Value* value = init.object->Get(key);
-              copy.push_back(MakePair(call.interpreter, LowerCase(key),
-                                      value == nullptr ? std::string() : js::ToString(*value)));
-            }
-            WritePairs(call.interpreter, made, kHeaderPairsSlot, std::move(copy));
-          }
+        std::vector<Value> pairs;
+        if (!FillHeaderPairs(call, Argument(call.arguments, 0), pairs)) {
+          return call.ThrownValue();
         }
+        WritePairs(call.interpreter, made, kHeaderPairsSlot, std::move(pairs));
         return made;
       });
   if (constructor.IsObject()) {
@@ -483,18 +521,9 @@ void DomBindings::InstallResponse() {
           // The headers, which were being dropped. `new Response(body, {headers: {"Content-Type":
           // …}})` is how a page describes bytes it made itself, and a response whose type went
           // missing is one `formData()` and `json()` cannot decide what to do with.
-          if (const Value* given = init.object->Get("headers");
-              given != nullptr && given->IsObject()) {
-            if (given->object->GetOwn(kHeaderPairsSlot) != nullptr) {
-              for (const Value& pair : ReadPairs(*given, kHeaderPairsSlot)) {
-                made.headers.push_back(ScriptHeader{PairPart(pair, 0), PairPart(pair, 1)});
-              }
-            } else {
-              for (const std::string& key : given->object->EnumerableKeys()) {
-                const Value* value = given->object->Get(key);
-                made.headers.push_back(ScriptHeader{
-                    LowerCase(key), value == nullptr ? std::string() : js::ToString(*value)});
-              }
+          if (const Value* given = init.object->Get("headers"); given != nullptr) {
+            if (!FillScriptHeaders(call, *given, made.headers)) {
+              return call.ThrownValue();
             }
           }
         }
@@ -615,19 +644,9 @@ void DomBindings::InstallRequest() {
           if (const Value* given = init.object->Get("credentials")) {
             credentials = js::ToString(*given);
           }
-          if (const Value* given = init.object->Get("headers")) {
-            if (given->IsObject() && given->object->GetOwn(kHeaderPairsSlot) != nullptr) {
-              headers.clear();
-              for (const Value& pair : ReadPairs(*given, kHeaderPairsSlot)) {
-                headers.push_back(ScriptHeader{PairPart(pair, 0), PairPart(pair, 1)});
-              }
-            } else if (given->IsObject()) {
-              headers.clear();
-              for (const std::string& key : given->object->EnumerableKeys()) {
-                const Value* value = given->object->Get(key);
-                headers.push_back(ScriptHeader{
-                    LowerCase(key), value == nullptr ? std::string() : js::ToString(*value)});
-              }
+          if (const Value* given = init.object->Get("headers"); given != nullptr) {
+            if (!FillScriptHeaders(call, *given, headers)) {
+              return call.ThrownValue();
             }
           }
           if (const Value* given = init.object->Get("signal")) {

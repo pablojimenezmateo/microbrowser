@@ -1880,6 +1880,13 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
   ExpectEqString(js::ToString(blob.value), "function|blob:null/42", "Blob registers a url");
   ExpectEqString(network.registered, "self._d=u=>import(u)", "blob body preserved");
 
+  const js::Result mime = interpreter->Run(
+      "new Blob([], {type: 'TEXT/HTML;CHARSET=GBK'}).type + '|' +"
+      "new File([], 'n', {type: 'no-slash'}).type + '|' +"
+      "typeof File");
+  ExpectEqString(js::ToString(mime.value), "text/html;charset=GBK||function",
+                 "Blob.type parses a MIME type; File exists and shares the algorithm");
+
   // `new URL(location)` must coerce via Location.toString → href. The pure
   // `js::ToString` path invents "[object Object]", which ResolveUrl then
   // treats as a path against the document base — youtube's consent continue

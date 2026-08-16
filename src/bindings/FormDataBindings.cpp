@@ -19,6 +19,7 @@
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
 #include "bindings/FetchSupport.h"
+#include "util/MimeType.h"
 #include "util/StringUtil.h"
 #include "util/UrlEncoded.h"
 
@@ -373,6 +374,39 @@ void DomBindings::InstallBodyFormData(const js::Value& prototype, const char* bo
   if (form_data.IsObject()) {
     form_data.object->Set(kOwnerSlot, OwnerValue(this));
     prototype.object->Set("formData", form_data);
+  }
+
+  const Value blob = interpreter_->NewNativeValue("blob", [slot, used](NativeCall& call) -> Value {
+    if (!call.self.IsObject()) {
+      return SettledPromise(call.interpreter,
+                            call.interpreter.MakeError("TypeError", "not a body"), true);
+    }
+    if (const Value* already = call.self.object->GetOwn(used.c_str());
+        already != nullptr && js::ToBoolean(*already)) {
+      return SettledPromise(call.interpreter,
+                            call.interpreter.MakeError("TypeError", "body already read"), true);
+    }
+    std::string content_type;
+    if (const Value* headers = call.self.object->Get("headers");
+        headers != nullptr && headers->IsObject()) {
+      if (const Value* getter = headers->object->Get("get"); getter != nullptr) {
+        const js::Result found =
+            call.interpreter.CallFunction(*getter, *headers, {Value::String("content-type")});
+        if (!found.IsAbrupt() && found.value.IsString()) {
+          content_type = found.value.AsString();
+        }
+      }
+    }
+    call.self.object->SetHidden(used.c_str(), Value::Bool(true));
+    const Value* body = call.self.object->GetOwn(slot.c_str());
+    const std::string bytes = body == nullptr ? std::string() : js::ToString(*body);
+    return SettledPromise(call.interpreter,
+                          MakeBlobValue(call.interpreter, bytes, util::BlobMimeType(content_type)),
+                          false);
+  });
+  if (blob.IsObject()) {
+    blob.object->Set(kOwnerSlot, OwnerValue(this));
+    prototype.object->Set("blob", blob);
   }
 }
 
