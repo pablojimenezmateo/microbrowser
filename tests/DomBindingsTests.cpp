@@ -2028,6 +2028,20 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "new Blob([view]).size + ',' + new Blob([buffer]).size + ',' +"
                  "new Blob([view, 'hello']).size",
                  "0,0,5");
+    {
+      auto interpreter = std::make_unique<js::Interpreter>();
+      bindings::DomBindings worker(*interpreter, "https://example.org/", nullptr);
+      worker.InstallWorkerScope();
+      ExpectEqString(js::ToString(interpreter->Run("typeof MessageChannel").value), "function",
+                     "workers expose MessageChannel");
+      ExpectEqString(js::ToString(interpreter
+                                      ->Run("const buffer = new ArrayBuffer(4);"
+                                            "new Uint8Array(buffer)[0] = 65;"
+                                            "new MessageChannel().port1.postMessage(buffer, [buffer]);"
+                                            "new Blob([buffer]).size")
+                                      .value),
+                     "0", "a worker transfer detaches the ArrayBuffer");
+    }
   });
 
   AddTest(tests, "DomBindings/FileReaderReadsABlobAsText", [] {

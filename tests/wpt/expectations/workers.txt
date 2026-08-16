@@ -202,7 +202,6 @@ FAIL=existence of ononline
 harness=TIMEOUT
 [workers/constructors/Worker/expected-self-properties.worker.html]
 FAIL=existence of EventSource
-FAIL=existence of MessageChannel
 FAIL=existence of WebSocket
 FAIL=existence of Worker
 [workers/constructors/Worker/same-origin.html]

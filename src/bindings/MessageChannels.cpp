@@ -320,7 +320,16 @@ void DomBindings::DispatchPortMessage(const js::Value& port, const js::Value& da
   if (deliver.IsObject()) {
     deliver.object->Set("#port", port);
     deliver.object->Set("#data", data);
-    TimerQueue::QueueTask(*interpreter_, deliver);
+    if (!TimerQueue::QueueTask(*interpreter_, deliver)) {
+      // A worker has `setTimeout` and no `TimerQueue`. FileReader uses the
+      // same fallback; without it the bytes transfer and then the message is
+      // dropped, which is a stub rather than a channel.
+      const Value* set_timeout = interpreter_->GlobalScope()->Lookup("setTimeout");
+      if (set_timeout != nullptr && set_timeout->IsObject()) {
+        (void)interpreter_->CallFunction(*set_timeout, Value::Obj(interpreter_->Global()),
+                                         {deliver, Value::Number(0)});
+      }
+    }
   }
 }
 

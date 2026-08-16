@@ -76,6 +76,11 @@ void DomBindings::InstallWorkerScope() {
   InstallTextEncoding();
   InstallCrypto();
   InstallBlob();
+  // Same objects a page holds, and a worker script that feature-detects
+  // `MessageChannel` and finds nothing builds its own scheduler on
+  // `setTimeout`. Delivery goes through `QueueTask` when that queue exists and
+  // `setTimeout(0)` when it does not -- workers have the latter.
+  InstallMessageChannel();
   // `fetch`, `Headers`, `Request`, `Response`, `FormData`, `AbortController` and
   // `XMLHttpRequest` -- **the same code the page runs**, over a `NetworkSource` whose other end is
   // this worker's own thread. It installs nothing at all when there is no network behind it, which

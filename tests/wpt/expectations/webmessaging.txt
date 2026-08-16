@@ -317,9 +317,6 @@ FAIL=origin of the script that invoked the method, scheme/host/port
 harness=TIMEOUT
 [webmessaging/without-ports/021.html]
 harness=TIMEOUT
-[webmessaging/without-ports/025.html]
-FAIL=Worker MessageChannel's port should be an instance of MessagePort
-FAIL=Worker MessagePort should not be [[Callable]]
 [webmessaging/without-ports/026.html]
 FAIL=Cloning objects with getter properties
 [webmessaging/without-ports/027.html]
