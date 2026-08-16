@@ -24,6 +24,7 @@
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
 #include "html/FormControl.h"
+#include "util/StringUtil.h"
 
 namespace microbrowser::bindings {
 
@@ -134,10 +135,38 @@ void InstallIndeterminate(js::Interpreter& interpreter, const js::Value& input_i
   }
 }
 
+void InstallInputFiles(js::Interpreter& interpreter, const js::Value& input_interface,
+                       DomBindings* owner) {
+  if (!input_interface.IsObject()) {
+    return;
+  }
+  const Value getter = interpreter.NewNativeValue("files", [](NativeCall& call) -> Value {
+    const dom::Node* self = NodeOf(call.self);
+    if (self == nullptr || !self->IsElement() || !call.self.IsObject()) {
+      return Value::Null();
+    }
+    const std::string* type = static_cast<const dom::Element*>(self)->GetAttribute("type");
+    if (type == nullptr || util::AsciiLowerCase(*type) != "file") {
+      return Value::Null();
+    }
+    if (const Value* existing = call.self.object->GetOwn(kInputFileListSlot)) {
+      return *existing;
+    }
+    const Value list = MakeFileListValue(call.interpreter);
+    call.self.object->SetHidden(kInputFileListSlot, list);
+    return list;
+  });
+  if (getter.IsObject()) {
+    getter.object->Set(kOwnerSlot, PointerValue(owner));
+    input_interface.object->DefineAccessor("files", getter.object, nullptr);
+  }
+}
+
 }  // namespace
 
 void DomBindings::InstallFormApis() {
   InstallIndeterminate(*interpreter_, InterfaceNamed("HTMLInputElement"), this);
+  InstallInputFiles(*interpreter_, InterfaceNamed("HTMLInputElement"), this);
   // `document.forms`, as an accessor so it follows the tree rather than
   // freezing what it looked like when the bindings were installed. reddit's
   // interstitial reads `document.forms[0]`.

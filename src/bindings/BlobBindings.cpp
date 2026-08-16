@@ -398,6 +398,22 @@ js::Value MakeBlobValue(js::Interpreter& interpreter, std::string body, std::str
   return object;
 }
 
+js::Value MakeFileListValue(js::Interpreter& interpreter) {
+  const Value object = interpreter.NewObjectValue();
+  if (!object.IsObject()) {
+    return object;
+  }
+  const Value* constructor = interpreter.GlobalScope()->Lookup("FileList");
+  if (constructor != nullptr && constructor->IsObject()) {
+    if (const Value* prototype = constructor->object->Get("prototype");
+        prototype != nullptr && prototype->IsObject()) {
+      object.object->SetPrototype(prototype->object);
+    }
+  }
+  object.object->SetHidden(kFileListFilesSlot, interpreter.NewArrayValue({}));
+  return object;
+}
+
 void DomBindings::InstallBlob() {
   if (interpreter_ == nullptr) {
     return;
@@ -591,6 +607,40 @@ void DomBindings::InstallBlob() {
     interpreter_->GlobalScope()->Declare("File", file_constructor, false);
   }
   InstallFileReader();
+
+  const Value list_proto = MakeInterface("FileList", Value::Undefined());
+  if (list_proto.IsObject()) {
+    const Value length_get = interpreter_->NewNativeValue("length", [](NativeCall& call) {
+      const Value* files =
+          call.self.IsObject() ? call.self.object->GetOwn(kFileListFilesSlot) : nullptr;
+      return Value::Number(files != nullptr && files->IsObject()
+                               ? static_cast<double>(files->object->ElementCount())
+                               : 0.0);
+    });
+    if (length_get.IsObject()) {
+      list_proto.object->DefineAccessor("length", length_get.object, nullptr);
+    }
+    const Value item = interpreter_->NewNativeValue("item", [](NativeCall& call) -> Value {
+      const Value* files =
+          call.self.IsObject() ? call.self.object->GetOwn(kFileListFilesSlot) : nullptr;
+      const std::size_t count =
+          files != nullptr && files->IsObject() ? files->object->ElementCount() : 0;
+      const std::uint32_t index =
+          js::ToUint32(js::ToNumber(Argument(call.arguments, 0)));
+      if (static_cast<std::size_t>(index) >= count) {
+        return Value::Null();
+      }
+      return files->object->GetElement(index);
+    });
+    if (item.IsObject()) {
+      list_proto.object->Set("item", item);
+    }
+    if (const Value* list_ctor = list_proto.object->Get("constructor");
+        list_ctor != nullptr && list_ctor->IsObject()) {
+      list_ctor->object->Set("length", Value::Number(0));
+      interpreter_->Global()->Set("FileList", *list_ctor);
+    }
+  }
 }
 
 bool DomBindings::IsBlobValue(const js::Value& value) const { return IsBlob(value); }

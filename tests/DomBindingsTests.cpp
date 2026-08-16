@@ -1983,6 +1983,14 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "new File(['bits'], 'n', {lastModified: 42}).lastModified",
                  "TypeError,42");
     ExpectScript("<body></body>",
+                 "'FileList' in window && FileList.length === 0 &&"
+                 "document.createElement('input').files === null &&"
+                 "(() => { const i = document.createElement('input');"
+                 " i.type = 'file';"
+                 " return i.files instanceof FileList && i.files.length === 0 &&"
+                 "        i.files.item(0) === null && i.files === i.files; })()",
+                 "true");
+    ExpectScript("<body></body>",
                  "(() => { try { new Blob([], {endings: 'NATIVE'}); return 'no' } catch (e) { return e.name } })()",
                  "TypeError");
     Bound bound = Bind("<body></body>");
