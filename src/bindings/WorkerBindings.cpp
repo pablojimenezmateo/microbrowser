@@ -71,10 +71,12 @@ void DomBindings::InstallWorkerScope() {
   // under ADR 0012's rule a script that finds a name and gets something that never answers has no
   // fallback left.
   InstallStructuredClone();
-  // `DOMException` is a WorkerGlobalScope name. Without it,
-  // `new URLSearchParams(DOMException)` in a worker is `new URLSearchParams(undefined)`
-  // rather than a record of the legacy code constants.
-  InstallDomException(*interpreter_);
+  // EventTarget and `new Event()`, which `performance` and testharness both
+  // reach. EnsureInterfaces stops before Node when there is no document, but
+  // EventTarget is a WorkerGlobalScope name. InstallEventConstructors also
+  // installs DOMException.
+  EnsureInterfaces();
+  InstallEventConstructors();
   InstallUrlConstructor();
   InstallUrlSearchParams();
   InstallTextEncoding();

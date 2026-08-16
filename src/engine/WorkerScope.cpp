@@ -148,6 +148,10 @@ void WorkerScope::Install() {
   bindings_->InstallWorkerScope();
   started_ms_ = static_cast<std::int64_t>(NowMs());
   performance_.Install(interpreter_, started_ms_);
+  // Published before the first script, so `performance.now() > 0` is true of a
+  // worker that has already done its install work -- the same instant as origin
+  // would otherwise answer 0, which WPT's first assertion is.
+  performance_.Tick(interpreter_, static_cast<std::int64_t>(NowMs()));
 
   const Value post_message =
       interpreter_.NewNativeValue("postMessage", [this](NativeCall& call) -> Value {
@@ -536,6 +540,10 @@ void WorkerScope::RunDueTimers() {
   if (timers_.empty()) {
     return;
   }
+  // Before the callbacks, matching PageScript::RunDueWork: a timeout that
+  // compares `performance.now()` to `Date.now()` is asking how long it waited,
+  // and ticking afterwards would answer with the previous turn's clock.
+  performance_.Tick(interpreter_, static_cast<std::int64_t>(NowMs()));
   const double now = NowMs();
   // Snapshot of what is due, in deadline order, because a callback may add or clear timers. Ordering
   // by deadline rather than by insertion is the specification's: two timers armed together with

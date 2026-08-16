@@ -6,6 +6,7 @@
 #include <string_view>
 #include <utility>
 
+#include "bindings/BindingSupport.h"
 #include "bindings/PerformanceEntries.h"
 
 // The half of `performance` the *engine* drives: the `navigation` and `resource`
@@ -21,6 +22,7 @@ namespace microbrowser::bindings {
 
 namespace {
 
+using js::NativeCall;
 using js::Value;
 using performance_entries::MakeEntry;
 using performance_entries::Record;
@@ -77,6 +79,23 @@ Value TimingObject(js::Interpreter& interpreter) {
         "loadEventStart", "loadEventEnd"}) {
     timing.object->Set(field, Value::Number(0.0));
   }
+  const Value to_json = interpreter.NewNativeValue("toJSON", [](NativeCall& call) {
+    const Value json = call.interpreter.NewObjectValue();
+    if (!json.IsObject() || !call.self.IsObject()) {
+      return json;
+    }
+    for (const std::string& key : call.self.object->Keys()) {
+      const Value* value = call.self.object->GetOwn(key);
+      if (value == nullptr || (value->IsObject() && value->object->IsCallable())) {
+        continue;
+      }
+      json.object->Set(key, *value);
+    }
+    return json;
+  });
+  if (to_json.IsObject()) {
+    timing.object->Set("toJSON", to_json);
+  }
   interpreter.Global()->SetHidden(kTimingSlot, timing);
   return timing;
 }
@@ -89,6 +108,28 @@ void Performance::InstallTiming(js::Interpreter& interpreter, const Value& perfo
     return;
   }
   performance.object->Set("timing", timing);
+  // Legacy `PerformanceNavigation`. `type` 0 is TYPE_NAVIGATE; this browser has
+  // no reload/back_forward distinct from a new document, so the other codes
+  // are not produced. `toJSON` is what performance-tojson.html asks for.
+  const Value navigation = interpreter.NewObjectValue();
+  if (navigation.IsObject()) {
+    navigation.object->Set("type", Value::Number(0.0));
+    navigation.object->Set("redirectCount", Value::Number(0.0));
+    const Value to_json = interpreter.NewNativeValue("toJSON", [](NativeCall& call) {
+      const Value json = call.interpreter.NewObjectValue();
+      if (!json.IsObject() || !call.self.IsObject()) {
+        return json;
+      }
+      json.object->Set("type", call.interpreter.GetPropertyValue(call.self, "type"));
+      json.object->Set("redirectCount",
+                       call.interpreter.GetPropertyValue(call.self, "redirectCount"));
+      return json;
+    });
+    if (to_json.IsObject()) {
+      navigation.object->Set("toJSON", to_json);
+    }
+    performance.object->Set("navigation", navigation);
+  }
   WriteDocumentTiming(interpreter);
 }
 

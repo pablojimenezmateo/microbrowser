@@ -258,11 +258,15 @@ void RegisterPerformanceApiTests(std::vector<TestCase>& tests) {
     Session session;
     session.Run("",
                 "console.log(typeof performance.now());"
-                "console.log(performance.now() >= 0 && performance.now() < 3600000);"
-                "console.log(performance.timeOrigin);");
-    // Small and non-negative: a duration since this document started. A wall
+                "console.log(performance.now() > 0 && performance.now() < 3600000);"
+                "console.log(performance.timeOrigin);"
+                "console.log(typeof performance.toJSON);"
+                "console.log(typeof performance.addEventListener);");
+    // Small and positive: a duration since this document started. A wall
     // clock would be about 1.7e12, which is the number this must never be.
-    ExpectEqString(session.Console(), "number|true|0", "Errors: " + session.Errors());
+    // toJSON and EventTarget are what hr-time/basic and performance-tojson ask.
+    ExpectEqString(session.Console(), "number|true|0|function|function",
+                   "Errors: " + session.Errors());
   });
 
   AddTest(tests, "PerformanceApi/AnEntryProducedInACallbackWaitsForTheNextDelivery", [] {

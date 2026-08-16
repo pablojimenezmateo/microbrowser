@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "bindings/BindingSupport.h"
+#include "bindings/Fingerprint.h"
 #include "bindings/PerformanceEntries.h"
 #include "util/PerformanceCounters.h"
 
@@ -228,6 +229,16 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
     performance.object->Set("now", now);
   }
   performance.object->Set("timeOrigin", Value::Number(0.0));
+  // `Performance` is an EventTarget. Without the prototype,
+  // `performance.addEventListener` is undefined and hr-time/basic.any.html's
+  // last subtest is a TypeError rather than a dispatch.
+  if (const Value* event_target = interpreter.GlobalScope()->Lookup("EventTarget");
+      event_target != nullptr && event_target->IsObject()) {
+    if (const Value* proto = event_target->object->Get("prototype");
+        proto != nullptr && proto->IsObject()) {
+      performance.object->SetPrototype(proto->object);
+    }
+  }
 
   const Value mark = interpreter.NewNativeValue("mark", [](NativeCall& call) {
     const std::string name = js::ToString(Argument(call.arguments, 0));
@@ -377,9 +388,25 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
   // the module: see PerformanceTiming.cpp.
   InstallTiming(interpreter, performance);
 
+  const Value to_json = interpreter.NewNativeValue("toJSON", [](NativeCall& call) {
+    const Value json = call.interpreter.NewObjectValue();
+    if (!json.IsObject() || !call.self.IsObject()) {
+      return json;
+    }
+    json.object->Set("timeOrigin",
+                     call.interpreter.GetPropertyValue(call.self, "timeOrigin"));
+    json.object->Set("timing", call.interpreter.GetPropertyValue(call.self, "timing"));
+    json.object->Set("navigation",
+                     call.interpreter.GetPropertyValue(call.self, "navigation"));
+    return json;
+  });
+  if (to_json.IsObject()) {
+    performance.object->Set("toJSON", to_json);
+  }
+
   interpreter.Global()->Set("performance", performance);
   interpreter.GlobalScope()->Declare("performance", performance, false);
-  interpreter.Global()->SetHidden("#performance:now", Value::Number(0.0));
+  interpreter.Global()->SetHidden("#performance:now", Value::Number(kTimerResolutionMs));
 
   // --- PerformanceObserver --------------------------------------------------
 
@@ -555,7 +582,12 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
 }
 
 void Performance::Tick(js::Interpreter& interpreter, std::int64_t now_ms) {
-  interpreter.Global()->SetHidden("#performance:now", Value::Number(Now(now_ms)));
+  // Floor at the coarsened quantum so the first script of a document whose
+  // origin is this turn's clock still answers a positive number. WPT's
+  // `now() > 0` is that, and 0 is what integer milliseconds at the origin
+  // otherwise produce.
+  const double elapsed = std::max(Now(now_ms), kTimerResolutionMs);
+  interpreter.Global()->SetHidden("#performance:now", Value::Number(elapsed));
 }
 
 

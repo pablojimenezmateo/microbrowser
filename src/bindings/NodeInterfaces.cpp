@@ -161,25 +161,25 @@ void DomBindings::EnsureInterfaces() {
   // reclaimed memory.
   interpreter_->Global()->Set("#domInterfaces", interfaces_);
 
-  // **No document: this is a worker's global, and the DOM interfaces are deliberately absent.**
-  // The table itself still exists, because things that are not DOM types at all -- `URLSearchParams`,
-  // `AbortSignal` -- hang a prototype on it. What must not appear is `Node`, `Element`,
-  // `HTMLDivElement` and the ninety others: there is no tree in a worker, and under ADR 0012's rule a
-  // script that finds `Element` in a `WorkerGlobalScope` has been told something false about where it
-  // is running. `idlharness` asserts their absence directly.
+  // EventTarget is a WorkerGlobalScope name as well as a Window one. Returning
+  // before it exists left `performance.addEventListener` and `FileReader` without
+  // a prototype, which is how hr-time/basic.any.worker.html died.
+  const Value event_target = MakeInterface("EventTarget", Value::Undefined());
+  InstallEventMethods(event_target);
+
+  // **No document: this is a worker's global, and the rest of the DOM is absent.**
+  // The table itself still exists, because things that are not tree types --
+  // `URLSearchParams`, `AbortSignal`, EventTarget -- hang a prototype on it.
+  // What must not appear is `Node`, `Element`, `HTMLDivElement` and the ninety
+  // others: there is no tree in a worker, and under ADR 0012's rule a script that
+  // finds `Element` in a `WorkerGlobalScope` has been told something false about
+  // where it is running. `idlharness` asserts their absence directly.
   if (document_ == nullptr) {
     return;
   }
-
-  // EventTarget is the root, and it is not decoration: the specification puts
-  // `addEventListener` there rather than on Node, and a polyfill that patches
-  // event dispatch patches `EventTarget.prototype` -- which is exactly what
-  // youtube's webcomponents bundle does, guarded by `window.EventTarget ? ... :
-  // ...` where the else branch patches Node and Window separately. A browser
-  // without the name takes the branch written for browsers from before it
-  // existed.
-  const Value event_target = MakeInterface("EventTarget", Value::Undefined());
-  InstallEventMethods(event_target);
+  // EventTarget is the root of the node chain, and it is not decoration: a
+  // polyfill that patches event dispatch patches `EventTarget.prototype` --
+  // which is exactly what youtube's webcomponents bundle does.
   const Value node = MakeInterface("Node", event_target);
   // The nodeType constants live on the interface object. ShadyDOM's ShadowRoot
   // does `Object.defineProperties(proto, { nodeType: { value:
