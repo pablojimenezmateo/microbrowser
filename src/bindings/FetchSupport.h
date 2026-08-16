@@ -96,6 +96,52 @@ inline void MaybeSetBodyContentType(std::vector<ScriptHeader>& headers,
   }
 }
 
+// XHR's send() charset reconciliation: if the author already set Content-Type
+// and it names a charset, that charset becomes UTF-8. The specification writes
+// this for a Document or a string; Blink, Gecko and WebKit also do it for
+// URLSearchParams, whose body is always UTF-8. A type with no charset is left
+// alone -- `text/plain` stays `text/plain`.
+inline void ReplaceAuthorContentTypeCharset(std::vector<ScriptHeader>& headers) {
+  for (ScriptHeader& header : headers) {
+    if (!util::EqualsAsciiCaseInsensitive(header.name, "content-type")) {
+      continue;
+    }
+    std::string& type = header.value;
+    for (std::size_t i = 0; i < type.size(); ++i) {
+      if (type[i] != ';') {
+        continue;
+      }
+      std::size_t name = i + 1;
+      while (name < type.size() && (type[name] == ' ' || type[name] == '\t')) {
+        ++name;
+      }
+      constexpr std::string_view kCharset = "charset=";
+      if (name + kCharset.size() > type.size() ||
+          !util::EqualsAsciiCaseInsensitive(std::string_view(type.data() + name, kCharset.size()),
+                                            kCharset)) {
+        continue;
+      }
+      const std::size_t value = name + kCharset.size();
+      std::size_t end = value;
+      if (end < type.size() && type[end] == '"') {
+        ++end;
+        while (end < type.size() && type[end] != '"') {
+          ++end;
+        }
+        if (end < type.size()) {
+          ++end;
+        }
+      } else {
+        while (end < type.size() && type[end] != ';') {
+          ++end;
+        }
+      }
+      type.replace(value, end - value, "UTF-8");
+      return;
+    }
+  }
+}
+
 // Bytes a page handed to `fetch` / `new Request` as a body. Strings stay
 // strings; ArrayBuffer and typed-array views are copied as raw bytes; FormData
 // becomes `multipart/form-data` and fills `content_type` when given.

@@ -239,8 +239,17 @@ void DomBindings::InstallXhr() {
     for (const Value& pair : ReadPairs(call.self, kXhrHeadersSlot)) {
       request.headers.push_back(ScriptHeader{PairPart(pair, 0), PairPart(pair, 1)});
     }
+    // GET and HEAD have no request body. The specification sets body to null
+    // before extract-MIME, so neither the bytes nor a Content-Type derived from
+    // them go out -- an author-set Content-Type is kept.
+    const bool bodyless = util::EqualsAsciiCaseInsensitive(request.method, "GET") ||
+                          util::EqualsAsciiCaseInsensitive(request.method, "HEAD");
     const Value body = Argument(call.arguments, 0);
-    if (!body.IsUndefined() && !body.IsNull()) {
+    if (!bodyless && !body.IsUndefined() && !body.IsNull()) {
+      const bool had_content_type = std::any_of(
+          request.headers.begin(), request.headers.end(), [](const ScriptHeader& header) {
+            return util::EqualsAsciiCaseInsensitive(header.name, "content-type");
+          });
       bool from_string = false;
       std::string extracted_type;
       if (!ExtractRequestBody(body, request.body, from_string, &extracted_type)) {
@@ -248,6 +257,9 @@ void DomBindings::InstallXhr() {
       }
       request.body_from_string = from_string;
       MaybeSetBodyContentType(request.headers, extracted_type, from_string);
+      if (had_content_type && (from_string || IsSearchParamsValue(body))) {
+        ReplaceAuthorContentTypeCharset(request.headers);
+      }
     }
     // `withCredentials` is the whole of XHR's CORS surface, and it means what
     // `credentials: "include"` means -- which is why it can be one line here

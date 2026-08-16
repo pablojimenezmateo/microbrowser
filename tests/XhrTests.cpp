@@ -179,6 +179,57 @@ void RegisterXhrTests(std::vector<TestCase>& tests) {
     Expect(request.find("name=value") != std::string::npos, "and the body: " + request);
   });
 
+  AddTest(tests, "Xhr/GetAndHeadDropABodyTheSpecForbids", [] {
+    // XHR send() sets body to null for GET and HEAD before extract-MIME, so a
+    // URLSearchParams argument must not put bytes or a Content-Type on the wire.
+    Session session;
+    session.Serve(Json("{}"));
+    session.Serve(Json("{}"));
+    session.Run(
+        "var get = new XMLHttpRequest();"
+        "get.open('GET', '/echo');"
+        "get.send(new URLSearchParams('a=b'));"
+        "var head = new XMLHttpRequest();"
+        "head.open('HEAD', '/echo');"
+        "head.send(new URLSearchParams('a=b'));");
+    Expect(session.factory.log.requests.size() >= 3,
+           "the document and both XHRs. Errors: " + session.Errors());
+    const auto body_of = [](const std::string& request) {
+      const std::size_t blank = request.find("\r\n\r\n");
+      return blank == std::string::npos ? std::string() : request.substr(blank + 4);
+    };
+    const auto has_content_type = [](const std::string& request) {
+      return request.find("Content-Type:") != std::string::npos ||
+             request.find("content-type:") != std::string::npos;
+    };
+    const std::string& get = session.factory.log.requests.at(1);
+    Expect(get.rfind("GET /echo ", 0) == 0, "GET method: " + get);
+    Expect(body_of(get).empty(), "GET has no body: " + get);
+    Expect(!has_content_type(get), "GET has no Content-Type: " + get);
+    const std::string& head = session.factory.log.requests.at(2);
+    Expect(head.rfind("HEAD /echo ", 0) == 0, "HEAD method: " + head);
+    Expect(body_of(head).empty(), "HEAD has no body: " + head);
+    Expect(!has_content_type(head), "HEAD has no Content-Type: " + head);
+  });
+
+  AddTest(tests, "Xhr/UrlSearchParamsReplacesAnAuthorCharset", [] {
+    Session session;
+    session.Serve(Json("{}"));
+    session.Run(
+        "var x = new XMLHttpRequest();"
+        "x.open('POST', '/submit');"
+        "x.setRequestHeader('Content-Type', 'text/plain;charset=windows-1252');"
+        "x.send(new URLSearchParams('a=b'));");
+    Expect(session.factory.log.requests.size() >= 2,
+           "the document and the XHR. Errors: " + session.Errors());
+    const std::string& request = session.factory.log.requests.at(1);
+    Expect(request.find("text/plain;charset=UTF-8") != std::string::npos,
+           "charset becomes UTF-8: " + request);
+    Expect(request.find("windows-1252") == std::string::npos,
+           "the author's charset is gone: " + request);
+    Expect(request.find("a=b") != std::string::npos, "and the body is still sent: " + request);
+  });
+
   AddTest(tests, "Xhr/AForbiddenHeaderIsDroppedRatherThanRefused", [] {
     Session session;
     session.Serve(Json("{}"));
