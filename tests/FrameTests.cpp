@@ -163,6 +163,31 @@ void RegisterFrameTests(std::vector<TestCase>& tests) {
                    "a frame a script appended after the load is fetched and fires load");
   });
 
+  AddTest(tests, "Frames/LoadAfterSrcIgnoresTheBlankDocument", [] {
+    // Range-insertNode appends the iframe (about:blank), then assigns onload, then src. The blank
+    // document's load is queued on append; delivering it after src was set ran the handler against
+    // an empty page.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true, OkResponse("text/html", "<body>ok</body>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true, OkResponse("text/html", "<title>from-src</title>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://page.example/"});
+
+    session.Run(
+        "const f = document.createElement('iframe');"
+        "document.body.appendChild(f);"
+        "f.onload = function () { console.log(f.contentDocument.title); };"
+        "f.src = '/from-src.html';");
+
+    ExpectEqString(Joined(session.engine.ConsoleOutput()), "from-src",
+                   "onload after src sees the navigated document, not about:blank");
+  });
+
   AddTest(tests, "Frames/AssigningSrcRenavigatesTheFrame", [] {
     // `iframe.src = other` is an *attribute* write, so it moves the document's mutation version
     // and leaves its structure version alone. The collection pass is gated on structure -- it has

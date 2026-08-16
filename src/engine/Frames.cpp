@@ -115,6 +115,13 @@ std::vector<std::size_t> FrameTree::Collect(
         // the new document would run in the realm the old one's objects are still in, which is the
         // "one global per document" rule this whole file is downstream of. ADR 0042 §5.
         existing->scripting_attached = false;
+        existing->scripts_outstanding = 0;
+        // The about:blank `load` queued on `appendChild` must not fire after `src` was assigned:
+        // Range-insertNode sets `onload` then `src`, and delivering the blank document's event
+        // made setupRangeTests a missing name on an empty page.
+        pending_load_events_.erase(
+            std::remove(pending_load_events_.begin(), pending_load_events_.end(), element),
+            pending_load_events_.end());
         // The context survives a navigation and its realm could too -- but this engine builds a
         // whole new `Page` for the new document, so the old realm has no owner left. Given back
         // here, where the page that held it is about to be dropped; a realm nobody hands back is a
