@@ -1884,8 +1884,8 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
       "new Blob([], {type: 'TEXT/HTML;CHARSET=GBK'}).type + '|' +"
       "new File([], 'n', {type: 'no-slash'}).type + '|' +"
       "typeof File");
-  ExpectEqString(js::ToString(mime.value), "text/html;charset=GBK||function",
-                 "Blob.type parses a MIME type; File exists and shares the algorithm");
+  ExpectEqString(js::ToString(mime.value), "text/html;charset=gbk|no-slash|function",
+                 "Blob.type lowercases printable ASCII; File exists and shares the algorithm");
 
   // `new URL(location)` must coerce via Location.toString → href. The pure
   // `js::ToString` path invents "[object Object]", which ResolveUrl then
@@ -1962,6 +1962,22 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "(() => { try { new Blob('abc'); return 'no' } catch (e) { return e.name } })()"
                  " + ',' + Blob.length",
                  "TypeError,0");
+    ExpectScript("<body></body>",
+                 "new Blob([], {type: 'A'}).type + '|' +"
+                 "new Blob([], {type: ' image/gif '}).type",
+                 "a| image/gif ");
+    ExpectScript("<body></body>",
+                 "const o = { [Symbol.iterator]: Array.prototype[Symbol.iterator], "
+                 "0: 'PASS', length: 1 };"
+                 "new Blob(o).size",
+                 "4");
+    ExpectScript("<body></body>",
+                 "const view = new Uint8Array([0, 255, 0]);"
+                 "new Blob([view.buffer, view.buffer]).size",
+                 "6");
+    ExpectScript("<body></body>",
+                 "new Blob(new String('xyz')).size",
+                 "3");
   });
 
   AddTest(tests, "DomBindings/IframeInsertCompletesEsmsFeatureDetection", [] {

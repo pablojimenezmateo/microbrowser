@@ -5,11 +5,11 @@
 // without both halves the polyfill's `initPromise` never settles and concat
 // bundles never run.
 //
-// `type` is the MIME Sniffing parse-then-serialize, not the string a page
-// wrote: `new Blob([], {type: "TEXT/HTML;CHARSET=GBK"}).type` is
-// `text/html;charset=GBK`, and a string that does not parse is the empty
-// string. File is a Blob with a name, sharing the same slots so `blob()` on a
-// Response and `new File` are the same shape.
+// File API `type` is printable ASCII 0x20-0x7E, then lowercased -- the same
+// algorithm as `slice`, and not the MIME parser. `new Blob([], {type: "A"}).type`
+// is `"a"`, and `" image/gif "` keeps its spaces. File is a Blob with a name,
+// sharing the same slots so `blob()` on a Response and `new File` are the same
+// shape.
 
 #include <algorithm>
 #include <cmath>
@@ -23,7 +23,6 @@
 #include "bindings/DomBindings.h"
 #include "js/Heap.h"
 #include "js/Interpreter.h"
-#include "util/MimeType.h"
 #include "util/StringUtil.h"
 
 namespace microbrowser::bindings {
@@ -51,15 +50,16 @@ std::string BlobType(const Value& blob) {
   return type == nullptr || !type->IsString() ? std::string() : type->AsString();
 }
 
-std::string TypeFromOptions(const Value& options) {
-  if (!options.IsObject()) {
-    return std::string();
+// File API type: ASCII 0x20-0x7E, then lowercased. A tab, a DEL, or a
+// non-ASCII code point empties the type rather than being stripped.
+std::string CanonicalContentType(std::string_view type) {
+  for (const char ch : type) {
+    const auto c = static_cast<unsigned char>(ch);
+    if (c < 0x20 || c > 0x7E) {
+      return std::string();
+    }
   }
-  const Value* named_type = options.object->Get("type");
-  if (named_type == nullptr || named_type->IsUndefined()) {
-    return std::string();
-  }
-  return util::BlobMimeType(js::ToString(*named_type));
+  return util::AsciiLowerCase(std::string(type));
 }
 
 void AppendBufferBytes(std::string& body, const Value& part) {
@@ -78,16 +78,25 @@ void AppendBufferBytes(std::string& body, const Value& part) {
   body.append(reinterpret_cast<const char*>(view->bytes->data() + view->offset), byte_length);
 }
 
-void AppendPart(std::string& body, const Value& part) {
+bool AppendPart(NativeCall& call, std::string& body, const Value& part) {
   if (IsBlob(part)) {
     body += BlobBody(part);
-    return;
+    return true;
   }
   if (part.IsObject() && part.object->View() != nullptr) {
     AppendBufferBytes(body, part);
-    return;
+    return true;
   }
-  body += js::ToString(part);
+  // The interpreter's ToString: a part's own `toString` has to run, and a throw
+  // from it has to stop the constructor before `options.type` is read.
+  std::string text;
+  const js::Result converted = call.interpreter.ToStringOf(part, text);
+  if (converted.IsAbrupt()) {
+    (void)call.ThrowValue(converted.value);
+    return false;
+  }
+  body += text;
+  return true;
 }
 
 bool BodyFromBlobParts(NativeCall& call, const Value& parts, std::string& body) {
@@ -98,12 +107,79 @@ bool BodyFromBlobParts(NativeCall& call, const Value& parts, std::string& body) 
     (void)call.Throw("TypeError", "Blob parts must be a sequence");
     return false;
   }
-  std::vector<Value> items;
-  if (!IterateValue(call, parts, items)) {
+  // Convert each yielded value before asking for the next. Prefetching the
+  // whole sequence and then ToString-ing it would miss a `pop()` inside the
+  // first element's `toString`, which the iterator is specified to observe.
+  //
+  // `@@iterator` is a [[Get]]: a getter has to run, and `Object::Get` skips
+  // accessors, which made the constructor throw TypeError instead of the
+  // exception the getter's length-or-index neighbour threw.
+  js::Result abrupt = js::Result::Normal();
+  const Value method = call.interpreter.GetPropertyOrThrow(
+      parts, js::PropertyKey::Symbol(call.interpreter.SymbolIterator()), abrupt);
+  if (abrupt.IsAbrupt()) {
+    (void)call.ThrowValue(abrupt.value);
     return false;
   }
-  for (const Value& item : items) {
-    AppendPart(body, item);
+  if (!method.IsObject() || !method.object->IsCallable()) {
+    (void)call.Throw("TypeError", "value is not iterable");
+    return false;
+  }
+  const js::Result iterator = call.interpreter.CallFunction(method, parts, {});
+  if (iterator.IsAbrupt()) {
+    (void)call.ThrowValue(iterator.value);
+    return false;
+  }
+  if (!iterator.value.IsObject()) {
+    (void)call.Throw("TypeError", "iterator is not an object");
+    return false;
+  }
+  const Value* next = iterator.value.object->Get("next");
+  if (next == nullptr) {
+    (void)call.Throw("TypeError", "iterator has no next()");
+    return false;
+  }
+  constexpr std::size_t kMaxSteps = 1u << 22;
+  for (std::size_t step = 0; step < kMaxSteps; ++step) {
+    const js::Result stepped = call.interpreter.CallFunction(*next, iterator.value, {});
+    if (stepped.IsAbrupt()) {
+      (void)call.ThrowValue(stepped.value);
+      return false;
+    }
+    if (!stepped.value.IsObject()) {
+      (void)call.Throw("TypeError", "iterator result is not an object");
+      return false;
+    }
+    const Value* done = stepped.value.object->Get("done");
+    if (done != nullptr && js::ToBoolean(*done)) {
+      return true;
+    }
+    const Value* item = stepped.value.object->Get("value");
+    if (!AppendPart(call, body, item == nullptr ? Value::Undefined() : *item)) {
+      return false;
+    }
+  }
+  (void)call.Throw("TypeError", "iterator did not finish");
+  return false;
+}
+
+bool ReadDictionaryMember(NativeCall& call, const Value& options, const char* name,
+                          std::string& text, bool& present) {
+  js::Result abrupt = js::Result::Normal();
+  const Value value = call.interpreter.GetPropertyOrThrow(options, name, abrupt);
+  if (abrupt.IsAbrupt()) {
+    (void)call.ThrowValue(abrupt.value);
+    return false;
+  }
+  present = !value.IsUndefined();
+  if (!present) {
+    text.clear();
+    return true;
+  }
+  const js::Result converted = call.interpreter.ToStringOf(value, text);
+  if (converted.IsAbrupt()) {
+    (void)call.ThrowValue(converted.value);
+    return false;
   }
   return true;
 }
@@ -117,7 +193,22 @@ bool OptionsType(NativeCall& call, const Value& options, std::string& type) {
     (void)call.Throw("TypeError", "Blob options must be an object");
     return false;
   }
-  type = TypeFromOptions(options);
+  // WebIDL dictionary order is lexicographic: `endings` then `type`. A getter
+  // or a toString on either has to run in that order even when we ignore
+  // `endings`.
+  std::string endings;
+  bool has_endings = false;
+  if (!ReadDictionaryMember(call, options, "endings", endings, has_endings)) {
+    return false;
+  }
+  (void)endings;
+  (void)has_endings;
+  std::string raw;
+  bool has_type = false;
+  if (!ReadDictionaryMember(call, options, "type", raw, has_type)) {
+    return false;
+  }
+  type = has_type ? CanonicalContentType(raw) : std::string();
   return true;
 }
 
@@ -145,20 +236,13 @@ std::size_t NormalizeSlice(std::int64_t relative, std::size_t size) {
   return static_cast<std::uint64_t>(relative) > size ? size : static_cast<std::size_t>(relative);
 }
 
-// File API slice type: ASCII 0x20-0x7E, then lowercased. Not the MIME parser
-// the constructor uses -- `slice(0,0,null).type` is `"null"`.
+// `slice`'s contentType argument: same printable-ASCII rule as the constructor,
+// including `slice(0,0,null).type === "null"`.
 std::string SliceContentType(const Value& value) {
   if (value.IsUndefined()) {
     return std::string();
   }
-  const std::string type = js::ToString(value);
-  for (const char ch : type) {
-    const auto c = static_cast<unsigned char>(ch);
-    if (c < 0x20 || c > 0x7E) {
-      return std::string();
-    }
-  }
-  return util::AsciiLowerCase(type);
+  return CanonicalContentType(js::ToString(value));
 }
 
 js::Value Settled(js::Interpreter& interpreter, const Value& value) {

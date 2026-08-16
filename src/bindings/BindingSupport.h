@@ -176,13 +176,18 @@ inline bool IterateValue(js::NativeCall& call, const js::Value& value,
     (void)call.Throw("TypeError", "value is not iterable");
     return false;
   }
-  const js::Value* method =
-      value.object->Get(js::PropertyKey::Symbol(call.interpreter.SymbolIterator()));
-  if (method == nullptr || !method->IsObject() || !method->object->IsCallable()) {
+  js::Result abrupt = js::Result::Normal();
+  const js::Value method = call.interpreter.GetPropertyOrThrow(
+      value, js::PropertyKey::Symbol(call.interpreter.SymbolIterator()), abrupt);
+  if (abrupt.IsAbrupt()) {
+    (void)call.ThrowValue(abrupt.value);
+    return false;
+  }
+  if (!method.IsObject() || !method.object->IsCallable()) {
     (void)call.Throw("TypeError", "value is not iterable");
     return false;
   }
-  const js::Result iterator = call.interpreter.CallFunction(*method, value, {});
+  const js::Result iterator = call.interpreter.CallFunction(method, value, {});
   if (iterator.IsAbrupt()) {
     (void)call.ThrowValue(iterator.value);
     return false;
