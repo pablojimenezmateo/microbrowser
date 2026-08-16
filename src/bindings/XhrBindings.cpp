@@ -241,7 +241,13 @@ void DomBindings::InstallXhr() {
     }
     const Value body = Argument(call.arguments, 0);
     if (!body.IsUndefined() && !body.IsNull()) {
-      request.body = js::ToString(body);
+      bool from_string = false;
+      std::string extracted_type;
+      if (!ExtractRequestBody(body, request.body, from_string, &extracted_type)) {
+        return call.Throw("TypeError", "failed to read request body");
+      }
+      request.body_from_string = from_string;
+      MaybeSetExtractedContentType(request.headers, extracted_type);
     }
     // `withCredentials` is the whole of XHR's CORS surface, and it means what
     // `credentials: "include"` means -- which is why it can be one line here

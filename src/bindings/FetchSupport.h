@@ -7,7 +7,9 @@
 #include <vector>
 
 #include "bindings/BindingSupport.h"
+#include "bindings/Network.h"
 #include "js/Interpreter.h"
+#include "util/StringUtil.h"
 
 // Shared by the two `fetch` translation units and private to the module, for
 // the reason BindingSupport.h is: a binding is an implementation detail of the
@@ -67,11 +69,33 @@ inline js::Value SettledPromise(js::Interpreter& interpreter, const js::Value& v
 // FetchStreams.cpp; declared here so Response.body can call it.
 js::Value MakeBodyStream(js::Interpreter& interpreter, const js::Value& response);
 
+// Multipart bytes and `Content-Type` for a `FormData` body. Defined in
+// FormDataBindings.cpp so the encoder lives next to the entry list it reads.
+bool EncodeFormDataBody(const js::Value& form_data, std::string& out, std::string& content_type);
+
+inline void MaybeSetExtractedContentType(std::vector<ScriptHeader>& headers,
+                                         const std::string& type) {
+  if (type.empty()) {
+    return;
+  }
+  for (const ScriptHeader& header : headers) {
+    if (util::EqualsAsciiCaseInsensitive(header.name, "content-type")) {
+      return;
+    }
+  }
+  headers.push_back({"Content-Type", type});
+}
+
 // Bytes a page handed to `fetch` / `new Request` as a body. Strings stay
-// strings; ArrayBuffer and typed-array views are copied as raw bytes.
-inline bool ExtractRequestBody(const js::Value& value, std::string& out, bool& from_string) {
+// strings; ArrayBuffer and typed-array views are copied as raw bytes; FormData
+// becomes `multipart/form-data` and fills `content_type` when given.
+inline bool ExtractRequestBody(const js::Value& value, std::string& out, bool& from_string,
+                               std::string* content_type = nullptr) {
   from_string = false;
   out.clear();
+  if (content_type != nullptr) {
+    content_type->clear();
+  }
   if (value.IsUndefined() || value.IsNull()) {
     return true;
   }
@@ -83,6 +107,17 @@ inline bool ExtractRequestBody(const js::Value& value, std::string& out, bool& f
   if (!value.IsObject()) {
     out = js::ToString(value);
     from_string = true;
+    return true;
+  }
+  if (IsFormDataValue(value)) {
+    std::string type;
+    if (!EncodeFormDataBody(value, out, type)) {
+      return false;
+    }
+    from_string = false;
+    if (content_type != nullptr) {
+      *content_type = std::move(type);
+    }
     return true;
   }
   const js::BufferView* view = value.object->View();

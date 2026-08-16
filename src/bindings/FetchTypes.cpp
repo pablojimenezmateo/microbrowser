@@ -507,8 +507,12 @@ void DomBindings::InstallResponse() {
         made.status = 200;
         made.status_text = "OK";
         const Value body = Argument(call.arguments, 0);
+        std::string extracted_type;
         if (!body.IsUndefined() && !body.IsNull()) {
-          made.body = js::ToString(body);
+          bool from_string = false;
+          if (!ExtractRequestBody(body, made.body, from_string, &extracted_type)) {
+            return call.Throw("TypeError", "failed to read response body");
+          }
         }
         const Value init = Argument(call.arguments, 1);
         if (init.IsObject()) {
@@ -527,6 +531,7 @@ void DomBindings::InstallResponse() {
             }
           }
         }
+        MaybeSetExtractedContentType(made.headers, extracted_type);
         Value response = MakeResponse(made);
         if (response.IsObject() && prototype.IsObject()) {
           response.object->SetPrototype(prototype.object);
@@ -583,6 +588,7 @@ void DomBindings::InstallRequest() {
         std::vector<ScriptHeader> headers;
         std::string body_bytes;
         bool body_from_string = false;
+        std::string extracted_type;
         Value signal;
         if (input.IsObject() && input.object->GetOwn("url") != nullptr) {
           if (!CoerceToString(call, *input.object->Get("url"), url)) {
@@ -633,7 +639,7 @@ void DomBindings::InstallRequest() {
           }
           if (const Value* given = init.object->Get("body")) {
             if (!given->IsUndefined() && !given->IsNull()) {
-              if (!ExtractRequestBody(*given, body_bytes, body_from_string)) {
+              if (!ExtractRequestBody(*given, body_bytes, body_from_string, &extracted_type)) {
                 return call.Throw("TypeError", "failed to read request body");
               }
             }
@@ -653,6 +659,7 @@ void DomBindings::InstallRequest() {
             signal = *given;
           }
         }
+        MaybeSetExtractedContentType(headers, extracted_type);
         made.object->Set("url", Value::String(std::move(url)));
         made.object->Set("method", Value::String(std::move(method)));
         made.object->Set("mode", Value::String(std::move(mode)));

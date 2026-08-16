@@ -354,6 +354,42 @@ void RegisterFetchApiTests(std::vector<TestCase>& tests) {
     Expect(request.find("\r\n\r\na=1") != std::string::npos, "the body followed the headers");
   });
 
+  AddTest(tests, "Fetch/FormDataBodyIsMultipartWithEncodedFilenames", [] {
+    Session session;
+    session.Serve("page.example", OkResponse("text/plain", "ok"));
+    session.Run(
+        "const quote = 'file-for-upload-in-form-QUOTATION-MARK-[\"].txt';"
+        "const lf = 'file-for-upload-in-form-LF-[\\n].txt';"
+        "const fd = new FormData();"
+        "fd.append('filename', quote);"
+        "fd.append(quote, 'filename');"
+        "fd.append('file', new File(['ABC'], quote, {type: 'text/plain'}), quote);"
+        "fd.append('lfname', lf);"
+        "const req = new Request('/echo', {method: 'POST', body: fd});"
+        "console.log(String(req.headers.get('content-type')).startsWith('multipart/form-data; boundary='));"
+        "const f = new File(['hi'], 'n.txt', {type: 'text/plain'});"
+        "const held = new FormData(); held.append('file', f); held.append('q', '1');"
+        "console.log((held.get('file') === f) + ',' + held.get('file').name + ',' + held.get('q'));"
+        "fetch(req).then(r => r.text()).then(t => console.log(t));");
+    ExpectEqString(session.Console(), "true|true,n.txt,1|ok", session.Errors());
+    const std::string& wire = session.factory.log.requests.at(1);
+    Expect(wire.rfind("POST /echo ", 0) == 0, "FormData fetch is a POST: " + wire.substr(0, 200));
+    Expect(wire.find("multipart/form-data; boundary=") != std::string::npos,
+           "FormData sets the multipart type with a boundary, not text/plain: " +
+               wire.substr(0, 400));
+    Expect(wire.find("filename=\"file-for-upload-in-form-QUOTATION-MARK-[%22].txt\"") !=
+               std::string::npos,
+           "quotes in a filename are percent-encoded, matching fetch's FormData tests");
+    Expect(wire.find("name=\"file-for-upload-in-form-QUOTATION-MARK-[%22].txt\"") !=
+               std::string::npos,
+           "and the same encoding applies to a field name");
+    Expect(wire.find("name=\"lfname\"") != std::string::npos &&
+               wire.find("file-for-upload-in-form-LF-[\r\n].txt") != std::string::npos,
+           "a string value's newlines become CRLF, unescaped, in the part body");
+    Expect(wire.find("\r\nContent-Type: text/plain\r\n\r\nABC\r\n") != std::string::npos,
+           "the File part carries its type and its bytes");
+  });
+
   AddTest(tests, "Fetch/APageCannotSetAForbiddenHeader", [] {
     Session session;
     session.Serve("page.example", OkResponse("text/plain", "ok"));

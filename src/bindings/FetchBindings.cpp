@@ -529,6 +529,7 @@ void DomBindings::InstallFetch() {
     }
 
     const Value init = Argument(call.arguments, 1);
+    std::string extracted_type;
     if (init.IsObject()) {
       if (const Value* method = init.object->Get("method")) {
         request.method = js::ToString(*method);
@@ -542,7 +543,7 @@ void DomBindings::InstallFetch() {
       if (const Value* body = init.object->Get("body")) {
         if (!body->IsUndefined() && !body->IsNull()) {
           bool from_string = false;
-          if (!ExtractRequestBody(*body, request.body, from_string)) {
+          if (!ExtractRequestBody(*body, request.body, from_string, &extracted_type)) {
             return reject("failed to read request body");
           }
           request.body_from_string = from_string;
@@ -576,6 +577,7 @@ void DomBindings::InstallFetch() {
                          return IsForbiddenHeaderName(LowerCase(header.name));
                        }),
         request.headers.end());
+    MaybeSetExtractedContentType(request.headers, extracted_type);
 
     if (signal.IsObject()) {
       const Value* aborted = signal.object->GetOwn(kAbortedSlot);

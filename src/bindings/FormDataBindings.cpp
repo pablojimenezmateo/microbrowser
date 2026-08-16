@@ -7,19 +7,22 @@
 // **What is here and what is not.** `formData()` reads an
 // `application/x-www-form-urlencoded` body through the one urlencoded implementation in `util` --
 // the same one `URLSearchParams` and the engine's form data set use, so a query string
-// round-tripped through all three cannot change. A `multipart/form-data` body is **rejected with a
-// TypeError**, which is the standard's own answer for a body this cannot be read as, and is not a
-// stub: multipart parts carry filenames and content types and become `File` objects, and a
-// `formData()` that returned the raw bytes under a made-up name would be worse than the rejection
-// (ADR 0012). When `File` exists, the parser goes here.
+// round-tripped through all three cannot change. A `multipart/form-data` *response* is still
+// **rejected with a TypeError**, which is the standard's own answer for a body this cannot be
+// read as: multipart parts carry filenames and content types and become `File` objects, and a
+// `formData()` that returned the raw bytes under a made-up name would be worse than the
+// rejection (ADR 0012). Encoding the other direction -- `fetch` of a FormData that holds a
+// `File` -- is here, because the entry list is already this object's state.
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
 #include "bindings/FetchSupport.h"
 #include "util/MimeType.h"
+#include "util/Sha2.h"
 #include "util/StringUtil.h"
 #include "util/UrlEncoded.h"
 
@@ -71,6 +74,176 @@ Value MakeEntry(js::Interpreter& interpreter, std::string name, std::string valu
       {Value::String(std::move(name)), Value::String(std::move(value))});
 }
 
+Value MakeBlobEntry(js::Interpreter& interpreter, std::string name, const Value& blob,
+                    std::string filename) {
+  return interpreter.NewArrayValue(
+      {Value::String(std::move(name)), blob, Value::String(std::move(filename))});
+}
+
+Value EntryValueOf(const Value& entry) {
+  if (!entry.IsObject() || entry.object->ElementCount() < 2) {
+    return Value::Undefined();
+  }
+  return entry.object->GetElement(1);
+}
+
+std::string EntryFilename(const Value& entry) {
+  if (!entry.IsObject() || entry.object->ElementCount() < 3) {
+    return {};
+  }
+  return js::ToString(entry.object->GetElement(2));
+}
+
+bool MakeAppendedEntry(NativeCall& call, Value& out) {
+  std::string name;
+  if (!CoerceToUsvString(call, Argument(call.arguments, 0), name)) {
+    return false;
+  }
+  const Value value = Argument(call.arguments, 1);
+  if (IsBlobValue(value)) {
+    std::string filename;
+    if (call.arguments.size() >= 3 && !call.arguments[2].IsUndefined()) {
+      if (!CoerceToUsvString(call, call.arguments[2], filename)) {
+        return false;
+      }
+    } else if (const Value* given = value.object->GetOwn(kBlobNameSlot);
+               given != nullptr && given->IsString()) {
+      filename = given->AsString();
+    } else {
+      filename = "blob";
+    }
+    out = MakeBlobEntry(call.interpreter, std::move(name), value, std::move(filename));
+    return true;
+  }
+  std::string string_value;
+  if (!CoerceToUsvString(call, value, string_value)) {
+    return false;
+  }
+  out = MakeEntry(call.interpreter, std::move(name), std::move(string_value));
+  return true;
+}
+
+std::string NormalizeCrlf(std::string_view text) {
+  std::string out;
+  out.reserve(text.size());
+  for (std::size_t i = 0; i < text.size(); ++i) {
+    if (text[i] == '\r') {
+      out.append("\r\n");
+      if (i + 1 < text.size() && text[i + 1] == '\n') {
+        ++i;
+      }
+    } else if (text[i] == '\n') {
+      out.append("\r\n");
+    } else {
+      out.push_back(text[i]);
+    }
+  }
+  return out;
+}
+
+std::string PercentEncodeQuotesAndNewlines(std::string_view text) {
+  std::string out;
+  out.reserve(text.size());
+  constexpr char kHex[] = "0123456789ABCDEF";
+  for (std::size_t i = 0; i < text.size(); ++i) {
+    const auto c = static_cast<unsigned char>(text[i]);
+    if (c == '"' || c == '\r' || c == '\n') {
+      out.push_back('%');
+      out.push_back(kHex[c >> 4]);
+      out.push_back(kHex[c & 15]);
+    } else {
+      out.push_back(static_cast<char>(c));
+    }
+  }
+  return out;
+}
+
+std::string EncodeDispositionName(std::string_view name) {
+  return PercentEncodeQuotesAndNewlines(NormalizeCrlf(name));
+}
+
+std::string EncodeDispositionFilename(std::string_view filename) {
+  return PercentEncodeQuotesAndNewlines(filename);
+}
+
+std::string HexPrefix(std::string_view bytes, std::size_t count) {
+  std::string out;
+  out.reserve(count * 2);
+  constexpr char kHex[] = "0123456789abcdef";
+  for (std::size_t i = 0; i < count && i < bytes.size(); ++i) {
+    const auto b = static_cast<unsigned char>(bytes[i]);
+    out.push_back(kHex[b >> 4]);
+    out.push_back(kHex[b & 15]);
+  }
+  return out;
+}
+
+std::string BoundaryToken(std::string_view material) {
+  std::string seed(material);
+  for (;;) {
+    const std::string digest = util::Sha2(util::HashAlgorithm::Sha256, seed);
+    std::string token = "----MicrobrowserFormBoundary";
+    token += HexPrefix(digest, 8);
+    if (material.find(token) == std::string_view::npos) {
+      return token;
+    }
+    seed.push_back('x');
+  }
+}
+
+std::string BlobTypeOf(const Value& blob) {
+  const Value* type = blob.object->GetOwn(kBlobTypeSlot);
+  return type == nullptr || !type->IsString() ? std::string() : type->AsString();
+}
+
+std::string BlobBodyOf(const Value& blob) {
+  const Value* body = blob.object->GetOwn(kBlobBodySlot);
+  return body == nullptr || !body->IsString() ? std::string() : body->AsString();
+}
+
+bool SerializeFormData(const Value& form_data, std::string& out, std::string& content_type) {
+  const std::vector<Value> entries = ReadEntries(form_data);
+  std::string material;
+  for (const Value& entry : entries) {
+    material += EntryPart(entry, 0);
+    const Value value = EntryValueOf(entry);
+    if (IsBlobValue(value)) {
+      material += EntryFilename(entry);
+      material += BlobBodyOf(value);
+    } else {
+      material += js::ToString(value);
+    }
+  }
+  const std::string token = BoundaryToken(material);
+  out.clear();
+  for (const Value& entry : entries) {
+    out.append("--");
+    out.append(token);
+    out.append("\r\nContent-Disposition: form-data; name=\"");
+    out.append(EncodeDispositionName(EntryPart(entry, 0)));
+    out.push_back('"');
+    const Value value = EntryValueOf(entry);
+    if (IsBlobValue(value)) {
+      out.append("; filename=\"");
+      out.append(EncodeDispositionFilename(EntryFilename(entry)));
+      out.append("\"\r\nContent-Type: ");
+      const std::string type = BlobTypeOf(value);
+      out.append(type.empty() ? "application/octet-stream" : type);
+      out.append("\r\n\r\n");
+      out.append(BlobBodyOf(value));
+    } else {
+      out.append("\r\n\r\n");
+      out.append(NormalizeCrlf(js::ToString(value)));
+    }
+    out.append("\r\n");
+  }
+  out.append("--");
+  out.append(token);
+  out.append("--\r\n");
+  content_type = "multipart/form-data; boundary=" + token;
+  return true;
+}
+
 // A `Content-Type` down to its essential MIME type, lowercased: `application/x-www-form-urlencoded;
 // charset=windows-1252` is the same type as the bare one. The charset parameter is *ignored* rather
 // than honoured, which is the Fetch Standard's rule for form data and not an omission -- a form
@@ -106,6 +279,7 @@ js::Value DomBindings::MakeFormData(const std::vector<util::QueryPair>& pairs) {
     entries.push_back(MakeEntry(*interpreter_, pair.first, pair.second));
   }
   SetEntries(made, *interpreter_, std::move(entries));
+  made.object->SetHidden(kFormDataMarkerSlot, Value::Bool(true));
   return made;
 }
 
@@ -129,14 +303,12 @@ void DomBindings::InstallFormData() {
   };
 
   method("append", [](NativeCall& call) {
-    std::vector<Value> entries = ReadEntries(call.self);
-    std::string name;
-    std::string value;
-    if (!CoerceToUsvString(call, Argument(call.arguments, 0), name) ||
-        !CoerceToUsvString(call, Argument(call.arguments, 1), value)) {
+    Value entry;
+    if (!MakeAppendedEntry(call, entry)) {
       return call.ThrownValue();
     }
-    entries.push_back(MakeEntry(call.interpreter, std::move(name), std::move(value)));
+    std::vector<Value> entries = ReadEntries(call.self);
+    entries.push_back(std::move(entry));
     SetEntries(call.self, call.interpreter, std::move(entries));
     return Value::Undefined();
   });
@@ -144,12 +316,11 @@ void DomBindings::InstallFormData() {
     // Replaces the *first* match in place and drops the rest, rather than appending at the end.
     // The distinction is observable through iteration, and a page that sets a field it already has
     // expects the order it wrote.
-    std::string name;
-    std::string value;
-    if (!CoerceToUsvString(call, Argument(call.arguments, 0), name) ||
-        !CoerceToUsvString(call, Argument(call.arguments, 1), value)) {
+    Value replacement;
+    if (!MakeAppendedEntry(call, replacement)) {
       return call.ThrownValue();
     }
+    const std::string name = EntryPart(replacement, 0);
     std::vector<Value> kept;
     bool replaced = false;
     for (const Value& entry : ReadEntries(call.self)) {
@@ -158,12 +329,12 @@ void DomBindings::InstallFormData() {
         continue;
       }
       if (!replaced) {
-        kept.push_back(MakeEntry(call.interpreter, name, value));
+        kept.push_back(replacement);
         replaced = true;
       }
     }
     if (!replaced) {
-      kept.push_back(MakeEntry(call.interpreter, name, value));
+      kept.push_back(std::move(replacement));
     }
     SetEntries(call.self, call.interpreter, std::move(kept));
     return Value::Undefined();
@@ -189,7 +360,7 @@ void DomBindings::InstallFormData() {
     }
     for (const Value& entry : ReadEntries(call.self)) {
       if (EntryPart(entry, 0) == name) {
-        return Value::String(EntryPart(entry, 1));
+        return EntryValueOf(entry);
       }
     }
     return Value::Null();  // null rather than undefined, which is what a page tests for
@@ -202,7 +373,7 @@ void DomBindings::InstallFormData() {
     std::vector<Value> found;
     for (const Value& entry : ReadEntries(call.self)) {
       if (EntryPart(entry, 0) == name) {
-        found.push_back(Value::String(EntryPart(entry, 1)));
+        found.push_back(EntryValueOf(entry));
       }
     }
     return call.interpreter.NewArrayValue(std::move(found));
@@ -234,7 +405,7 @@ void DomBindings::InstallFormData() {
         break;
       }
       (void)call.interpreter.CallFunction(callback, self_argument,
-                                          {Value::String(EntryPart(entries[i], 1)),
+                                          {EntryValueOf(entries[i]),
                                            Value::String(EntryPart(entries[i], 0)), call.self});
     }
     return Value::Undefined();
@@ -270,11 +441,13 @@ void DomBindings::InstallFormData() {
         result.object->Set("done", Value::Bool(false));
         if (part < 0) {
           result.object->Set("value",
-                             step.interpreter.NewArrayValue({Value::String(EntryPart(entries[at], 0)),
-                                                             Value::String(EntryPart(entries[at], 1))}));
+                             step.interpreter.NewArrayValue(
+                                 {Value::String(EntryPart(entries[at], 0)),
+                                  EntryValueOf(entries[at])}));
+        } else if (part == 0) {
+          result.object->Set("value", Value::String(EntryPart(entries[at], 0)));
         } else {
-          result.object->Set("value",
-                             Value::String(EntryPart(entries[at], static_cast<std::size_t>(part))));
+          result.object->Set("value", EntryValueOf(entries[at]));
         }
         return result;
       });
@@ -305,6 +478,7 @@ void DomBindings::InstallFormData() {
           return Value::Undefined();
         }
         made.object->SetPrototype(prototype.object);
+        made.object->SetHidden(kFormDataMarkerSlot, Value::Bool(true));
         // `new FormData(form)` is deliberately not the form's data set: constructing one from an
         // element means running the "constructing the entry list" algorithm, which is the engine's
         // (it owns form ownership and submitter semantics), and a *partial* answer here -- the
@@ -408,6 +582,10 @@ void DomBindings::InstallBodyFormData(const js::Value& prototype, const char* bo
     blob.object->Set(kOwnerSlot, OwnerValue(this));
     prototype.object->Set("blob", blob);
   }
+}
+
+bool EncodeFormDataBody(const js::Value& form_data, std::string& out, std::string& content_type) {
+  return SerializeFormData(form_data, out, content_type);
 }
 
 }  // namespace microbrowser::bindings

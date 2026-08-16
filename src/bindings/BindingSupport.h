@@ -29,8 +29,25 @@ inline constexpr const char* kBlobTypeSlot = "#blobType";
 inline constexpr const char* kBlobMarkerSlot = "#isBlob";
 inline constexpr const char* kBlobNameSlot = "#blobName";
 inline constexpr const char* kBlobLastModifiedSlot = "#blobLastModified";
+inline constexpr const char* kFormDataMarkerSlot = "#isFormData";
 inline constexpr const char* kFileListFilesSlot = "#fileListFiles";
 inline constexpr const char* kInputFileListSlot = "#inputFileList";
+
+inline bool IsBlobValue(const js::Value& value) {
+  if (!value.IsObject()) {
+    return false;
+  }
+  const js::Value* marker = value.object->GetOwn(kBlobMarkerSlot);
+  return marker != nullptr && marker->type == js::ValueType::Boolean && marker->boolean;
+}
+
+inline bool IsFormDataValue(const js::Value& value) {
+  if (!value.IsObject()) {
+    return false;
+  }
+  const js::Value* marker = value.object->GetOwn(kFormDataMarkerSlot);
+  return marker != nullptr && marker->type == js::ValueType::Boolean && marker->boolean;
+}
 
 // A Blob with the given bytes and already-canonical MIME type. `new Blob` and
 // `Response.prototype.blob` share this so a page cannot tell them apart by
