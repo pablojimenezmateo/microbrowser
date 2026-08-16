@@ -795,6 +795,10 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
     ExpectEqInt(static_cast<long long>(lines.size()), 2, "two lines");
     ExpectEqString(lines.at(0), "a 1", "arguments joined with a space");
     ExpectEqString(lines.at(1), "b", "and the second line");
+    // Web IDL namespace operations are enumerable; the language builtins above
+    // are not. The HideProperties sweep used to cover console too.
+    ExpectEval("Object.getOwnPropertyDescriptor(console, 'log').enumerable", "true");
+    ExpectEval("console.log.length", "0");
   });
 
   AddTest(tests, "JsInterpreter/MathAndConversions", [] {

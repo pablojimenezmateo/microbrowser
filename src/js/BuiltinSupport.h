@@ -79,4 +79,18 @@ inline void MarksConstructedKind(Object* constructor, Object::Kind kind) {
   }
 }
 
+// A function's `length` is own, non-enumerable, non-writable. Web IDL operations
+// with only optional arguments have length 0, and a missing length is `undefined`
+// rather than 0, which idlharness treats as a different failure.
+inline void SetNativeLength(Object* function, double length) {
+  if (function == nullptr) {
+    return;
+  }
+  Object::Property property;
+  property.value = Value::Number(length);
+  property.writable = false;
+  property.enumerable = false;
+  function->Define("length", std::move(property));
+}
+
 }  // namespace microbrowser::js

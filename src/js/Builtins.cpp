@@ -1282,11 +1282,15 @@ void Interpreter::InstallGlobals() {
   // that forgot would be invisible until a page enumerated the one object it
   // touched. Names rather than a saved list of pointers, so that a constructor
   // added later is covered by adding it here and nowhere else.
+  //
+  // `console` is deliberately not here: it is a Web IDL namespace, and those
+  // operations are enumerable. Hiding them made every idlharness operation
+  // check fail while `for...in` on Array.prototype stayed correct.
   static constexpr const char* kBuiltinNames[] = {
       "Object",   "Array",     "String",     "Number",       "Boolean",
       "Function", "Symbol",    "Math",       "JSON",         "Date",
       "RegExp",   "Map",       "Set",        "WeakMap",      "WeakSet",
-      "WeakRef",  "Promise",   "Proxy",      "Reflect",      "console",
+      "WeakRef",  "Promise",   "Proxy",      "Reflect",
       "Error",    "TypeError", "RangeError", "SyntaxError",  "ReferenceError",
       "EvalError", "URIError", "AggregateError", "ArrayBuffer", "DataView",
       "Int8Array", "Uint8Array", "Uint8ClampedArray", "Int16Array", "Uint16Array",

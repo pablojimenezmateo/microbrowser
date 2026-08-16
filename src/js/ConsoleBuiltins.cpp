@@ -33,7 +33,12 @@ namespace microbrowser::js {
 
 void Interpreter::InstallConsole() {
   const auto install = [this](Object* target, const char* name, NativeFunction function) {
-    InstallNative(target, name, std::move(function));
+    Object* native = NewNative(name, std::move(function));
+    if (native == nullptr) {
+      return;
+    }
+    SetNativeLength(native, 0);
+    target->Set(name, Value::Obj(native));
   };
 
   // --- console --------------------------------------------------------------
