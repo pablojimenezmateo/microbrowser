@@ -118,8 +118,8 @@ js::Value DomBindings::MakeInterface(const char* name, const js::Value& parent) 
   if (!constructor.IsObject()) {
     return Value::Undefined();
   }
-  constructor.object->Set("prototype", prototype);
-  prototype.object->Set("constructor", constructor);
+  DefinePrototypeSlot(constructor.object, prototype);
+  DefineNonEnumerable(prototype.object, "constructor", constructor);
   // **`Object.prototype.toString.call(el)` is `[object HTMLAnchorElement]`, not `[object Object]`.**
   // Web IDL puts `@@toStringTag` on every interface prototype object with the interface's name, and
   // `assert_class_string` -- which is how the suite asks "is this the right kind of object" when
