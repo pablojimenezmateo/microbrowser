@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <string>
 #include <utility>
@@ -205,13 +207,36 @@ void Interpreter::InstallIteration() {
       const Value* index_value = call.self.object->GetOwn(kIndexKey);
       const std::size_t index =
           index_value == nullptr ? 0 : static_cast<std::size_t>(ToNumber(*index_value));
-      const std::size_t size =
-          target_value == nullptr
-              ? 0
-              : (by_character ? Utf16Length(target_value->AsString())
-                              : (target_value->IsObject() ? target_value->object->ElementCount()
-                                                          : 0));
-      if (target_value == nullptr || index >= size) {
+      if (target_value == nullptr) {
+        result.object->Set("value", Value::Undefined());
+        result.object->Set("done", Value::Bool(true));
+        return result;
+      }
+      // Array.prototype[@@iterator] is generic: it Gets `length` and the
+      // indices rather than reading ElementCount. A plain object with
+      // `{0: "PASS", length: 1}` is a sequence for Blob parts, and a length
+      // getter that throws has to propagate.
+      std::size_t size = 0;
+      if (by_character) {
+        size = Utf16Length(target_value->AsString());
+      } else if (target_value->IsObject()) {
+        Result abrupt = Result::Normal();
+        const Value length_value =
+            call.interpreter.GetPropertyOrThrow(*target_value, "length", abrupt);
+        if (abrupt.IsAbrupt()) {
+          return call.ThrowValue(abrupt.value);
+        }
+        double number = 0;
+        const Result converted = call.interpreter.ToNumberOf(length_value, number);
+        if (converted.IsAbrupt()) {
+          return call.ThrowValue(converted.value);
+        }
+        if (std::isfinite(number) && number > 0) {
+          size = static_cast<std::size_t>(
+              std::min(std::trunc(number), 9007199254740991.0));
+        }
+      }
+      if (index >= size) {
         result.object->Set("value", Value::Undefined());
         result.object->Set("done", Value::Bool(true));
         return result;
@@ -227,7 +252,12 @@ void Interpreter::InstallIteration() {
         step = code > 0xFFFFu ? 2 : 1;
         item = Value::String(SubstringUnits(text, index, index + step));
       } else {
-        item = target_value->object->GetElement(index);
+        Result abrupt = Result::Normal();
+        item = call.interpreter.GetPropertyOrThrow(
+            *target_value, NumberToString(static_cast<double>(index)), abrupt);
+        if (abrupt.IsAbrupt()) {
+          return call.ThrowValue(abrupt.value);
+        }
       }
       result.object->Set("value", item);
       result.object->Set("done", Value::Bool(false));
@@ -247,6 +277,14 @@ void Interpreter::InstallIteration() {
                                          Object* target, bool by_character) {
     Object* hook = NewNative("[Symbol.iterator]", [make_indexed_iterator,
                                                   by_character](NativeCall& call) {
+      if (by_character && !call.self.IsString()) {
+        std::string text;
+        const Result converted = call.interpreter.ToStringOf(call.self, text);
+        if (converted.IsAbrupt()) {
+          return call.ThrowValue(converted.value);
+        }
+        return make_indexed_iterator(Value::String(std::move(text)), by_character);
+      }
       return make_indexed_iterator(call.self, by_character);
     });
     if (hook != nullptr) {

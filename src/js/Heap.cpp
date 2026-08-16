@@ -229,12 +229,23 @@ bool Object::Delete(const PropertyKey& key) {
 }
 
 bool Object::HasOwn(const PropertyKey& key) const {
-  if (kind_ == Kind::Array && !key.IsSymbol()) {
-    if (key.Text() == "length") {
-      return true;
+  if (!key.IsSymbol()) {
+    if (kind_ == Kind::Array) {
+      if (key.Text() == "length") {
+        return true;
+      }
+      if (const std::optional<std::size_t> index = ParseArrayIndex(key.Text())) {
+        return HasElement(*index);
+      }
     }
-    if (const std::optional<std::size_t> index = ParseArrayIndex(key.Text())) {
-      return HasElement(*index);
+    // Typed-array indices live in the buffer, not the property map. Without
+    // this, `0 in new Uint8Array([1])` and `hasOwnProperty(0)` are false
+    // even though `ta[0]` reads the byte -- testharness `assert_array_equals`
+    // is the call that notices.
+    if (kind_ == Kind::TypedArray) {
+      if (const std::optional<std::size_t> index = ParseArrayIndex(key.Text())) {
+        return HasElement(*index);
+      }
     }
   }
   return GetOwnProperty(key) != nullptr;

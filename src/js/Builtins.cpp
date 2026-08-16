@@ -1034,18 +1034,28 @@ void Interpreter::InstallGlobals() {
     // one, which runs a `toString` a page wrote. The pure ToString would
     // answer "[object Object]" for every object, which is what made
     // `String(new Date())` useless.
-    if (call.arguments.empty()) {
-      return Value::String(std::string());
-    }
-    // A symbol is the one value `String()` may convert and `${}` may not:
-    // the explicit call is allowed and the implicit one is a TypeError.
-    if (call.arguments[0].IsSymbol()) {
-      return Value::String(ToString(call.arguments[0]));
-    }
     std::string text;
-    const Result converted = call.interpreter.ToStringOf(call.arguments[0], text);
-    return converted.IsAbrupt() ? call.ThrowValue(converted.value)
-                                : Value::String(std::move(text));
+    if (!call.arguments.empty()) {
+      // A symbol is the one value `String()` may convert and `${}` may not:
+      // the explicit call is allowed and the implicit one is a TypeError.
+      // `new String(symbol)` goes through ToString and throws, which is the
+      // spec; only the non-construct call gets the descriptive string.
+      if (call.arguments[0].IsSymbol() && ConstructionTarget(call) == nullptr) {
+        return Value::String(ToString(call.arguments[0]));
+      }
+      const Result converted = call.interpreter.ToStringOf(call.arguments[0], text);
+      if (converted.IsAbrupt()) {
+        return call.ThrowValue(converted.value);
+      }
+    }
+    if (Object* target = ConstructionTarget(call)) {
+      // `new` keeps the instance even when the native returns a primitive, so
+      // the characters have to live on that object. Blob parts and
+      // String.prototype methods both read this slot.
+      target->SetHidden("#string", Value::String(text));
+      return Value::Obj(target);
+    }
+    return Value::String(std::move(text));
   });
   InstallStringPrototype(string_constructor);
   // After it, because the pattern-taking String methods are installed on the

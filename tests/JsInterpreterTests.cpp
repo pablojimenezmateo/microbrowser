@@ -1425,6 +1425,14 @@ void RegisterJsInterpreterTests(std::vector<TestCase>& tests) {
                "[it.next().value, it.next().value, it.next().done].join(' ')",
                "10 20 true");
     ExpectEval("typeof 'a'[Symbol.iterator]", "function");
+    // Array.prototype[@@iterator] is generic: a plain object with `length`
+    // and indices is a sequence, which Blob parts and a spread both rely on.
+    ExpectEval("[...{0:'A',1:'B',length:2,"
+               "[Symbol.iterator]:Array.prototype[Symbol.iterator]}].join('')",
+               "AB");
+    ExpectEval("new String('xyz').toString()", "xyz");
+    ExpectEval("[...new String('xyz')].join('')", "xyz");
+    ExpectEval("0 in new Uint8Array([9, 8]) && !(2 in new Uint8Array([9, 8]))", "true");
     // An iterator is itself iterable, which is what lets one be re-fed to a
     // `for...of` or a spread.
     ExpectEval("[...'ab'.matchAll(/./g)].length", "2");

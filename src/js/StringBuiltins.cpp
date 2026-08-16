@@ -68,6 +68,16 @@ bool IsJsWhitespace(char c) {
 // method detached and called on something else -- `String.prototype.trim.call(7)`
 // -- gets that value converted rather than a crash.
 std::string Self(const NativeCall& call) {
+  if (call.self.IsString()) {
+    return call.self.AsString();
+  }
+  if (call.self.IsObject()) {
+    // `new String("xyz")` is an object; the primitive lives in `#string`.
+    const Value* boxed = call.self.object->GetOwn("#string");
+    if (boxed != nullptr && boxed->IsString()) {
+      return boxed->AsString();
+    }
+  }
   return ToString(call.self);
 }
 

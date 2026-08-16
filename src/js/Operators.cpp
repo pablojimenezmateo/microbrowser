@@ -663,9 +663,10 @@ Result Interpreter::ApplyBinary(BinaryOp op, const Value& a, const Value& b) {
         return Result::Normal(
             Value::Bool(target.IsObject() && target.object->GetProperty(key) != nullptr));
       }
-      if (!key.IsSymbol() && b.object->GetKind() == Object::Kind::Array) {
+      if (!key.IsSymbol() && (b.object->GetKind() == Object::Kind::Array ||
+                              b.object->GetKind() == Object::Kind::TypedArray)) {
         const std::string& text = key.Text();
-        if (text == "length") {
+        if (b.object->GetKind() == Object::Kind::Array && text == "length") {
           return Result::Normal(Value::Bool(true));
         }
         if (const std::optional<std::size_t> index = ParseArrayIndex(text)) {
