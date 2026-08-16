@@ -221,6 +221,10 @@ std::vector<dom::Element*> FrameTree::TakePendingLoadEvents() {
   return taken;
 }
 
+void FrameTree::RequeueLoadEvents(std::vector<dom::Element*> events) {
+  pending_load_events_.insert(pending_load_events_.end(), events.begin(), events.end());
+}
+
 void FrameTree::DropFrames() {
   // The borrowed pointer goes *before* the page that owns the document it points at. Both halves
   // are here rather than at any caller, because a second place that dropped a frame would be a

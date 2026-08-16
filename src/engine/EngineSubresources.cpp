@@ -53,17 +53,34 @@ js::Interpreter* EnsureInterpreterOf(Page& page) {
   return &page.ScriptHalf()->EnsureHostInterpreter(*document, page.Url(), NowMilliseconds());
 }
 
+Frame* FrameForPage(Page& root, Page* target) {
+  for (Frame& frame : root.MutableFrames().MutableFrames()) {
+    if (frame.page.get() == target) {
+      return &frame;
+    }
+    if (frame.page != nullptr) {
+      if (Frame* nested = FrameForPage(*frame.page, target)) {
+        return nested;
+      }
+    }
+  }
+  return nullptr;
+}
+
 }  // namespace
 
 std::optional<net::FetchOptions> Engine::OptionsForSubresource(
-    const SubresourceRequest& request) const {
+    const SubresourceRequest& request, const url::Url* document_base) const {
   net::FetchOptions options;
   // After the navigation finishes, `load_` is cleared — post-load scripts
   // (youtube's PLAYER_JS_URL / base.js on SPA watch) still need a document
   // URL for CORS and relative resolution. Same fallback as images.
   options.bypass_cache = load_.active && load_.bypass_cache;
   std::optional<url::Url> parsed;
-  const url::Url* document = load_.active && load_.base.has_value() ? &*load_.base : nullptr;
+  const url::Url* document = document_base;
+  if (document == nullptr) {
+    document = load_.active && load_.base.has_value() ? &*load_.base : nullptr;
+  }
   if (document == nullptr) {
     parsed = page_.BaseUrl();
     if (!parsed.has_value()) {
@@ -278,11 +295,13 @@ bool Engine::OnFrameFetch(Loader::Completion completion, const PendingResource& 
     // server the page does not control gets to cause.
     tree.SetDocument(resource.index, std::string_view(), final_url, csp::PolicyList{}, "text/html",
                      same_origin);
+    StartPendingScriptRequests();
     AddPerformanceCounter(PerfCounterId::EngineFramesFailed);
     return false;
   }
   tree.SetDocument(resource.index, completion.result.body, final_url, csp::PolicyList{},
                    completion.result.content_type, same_origin);
+  StartPendingScriptRequests();
   return true;
 }
 
@@ -294,40 +313,80 @@ void Engine::StartPendingScriptRequests() {
     if (!parsed.has_value()) {
       parsed = url::Url::Parse(page_.Url());
     }
-    if (!parsed.has_value()) {
-      return;
-    }
+  }
+  if (document == nullptr && parsed.has_value()) {
     document = &*parsed;
   }
-  const std::size_t first_index = page_.ScriptHalf()->PendingUrls().size();
-  std::vector<SubresourceRequest> pending = page_.ScriptHalf()->TakeUnrequestedScripts();
-  if (pending.empty()) {
-    return;
-  }
-  const std::size_t base_index = first_index - pending.size();
-  for (std::size_t i = 0; i < pending.size(); ++i) {
-    const std::size_t index = base_index + i;
-    const std::optional<net::FetchOptions> options = OptionsForSubresource(pending[i]);
-    if (!options.has_value()) {
-      // Refused before the wire (integrity without crossorigin, or no document
-      // URL). YouTube's player loader waits on `load` only — a silent skip
-      // leaves At7 hanging forever (TD-0024). Fire `error` so the page can
-      // fail closed rather than wait.
-      page_.ScriptHalf()->NotifyFetchFailed(index);
-      AddPerformanceCounter(PerfCounterId::EngineScriptsFailed);
-      continue;
+  if (document != nullptr) {
+    const std::size_t first_index = page_.ScriptHalf()->PendingUrls().size();
+    std::vector<SubresourceRequest> pending = page_.ScriptHalf()->TakeUnrequestedScripts();
+    if (!pending.empty()) {
+      const std::size_t base_index = first_index - pending.size();
+      for (std::size_t i = 0; i < pending.size(); ++i) {
+        const std::size_t index = base_index + i;
+        const std::optional<net::FetchOptions> options = OptionsForSubresource(pending[i]);
+        if (!options.has_value()) {
+          // Refused before the wire (integrity without crossorigin, or no document
+          // URL). YouTube's player loader waits on `load` only — a silent skip
+          // leaves At7 hanging forever (TD-0024). Fire `error` so the page can
+          // fail closed rather than wait.
+          page_.ScriptHalf()->NotifyFetchFailed(index);
+          AddPerformanceCounter(PerfCounterId::EngineScriptsFailed);
+          continue;
+        }
+        const Loader::RequestId id = loader_.StartSubresource(
+            pending[i].url, *document, privacy::ResourceType::Script, NowSeconds(), *options);
+        if (load_.active) {
+          load_.resources[id] = PendingResource{ResourceKind::Script, index, {}};
+          ++load_.total_resources;
+          ++(page_.ScriptHalf()->IsAsync(index) ? load_.async_scripts_outstanding
+                                               : load_.scripts_outstanding);
+        } else {
+          post_load_.scripts[id] = index;
+        }
+      }
     }
-    const Loader::RequestId id = loader_.StartSubresource(
-        pending[i].url, *document, privacy::ResourceType::Script, NowSeconds(), *options);
-    if (load_.active) {
-      load_.resources[id] = PendingResource{ResourceKind::Script, index, {}};
-      ++load_.total_resources;
-      ++(page_.ScriptHalf()->IsAsync(index) ? load_.async_scripts_outstanding
-                                           : load_.scripts_outstanding);
-    } else {
-      post_load_.scripts[id] = index;
-    }
   }
+
+  // A child's `<script src>` is collected when its document is parsed and was never requested:
+  // StartPendingScriptRequests only looked at the embedder, so Range-test-iframe.html's
+  // common.js never left the slot. Relative URLs resolve against the *child*.
+  const auto start_child = [&](auto&& self, Page& parent) -> void {
+    for (Frame& frame : parent.MutableFrames().MutableFrames()) {
+      if (frame.page == nullptr || !frame.loaded) {
+        continue;
+      }
+      std::optional<url::Url> child_parsed = frame.page->BaseUrl();
+      if (!child_parsed.has_value()) {
+        child_parsed = url::Url::Parse(frame.page->Url());
+      }
+      if (child_parsed.has_value()) {
+        const std::size_t first_index = frame.page->ScriptHalf()->PendingUrls().size();
+        std::vector<SubresourceRequest> pending =
+            frame.page->ScriptHalf()->TakeUnrequestedScripts();
+        if (!pending.empty()) {
+          const std::size_t base_index = first_index - pending.size();
+          for (std::size_t i = 0; i < pending.size(); ++i) {
+            const std::size_t index = base_index + i;
+            const std::optional<net::FetchOptions> options =
+                OptionsForSubresource(pending[i], &*child_parsed);
+            if (!options.has_value()) {
+              frame.page->ScriptHalf()->NotifyFetchFailed(index);
+              AddPerformanceCounter(PerfCounterId::EngineScriptsFailed);
+              continue;
+            }
+            const Loader::RequestId id = loader_.StartSubresource(
+                pending[i].url, *child_parsed, privacy::ResourceType::Script, NowSeconds(),
+                *options);
+            post_load_.frame_scripts[id] = {frame.page.get(), index};
+            ++frame.scripts_outstanding;
+          }
+        }
+      }
+      self(self, *frame.page);
+    }
+  };
+  start_child(start_child, page_);
 }
 
 bool Engine::OnLateScript(Loader::Completion completion) {
@@ -384,6 +443,28 @@ bool Engine::DrainCompletionBatch(bool& moved) {
           return true;
         }
       }
+      continue;
+    }
+    if (const auto found = post_load_.frame_scripts.find(completion.id);
+        found != post_load_.frame_scripts.end()) {
+      Page* child = found->second.first;
+      const std::size_t index = found->second.second;
+      post_load_.frame_scripts.erase(found);
+      Frame* frame = child != nullptr ? FrameForPage(page_, child) : nullptr;
+      if (frame != nullptr && frame->scripts_outstanding > 0) {
+        --frame->scripts_outstanding;
+      }
+      if (child != nullptr && frame != nullptr) {
+        if (!completion.result.ok ||
+            !IntegrityHolds(child->ScriptHalf()->PendingUrls(), index, completion.result.body)) {
+          child->ScriptHalf()->NotifyFetchFailed(index);
+          AddPerformanceCounter(PerfCounterId::EngineScriptsFailed);
+        } else {
+          child->AddScript(index, std::move(completion.result.body));
+          AddPerformanceCounter(PerfCounterId::EngineScriptsLoaded);
+        }
+      }
+      moved = true;
       continue;
     }
     if (OnLateFrame(completion)) {
@@ -493,6 +574,7 @@ bool Engine::ProcessDynamicFrames() {
     // that runs on every turn at all (see TD-0021 for the shape it would otherwise be).
     page_.CollectFrames();
     StartFrameRequests();
+    StartPendingScriptRequests();
     // **Before the `load` events below, and that ordering is the specification's.** A child's own
     // scripts run as its document is processed; the `load` its element fires in the embedder is
     // what says they are finished. A page that reads `frame.contentWindow.result` from `onload` --
@@ -597,6 +679,13 @@ bool Engine::RunFrameScripts(Page& parent, bool run_scripts, js::Object* top_win
     }
     if (!run_scripts) {
       continue;  // the window exists; its document's scripts run at the point below
+    }
+    if (frame.scripts_outstanding > 0 ||
+        frame.page->ScriptHalf()->HasOutstandingScriptFetches()) {
+      // The document is here; its `<script src>` is not. Running now would skip the helper
+      // file and execute the inline script after it, which is how setupRangeTests stayed
+      // undefined while the iframe's load had already fired.
+      continue;
     }
     frame.page->RunScripts(NowMilliseconds());
     // **What a child's script asked the browser to do, carried out.** A page that only *ran* a

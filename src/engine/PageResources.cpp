@@ -619,6 +619,7 @@ std::vector<std::size_t> Page::CollectFrames() {
 
 bool Page::DispatchPendingFrameLoads() {
   const std::vector<dom::Element*> owed = frames_.TakePendingLoadEvents();
+  std::vector<dom::Element*> still_waiting;
   bool dispatched = false;
   for (dom::Element* element : owed) {
     // The element may have left the document between the load arriving and this turn -- a script
@@ -628,10 +629,24 @@ bool Page::DispatchPendingFrameLoads() {
     if (element == nullptr || element->ConnectedDocument() != document_.get()) {
       continue;
     }
+    bool waiting_on_scripts = false;
+    for (const Frame& frame : frames_.Frames()) {
+      if (frame.element == element &&
+          (frame.scripts_outstanding > 0 ||
+           (frame.page != nullptr && frame.page->ScriptHalf()->HasOutstandingScriptFetches()))) {
+        waiting_on_scripts = true;
+        break;
+      }
+    }
+    if (waiting_on_scripts) {
+      still_waiting.push_back(element);
+      continue;
+    }
     script_->NotifyElementEvent(*element, "load");
     AddPerformanceCounter(PerfCounterId::EngineFrameLoadEvents);
     dispatched = true;
   }
+  frames_.RequeueLoadEvents(std::move(still_waiting));
   return dispatched;
 }
 

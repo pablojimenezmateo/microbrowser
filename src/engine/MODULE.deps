@@ -178,7 +178,7 @@ max_tu_lines: 1001
 # The three paragraphs above are two worktrees off one base -- the worker's imports on one, the
 # child contexts and their script half on the other -- so neither branch's count described this
 # header once both were in the tree. The number is measured after the merge.
-budget: Engine header_lines=582 public_methods=22 members=28
+budget: Engine header_lines=590 public_methods=22 members=28
 # Raised for deferred location navigation (pending_location_ + replacing_document_)
 # — ADR 0026 §3 assign/replace/reload without tearing the document under script.
 # The network half, kept off Engine on purpose: policy, sockets, cookies and
@@ -391,7 +391,10 @@ budget: LayoutState header_lines=40 public_methods=0 members=8
 # +1 member, `scripting_attached` (ADR 0042 §5). Not derivable: a realm is *created* by attaching,
 # so asking twice would give one document two globals, and `CreateRealm` refusing past `kMaxRealms`
 # is an answer that has to be remembered or every turn of the loop asks again.
-budget: Frame header_lines=60 public_methods=0 members=8
+# +1 member, `scripts_outstanding`: a child's `<script src>` is collected on Load and was never
+# fetched, so iframe `load` fired on an HTML document whose helper file had not run. The element's
+# `load` waits on this count, which is what HTML means by a nested document finishing.
+budget: Frame header_lines=65 public_methods=0 members=9
 # The tree those frames hang off, lifted out of Page when the collection pass
 # stopped being a once-per-parse walk. Three members: the frames, the structure
 # version the last collection saw, and the elements owed a `load`. Page was at

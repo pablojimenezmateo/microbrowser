@@ -109,6 +109,34 @@ void RegisterFrameTests(std::vector<TestCase>& tests) {
                    "load fires at the element, after the handler was attached, with the document");
   });
 
+  AddTest(tests, "Frames/AChildsExternalScriptRunsBeforeLoad", [] {
+    // Range-insertNode's iframe loads common.js then calls setupRangeTests from onload. Fetching
+    // the child's HTML and firing `load` without its `<script src>` left that name undefined.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html",
+                   "<iframe id=f src='/child.html'></iframe>"
+                   "<script>document.getElementById('f').onload = function () {"
+                   "  console.log(String(this.contentWindow.ready));"
+                   "};</" "script>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html",
+                   "<script src='/helper.js'></script>"
+                   "<script>window.ready = window.fromHelper;</" "script>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true, OkResponse("text/javascript", "window.fromHelper = 'yes';")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://page.example/"});
+
+    ExpectEqString(Joined(session.engine.ConsoleOutput()), "yes",
+                   "iframe load waits until the child's script src has run");
+  });
+
   AddTest(tests, "Frames/AScriptAppendedFrameLoads", [] {
     // Before this existed, `document.body.appendChild(iframe)` produced an empty box and no
     // request: frames were collected exactly once, during the parse. It is also the shape almost

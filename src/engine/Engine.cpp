@@ -216,7 +216,7 @@ bool Engine::Advance() {
   bool socket_activity = AdvanceSockets();
   socket_activity = AdvanceEventSources() || socket_activity;
   if (!load_.active && post_load_.images.empty() && post_load_.scripts.empty() &&
-      post_load_.frames.empty() && script_fetches_.empty() &&
+      post_load_.frames.empty() && post_load_.frame_scripts.empty() && script_fetches_.empty() &&
       module_fetches_.empty() && font_fetches_.empty() && worker_fetches_.empty() &&
       worker_import_fetches_.empty() && worker_script_fetches_.empty() &&
       !page_.HasPendingModules()) {
@@ -307,6 +307,7 @@ std::string Engine::LoadingReason() const {
   note(!post_load_.images.empty(), "late_images");
   note(!post_load_.scripts.empty(), "late_scripts");
   note(!post_load_.frames.empty(), "late_frames");
+  note(!post_load_.frame_scripts.empty(), "frame_scripts");
   if (!script_fetches_.empty()) {
     note(true, "script_fetches");
     out << "(n=" << script_fetches_.size() << ')';

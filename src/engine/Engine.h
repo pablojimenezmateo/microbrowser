@@ -5,6 +5,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "bindings/History.h"
@@ -94,7 +95,8 @@ class Engine : private bindings::NetworkSource,
     // holding an empty box and a `load` handler that never ran. HTML agrees -- a frame blocks the
     // embedder's `load` event, which is the whole difference between it and a `fetch`.
     return load_.active || !post_load_.images.empty() || !post_load_.scripts.empty() ||
-           !post_load_.frames.empty() || !module_fetches_.empty() || page_.HasPendingModules() ||
+           !post_load_.frames.empty() || !post_load_.frame_scripts.empty() ||
+           !module_fetches_.empty() || page_.HasPendingModules() ||
            page_.ScriptHalf()->HasOutstandingScriptFetches();
   }
   bool IsLoading() const {
@@ -207,7 +209,7 @@ class Engine : private bindings::NetworkSource,
   // all -- which is `integrity` on a cross-origin resource with no
   // `crossorigin`. See ADR 0020 §4.
   std::optional<net::FetchOptions> OptionsForSubresource(
-      const SubresourceRequest& request) const;
+      const SubresourceRequest& request, const url::Url* document_base = nullptr) const;
   // Whether the bytes that arrived are the ones the document named. Static
   // because it is a question about the pair (element, bytes) and nothing else,
   // and shared by the stylesheet and the script paths so that "refuse to apply"
@@ -551,11 +553,15 @@ class Engine : private bindings::NetworkSource,
     // frame index rather than a URL, for the same reason `scripts` holds one:
     // the completion carries an id and the tree is addressed by position.
     std::map<Loader::RequestId, std::size_t> frames;
+    // Classic `<script src>` a child document named. The pair is (child Page, pending-script
+    // index): the completion carries only an id, and the child's slots are not the embedder's.
+    std::map<Loader::RequestId, std::pair<Page*, std::size_t>> frame_scripts;
     void Clear() {
       document_interactive = false;
       images.clear();
       scripts.clear();
       frames.clear();
+      frame_scripts.clear();
     }
   } post_load_;
   // The requests this page's own script made and has not been answered for.

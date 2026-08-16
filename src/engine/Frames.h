@@ -73,6 +73,10 @@ struct Frame {
   // past `kMaxRealms`, which is a page-controlled count -- so a refusal has to be remembered, or
   // every turn of the loop would ask again on behalf of a frame that will never get one.
   bool scripting_attached = false;
+  // Classic `<script src>` fetches this child still owes. The element's `load` waits on them:
+  // firing it when the HTML arrived left `setupRangeTests` undefined in every Range iframe test,
+  // because the helper file had been collected and never requested.
+  std::size_t scripts_outstanding = 0;
 };
 
 // Every `<iframe>` in `document`, in tree order, with the `src` exactly as written. A frame inside
@@ -137,6 +141,9 @@ class FrameTree {
   // firing there would dispatch `load` before the script that is about to set `onload` has run,
   // which is every `iframe.onload = ...; document.body.appendChild(iframe)` in the suite.
   std::vector<dom::Element*> TakePendingLoadEvents();
+  // Puts events back when the document arrived but its `<script src>` has not. `load` means the
+  // nested document finished, and a helper script is part of that document.
+  void RequeueLoadEvents(std::vector<dom::Element*> events);
 
  private:
   // The frames alone: every element's borrowed document pointer cleared, then every context
