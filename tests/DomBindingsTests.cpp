@@ -2029,6 +2029,59 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "true,true,function");
   });
 
+  AddTest(tests, "DomBindings/SelectionCollapseReplacesTheHeldRange", [] {
+    // Selection.collapse must not mutate the Range addRange was given -- the
+    // tests clone, add the clone, collapse, and assert the clone is untouched.
+    static constexpr const char* kTree = "<p id=p>hello</p>";
+    ExpectScript(kTree,
+                 "const p = document.getElementById('p');"
+                 "const t = p.firstChild;"
+                 "const r = document.createRange(); r.setStart(t, 0); r.setEnd(t, 5);"
+                 "const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);"
+                 "sel.collapse(t, 2);"
+                 "[sel.rangeCount, sel.anchorNode === t, sel.anchorOffset, sel.focusOffset,"
+                 " sel.isCollapsed, sel.type, r.startOffset, r.endOffset,"
+                 " sel.getRangeAt(0) !== r].join(',')",
+                 "1,true,2,2,true,Caret,0,5,true");
+    ExpectScript(kTree,
+                 "const p = document.getElementById('p');"
+                 "const t = p.firstChild;"
+                 "const sel = getSelection(); sel.removeAllRanges();"
+                 "sel.setPosition(t, 1);"
+                 "sel.anchorOffset + ',' + sel.type",
+                 "1,Caret");
+    ExpectScript(kTree,
+                 "const p = document.getElementById('p');"
+                 "const t = p.firstChild;"
+                 "const r = document.createRange(); r.selectNodeContents(p);"
+                 "const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);"
+                 "const r2 = document.createRange(); r2.selectNodeContents(t);"
+                 "sel.addRange(r2);"
+                 "sel.getRangeAt(0) === r && sel.rangeCount === 1",
+                 "true");
+    ExpectScript(kTree,
+                 "const p = document.getElementById('p');"
+                 "const sel = getSelection(); sel.removeAllRanges();"
+                 "sel.selectAllChildren(p);"
+                 "[sel.anchorNode === p, sel.anchorOffset, sel.focusOffset, sel.type].join(',')",
+                 "true,0,1,Range");
+    ExpectScript(kTree,
+                 "const t = document.getElementById('p').firstChild;"
+                 "const sel = getSelection(); sel.removeAllRanges();"
+                 "sel.collapse(t, 1); sel.extend(t, 4);"
+                 "[sel.anchorOffset, sel.focusOffset, sel.direction].join(',')",
+                 "1,4,forward");
+    ExpectScript(kTree,
+                 "const t = document.getElementById('p').firstChild;"
+                 "const sel = getSelection(); sel.removeAllRanges();"
+                 "sel.collapse(t, 4); sel.extend(t, 1);"
+                 "[sel.anchorOffset, sel.focusOffset, sel.direction].join(',')",
+                 "4,1,backward");
+    ExpectScript(kTree,
+                 "try { getSelection().removeRange(null); 'no' } catch (e) { e.name }",
+                 "TypeError");
+  });
+
   AddTest(tests, "DomBindings/ClassListReadsAndRewritesTheAttribute", [] {
     // Nothing is cached between calls: a parsed copy would go stale the moment
     // anything else touched `class`, and `class` is the one attribute two

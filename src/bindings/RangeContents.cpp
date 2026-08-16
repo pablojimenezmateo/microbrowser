@@ -93,6 +93,25 @@ void SetPointOn(const Value& range, bool start, const dom::Node* node, std::size
                           Value::Number(static_cast<double>(offset)));
 }
 
+// A brand-new Range at two points. Selection methods that move the caret
+// (`collapse`, `extend`, `selectAllChildren`) must replace the held range
+// rather than mutate it -- WPT clones, `addRange`s the clone, then asserts
+// the clone's boundaries are still what they were.
+Value NewLiveRange(NativeCall& call, dom::Node* start, std::uint32_t start_offset,
+                   dom::Node* end, std::uint32_t end_offset) {
+  const Value* range_class = call.interpreter.Global()->GetOwn("Range");
+  if (range_class == nullptr || !range_class->IsObject() || start == nullptr || end == nullptr) {
+    return Value::Undefined();
+  }
+  const js::Result made = call.interpreter.ConstructValue(*range_class, {});
+  if (made.completion == js::Completion::Throw) {
+    return call.ThrowValue(made.value);
+  }
+  SetPointOn(made.value, true, start, start_offset);
+  SetPointOn(made.value, false, end, end_offset);
+  return made.value;
+}
+
 // The same predicate as `IsInclusiveDescendant` with its arguments the other way
 // round, and named for the direction the DOM's Range steps read in -- "original
 // start node is an inclusive ancestor of original end node" is asked six times
@@ -559,6 +578,8 @@ void DomBindings::InstallRangeContents(const js::Value& range_interface) {
     return;
   }
   static constexpr const char* kSelectionRangeSlot = "#selectionRange";
+  // 1 forwards, -1 backwards. Empty is neither; `extend` is what writes -1.
+  static constexpr const char* kSelectionDirSlot = "#selectionDirection";
 
   const auto sel_method = [this, &selection_interface](const char* name,
                                                    js::NativeFunction function) {
@@ -585,6 +606,20 @@ void DomBindings::InstallRangeContents(const js::Value& range_interface) {
     const Value* found = receiver.object->GetOwn(kSelectionRangeSlot);
     return found == nullptr ? Value::Undefined() : *found;
   };
+  const auto backwards = [](const Value& receiver) -> bool {
+    if (!receiver.IsObject()) {
+      return false;
+    }
+    const Value* found = receiver.object->GetOwn(kSelectionDirSlot);
+    return found != nullptr && found->IsNumber() && found->number < 0;
+  };
+  const auto hold = [](const Value& receiver, const Value& range, bool is_backwards) {
+    if (!receiver.IsObject()) {
+      return;
+    }
+    receiver.object->SetHidden(kSelectionRangeSlot, range);
+    receiver.object->SetHidden(kSelectionDirSlot, Value::Number(is_backwards ? -1 : 1));
+  };
 
   sel_accessor("rangeCount", [held](NativeCall& call) {
     return Value::Number(held(call.self).IsObject() ? 1 : 0);
@@ -601,52 +636,262 @@ void DomBindings::InstallRangeContents(const js::Value& range_interface) {
     }
     return range;
   });
-  sel_method("addRange", [](NativeCall& call) -> Value {
+  sel_method("addRange", [this, held, hold](NativeCall& call) -> Value {
     if (!RequireArguments(call, "Selection", "addRange", 1)) {
       return call.ThrownValue();
     }
-    // Held by identity, not by value -- see the note above.
-    if (call.self.IsObject() && call.arguments[0].IsObject()) {
-      call.self.object->SetHidden(kSelectionRangeSlot, call.arguments[0]);
+    // Held by identity, not by value -- see the note above. A second range is
+    // ignored: this browser stores at most one, which is what the specification
+    // requires and what "second addRange() must do nothing" is counting.
+    const Value range = call.arguments[0];
+    dom::Node* start = NodeSlot(range, kStartNodeSlot);
+    if (start == nullptr) {
+      return call.Throw("TypeError", "addRange needs a Range");
     }
+    if (held(call.self).IsObject() || RootOf(*start) != document_) {
+      return Value::Undefined();
+    }
+    hold(call.self, range, false);
     return Value::Undefined();
   });
   const auto clear = [](NativeCall& call) -> Value {
     if (call.self.IsObject()) {
       call.self.object->SetHidden(kSelectionRangeSlot, Value::Undefined());
+      call.self.object->SetHidden(kSelectionDirSlot, Value::Number(0));
     }
     return Value::Undefined();
   };
   sel_method("removeAllRanges", clear);
   sel_method("empty", clear);
-  sel_method("removeRange", [held](NativeCall& call) -> Value {
-    if (call.self.IsObject() && held(call.self).IsObject() &&
-        held(call.self).object == Argument(call.arguments, 0).object) {
-      call.self.object->SetHidden(kSelectionRangeSlot, Value::Undefined());
+  sel_method("removeRange", [held, clear](NativeCall& call) -> Value {
+    if (!RequireArguments(call, "Selection", "removeRange", 1)) {
+      return call.ThrownValue();
     }
+    const Value given = call.arguments[0];
+    if (NodeSlot(given, kStartNodeSlot) == nullptr) {
+      return call.Throw("TypeError", "removeRange needs a Range");
+    }
+    const Value range = held(call.self);
+    if (range.IsObject() && range.object == given.object) {
+      return clear(call);
+    }
+    return ThrowDom(call, "NotFoundError", "that range is not in this selection");
+  });
+
+  // collapse / setPosition. A null node clears; a DocumentType throws; an
+  // offset past the node's length throws; a node not in this document is a
+  // no-op. Otherwise a *new* Range, so the object addRange was given stays put.
+  const auto collapse = [this, hold, clear](NativeCall& call) -> Value {
+    if (!RequireArguments(call, "Selection", "collapse", 1)) {
+      return call.ThrownValue();
+    }
+    if (call.arguments[0].IsNullish()) {
+      return clear(call);
+    }
+    dom::Node* node = NodeOf(call.arguments[0]);
+    if (node == nullptr) {
+      return call.Throw("TypeError", "collapse needs a Node");
+    }
+    std::uint32_t offset = 0;
+    if (call.arguments.size() >= 2 && !call.arguments[1].IsUndefined() &&
+        !ToUnsignedLong(call, call.arguments[1], IntegerRange::Modulo, offset)) {
+      return call.ThrownValue();
+    }
+    if (node->GetKind() == dom::Node::Kind::DocumentType) {
+      return ThrowDom(call, "InvalidNodeTypeError", "a DocumentType cannot be a selection point");
+    }
+    if (offset > NodeLength(*node)) {
+      return ThrowDom(call, "IndexSizeError", "the offset is larger than the node's length");
+    }
+    if (!IsInclusiveDescendant(node, document_)) {
+      return Value::Undefined();
+    }
+    const Value range = NewLiveRange(call, node, offset, node, offset);
+    if (call.HasThrown()) {
+      return call.ThrownValue();
+    }
+    hold(call.self, range, false);
+    return Value::Undefined();
+  };
+  sel_method("collapse", collapse);
+  sel_method("setPosition", collapse);
+
+  sel_method("collapseToStart", [held, hold](NativeCall& call) -> Value {
+    const Value current = held(call.self);
+    if (!current.IsObject()) {
+      return ThrowDom(call, "InvalidStateError", "the selection is empty");
+    }
+    dom::Node* node = NodeSlot(current, kStartNodeSlot);
+    const std::uint32_t offset = OffsetSlot(current, kStartOffsetSlot);
+    const Value range = NewLiveRange(call, node, offset, node, offset);
+    if (call.HasThrown()) {
+      return call.ThrownValue();
+    }
+    hold(call.self, range, false);
+    return Value::Undefined();
+  });
+  sel_method("collapseToEnd", [held, hold](NativeCall& call) -> Value {
+    const Value current = held(call.self);
+    if (!current.IsObject()) {
+      return ThrowDom(call, "InvalidStateError", "the selection is empty");
+    }
+    dom::Node* node = NodeSlot(current, kEndNodeSlot);
+    const std::uint32_t offset = OffsetSlot(current, kEndOffsetSlot);
+    const Value range = NewLiveRange(call, node, offset, node, offset);
+    if (call.HasThrown()) {
+      return call.ThrownValue();
+    }
+    hold(call.self, range, false);
     return Value::Undefined();
   });
 
-  // anchor/focus are the range's start and end. A selection made by a page has
-  // no direction -- only a drag has one -- so anchor is always the start, which
-  // is what every engine reports for a programmatic selection.
-  const auto boundary = [held](const char* slot, bool node) {
-    return [held, slot, node](NativeCall& call) -> Value {
+  sel_method("selectAllChildren", [this, hold](NativeCall& call) -> Value {
+    if (!RequireArguments(call, "Selection", "selectAllChildren", 1)) {
+      return call.ThrownValue();
+    }
+    dom::Node* node = NodeOf(call.arguments[0]);
+    if (node == nullptr) {
+      return call.Throw("TypeError", "selectAllChildren needs a Node");
+    }
+    if (node->GetKind() == dom::Node::Kind::DocumentType) {
+      return ThrowDom(call, "InvalidNodeTypeError", "a DocumentType has no children to select");
+    }
+    if (RootOf(*node) != document_) {
+      return Value::Undefined();
+    }
+    const auto count = static_cast<std::uint32_t>(node->Children().size());
+    const Value range = NewLiveRange(call, node, 0, node, count);
+    if (call.HasThrown()) {
+      return call.ThrownValue();
+    }
+    hold(call.self, range, false);
+    return Value::Undefined();
+  });
+
+  sel_method("extend", [this, held, hold](NativeCall& call) -> Value {
+    if (!RequireArguments(call, "Selection", "extend", 1)) {
+      return call.ThrownValue();
+    }
+    dom::Node* node = NodeOf(call.arguments[0]);
+    if (node == nullptr) {
+      return call.Throw("TypeError", "extend needs a Node");
+    }
+    std::uint32_t offset = 0;
+    if (call.arguments.size() >= 2 && !call.arguments[1].IsUndefined() &&
+        !ToUnsignedLong(call, call.arguments[1], IntegerRange::Modulo, offset)) {
+      return call.ThrownValue();
+    }
+    if (!IsInclusiveDescendant(node, document_)) {
+      return Value::Undefined();
+    }
+    const Value current = held(call.self);
+    if (!current.IsObject()) {
+      return ThrowDom(call, "InvalidStateError", "the selection is empty");
+    }
+    if (node->GetKind() == dom::Node::Kind::DocumentType) {
+      return ThrowDom(call, "InvalidNodeTypeError", "a DocumentType cannot be a selection point");
+    }
+    if (offset > NodeLength(*node)) {
+      return ThrowDom(call, "IndexSizeError", "the offset is larger than the node's length");
+    }
+    const bool was_backwards = [&] {
+      if (!call.self.IsObject()) {
+        return false;
+      }
+      const Value* found = call.self.object->GetOwn(kSelectionDirSlot);
+      return found != nullptr && found->IsNumber() && found->number < 0;
+    }();
+    dom::Node* range_start = NodeSlot(current, kStartNodeSlot);
+    dom::Node* range_end = NodeSlot(current, kEndNodeSlot);
+    if (range_start == nullptr || range_end == nullptr) {
+      return Value::Undefined();
+    }
+    const std::uint32_t range_start_off = OffsetSlot(current, kStartOffsetSlot);
+    const std::uint32_t range_end_off = OffsetSlot(current, kEndOffsetSlot);
+    // Anchor is start when forwards, end when backwards.
+    dom::Node* anchor = was_backwards ? range_end : range_start;
+    const std::uint32_t anchor_off = was_backwards ? range_end_off : range_start_off;
+    Value range;
+    bool is_backwards = false;
+    if (RootOf(*node) != RootOf(*range_start)) {
+      range = NewLiveRange(call, node, offset, node, offset);
+      is_backwards = false;
+    } else {
+      const int order = ComparePoints(*anchor, anchor_off, *node, offset);
+      if (order <= 0) {
+        range = NewLiveRange(call, anchor, anchor_off, node, offset);
+        is_backwards = false;
+      } else {
+        range = NewLiveRange(call, node, offset, anchor, anchor_off);
+        is_backwards = true;
+      }
+    }
+    if (call.HasThrown()) {
+      return call.ThrownValue();
+    }
+    hold(call.self, range, is_backwards);
+    return Value::Undefined();
+  });
+
+  sel_method("setBaseAndExtent", [this, hold](NativeCall& call) -> Value {
+    if (!RequireArguments(call, "Selection", "setBaseAndExtent", 4)) {
+      return call.ThrownValue();
+    }
+    dom::Node* anchor = NodeOf(call.arguments[0]);
+    dom::Node* focus = NodeOf(call.arguments[2]);
+    if (anchor == nullptr || focus == nullptr) {
+      return call.Throw("TypeError", "setBaseAndExtent needs two Nodes");
+    }
+    std::uint32_t anchor_off = 0;
+    std::uint32_t focus_off = 0;
+    if (!ToUnsignedLong(call, call.arguments[1], IntegerRange::Modulo, anchor_off) ||
+        !ToUnsignedLong(call, call.arguments[3], IntegerRange::Modulo, focus_off)) {
+      return call.ThrownValue();
+    }
+    if (anchor_off > NodeLength(*anchor) || focus_off > NodeLength(*focus)) {
+      return ThrowDom(call, "IndexSizeError", "the offset is larger than the node's length");
+    }
+    if (!IsInclusiveDescendant(anchor, document_) || !IsInclusiveDescendant(focus, document_)) {
+      return Value::Undefined();
+    }
+    if (anchor->GetKind() == dom::Node::Kind::DocumentType ||
+        focus->GetKind() == dom::Node::Kind::DocumentType) {
+      return ThrowDom(call, "InvalidNodeTypeError", "a DocumentType cannot be a selection point");
+    }
+    const int order = ComparePoints(*anchor, anchor_off, *focus, focus_off);
+    const bool is_backwards = order > 0;
+    const Value range =
+        is_backwards ? NewLiveRange(call, focus, focus_off, anchor, anchor_off)
+                     : NewLiveRange(call, anchor, anchor_off, focus, focus_off);
+    if (call.HasThrown()) {
+      return call.ThrownValue();
+    }
+    hold(call.self, range, is_backwards);
+    return Value::Undefined();
+  });
+
+  // Forwards: anchor is start, focus is end. Backwards: the other way, which
+  // is the whole reason `extend` exists -- a drag that went up the page.
+  const auto boundary = [held, backwards](bool want_anchor, bool node) {
+    return [held, backwards, want_anchor, node](NativeCall& call) -> Value {
       DomBindings* owner = OwnerOf(call);
       const Value range = held(call.self);
       if (owner == nullptr || !range.IsObject()) {
         return node ? Value::Null() : Value::Number(0);
       }
+      const bool start = want_anchor ? !backwards(call.self) : backwards(call.self);
+      const char* node_slot = start ? kStartNodeSlot : kEndNodeSlot;
+      const char* off_slot = start ? kStartOffsetSlot : kEndOffsetSlot;
       if (!node) {
-        return Value::Number(OffsetSlot(range, slot));
+        return Value::Number(OffsetSlot(range, off_slot));
       }
-      return owner->WrapperFor(NodeSlot(range, slot));
+      return owner->WrapperFor(NodeSlot(range, node_slot));
     };
   };
-  sel_accessor("anchorNode", boundary(kStartNodeSlot, true));
-  sel_accessor("anchorOffset", boundary(kStartOffsetSlot, false));
-  sel_accessor("focusNode", boundary(kEndNodeSlot, true));
-  sel_accessor("focusOffset", boundary(kEndOffsetSlot, false));
+  sel_accessor("anchorNode", boundary(true, true));
+  sel_accessor("anchorOffset", boundary(true, false));
+  sel_accessor("focusNode", boundary(false, true));
+  sel_accessor("focusOffset", boundary(false, false));
   sel_accessor("isCollapsed", [held](NativeCall& call) {
     const Value range = held(call.self);
     if (!range.IsObject()) {
@@ -660,7 +905,21 @@ void DomBindings::InstallRangeContents(const js::Value& range_interface) {
   });
   sel_accessor("type", [held](NativeCall& call) {
     const Value range = held(call.self);
-    return Value::String(std::string(!range.IsObject() ? "None" : "Range"));
+    if (!range.IsObject()) {
+      return Value::String(std::string("None"));
+    }
+    dom::Node* start = NodeSlot(range, kStartNodeSlot);
+    dom::Node* end = NodeSlot(range, kEndNodeSlot);
+    const bool caret = start == nullptr || end == nullptr ||
+                       ComparePoints(*start, OffsetSlot(range, kStartOffsetSlot), *end,
+                                     OffsetSlot(range, kEndOffsetSlot)) == 0;
+    return Value::String(std::string(caret ? "Caret" : "Range"));
+  });
+  sel_accessor("direction", [held, backwards](NativeCall& call) {
+    if (!held(call.self).IsObject()) {
+      return Value::String(std::string("none"));
+    }
+    return Value::String(std::string(backwards(call.self) ? "backward" : "forward"));
   });
   // The selected text, which is the range's -- through the Range's own
   // `toString`, so the two can never disagree about what is inside.
