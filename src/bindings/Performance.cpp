@@ -135,6 +135,32 @@ double CurrentNow(js::Interpreter& interpreter) {
   return last == nullptr ? 0.0 : js::ToNumber(*last);
 }
 
+// Web IDL dictionary conversion for PerformanceMarkOptions. Undefined and null
+// become the empty dictionary; a primitive is a TypeError. startTime, when
+// present, must not be negative.
+bool ConvertMarkOptions(NativeCall& call, const Value& options, double& start, Value& detail) {
+  if (options.IsUndefined() || options.IsNull()) {
+    return true;
+  }
+  if (!options.IsObject()) {
+    (void)call.Throw("TypeError", "PerformanceMarkOptions must be an object");
+    return false;
+  }
+  if (const Value* given = options.object->Get("startTime");
+      given != nullptr && !given->IsUndefined()) {
+    start = js::ToNumber(*given);
+    if (start < 0.0) {
+      (void)call.Throw("TypeError", "PerformanceMark startTime is negative");
+      return false;
+    }
+  }
+  if (const Value* given = options.object->Get("detail");
+      given != nullptr && !given->IsUndefined()) {
+    detail = *given;
+  }
+  return true;
+}
+
 Value InstallIllegalInterface(js::Interpreter& interpreter, const char* name,
                               const Value& parent_proto, const Value& parent_ctor) {
   const Value prototype = interpreter.NewObjectValue();
@@ -233,18 +259,8 @@ void InstallEntryInterfaces(js::Interpreter& interpreter) {
           }
           double start = CurrentNow(call.interpreter);
           Value detail = Value::Null();
-          const Value options = Argument(call.arguments, 1);
-          if (options.IsObject()) {
-            if (const Value* given = options.object->Get("startTime")) {
-              start = js::ToNumber(*given);
-              if (start < 0.0) {
-                return call.Throw("TypeError", "PerformanceMark startTime is negative");
-              }
-            }
-            if (const Value* given = options.object->Get("detail");
-                given != nullptr && !given->IsUndefined()) {
-              detail = *given;
-            }
+          if (!ConvertMarkOptions(call, Argument(call.arguments, 1), start, detail)) {
+            return call.ThrownValue();
           }
           return MakeEntry(call.interpreter, "mark", name, start, 0.0, detail);
         });
@@ -496,18 +512,8 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
     // a mark at a moment that has already passed.
     double start = CurrentNow(call.interpreter);
     Value detail = Value::Null();
-    const Value options = Argument(call.arguments, 1);
-    if (options.IsObject()) {
-      if (const Value* given = options.object->Get("startTime")) {
-        start = js::ToNumber(*given);
-        if (start < 0.0) {
-          return call.Throw("TypeError", "Failed to execute 'mark': startTime is negative");
-        }
-      }
-      if (const Value* given = options.object->Get("detail");
-          given != nullptr && !given->IsUndefined()) {
-        detail = *given;
-      }
+    if (!ConvertMarkOptions(call, Argument(call.arguments, 1), start, detail)) {
+      return call.ThrownValue();
     }
     const Value entry = MakeEntry(call.interpreter, "mark", name, start, 0.0, detail);
     Record(call.interpreter, entry);
