@@ -7,20 +7,8 @@ FAIL=timeOrigins are clamped.
 [hr-time/cross-origin-isolated-timing-attack.https.html]
 FAIL=The recommended minimum resolution of the Performance interface has been set to 5 microseconds for cross-origin isolated contexts.
 [hr-time/idlharness.any.html]
-FAIL=Performance interface object length
-FAIL=Performance interface object name
-FAIL=Performance interface: attribute timeOrigin
 FAIL=Performance interface: existence and properties of interface object
 FAIL=Performance interface: existence and properties of interface prototype object
-FAIL=Performance interface: existence and properties of interface prototype object's "constructor" property
-FAIL=Performance interface: existence and properties of interface prototype object's @@unscopables property
-FAIL=Performance interface: operation now()
-FAIL=Performance interface: operation toJSON()
-FAIL=Performance interface: performance must inherit property "now()" with the proper type
-FAIL=Performance interface: performance must inherit property "timeOrigin" with the proper type
-FAIL=Performance interface: performance must inherit property "toJSON()" with the proper type
-FAIL=Performance must be primary interface of performance
-FAIL=Stringification of performance
 FAIL=Window interface: attribute performance
 [hr-time/navigation-start-post-before-unload.html]
 harness=TIMEOUT
