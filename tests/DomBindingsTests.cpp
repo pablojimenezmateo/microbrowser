@@ -2080,6 +2080,14 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kTree,
                  "try { getSelection().removeRange(null); 'no' } catch (e) { e.name }",
                  "TypeError");
+    ExpectScript(kTree,
+                 "const p = document.getElementById('p');"
+                 "const t = p.firstChild;"
+                 "const r = document.createRange(); r.setStart(t, 1); r.setEnd(t, 4);"
+                 "const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);"
+                 "sel.deleteFromDocument(); p.textContent",
+                 "ho");
+    ExpectScript(kTree, "Selection.prototype.deleteFromDocument.length", "0");
   });
 
   AddTest(tests, "DomBindings/ClassListReadsAndRewritesTheAttribute", [] {

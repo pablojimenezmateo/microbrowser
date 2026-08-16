@@ -921,6 +921,28 @@ void DomBindings::InstallRangeContents(const js::Value& range_interface) {
     }
     return Value::String(std::string(backwards(call.self) ? "backward" : "forward"));
   });
+  // Mutates the held range in place, which is the one Selection method the
+  // specification says must -- collapse/extend replace it, this one edits the
+  // tree through it.
+  sel_method("deleteFromDocument", [held](NativeCall& call) -> Value {
+    const Value range = held(call.self);
+    if (!range.IsObject()) {
+      return Value::Undefined();
+    }
+    const Value* deleter = range.object->Get("deleteContents");
+    if (deleter == nullptr || !deleter->IsObject()) {
+      return Value::Undefined();
+    }
+    const js::Result result = call.interpreter.CallFunction(*deleter, range, {});
+    if (result.completion == js::Completion::Throw) {
+      return call.ThrowValue(result.value);
+    }
+    return Value::Undefined();
+  });
+  if (const Value* deleter_fn = selection_interface.object->GetOwn("deleteFromDocument");
+      deleter_fn != nullptr && deleter_fn->IsObject()) {
+    deleter_fn->object->Set("length", Value::Number(0));
+  }
   // The selected text, which is the range's -- through the Range's own
   // `toString`, so the two can never disagree about what is inside.
   sel_method("toString", [held](NativeCall& call) -> Value {

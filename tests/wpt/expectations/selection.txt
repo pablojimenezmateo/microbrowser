@@ -313,7 +313,6 @@ FAIL=Range 6: [paras[1].firstChild, 0, paras[1].firstChild, 1]
 FAIL=Range 7: [paras[1].firstChild, 2, paras[1].firstChild, 8]
 FAIL=Range 8: [paras[1].firstChild, 2, paras[1].firstChild, 9]
 FAIL=Range 9: [detachedPara1.firstChild, 0, detachedPara1.firstChild, 0]
-FAIL=Selection.prototype.deleteFromDocument.length must equal 0
 [selection/drag-selection-contenteditable-to-out-of-flow-user-select-none.html]
 FAIL=Drag from contenteditable into out-of-flow user-select:none extends selection to editable boundary.
 [selection/drag-selection-extend-to-user-select-none.html]
