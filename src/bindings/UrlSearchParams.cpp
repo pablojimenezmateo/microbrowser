@@ -154,15 +154,17 @@ void DomBindings::InstallUrlSearchParams() {
     }
   };
 
-  const auto method = [this, &prototype](const char* name, js::NativeFunction function) {
+  const auto method = [this, &prototype](const char* name, double length,
+                                         js::NativeFunction function) {
     const Value native = interpreter_->NewNativeValue(name, std::move(function));
     if (native.IsObject()) {
       native.object->Set(kOwnerSlot, OwnerValue(this));
+      SetFunctionLength(native, length);
       prototype.object->Set(name, native);
     }
   };
 
-  method("get", [](NativeCall& call) {
+  method("get", 1, [](NativeCall& call) {
     const std::string wanted = UsvOf(call, Argument(call.arguments, 0));
     for (const Value& pair : ReadPairs(call.self)) {
       if (PairPart(pair, 0) == wanted) {
@@ -173,7 +175,7 @@ void DomBindings::InstallUrlSearchParams() {
     // `params.get('x') === null` tests for.
     return Value::Null();
   });
-  method("getAll", [](NativeCall& call) {
+  method("getAll", 1, [](NativeCall& call) {
     const std::string wanted = UsvOf(call, Argument(call.arguments, 0));
     std::vector<Value> found;
     for (const Value& pair : ReadPairs(call.self)) {
@@ -183,7 +185,7 @@ void DomBindings::InstallUrlSearchParams() {
     }
     return call.interpreter.NewArrayValue(std::move(found));
   });
-  method("has", [](NativeCall& call) {
+  method("has", 1, [](NativeCall& call) {
     // Two arguments means "this name with *this* value", and an explicit `undefined` is *not* one:
     // `has(name, undefined)` is the one-argument query. That is the standard's own rule, and the
     // reason for it is that `has(name, map.get(k))` written by a program whose lookup missed must
@@ -198,7 +200,7 @@ void DomBindings::InstallUrlSearchParams() {
     }
     return Value::Bool(false);
   });
-  method("append", [WriteBack](NativeCall& call) {
+  method("append", 2, [WriteBack](NativeCall& call) {
     std::vector<Value> pairs = ReadPairs(call.self);
     pairs.push_back(MakePair(call.interpreter, UsvOf(call, Argument(call.arguments, 0)),
                              UsvOf(call, Argument(call.arguments, 1))));
@@ -206,7 +208,7 @@ void DomBindings::InstallUrlSearchParams() {
     WriteBack(call);
     return Value::Undefined();
   });
-  method("set", [WriteBack](NativeCall& call) {
+  method("set", 2, [WriteBack](NativeCall& call) {
     // Replaces the *first* match in place and drops the rest, rather than
     // appending at the end. The distinction is observable through `toString`,
     // and a page that builds a URL by setting a parameter it already has
@@ -232,7 +234,7 @@ void DomBindings::InstallUrlSearchParams() {
     WriteBack(call);
     return Value::Undefined();
   });
-  method("delete", [WriteBack](NativeCall& call) {
+  method("delete", 1, [WriteBack](NativeCall& call) {
     // Two arguments removes only the pairs with that name *and* that value. See `has` above for
     // why an explicit `undefined` is not one.
     const std::string name = UsvOf(call, Argument(call.arguments, 0));
@@ -248,7 +250,7 @@ void DomBindings::InstallUrlSearchParams() {
     WriteBack(call);
     return Value::Undefined();
   });
-  method("sort", [WriteBack](NativeCall& call) {
+  method("sort", 0, [WriteBack](NativeCall& call) {
     // By name, stably, which is what the specification says: two values under
     // one name keep the order they were appended in.
     std::vector<Value> pairs = ReadPairs(call.self);
@@ -262,7 +264,7 @@ void DomBindings::InstallUrlSearchParams() {
     WriteBack(call);
     return Value::Undefined();
   });
-  method("forEach", [](NativeCall& call) {
+  method("forEach", 1, [](NativeCall& call) {
     // `(value, name, params)`, in that order. Reversed arguments is the classic
     // way to get this wrong, and reddit's challenge writes
     // `.forEach((e, n) => …{name: n, value: e})` -- which produces a form with
@@ -285,7 +287,7 @@ void DomBindings::InstallUrlSearchParams() {
     }
     return Value::Undefined();
   });
-  method("toString", [](NativeCall& call) {
+  method("toString", 0, [](NativeCall& call) {
     std::vector<util::QueryPair> pairs;
     for (const Value& pair : ReadPairs(call.self)) {
       pairs.emplace_back(PairPart(pair, 0), PairPart(pair, 1));
@@ -299,7 +301,7 @@ void DomBindings::InstallUrlSearchParams() {
   // parameter it is looking at is defined to see the one that moved into its place, and with a
   // snapshot it sees the deleted one and then runs off the end.
   const auto view = [this, &method](const char* name, int part) {
-    method(name, [this, part](NativeCall& call) -> Value {
+    method(name, 0, [this, part](NativeCall& call) -> Value {
       const Value iterator = call.interpreter.NewObjectValue();
       if (!iterator.IsObject()) {
         return Value::Undefined();
@@ -456,9 +458,13 @@ void DomBindings::InstallUrlSearchParams() {
       });
   if (constructor.IsObject()) {
     constructor.object->Set(kOwnerSlot, OwnerValue(this));
-    constructor.object->Set("prototype", prototype);
-    prototype.object->SetHidden("constructor", constructor);
-    interpreter_->Global()->Set("URLSearchParams", constructor);
+    DefinePrototypeSlot(constructor.object, prototype);
+    DefineNonEnumerable(prototype.object, "constructor", constructor);
+    if (js::Object* tag = interpreter_->SymbolToStringTag()) {
+      prototype.object->SetHidden(js::PropertyKey::Symbol(tag), Value::String("URLSearchParams"));
+    }
+    SetFunctionLength(constructor, 0);
+    DefineNonEnumerable(interpreter_->Global(), "URLSearchParams", constructor);
     interpreter_->GlobalScope()->Declare("URLSearchParams", constructor, false);
   }
 }

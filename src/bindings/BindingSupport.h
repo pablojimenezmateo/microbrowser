@@ -705,6 +705,31 @@ inline void SetFunctionLength(const js::Value& function, double length) {
   }
 }
 
+// Web IDL interface objects, `.prototype.constructor`, and the global's copy
+// of the constructor are non-enumerable. `Object::Set` defaults the other way,
+// and idlharness asks `assert_own_property` plus `enumerable === false`.
+inline void DefineNonEnumerable(js::Object* object, const char* name, const js::Value& value) {
+  if (object == nullptr) {
+    return;
+  }
+  js::Object::Property property;
+  property.value = value;
+  property.enumerable = false;
+  object->Define(name, std::move(property));
+}
+
+inline void DefinePrototypeSlot(js::Object* constructor, const js::Value& prototype) {
+  if (constructor == nullptr) {
+    return;
+  }
+  js::Object::Property property;
+  property.value = prototype;
+  property.writable = false;
+  property.enumerable = false;
+  property.configurable = false;
+  constructor->Define("prototype", std::move(property));
+}
+
 // The node after `node` among its parent's children, or null. Null too for a
 // node with no parent, which is what makes it safe to use as an insertion
 // reference without a second check.

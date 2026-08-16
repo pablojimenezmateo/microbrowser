@@ -252,6 +252,9 @@ void DomBindings::InstallUrlConstructor() {
 
   const Value constructor =
       interpreter_->NewNativeValue("URL", [this, prototype, parse_arguments](NativeCall& call) {
+        if (call.arguments.empty()) {
+          return call.Throw("TypeError", "Failed to construct URL: 1 argument required");
+        }
         bool threw = false;
         const std::optional<url::Url> parsed = parse_arguments(call, threw);
         if (threw) {
@@ -361,10 +364,16 @@ void DomBindings::InstallUrlConstructor() {
     return Value::String(HrefOf(call.self));
   });
   if (to_string.IsObject()) {
+    SetFunctionLength(to_string, 0);
     prototype.object->Set("toString", to_string);
     prototype.object->Set("toJSON", to_string);
   }
-  constructor.object->Set("prototype", prototype);
+  DefinePrototypeSlot(constructor.object, prototype);
+  DefineNonEnumerable(prototype.object, "constructor", constructor);
+  if (js::Object* tag = interpreter_->SymbolToStringTag()) {
+    prototype.object->SetHidden(js::PropertyKey::Symbol(tag), Value::String("URL"));
+  }
+  SetFunctionLength(constructor, 1);
 
   // `URL.parse` and `URL.canParse`: the same question the constructor answers, without the throw.
   // They exist because the throwing form is what pages actually use to *test* a string, and a
@@ -382,6 +391,7 @@ void DomBindings::InstallUrlConstructor() {
         return Value::Bool(parsed.has_value());
       });
   if (can_parse.IsObject()) {
+    SetFunctionLength(can_parse, 1);
     constructor.object->Set("canParse", can_parse);
   }
   const Value parse_static = interpreter_->NewNativeValue(
@@ -411,11 +421,18 @@ void DomBindings::InstallUrlConstructor() {
       });
   if (parse_static.IsObject()) {
     parse_static.object->Set(kOwnerSlot, OwnerValue(this));
+    SetFunctionLength(parse_static, 1);
     constructor.object->Set("parse", parse_static);
   }
 
-  interpreter_->Global()->Set("URL", constructor);
+  DefineNonEnumerable(interpreter_->Global(), "URL", constructor);
   interpreter_->GlobalScope()->Declare("URL", constructor, false);
+  if (document_ != nullptr) {
+    // [LegacyWindowAlias=webkitURL] is a Window-only name. A worker that grew
+    // one failed idlharness: "webkitURL should not exist".
+    DefineNonEnumerable(interpreter_->Global(), "webkitURL", constructor);
+    interpreter_->GlobalScope()->Declare("webkitURL", constructor, false);
+  }
 }
 
 // Called after a mutating `URLSearchParams` method: writes the serialized list back into the URL

@@ -2564,6 +2564,11 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "try { new URL('http://example.org/').searchParams = 1; 'no' } "
                  "catch (e) { e.name }",
                  "TypeError");
+    ExpectScript(kPage, "URL.length + ':' + URL.canParse.length + ':' + URL.parse.length", "1:1:1");
+    ExpectScript(kPage, "Object.getOwnPropertyDescriptor(URL.prototype, 'constructor').enumerable",
+                 "false");
+    ExpectScript(kPage, "webkitURL === URL", "true");
+    ExpectScript(kPage, "URLSearchParams.prototype.append.length", "2");
     // A copy, not an alias: writing to one must not show up in the other.
     ExpectScript(kPage,
                  "const a = new URLSearchParams('n=1'); const b = new URLSearchParams(a);"
