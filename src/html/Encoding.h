@@ -170,7 +170,12 @@ class Encoder {
   //
   // A surrogate is not a scalar value and is a failure here rather than an assertion: the input is
   // a page's string, which may be any sequence of UTF-16 code units at all.
-  bool Encode(std::uint32_t code_point, std::string& out);
+  //
+  // `error_code_point`, when given, is the code point the Encoding Standard's error carries. It is
+  // usually `code_point`; ISO-2022-JP's ASCII/Roman state reports U+FFFD for U+000E/000F/001B
+  // instead, so a URL cannot inject ESC/SI/SO as `&#14;`.
+  bool Encode(std::uint32_t code_point, std::string& out,
+              std::uint32_t* error_code_point = nullptr);
 
   // The bytes that belong at the end of the output, which for ISO-2022-JP is the escape back to
   // ASCII and for everything else is nothing. Not folded into `Encode`, because the caller decides

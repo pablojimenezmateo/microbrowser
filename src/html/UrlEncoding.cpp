@@ -41,7 +41,8 @@ void DocumentQueryEncoder::EncodeQuery(std::string_view input, bool (*needs_esca
   std::size_t at = 0;
   while (at < input.size()) {
     const std::uint32_t code_point = NextScalarValue(input, at);
-    const bool encoded = encoder.Encode(code_point, bytes);
+    std::uint32_t error_code_point = code_point;
+    const bool encoded = encoder.Encode(code_point, bytes, &error_code_point);
     // Flushed either way, because a *failed* encode can still have left the escape that takes
     // ISO-2022-JP out of its shift state -- and those bytes belong before the escape below, not
     // after it.
@@ -53,7 +54,7 @@ void DocumentQueryEncoder::EncodeQuery(std::string_view input, bool (*needs_esca
       // to whatever parses the URL next -- which is a parameter the user never typed appearing in a
       // request, and is why the standard writes the escape out in hex rather than composing it.
       out += "%26%23";
-      out += std::to_string(code_point);
+      out += std::to_string(error_code_point);
       out += "%3B";
     }
   }

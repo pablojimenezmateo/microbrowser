@@ -12,6 +12,7 @@
 #include "engine/Page.h"
 #include "gfx/FontCatalog.h"
 #include "html/Encoding.h"
+#include "html/UrlEncoding.h"
 #include "support/SyntheticFont.h"
 
 namespace microbrowser::tests {
@@ -503,6 +504,16 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
     // that makes a hand-written expectation wrong in a way only the index can settle.
     ExpectEqString(encode("日한", Encoding::Iso2022Jp), "\x1B$B" "F|" "\x1B(B" "&#54620;",
                    "an unencodable character leaves the shift state first");
+    // ESC/SI/SO in ASCII are an encoder error with U+FFFD, not with the control:
+    // `&#14;` in a query would be a way to inject a shift. The WPT vector is
+    // `\u000EA` → `%26%2365533%3BA`.
+    ExpectEqString(encode("\x0E" "A", Encoding::Iso2022Jp), "&#65533;A",
+                   "U+000E encodes as a replacement, not as itself");
+    html::DocumentQueryEncoder query(Encoding::Iso2022Jp);
+    std::string encoded;
+    query.EncodeQuery(std::string("\x0E") + "A", [](unsigned char) { return false; }, encoded);
+    ExpectEqString(encoded, "%26%2365533%3BA",
+                   "and a URL query percent-encodes that reference");
     // A code point no encoding here has is the same escape everywhere, and it is the caller's
     // spelling rather than the encoder's -- see Encoding.h.
     ExpectEqString(encode("한", Encoding::ShiftJis), "&#54620;", "an unencodable code point");

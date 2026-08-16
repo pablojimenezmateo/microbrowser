@@ -656,7 +656,15 @@ std::string DecodeToUtf8(std::string_view bytes, Encoding encoding) {
   return DecodeBytes(bytes.substr(std::min(bom, bytes.size())), encoding);
 }
 
-bool Encoder::Encode(std::uint32_t code_point, std::string& out) {
+bool Encoder::Encode(std::uint32_t code_point, std::string& out, std::uint32_t* error_code_point) {
+  if (error_code_point != nullptr) {
+    // Encoding Standard, iso-2022-jp encoder: U+000E/000F/001B in ASCII or Roman
+    // return error with U+FFFD rather than the control, to prevent attacks.
+    const bool iso2022_control =
+        encoding_ == Encoding::Iso2022Jp && (state_ == 0 || state_ == 1) &&
+        (code_point == 0x000E || code_point == 0x000F || code_point == 0x001B);
+    *error_code_point = iso2022_control ? 0xFFFD : code_point;
+  }
   // A surrogate is not a scalar value. It arrives here because a page's string is UTF-16 code units
   // and may hold a lone one, and it is a failure rather than an assertion for that reason -- the
   // caller writes it as `&#55296;`, which is what every browser sends.
@@ -724,9 +732,10 @@ std::string EncodeWithNumericEscapes(std::string_view input, Encoding encoding) 
   std::size_t at = 0;
   while (at < input.size()) {
     const std::uint32_t code_point = NextScalarValue(input, at);
-    if (!encoder.Encode(code_point, out)) {
+    std::uint32_t error_code_point = code_point;
+    if (!encoder.Encode(code_point, out, &error_code_point)) {
       out += "&#";
-      out += std::to_string(code_point);
+      out += std::to_string(error_code_point);
       out += ';';
     }
   }
