@@ -23,9 +23,3 @@ FAIL=Input U+a2 with encoding utf-8
 FAIL=Input U+e1| with encoding utf-8
 FAIL=Input U+e5e5 with encoding gb18030
 FAIL=Input U+e5e5 with encoding utf-8
-[url/url-searchparams.any.html]
-FAIL=URL.searchParams setter, invalid values
-[url/url-searchparams.any.worker.html]
-FAIL=URL.searchParams setter, invalid values
-[url/urlsearchparams-constructor.any.worker.html]
-FAIL=URLSearchParams constructor, DOMException as argument

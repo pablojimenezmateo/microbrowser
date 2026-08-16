@@ -2,12 +2,6 @@
 FAIL=Console count method default parameter should work
 [console/console-countReset-logging.html]
 FAIL=console.countReset resets counts and logs a message for missing labels
-[console/console-is-a-namespace.any.worker.html]
-FAIL=console exists on the global object
-[console/console-namespace-object-class-string.any.html]
-FAIL=Object.prototype.toString applied after deleting @@toStringTag
-[console/console-namespace-object-class-string.any.worker.html]
-FAIL=Object.prototype.toString applied after deleting @@toStringTag
 [console/console-number-format-specifiers-symbol.html]
 FAIL=Console numeric format specifiers on Symbols produce NaN
 [console/console-timing-logging.html]
