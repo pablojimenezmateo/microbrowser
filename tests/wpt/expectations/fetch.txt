@@ -190,15 +190,12 @@ FAIL=url referrer
 [fetch/api/basic/request-referrer.any.html]
 FAIL=url referrer
 [fetch/api/basic/request-upload.any.html]
-FAIL=Fetch with POST with Blob body
-FAIL=Fetch with POST with Blob body with mime type
 FAIL=Fetch with POST with Float16Array body
 FAIL=Fetch with POST with ReadableStream containing ArrayBuffer
 FAIL=Fetch with POST with ReadableStream containing Blob
 FAIL=Fetch with POST with ReadableStream containing String
 FAIL=Fetch with POST with ReadableStream containing null
 FAIL=Fetch with POST with ReadableStream containing number
-FAIL=Fetch with POST with URLSearchParams body
 FAIL=Fetch with POST with text body on 421 response should be retried once on new connection.
 FAIL=Streaming upload shouldn't work on Http/1.1.
 [fetch/api/basic/request-upload.h2.any.html]
