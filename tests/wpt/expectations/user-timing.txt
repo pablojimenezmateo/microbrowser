@@ -4,23 +4,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [user-timing/clearMeasures.html]
 harness=TIMEOUT
-[user-timing/invoke_without_parameter.html]
-FAIL=window.performance.mark() throws a TypeError exception when invoke without a parameter.
-FAIL=window.performance.measure() throws a TypeError exception when invoke without a parameter.
-[user-timing/mark-entry-constructor.any.html]
-FAIL=Mark entry can be created by 'new PerformanceMark(string)'.
-FAIL=Mark entry can be created by 'new PerformanceMark(string, {detail})'.
-FAIL=Mark entry can be created by 'new PerformanceMark(string, {startTime, detail})'.
-FAIL=Mark entry can be created by 'new PerformanceMark(string, {startTime})'.
-FAIL=Mark entry can be created by 'new PerformanceMark(string, {})'.
-FAIL=Using new PerformanceMark() shouldn't add the entry to performance timeline.
-[user-timing/mark-entry-constructor.any.worker.html]
-FAIL=Mark entry can be created by 'new PerformanceMark(string)'.
-FAIL=Mark entry can be created by 'new PerformanceMark(string, {detail})'.
-FAIL=Mark entry can be created by 'new PerformanceMark(string, {startTime, detail})'.
-FAIL=Mark entry can be created by 'new PerformanceMark(string, {startTime})'.
-FAIL=Mark entry can be created by 'new PerformanceMark(string, {})'.
-FAIL=Using new PerformanceMark() shouldn't add the entry to performance timeline.
 [user-timing/mark-errors.any.html]
 FAIL=[new PerformanceMark]: Infinity should be rejected as the mark-options.
 FAIL=[new PerformanceMark]: NaN should be rejected as the mark-options.
@@ -43,50 +26,10 @@ FAIL=[performance.mark]: NaN should be rejected as the mark-options.
 FAIL=[performance.mark]: Negative startTime in mark-options should be rejected
 FAIL=[performance.mark]: Number should be rejected as the mark-options.
 FAIL=[performance.mark]: String should be rejected as the mark-options.
-[user-timing/mark-l3.any.html]
-FAIL=mark entries' detail and startTime are customizable.
 [user-timing/mark-l3.any.worker.html]
 FAIL=mark entries' detail and startTime are customizable.
-[user-timing/mark-measure-feature-detection.html]
-FAIL=Test PerformanceMark existence and feature detection
-FAIL=Test PerformanceMeasure existence and feature detection
-[user-timing/mark-measure-return-objects.any.html]
-FAIL=L3: performance.mark(name) should return an entry.
-FAIL=L3: performance.mark(name, param) should return an entry.
-FAIL=L3: performance.measure(name) should return an entry.
-FAIL=L3: performance.measure(name, param1) should return an entry.
-FAIL=L3: performance.measure(name, param1, param2) should return an entry.
-[user-timing/mark-measure-return-objects.any.worker.html]
-FAIL=L3: performance.mark(name) should return an entry.
-FAIL=L3: performance.mark(name, param) should return an entry.
-FAIL=L3: performance.measure(name) should return an entry.
-FAIL=L3: performance.measure(name, param1) should return an entry.
-FAIL=L3: performance.measure(name, param1, param2) should return an entry.
 [user-timing/mark.html]
 harness=TIMEOUT
-[user-timing/mark_exceptions.html]
-FAIL=window.performance.mark("connectEnd") throws a SyntaxError exception.
-FAIL=window.performance.mark("connectStart") throws a SyntaxError exception.
-FAIL=window.performance.mark("domComplete") throws a SyntaxError exception.
-FAIL=window.performance.mark("domContentLoadedEventEnd") throws a SyntaxError exception.
-FAIL=window.performance.mark("domContentLoadedEventStart") throws a SyntaxError exception.
-FAIL=window.performance.mark("domInteractive") throws a SyntaxError exception.
-FAIL=window.performance.mark("domLoading") throws a SyntaxError exception.
-FAIL=window.performance.mark("domainLookupEnd") throws a SyntaxError exception.
-FAIL=window.performance.mark("domainLookupStart") throws a SyntaxError exception.
-FAIL=window.performance.mark("fetchStart") throws a SyntaxError exception.
-FAIL=window.performance.mark("loadEventEnd") throws a SyntaxError exception.
-FAIL=window.performance.mark("loadEventStart") throws a SyntaxError exception.
-FAIL=window.performance.mark("navigationStart") throws a SyntaxError exception.
-FAIL=window.performance.mark("redirectEnd") throws a SyntaxError exception.
-FAIL=window.performance.mark("redirectStart") throws a SyntaxError exception.
-FAIL=window.performance.mark("requestStart") throws a SyntaxError exception.
-FAIL=window.performance.mark("responseEnd") throws a SyntaxError exception.
-FAIL=window.performance.mark("responseStart") throws a SyntaxError exception.
-FAIL=window.performance.mark("secureConnectionStart") throws a SyntaxError exception.
-FAIL=window.performance.mark("unloadEventEnd") throws a SyntaxError exception.
-FAIL=window.performance.mark("unloadEventStart") throws a SyntaxError exception.
-FAIL=window.performance.mark() throws a TypeError exception.
 [user-timing/measure-exceptions.html]
 FAIL=Passing 'domComplete' as a mark to measure API should cause error when the mark is empty.
 FAIL=Passing 'domContentLoadedEventEnd' as a mark to measure API should cause error when the mark is empty.
@@ -170,6 +113,3 @@ FAIL=When accessing detail from a mark entry and the detail is not provided, jus
 FAIL=When accessing detail from a measure entry and the detail is not provided, just return a null value.
 [user-timing/supported-usertiming-types.any.worker.html]
 harness=TIMEOUT
-[user-timing/user-timing-tojson.html]
-FAIL=Test toJSON() in PerformanceMark
-FAIL=Test toJSON() in PerformanceMeasure
