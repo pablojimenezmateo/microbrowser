@@ -1985,6 +1985,20 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript("<body></body>",
                  "(() => { try { new Blob([], {endings: 'NATIVE'}); return 'no' } catch (e) { return e.name } })()",
                  "TypeError");
+    Bound bound = Bind("<body></body>");
+    bindings::TimerQueue timers;
+    timers.Install(*bound.interpreter, 0);
+    bound.interpreter->Run(
+        "globalThis.out = '';"
+        "const r = new FileReader();"
+        "r.onload = () => { out = r.result };"
+        "r.readAsText(new Blob(['\\r\\n', '\\r'], {endings: 'native'}));");
+    timers.RunDue(*bound.interpreter, 0);
+    timers.RunDue(*bound.interpreter, 0);
+    timers.RunDue(*bound.interpreter, 0);
+    timers.RunDue(*bound.interpreter, 0);
+    ExpectEqString(js::ToString(bound.interpreter->Run("JSON.stringify(out)").value),
+                   "\"\\n\\n\"", "native endings convert per string part");
   });
 
   AddTest(tests, "DomBindings/FileReaderReadsABlobAsText", [] {

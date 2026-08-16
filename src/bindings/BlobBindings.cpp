@@ -18,6 +18,7 @@
 #include <limits>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
@@ -78,13 +79,16 @@ void AppendBufferBytes(std::string& body, const Value& part) {
   body.append(reinterpret_cast<const char*>(view->bytes->data() + view->offset), byte_length);
 }
 
-bool AppendPart(NativeCall& call, std::string& body, const Value& part) {
+bool AppendPart(NativeCall& call, std::vector<std::pair<std::string, bool>>& parts,
+                const Value& part) {
   if (IsBlob(part)) {
-    body += BlobBody(part);
+    parts.emplace_back(BlobBody(part), false);
     return true;
   }
   if (part.IsObject() && part.object->View() != nullptr) {
-    AppendBufferBytes(body, part);
+    std::string bytes;
+    AppendBufferBytes(bytes, part);
+    parts.emplace_back(std::move(bytes), false);
     return true;
   }
   // The interpreter's ToString: a part's own `toString` has to run, and a throw
@@ -95,15 +99,16 @@ bool AppendPart(NativeCall& call, std::string& body, const Value& part) {
     (void)call.ThrowValue(converted.value);
     return false;
   }
-  body += text;
+  parts.emplace_back(std::move(text), true);
   return true;
 }
 
-bool BodyFromBlobParts(NativeCall& call, const Value& parts, std::string& body) {
-  if (parts.IsUndefined()) {
+bool BodyFromBlobParts(NativeCall& call, const Value& parts_value,
+                       std::vector<std::pair<std::string, bool>>& parts) {
+  if (parts_value.IsUndefined()) {
     return true;
   }
-  if (parts.IsNull() || !parts.IsObject()) {
+  if (parts_value.IsNull() || !parts_value.IsObject()) {
     (void)call.Throw("TypeError", "Blob parts must be a sequence");
     return false;
   }
@@ -116,7 +121,7 @@ bool BodyFromBlobParts(NativeCall& call, const Value& parts, std::string& body) 
   // exception the getter's length-or-index neighbour threw.
   js::Result abrupt = js::Result::Normal();
   const Value method = call.interpreter.GetPropertyOrThrow(
-      parts, js::PropertyKey::Symbol(call.interpreter.SymbolIterator()), abrupt);
+      parts_value, js::PropertyKey::Symbol(call.interpreter.SymbolIterator()), abrupt);
   if (abrupt.IsAbrupt()) {
     (void)call.ThrowValue(abrupt.value);
     return false;
@@ -125,7 +130,7 @@ bool BodyFromBlobParts(NativeCall& call, const Value& parts, std::string& body) 
     (void)call.Throw("TypeError", "value is not iterable");
     return false;
   }
-  const js::Result iterator = call.interpreter.CallFunction(method, parts, {});
+  const js::Result iterator = call.interpreter.CallFunction(method, parts_value, {});
   if (iterator.IsAbrupt()) {
     (void)call.ThrowValue(iterator.value);
     return false;
@@ -155,7 +160,7 @@ bool BodyFromBlobParts(NativeCall& call, const Value& parts, std::string& body) 
       return true;
     }
     const Value* item = stepped.value.object->Get("value");
-    if (!AppendPart(call, body, item == nullptr ? Value::Undefined() : *item)) {
+    if (!AppendPart(call, parts, item == nullptr ? Value::Undefined() : *item)) {
       return false;
     }
   }
@@ -185,7 +190,7 @@ bool ReadDictionaryMember(NativeCall& call, const Value& options, const char* na
 }
 
 bool OptionsType(NativeCall& call, const Value& options, std::string& type,
-                 std::int64_t* last_modified) {
+                 std::int64_t* last_modified, bool* native_endings) {
   if (options.IsUndefined() || options.IsNull()) {
     type.clear();
     return true;
@@ -204,6 +209,9 @@ bool OptionsType(NativeCall& call, const Value& options, std::string& type,
   if (has_endings && endings != "native" && endings != "transparent") {
     (void)call.Throw("TypeError", "endings must be \"native\" or \"transparent\"");
     return false;
+  }
+  if (native_endings != nullptr) {
+    *native_endings = has_endings && endings == "native";
   }
   if (last_modified != nullptr) {
     js::Result abrupt = js::Result::Normal();
@@ -238,6 +246,38 @@ bool OptionsType(NativeCall& call, const Value& options, std::string& type,
   }
   type = has_type ? CanonicalContentType(raw) : std::string();
   return true;
+}
+
+// File API "convert line endings to native". Each \r\n, \r, or \n becomes one
+// native newline. Applied per string part, so ['\r','\n'] is two newlines.
+std::string ConvertLineEndingsNative(std::string_view text) {
+  std::string out;
+  out.reserve(text.size());
+  for (std::size_t i = 0; i < text.size();) {
+    if (text[i] == '\r' && i + 1 < text.size() && text[i + 1] == '\n') {
+      out.push_back('\n');
+      i += 2;
+    } else if (text[i] == '\r' || text[i] == '\n') {
+      out.push_back('\n');
+      ++i;
+    } else {
+      out.push_back(text[i]);
+      ++i;
+    }
+  }
+  return out;
+}
+
+std::string JoinParts(const std::vector<std::pair<std::string, bool>>& parts, bool native) {
+  std::string body;
+  for (const auto& [bytes, convert] : parts) {
+    if (native && convert) {
+      body += ConvertLineEndingsNative(bytes);
+    } else {
+      body += bytes;
+    }
+  }
+  return body;
 }
 
 std::int64_t ToSliceOffset(const Value& value) {
@@ -338,12 +378,14 @@ void DomBindings::InstallBlob() {
     if (prototype.IsObject()) {
       object.object->SetPrototype(prototype.object);
     }
-    std::string body;
+    std::vector<std::pair<std::string, bool>> parts;
     std::string type;
-    if (!BodyFromBlobParts(call, Argument(call.arguments, 0), body) ||
-        !OptionsType(call, Argument(call.arguments, 1), type, nullptr)) {
+    bool native = false;
+    if (!BodyFromBlobParts(call, Argument(call.arguments, 0), parts) ||
+        !OptionsType(call, Argument(call.arguments, 1), type, nullptr, &native)) {
       return call.ThrownValue();
     }
+    std::string body = JoinParts(parts, native);
     object.object->SetHidden(kBlobBodySlot, Value::String(std::move(body)));
     object.object->SetHidden(kBlobTypeSlot, Value::String(std::move(type)));
     object.object->SetHidden(kBlobMarkerSlot, Value::Bool(true));
@@ -439,11 +481,12 @@ void DomBindings::InstallBlob() {
         if (file_prototype.IsObject()) {
           object.object->SetPrototype(file_prototype.object);
         }
-        std::string body;
+        std::vector<std::pair<std::string, bool>> parts;
         std::string type;
         std::int64_t last_modified =
             static_cast<std::int64_t>(call.interpreter.NowMilliseconds());
-        if (!BodyFromBlobParts(call, Argument(call.arguments, 0), body)) {
+        bool native = false;
+        if (!BodyFromBlobParts(call, Argument(call.arguments, 0), parts)) {
           return call.ThrownValue();
         }
         std::string name;
@@ -451,9 +494,10 @@ void DomBindings::InstallBlob() {
         if (named.IsAbrupt()) {
           return call.ThrowValue(named.value);
         }
-        if (!OptionsType(call, Argument(call.arguments, 2), type, &last_modified)) {
+        if (!OptionsType(call, Argument(call.arguments, 2), type, &last_modified, &native)) {
           return call.ThrownValue();
         }
+        std::string body = JoinParts(parts, native);
         object.object->SetHidden(kBlobBodySlot, Value::String(std::move(body)));
         object.object->SetHidden(kBlobTypeSlot, Value::String(std::move(type)));
         object.object->SetHidden(kBlobMarkerSlot, Value::Bool(true));
