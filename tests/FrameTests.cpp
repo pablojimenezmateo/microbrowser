@@ -188,6 +188,35 @@ void RegisterFrameTests(std::vector<TestCase>& tests) {
                    "onload after src sees the navigated document, not about:blank");
   });
 
+  AddTest(tests, "Frames/AChildsRelativeScriptSrcResolvesAgainstTheChild", [] {
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html",
+                   "<iframe id=f></iframe>"
+                   "<script>"
+                   "var f = document.getElementById('f');"
+                   "document.body.appendChild(f);"
+                   "f.onload = function () { console.log(String(f.contentWindow.ready)); };"
+                   "f.src = 'child.html';"
+                   "</" "script>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html",
+                   "<script src='../helper.js'></script>"
+                   "<script>window.ready = window.fromHelper;</" "script>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true, OkResponse("text/javascript", "window.fromHelper = 'yes';")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://page.example/dom/ranges/test.html"});
+
+    ExpectEqString(Joined(session.engine.ConsoleOutput()), "yes",
+                   "a child's relative script src resolves against the child, not the embedder");
+  });
+
   AddTest(tests, "Frames/AssigningSrcRenavigatesTheFrame", [] {
     // `iframe.src = other` is an *attribute* write, so it moves the document's mutation version
     // and leaves its structure version alone. The collection pass is gated on structure -- it has
