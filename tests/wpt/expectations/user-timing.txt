@@ -4,28 +4,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [user-timing/clearMeasures.html]
 harness=TIMEOUT
-[user-timing/mark-errors.any.html]
-FAIL=[new PerformanceMark]: Infinity should be rejected as the mark-options.
-FAIL=[new PerformanceMark]: NaN should be rejected as the mark-options.
-FAIL=[new PerformanceMark]: Negative startTime in mark-options should be rejected
-FAIL=[new PerformanceMark]: Number should be rejected as the mark-options.
-FAIL=[new PerformanceMark]: String should be rejected as the mark-options.
-FAIL=[performance.mark]: Infinity should be rejected as the mark-options.
-FAIL=[performance.mark]: NaN should be rejected as the mark-options.
-FAIL=[performance.mark]: Negative startTime in mark-options should be rejected
-FAIL=[performance.mark]: Number should be rejected as the mark-options.
-FAIL=[performance.mark]: String should be rejected as the mark-options.
-[user-timing/mark-errors.any.worker.html]
-FAIL=[new PerformanceMark]: Infinity should be rejected as the mark-options.
-FAIL=[new PerformanceMark]: NaN should be rejected as the mark-options.
-FAIL=[new PerformanceMark]: Negative startTime in mark-options should be rejected
-FAIL=[new PerformanceMark]: Number should be rejected as the mark-options.
-FAIL=[new PerformanceMark]: String should be rejected as the mark-options.
-FAIL=[performance.mark]: Infinity should be rejected as the mark-options.
-FAIL=[performance.mark]: NaN should be rejected as the mark-options.
-FAIL=[performance.mark]: Negative startTime in mark-options should be rejected
-FAIL=[performance.mark]: Number should be rejected as the mark-options.
-FAIL=[performance.mark]: String should be rejected as the mark-options.
 [user-timing/mark-l3.any.worker.html]
 FAIL=mark entries' detail and startTime are customizable.
 [user-timing/mark.html]
