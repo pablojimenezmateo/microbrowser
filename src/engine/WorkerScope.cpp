@@ -742,6 +742,11 @@ void WorkerScope::EndTurn() {
   // The microtask queue, drained at the end of the task rather than left: a worker whose promise
   // callbacks ran only when the *next* message arrived would look like it had stalled.
   interpreter_.DrainMicrotasks();
+  // Workers have no frames, so this is the place a PerformanceObserver callback
+  // can run: after the task, not from inside the `mark` that queued it.
+  if (performance_.DeliverObservations(interpreter_)) {
+    interpreter_.DrainMicrotasks();
+  }
   // `performance.now()` advances at the turn boundary and not inside one, which is the same rule the
   // page's clock follows and the opposite of a timing oracle.
   performance_.Tick(interpreter_, static_cast<std::int64_t>(NowMs()));
