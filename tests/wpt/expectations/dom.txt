@@ -1245,45 +1245,14 @@ harness=TIMEOUT
 [dom/nodes/Element-lastElementChild-xhtml.xhtml]
 harness=TIMEOUT
 [dom/nodes/Element-matches.html]
-FAIL=DIV Element.matches no parameter
 FAIL=Detached Element.matches: :checked pseudo-class selector, matching checked radio buttons and checkboxes (with no refNodes): #pseudo-ui :checked
 FAIL=Detached Element.matches: :disabled pseudo-class selector, matching all disabled form controls (with no refNodes): #pseudo-ui :disabled
 FAIL=Detached Element.matches: :link and :visited pseudo-class selectors, matching a and area elements with href attributes (with no refNodes): #pseudo-link :link, #pseudo-link :visited
 FAIL=Detached Element.matches: Attribute value selector, matching align attribute with value, unclosed bracket (with no refNodes): #attr-value [align="center"
-FAIL:esc=Detached Element.matches: Empty String: 
-FAIL=Detached Element.matches: Invalid ID: #
-FAIL=Detached Element.matches: Invalid [att=value] selector: [*=test]
-FAIL=Detached Element.matches: Invalid [att=value] selector: [*|*=test]
-FAIL=Detached Element.matches: Invalid [att=value] selector: [class= space unquoted ]
-FAIL=Detached Element.matches: Invalid character: (
-FAIL=Detached Element.matches: Invalid character: )
-FAIL=Detached Element.matches: Invalid character: <
-FAIL=Detached Element.matches: Invalid character: >
-FAIL=Detached Element.matches: Invalid character: [
-FAIL=Detached Element.matches: Invalid character: ]
-FAIL=Detached Element.matches: Invalid character: {
-FAIL=Detached Element.matches: Invalid character: }
-FAIL=Detached Element.matches: Invalid class: .
-FAIL=Detached Element.matches: Invalid class: ..test
-FAIL=Detached Element.matches: Invalid class: .5cm
-FAIL=Detached Element.matches: Invalid class: .bar.
-FAIL=Detached Element.matches: Invalid class: .foo..quux
-FAIL=Detached Element.matches: Invalid combinator: div % address, p
-FAIL=Detached Element.matches: Invalid combinator: div ++ address, p
-FAIL=Detached Element.matches: Invalid combinator: div ~~ address, p
 FAIL=Detached Element.matches: Invalid group of selectors: div,
-FAIL=Detached Element.matches: Invalid namespace: $|div
-FAIL=Detached Element.matches: Invalid namespace: ^|div
-FAIL=Detached Element.matches: Invalid pseudo-element: :: before
-FAIL=Detached Element.matches: Invalid pseudo-element: :::before
-FAIL=Detached Element.matches: Relative selector: >*
-FAIL=Detached Element.matches: Undeclared namespace: :not(ns|div)
-FAIL=Detached Element.matches: Undeclared namespace: ns|div
 FAIL=Detached Element.matches: Unknown pseudo-class: :example
 FAIL=Detached Element.matches: Unknown pseudo-class: div:example
 FAIL=Detached Element.matches: Unknown pseudo-class: div:linkexample
-FAIL=Detached Element.matches: Unknown pseudo-element: ::example
-FAIL=Detached Element.matches: Unknown pseudo-element: div::example
 FAIL=Fragment Element.matches: :checked pseudo-class selector, matching checked radio buttons and checkboxes (with no refNodes): #pseudo-ui :checked
 FAIL=Fragment Element.matches: :disabled pseudo-class selector, matching all disabled form controls (with no refNodes): #pseudo-ui :disabled
 FAIL=Fragment Element.matches: :link and :visited pseudo-class selectors, matching a and area elements with href attributes (with no refNodes): #pseudo-link :link, #pseudo-link :visited
@@ -1295,42 +1264,10 @@ FAIL=In-document Element.matches: :disabled pseudo-class selector, matching all 
 FAIL=In-document Element.matches: :link and :visited pseudo-class selectors, matching a and area elements with href attributes (with no refNodes): #pseudo-link :link, #pseudo-link :visited
 FAIL=In-document Element.matches: :link and :visited pseudo-class selectors, matching a and area elements with href attributes (with refNode Element):  :link, #pseudo-link :visited
 FAIL=In-document Element.matches: Attribute value selector, matching align attribute with value, unclosed bracket (with no refNodes): #attr-value [align="center"
-FAIL:esc=In-document Element.matches: Empty String: 
-FAIL=In-document Element.matches: Invalid ID: #
-FAIL=In-document Element.matches: Invalid [att=value] selector: [*=test]
-FAIL=In-document Element.matches: Invalid [att=value] selector: [*|*=test]
-FAIL=In-document Element.matches: Invalid [att=value] selector: [class= space unquoted ]
-FAIL=In-document Element.matches: Invalid character: (
-FAIL=In-document Element.matches: Invalid character: )
-FAIL=In-document Element.matches: Invalid character: <
-FAIL=In-document Element.matches: Invalid character: >
-FAIL=In-document Element.matches: Invalid character: [
-FAIL=In-document Element.matches: Invalid character: ]
-FAIL=In-document Element.matches: Invalid character: {
-FAIL=In-document Element.matches: Invalid character: }
-FAIL=In-document Element.matches: Invalid class: .
-FAIL=In-document Element.matches: Invalid class: ..test
-FAIL=In-document Element.matches: Invalid class: .5cm
-FAIL=In-document Element.matches: Invalid class: .bar.
-FAIL=In-document Element.matches: Invalid class: .foo..quux
-FAIL=In-document Element.matches: Invalid combinator: div % address, p
-FAIL=In-document Element.matches: Invalid combinator: div ++ address, p
-FAIL=In-document Element.matches: Invalid combinator: div ~~ address, p
 FAIL=In-document Element.matches: Invalid group of selectors: div,
-FAIL=In-document Element.matches: Invalid namespace: $|div
-FAIL=In-document Element.matches: Invalid namespace: ^|div
-FAIL=In-document Element.matches: Invalid pseudo-element: :: before
-FAIL=In-document Element.matches: Invalid pseudo-element: :::before
-FAIL=In-document Element.matches: Relative selector: >*
-FAIL=In-document Element.matches: Undeclared namespace: :not(ns|div)
-FAIL=In-document Element.matches: Undeclared namespace: ns|div
 FAIL=In-document Element.matches: Unknown pseudo-class: :example
 FAIL=In-document Element.matches: Unknown pseudo-class: div:example
 FAIL=In-document Element.matches: Unknown pseudo-class: div:linkexample
-FAIL=In-document Element.matches: Unknown pseudo-element: ::example
-FAIL=In-document Element.matches: Unknown pseudo-element: div::example
-FAIL=NULL Element.matches no parameter
-FAIL=UNDEFINED Element.matches no parameter
 [dom/nodes/Element-nextElementSibling-svg.svg]
 harness=TIMEOUT
 [dom/nodes/Element-nextElementSibling-xhtml.xhtml]
@@ -1344,45 +1281,14 @@ harness=TIMEOUT
 [dom/nodes/Element-siblingElement-null-xhtml.xhtml]
 harness=TIMEOUT
 [dom/nodes/Element-webkitMatchesSelector.html]
-FAIL=DIV Element.webkitMatchesSelector no parameter
 FAIL=Detached Element.webkitMatchesSelector: :checked pseudo-class selector, matching checked radio buttons and checkboxes (with no refNodes): #pseudo-ui :checked
 FAIL=Detached Element.webkitMatchesSelector: :disabled pseudo-class selector, matching all disabled form controls (with no refNodes): #pseudo-ui :disabled
 FAIL=Detached Element.webkitMatchesSelector: :link and :visited pseudo-class selectors, matching a and area elements with href attributes (with no refNodes): #pseudo-link :link, #pseudo-link :visited
 FAIL=Detached Element.webkitMatchesSelector: Attribute value selector, matching align attribute with value, unclosed bracket (with no refNodes): #attr-value [align="center"
-FAIL:esc=Detached Element.webkitMatchesSelector: Empty String: 
-FAIL=Detached Element.webkitMatchesSelector: Invalid ID: #
-FAIL=Detached Element.webkitMatchesSelector: Invalid [att=value] selector: [*=test]
-FAIL=Detached Element.webkitMatchesSelector: Invalid [att=value] selector: [*|*=test]
-FAIL=Detached Element.webkitMatchesSelector: Invalid [att=value] selector: [class= space unquoted ]
-FAIL=Detached Element.webkitMatchesSelector: Invalid character: (
-FAIL=Detached Element.webkitMatchesSelector: Invalid character: )
-FAIL=Detached Element.webkitMatchesSelector: Invalid character: <
-FAIL=Detached Element.webkitMatchesSelector: Invalid character: >
-FAIL=Detached Element.webkitMatchesSelector: Invalid character: [
-FAIL=Detached Element.webkitMatchesSelector: Invalid character: ]
-FAIL=Detached Element.webkitMatchesSelector: Invalid character: {
-FAIL=Detached Element.webkitMatchesSelector: Invalid character: }
-FAIL=Detached Element.webkitMatchesSelector: Invalid class: .
-FAIL=Detached Element.webkitMatchesSelector: Invalid class: ..test
-FAIL=Detached Element.webkitMatchesSelector: Invalid class: .5cm
-FAIL=Detached Element.webkitMatchesSelector: Invalid class: .bar.
-FAIL=Detached Element.webkitMatchesSelector: Invalid class: .foo..quux
-FAIL=Detached Element.webkitMatchesSelector: Invalid combinator: div % address, p
-FAIL=Detached Element.webkitMatchesSelector: Invalid combinator: div ++ address, p
-FAIL=Detached Element.webkitMatchesSelector: Invalid combinator: div ~~ address, p
 FAIL=Detached Element.webkitMatchesSelector: Invalid group of selectors: div,
-FAIL=Detached Element.webkitMatchesSelector: Invalid namespace: $|div
-FAIL=Detached Element.webkitMatchesSelector: Invalid namespace: ^|div
-FAIL=Detached Element.webkitMatchesSelector: Invalid pseudo-element: :: before
-FAIL=Detached Element.webkitMatchesSelector: Invalid pseudo-element: :::before
-FAIL=Detached Element.webkitMatchesSelector: Relative selector: >*
-FAIL=Detached Element.webkitMatchesSelector: Undeclared namespace: :not(ns|div)
-FAIL=Detached Element.webkitMatchesSelector: Undeclared namespace: ns|div
 FAIL=Detached Element.webkitMatchesSelector: Unknown pseudo-class: :example
 FAIL=Detached Element.webkitMatchesSelector: Unknown pseudo-class: div:example
 FAIL=Detached Element.webkitMatchesSelector: Unknown pseudo-class: div:linkexample
-FAIL=Detached Element.webkitMatchesSelector: Unknown pseudo-element: ::example
-FAIL=Detached Element.webkitMatchesSelector: Unknown pseudo-element: div::example
 FAIL=Fragment Element.webkitMatchesSelector: :checked pseudo-class selector, matching checked radio buttons and checkboxes (with no refNodes): #pseudo-ui :checked
 FAIL=Fragment Element.webkitMatchesSelector: :disabled pseudo-class selector, matching all disabled form controls (with no refNodes): #pseudo-ui :disabled
 FAIL=Fragment Element.webkitMatchesSelector: :link and :visited pseudo-class selectors, matching a and area elements with href attributes (with no refNodes): #pseudo-link :link, #pseudo-link :visited
@@ -1394,42 +1300,10 @@ FAIL=In-document Element.webkitMatchesSelector: :disabled pseudo-class selector,
 FAIL=In-document Element.webkitMatchesSelector: :link and :visited pseudo-class selectors, matching a and area elements with href attributes (with no refNodes): #pseudo-link :link, #pseudo-link :visited
 FAIL=In-document Element.webkitMatchesSelector: :link and :visited pseudo-class selectors, matching a and area elements with href attributes (with refNode Element):  :link, #pseudo-link :visited
 FAIL=In-document Element.webkitMatchesSelector: Attribute value selector, matching align attribute with value, unclosed bracket (with no refNodes): #attr-value [align="center"
-FAIL:esc=In-document Element.webkitMatchesSelector: Empty String: 
-FAIL=In-document Element.webkitMatchesSelector: Invalid ID: #
-FAIL=In-document Element.webkitMatchesSelector: Invalid [att=value] selector: [*=test]
-FAIL=In-document Element.webkitMatchesSelector: Invalid [att=value] selector: [*|*=test]
-FAIL=In-document Element.webkitMatchesSelector: Invalid [att=value] selector: [class= space unquoted ]
-FAIL=In-document Element.webkitMatchesSelector: Invalid character: (
-FAIL=In-document Element.webkitMatchesSelector: Invalid character: )
-FAIL=In-document Element.webkitMatchesSelector: Invalid character: <
-FAIL=In-document Element.webkitMatchesSelector: Invalid character: >
-FAIL=In-document Element.webkitMatchesSelector: Invalid character: [
-FAIL=In-document Element.webkitMatchesSelector: Invalid character: ]
-FAIL=In-document Element.webkitMatchesSelector: Invalid character: {
-FAIL=In-document Element.webkitMatchesSelector: Invalid character: }
-FAIL=In-document Element.webkitMatchesSelector: Invalid class: .
-FAIL=In-document Element.webkitMatchesSelector: Invalid class: ..test
-FAIL=In-document Element.webkitMatchesSelector: Invalid class: .5cm
-FAIL=In-document Element.webkitMatchesSelector: Invalid class: .bar.
-FAIL=In-document Element.webkitMatchesSelector: Invalid class: .foo..quux
-FAIL=In-document Element.webkitMatchesSelector: Invalid combinator: div % address, p
-FAIL=In-document Element.webkitMatchesSelector: Invalid combinator: div ++ address, p
-FAIL=In-document Element.webkitMatchesSelector: Invalid combinator: div ~~ address, p
 FAIL=In-document Element.webkitMatchesSelector: Invalid group of selectors: div,
-FAIL=In-document Element.webkitMatchesSelector: Invalid namespace: $|div
-FAIL=In-document Element.webkitMatchesSelector: Invalid namespace: ^|div
-FAIL=In-document Element.webkitMatchesSelector: Invalid pseudo-element: :: before
-FAIL=In-document Element.webkitMatchesSelector: Invalid pseudo-element: :::before
-FAIL=In-document Element.webkitMatchesSelector: Relative selector: >*
-FAIL=In-document Element.webkitMatchesSelector: Undeclared namespace: :not(ns|div)
-FAIL=In-document Element.webkitMatchesSelector: Undeclared namespace: ns|div
 FAIL=In-document Element.webkitMatchesSelector: Unknown pseudo-class: :example
 FAIL=In-document Element.webkitMatchesSelector: Unknown pseudo-class: div:example
 FAIL=In-document Element.webkitMatchesSelector: Unknown pseudo-class: div:linkexample
-FAIL=In-document Element.webkitMatchesSelector: Unknown pseudo-element: ::example
-FAIL=In-document Element.webkitMatchesSelector: Unknown pseudo-element: div::example
-FAIL=NULL Element.webkitMatchesSelector no parameter
-FAIL=UNDEFINED Element.webkitMatchesSelector no parameter
 [dom/nodes/MutationObserver-attributes.html]
 harness=TIMEOUT
 [dom/nodes/MutationObserver-callback-arguments.html]
@@ -1573,52 +1447,25 @@ FAIL=ParentNode.children should be a live collection
 [dom/nodes/ParentNode-querySelector-All-xht.xht]
 harness=TIMEOUT
 [dom/nodes/ParentNode-querySelector-All.html]
-FAIL=Detached Element.querySelector no parameter
 FAIL=Detached Element.querySelector: ::after pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::after
 FAIL=Detached Element.querySelector: ::before pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::before
+FAIL=Detached Element.querySelector: ::first-letter pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::first-letter
+FAIL=Detached Element.querySelector: ::first-line pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::first-line
 FAIL=Detached Element.querySelector: :after pseudo-element (one-colon syntax) selector, not matching any elements: #pseudo-element:after
 FAIL=Detached Element.querySelector: :before pseudo-element (one-colon syntax) selector, not matching any elements: #pseudo-element:before
 FAIL=Detached Element.querySelector: :checked pseudo-class selector, matching checked radio buttons and checkboxes: #pseudo-ui :checked
 FAIL=Detached Element.querySelector: :disabled pseudo-class selector, matching all disabled form controls: #pseudo-ui :disabled
 FAIL=Detached Element.querySelector: Attribute value selector, matching align attribute with value, unclosed bracket: #attr-value [align="center"
-FAIL:esc=Detached Element.querySelector: Empty String: 
-FAIL=Detached Element.querySelector: Invalid ID: #
-FAIL=Detached Element.querySelector: Invalid [att=value] selector: [*=test]
-FAIL=Detached Element.querySelector: Invalid [att=value] selector: [*|*=test]
-FAIL=Detached Element.querySelector: Invalid [att=value] selector: [class= space unquoted ]
-FAIL=Detached Element.querySelector: Invalid character: (
-FAIL=Detached Element.querySelector: Invalid character: )
-FAIL=Detached Element.querySelector: Invalid character: <
-FAIL=Detached Element.querySelector: Invalid character: >
-FAIL=Detached Element.querySelector: Invalid character: [
-FAIL=Detached Element.querySelector: Invalid character: ]
-FAIL=Detached Element.querySelector: Invalid character: {
-FAIL=Detached Element.querySelector: Invalid character: }
-FAIL=Detached Element.querySelector: Invalid class: .
-FAIL=Detached Element.querySelector: Invalid class: ..test
-FAIL=Detached Element.querySelector: Invalid class: .5cm
-FAIL=Detached Element.querySelector: Invalid class: .bar.
-FAIL=Detached Element.querySelector: Invalid class: .foo..quux
-FAIL=Detached Element.querySelector: Invalid combinator: div % address, p
-FAIL=Detached Element.querySelector: Invalid combinator: div ++ address, p
-FAIL=Detached Element.querySelector: Invalid combinator: div ~~ address, p
 FAIL=Detached Element.querySelector: Invalid group of selectors: div,
-FAIL=Detached Element.querySelector: Invalid namespace: $|div
-FAIL=Detached Element.querySelector: Invalid namespace: ^|div
-FAIL=Detached Element.querySelector: Invalid pseudo-element: :: before
-FAIL=Detached Element.querySelector: Invalid pseudo-element: :::before
-FAIL=Detached Element.querySelector: Relative selector: >*
-FAIL=Detached Element.querySelector: Undeclared namespace: :not(ns|div)
-FAIL=Detached Element.querySelector: Undeclared namespace: ns|div
+FAIL=Detached Element.querySelector: Slotted selector (no matching closing paren): ::slotted(foo
 FAIL=Detached Element.querySelector: Unknown pseudo-class: :example
 FAIL=Detached Element.querySelector: Unknown pseudo-class: div:example
 FAIL=Detached Element.querySelector: Unknown pseudo-class: div:linkexample
-FAIL=Detached Element.querySelector: Unknown pseudo-element: ::example
-FAIL=Detached Element.querySelector: Unknown pseudo-element: div::example
-FAIL=Detached Element.querySelectorAll no parameter
 FAIL=Detached Element.querySelectorAll returns NodeList instance
 FAIL=Detached Element.querySelectorAll: ::after pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::after
 FAIL=Detached Element.querySelectorAll: ::before pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::before
+FAIL=Detached Element.querySelectorAll: ::first-letter pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::first-letter
+FAIL=Detached Element.querySelectorAll: ::first-line pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::first-line
 FAIL=Detached Element.querySelectorAll: :after pseudo-element (one-colon syntax) selector, not matching any elements: #pseudo-element:after
 FAIL=Detached Element.querySelectorAll: :before pseudo-element (one-colon syntax) selector, not matching any elements: #pseudo-element:before
 FAIL=Detached Element.querySelectorAll: :checked pseudo-class selector, matching checked radio buttons and checkboxes: #pseudo-ui :checked
@@ -1626,86 +1473,30 @@ FAIL=Detached Element.querySelectorAll: :disabled pseudo-class selector, matchin
 FAIL=Detached Element.querySelectorAll: :enabled pseudo-class selector, matching all enabled form controls: #pseudo-ui :enabled
 FAIL=Detached Element.querySelectorAll: :link and :visited pseudo-class selectors, matching a and area elements with href attributes: #pseudo-link :link, #pseudo-link :visited
 FAIL=Detached Element.querySelectorAll: Attribute value selector, matching align attribute with value, unclosed bracket: #attr-value [align="center"
-FAIL:esc=Detached Element.querySelectorAll: Empty String: 
-FAIL=Detached Element.querySelectorAll: Invalid ID: #
-FAIL=Detached Element.querySelectorAll: Invalid [att=value] selector: [*=test]
-FAIL=Detached Element.querySelectorAll: Invalid [att=value] selector: [*|*=test]
-FAIL=Detached Element.querySelectorAll: Invalid [att=value] selector: [class= space unquoted ]
-FAIL=Detached Element.querySelectorAll: Invalid character: (
-FAIL=Detached Element.querySelectorAll: Invalid character: )
-FAIL=Detached Element.querySelectorAll: Invalid character: <
-FAIL=Detached Element.querySelectorAll: Invalid character: >
-FAIL=Detached Element.querySelectorAll: Invalid character: [
-FAIL=Detached Element.querySelectorAll: Invalid character: ]
-FAIL=Detached Element.querySelectorAll: Invalid character: {
-FAIL=Detached Element.querySelectorAll: Invalid character: }
-FAIL=Detached Element.querySelectorAll: Invalid class: .
-FAIL=Detached Element.querySelectorAll: Invalid class: ..test
-FAIL=Detached Element.querySelectorAll: Invalid class: .5cm
-FAIL=Detached Element.querySelectorAll: Invalid class: .bar.
-FAIL=Detached Element.querySelectorAll: Invalid class: .foo..quux
-FAIL=Detached Element.querySelectorAll: Invalid combinator: div % address, p
-FAIL=Detached Element.querySelectorAll: Invalid combinator: div ++ address, p
-FAIL=Detached Element.querySelectorAll: Invalid combinator: div ~~ address, p
 FAIL=Detached Element.querySelectorAll: Invalid group of selectors: div,
-FAIL=Detached Element.querySelectorAll: Invalid namespace: $|div
-FAIL=Detached Element.querySelectorAll: Invalid namespace: ^|div
-FAIL=Detached Element.querySelectorAll: Invalid pseudo-element: :: before
-FAIL=Detached Element.querySelectorAll: Invalid pseudo-element: :::before
-FAIL=Detached Element.querySelectorAll: Relative selector: >*
-FAIL=Detached Element.querySelectorAll: Undeclared namespace: :not(ns|div)
-FAIL=Detached Element.querySelectorAll: Undeclared namespace: ns|div
+FAIL=Detached Element.querySelectorAll: Slotted selector (no matching closing paren): ::slotted(foo
 FAIL=Detached Element.querySelectorAll: Unknown pseudo-class: :example
 FAIL=Detached Element.querySelectorAll: Unknown pseudo-class: div:example
 FAIL=Detached Element.querySelectorAll: Unknown pseudo-class: div:linkexample
-FAIL=Detached Element.querySelectorAll: Unknown pseudo-element: ::example
-FAIL=Detached Element.querySelectorAll: Unknown pseudo-element: div::example
-FAIL=Document.querySelector no parameter
 FAIL=Document.querySelector: ::after pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::after
 FAIL=Document.querySelector: ::before pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::before
+FAIL=Document.querySelector: ::first-letter pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::first-letter
+FAIL=Document.querySelector: ::first-line pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::first-line
 FAIL=Document.querySelector: :after pseudo-element (one-colon syntax) selector, not matching any elements: #pseudo-element:after
 FAIL=Document.querySelector: :before pseudo-element (one-colon syntax) selector, not matching any elements: #pseudo-element:before
 FAIL=Document.querySelector: :checked pseudo-class selector, matching checked radio buttons and checkboxes: #pseudo-ui :checked
 FAIL=Document.querySelector: :disabled pseudo-class selector, matching all disabled form controls: #pseudo-ui :disabled
 FAIL=Document.querySelector: Attribute value selector, matching align attribute with value, unclosed bracket: #attr-value [align="center"
-FAIL:esc=Document.querySelector: Empty String: 
-FAIL=Document.querySelector: Invalid ID: #
-FAIL=Document.querySelector: Invalid [att=value] selector: [*=test]
-FAIL=Document.querySelector: Invalid [att=value] selector: [*|*=test]
-FAIL=Document.querySelector: Invalid [att=value] selector: [class= space unquoted ]
-FAIL=Document.querySelector: Invalid character: (
-FAIL=Document.querySelector: Invalid character: )
-FAIL=Document.querySelector: Invalid character: <
-FAIL=Document.querySelector: Invalid character: >
-FAIL=Document.querySelector: Invalid character: [
-FAIL=Document.querySelector: Invalid character: ]
-FAIL=Document.querySelector: Invalid character: {
-FAIL=Document.querySelector: Invalid character: }
-FAIL=Document.querySelector: Invalid class: .
-FAIL=Document.querySelector: Invalid class: ..test
-FAIL=Document.querySelector: Invalid class: .5cm
-FAIL=Document.querySelector: Invalid class: .bar.
-FAIL=Document.querySelector: Invalid class: .foo..quux
-FAIL=Document.querySelector: Invalid combinator: div % address, p
-FAIL=Document.querySelector: Invalid combinator: div ++ address, p
-FAIL=Document.querySelector: Invalid combinator: div ~~ address, p
 FAIL=Document.querySelector: Invalid group of selectors: div,
-FAIL=Document.querySelector: Invalid namespace: $|div
-FAIL=Document.querySelector: Invalid namespace: ^|div
-FAIL=Document.querySelector: Invalid pseudo-element: :: before
-FAIL=Document.querySelector: Invalid pseudo-element: :::before
-FAIL=Document.querySelector: Relative selector: >*
-FAIL=Document.querySelector: Undeclared namespace: :not(ns|div)
-FAIL=Document.querySelector: Undeclared namespace: ns|div
+FAIL=Document.querySelector: Slotted selector (no matching closing paren): ::slotted(foo
 FAIL=Document.querySelector: Unknown pseudo-class: :example
 FAIL=Document.querySelector: Unknown pseudo-class: div:example
 FAIL=Document.querySelector: Unknown pseudo-class: div:linkexample
-FAIL=Document.querySelector: Unknown pseudo-element: ::example
-FAIL=Document.querySelector: Unknown pseudo-element: div::example
-FAIL=Document.querySelectorAll no parameter
 FAIL=Document.querySelectorAll returns NodeList instance
 FAIL=Document.querySelectorAll: ::after pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::after
 FAIL=Document.querySelectorAll: ::before pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::before
+FAIL=Document.querySelectorAll: ::first-letter pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::first-letter
+FAIL=Document.querySelectorAll: ::first-line pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::first-line
 FAIL=Document.querySelectorAll: :after pseudo-element (one-colon syntax) selector, not matching any elements: #pseudo-element:after
 FAIL=Document.querySelectorAll: :before pseudo-element (one-colon syntax) selector, not matching any elements: #pseudo-element:before
 FAIL=Document.querySelectorAll: :checked pseudo-class selector, matching checked radio buttons and checkboxes: #pseudo-ui :checked
@@ -1713,154 +1504,38 @@ FAIL=Document.querySelectorAll: :disabled pseudo-class selector, matching all di
 FAIL=Document.querySelectorAll: :enabled pseudo-class selector, matching all enabled form controls: #pseudo-ui :enabled
 FAIL=Document.querySelectorAll: :link and :visited pseudo-class selectors, matching a and area elements with href attributes: #pseudo-link :link, #pseudo-link :visited
 FAIL=Document.querySelectorAll: Attribute value selector, matching align attribute with value, unclosed bracket: #attr-value [align="center"
-FAIL:esc=Document.querySelectorAll: Empty String: 
-FAIL=Document.querySelectorAll: Invalid ID: #
-FAIL=Document.querySelectorAll: Invalid [att=value] selector: [*=test]
-FAIL=Document.querySelectorAll: Invalid [att=value] selector: [*|*=test]
-FAIL=Document.querySelectorAll: Invalid [att=value] selector: [class= space unquoted ]
-FAIL=Document.querySelectorAll: Invalid character: (
-FAIL=Document.querySelectorAll: Invalid character: )
-FAIL=Document.querySelectorAll: Invalid character: <
-FAIL=Document.querySelectorAll: Invalid character: >
-FAIL=Document.querySelectorAll: Invalid character: [
-FAIL=Document.querySelectorAll: Invalid character: ]
-FAIL=Document.querySelectorAll: Invalid character: {
-FAIL=Document.querySelectorAll: Invalid character: }
-FAIL=Document.querySelectorAll: Invalid class: .
-FAIL=Document.querySelectorAll: Invalid class: ..test
-FAIL=Document.querySelectorAll: Invalid class: .5cm
-FAIL=Document.querySelectorAll: Invalid class: .bar.
-FAIL=Document.querySelectorAll: Invalid class: .foo..quux
-FAIL=Document.querySelectorAll: Invalid combinator: div % address, p
-FAIL=Document.querySelectorAll: Invalid combinator: div ++ address, p
-FAIL=Document.querySelectorAll: Invalid combinator: div ~~ address, p
 FAIL=Document.querySelectorAll: Invalid group of selectors: div,
-FAIL=Document.querySelectorAll: Invalid namespace: $|div
-FAIL=Document.querySelectorAll: Invalid namespace: ^|div
-FAIL=Document.querySelectorAll: Invalid pseudo-element: :: before
-FAIL=Document.querySelectorAll: Invalid pseudo-element: :::before
-FAIL=Document.querySelectorAll: Relative selector: >*
-FAIL=Document.querySelectorAll: Undeclared namespace: :not(ns|div)
-FAIL=Document.querySelectorAll: Undeclared namespace: ns|div
+FAIL=Document.querySelectorAll: Slotted selector (no matching closing paren): ::slotted(foo
 FAIL=Document.querySelectorAll: Unknown pseudo-class: :example
 FAIL=Document.querySelectorAll: Unknown pseudo-class: div:example
 FAIL=Document.querySelectorAll: Unknown pseudo-class: div:linkexample
-FAIL=Document.querySelectorAll: Unknown pseudo-element: ::example
-FAIL=Document.querySelectorAll: Unknown pseudo-element: div::example
-FAIL:esc=Empty Element.querySelector: Empty String: 
-FAIL=Empty Element.querySelector: Invalid ID: #
-FAIL=Empty Element.querySelector: Invalid [att=value] selector: [*=test]
-FAIL=Empty Element.querySelector: Invalid [att=value] selector: [*|*=test]
-FAIL=Empty Element.querySelector: Invalid [att=value] selector: [class= space unquoted ]
-FAIL=Empty Element.querySelector: Invalid character: (
-FAIL=Empty Element.querySelector: Invalid character: )
-FAIL=Empty Element.querySelector: Invalid character: <
-FAIL=Empty Element.querySelector: Invalid character: >
-FAIL=Empty Element.querySelector: Invalid character: [
-FAIL=Empty Element.querySelector: Invalid character: ]
-FAIL=Empty Element.querySelector: Invalid character: {
-FAIL=Empty Element.querySelector: Invalid character: }
-FAIL=Empty Element.querySelector: Invalid class: .
-FAIL=Empty Element.querySelector: Invalid class: ..test
-FAIL=Empty Element.querySelector: Invalid class: .5cm
-FAIL=Empty Element.querySelector: Invalid class: .bar.
-FAIL=Empty Element.querySelector: Invalid class: .foo..quux
-FAIL=Empty Element.querySelector: Invalid combinator: div % address, p
-FAIL=Empty Element.querySelector: Invalid combinator: div ++ address, p
-FAIL=Empty Element.querySelector: Invalid combinator: div ~~ address, p
 FAIL=Empty Element.querySelector: Invalid group of selectors: div,
-FAIL=Empty Element.querySelector: Invalid namespace: $|div
-FAIL=Empty Element.querySelector: Invalid namespace: ^|div
-FAIL=Empty Element.querySelector: Invalid pseudo-element: :: before
-FAIL=Empty Element.querySelector: Invalid pseudo-element: :::before
-FAIL=Empty Element.querySelector: Relative selector: >*
-FAIL=Empty Element.querySelector: Undeclared namespace: :not(ns|div)
-FAIL=Empty Element.querySelector: Undeclared namespace: ns|div
 FAIL=Empty Element.querySelector: Unknown pseudo-class: :example
 FAIL=Empty Element.querySelector: Unknown pseudo-class: div:example
 FAIL=Empty Element.querySelector: Unknown pseudo-class: div:linkexample
-FAIL=Empty Element.querySelector: Unknown pseudo-element: ::example
-FAIL=Empty Element.querySelector: Unknown pseudo-element: div::example
-FAIL:esc=Empty Element.querySelectorAll: Empty String: 
-FAIL=Empty Element.querySelectorAll: Invalid ID: #
-FAIL=Empty Element.querySelectorAll: Invalid [att=value] selector: [*=test]
-FAIL=Empty Element.querySelectorAll: Invalid [att=value] selector: [*|*=test]
-FAIL=Empty Element.querySelectorAll: Invalid [att=value] selector: [class= space unquoted ]
-FAIL=Empty Element.querySelectorAll: Invalid character: (
-FAIL=Empty Element.querySelectorAll: Invalid character: )
-FAIL=Empty Element.querySelectorAll: Invalid character: <
-FAIL=Empty Element.querySelectorAll: Invalid character: >
-FAIL=Empty Element.querySelectorAll: Invalid character: [
-FAIL=Empty Element.querySelectorAll: Invalid character: ]
-FAIL=Empty Element.querySelectorAll: Invalid character: {
-FAIL=Empty Element.querySelectorAll: Invalid character: }
-FAIL=Empty Element.querySelectorAll: Invalid class: .
-FAIL=Empty Element.querySelectorAll: Invalid class: ..test
-FAIL=Empty Element.querySelectorAll: Invalid class: .5cm
-FAIL=Empty Element.querySelectorAll: Invalid class: .bar.
-FAIL=Empty Element.querySelectorAll: Invalid class: .foo..quux
-FAIL=Empty Element.querySelectorAll: Invalid combinator: div % address, p
-FAIL=Empty Element.querySelectorAll: Invalid combinator: div ++ address, p
-FAIL=Empty Element.querySelectorAll: Invalid combinator: div ~~ address, p
 FAIL=Empty Element.querySelectorAll: Invalid group of selectors: div,
-FAIL=Empty Element.querySelectorAll: Invalid namespace: $|div
-FAIL=Empty Element.querySelectorAll: Invalid namespace: ^|div
-FAIL=Empty Element.querySelectorAll: Invalid pseudo-element: :: before
-FAIL=Empty Element.querySelectorAll: Invalid pseudo-element: :::before
-FAIL=Empty Element.querySelectorAll: Relative selector: >*
-FAIL=Empty Element.querySelectorAll: Undeclared namespace: :not(ns|div)
-FAIL=Empty Element.querySelectorAll: Undeclared namespace: ns|div
 FAIL=Empty Element.querySelectorAll: Unknown pseudo-class: :example
 FAIL=Empty Element.querySelectorAll: Unknown pseudo-class: div:example
 FAIL=Empty Element.querySelectorAll: Unknown pseudo-class: div:linkexample
-FAIL=Empty Element.querySelectorAll: Unknown pseudo-element: ::example
-FAIL=Empty Element.querySelectorAll: Unknown pseudo-element: div::example
-FAIL=Fragment.querySelector no parameter
 FAIL=Fragment.querySelector: ::after pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::after
 FAIL=Fragment.querySelector: ::before pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::before
+FAIL=Fragment.querySelector: ::first-letter pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::first-letter
+FAIL=Fragment.querySelector: ::first-line pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::first-line
 FAIL=Fragment.querySelector: :after pseudo-element (one-colon syntax) selector, not matching any elements: #pseudo-element:after
 FAIL=Fragment.querySelector: :before pseudo-element (one-colon syntax) selector, not matching any elements: #pseudo-element:before
 FAIL=Fragment.querySelector: :checked pseudo-class selector, matching checked radio buttons and checkboxes: #pseudo-ui :checked
 FAIL=Fragment.querySelector: :disabled pseudo-class selector, matching all disabled form controls: #pseudo-ui :disabled
 FAIL=Fragment.querySelector: Attribute value selector, matching align attribute with value, unclosed bracket: #attr-value [align="center"
-FAIL:esc=Fragment.querySelector: Empty String: 
-FAIL=Fragment.querySelector: Invalid ID: #
-FAIL=Fragment.querySelector: Invalid [att=value] selector: [*=test]
-FAIL=Fragment.querySelector: Invalid [att=value] selector: [*|*=test]
-FAIL=Fragment.querySelector: Invalid [att=value] selector: [class= space unquoted ]
-FAIL=Fragment.querySelector: Invalid character: (
-FAIL=Fragment.querySelector: Invalid character: )
-FAIL=Fragment.querySelector: Invalid character: <
-FAIL=Fragment.querySelector: Invalid character: >
-FAIL=Fragment.querySelector: Invalid character: [
-FAIL=Fragment.querySelector: Invalid character: ]
-FAIL=Fragment.querySelector: Invalid character: {
-FAIL=Fragment.querySelector: Invalid character: }
-FAIL=Fragment.querySelector: Invalid class: .
-FAIL=Fragment.querySelector: Invalid class: ..test
-FAIL=Fragment.querySelector: Invalid class: .5cm
-FAIL=Fragment.querySelector: Invalid class: .bar.
-FAIL=Fragment.querySelector: Invalid class: .foo..quux
-FAIL=Fragment.querySelector: Invalid combinator: div % address, p
-FAIL=Fragment.querySelector: Invalid combinator: div ++ address, p
-FAIL=Fragment.querySelector: Invalid combinator: div ~~ address, p
 FAIL=Fragment.querySelector: Invalid group of selectors: div,
-FAIL=Fragment.querySelector: Invalid namespace: $|div
-FAIL=Fragment.querySelector: Invalid namespace: ^|div
-FAIL=Fragment.querySelector: Invalid pseudo-element: :: before
-FAIL=Fragment.querySelector: Invalid pseudo-element: :::before
-FAIL=Fragment.querySelector: Relative selector: >*
-FAIL=Fragment.querySelector: Undeclared namespace: :not(ns|div)
-FAIL=Fragment.querySelector: Undeclared namespace: ns|div
+FAIL=Fragment.querySelector: Slotted selector (no matching closing paren): ::slotted(foo
 FAIL=Fragment.querySelector: Unknown pseudo-class: :example
 FAIL=Fragment.querySelector: Unknown pseudo-class: div:example
 FAIL=Fragment.querySelector: Unknown pseudo-class: div:linkexample
-FAIL=Fragment.querySelector: Unknown pseudo-element: ::example
-FAIL=Fragment.querySelector: Unknown pseudo-element: div::example
-FAIL=Fragment.querySelectorAll no parameter
 FAIL=Fragment.querySelectorAll returns NodeList instance
 FAIL=Fragment.querySelectorAll: ::after pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::after
 FAIL=Fragment.querySelectorAll: ::before pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::before
+FAIL=Fragment.querySelectorAll: ::first-letter pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::first-letter
+FAIL=Fragment.querySelectorAll: ::first-line pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::first-line
 FAIL=Fragment.querySelectorAll: :after pseudo-element (one-colon syntax) selector, not matching any elements: #pseudo-element:after
 FAIL=Fragment.querySelectorAll: :before pseudo-element (one-colon syntax) selector, not matching any elements: #pseudo-element:before
 FAIL=Fragment.querySelectorAll: :checked pseudo-class selector, matching checked radio buttons and checkboxes: #pseudo-ui :checked
@@ -1868,86 +1543,30 @@ FAIL=Fragment.querySelectorAll: :disabled pseudo-class selector, matching all di
 FAIL=Fragment.querySelectorAll: :enabled pseudo-class selector, matching all enabled form controls: #pseudo-ui :enabled
 FAIL=Fragment.querySelectorAll: :link and :visited pseudo-class selectors, matching a and area elements with href attributes: #pseudo-link :link, #pseudo-link :visited
 FAIL=Fragment.querySelectorAll: Attribute value selector, matching align attribute with value, unclosed bracket: #attr-value [align="center"
-FAIL:esc=Fragment.querySelectorAll: Empty String: 
-FAIL=Fragment.querySelectorAll: Invalid ID: #
-FAIL=Fragment.querySelectorAll: Invalid [att=value] selector: [*=test]
-FAIL=Fragment.querySelectorAll: Invalid [att=value] selector: [*|*=test]
-FAIL=Fragment.querySelectorAll: Invalid [att=value] selector: [class= space unquoted ]
-FAIL=Fragment.querySelectorAll: Invalid character: (
-FAIL=Fragment.querySelectorAll: Invalid character: )
-FAIL=Fragment.querySelectorAll: Invalid character: <
-FAIL=Fragment.querySelectorAll: Invalid character: >
-FAIL=Fragment.querySelectorAll: Invalid character: [
-FAIL=Fragment.querySelectorAll: Invalid character: ]
-FAIL=Fragment.querySelectorAll: Invalid character: {
-FAIL=Fragment.querySelectorAll: Invalid character: }
-FAIL=Fragment.querySelectorAll: Invalid class: .
-FAIL=Fragment.querySelectorAll: Invalid class: ..test
-FAIL=Fragment.querySelectorAll: Invalid class: .5cm
-FAIL=Fragment.querySelectorAll: Invalid class: .bar.
-FAIL=Fragment.querySelectorAll: Invalid class: .foo..quux
-FAIL=Fragment.querySelectorAll: Invalid combinator: div % address, p
-FAIL=Fragment.querySelectorAll: Invalid combinator: div ++ address, p
-FAIL=Fragment.querySelectorAll: Invalid combinator: div ~~ address, p
 FAIL=Fragment.querySelectorAll: Invalid group of selectors: div,
-FAIL=Fragment.querySelectorAll: Invalid namespace: $|div
-FAIL=Fragment.querySelectorAll: Invalid namespace: ^|div
-FAIL=Fragment.querySelectorAll: Invalid pseudo-element: :: before
-FAIL=Fragment.querySelectorAll: Invalid pseudo-element: :::before
-FAIL=Fragment.querySelectorAll: Relative selector: >*
-FAIL=Fragment.querySelectorAll: Undeclared namespace: :not(ns|div)
-FAIL=Fragment.querySelectorAll: Undeclared namespace: ns|div
+FAIL=Fragment.querySelectorAll: Slotted selector (no matching closing paren): ::slotted(foo
 FAIL=Fragment.querySelectorAll: Unknown pseudo-class: :example
 FAIL=Fragment.querySelectorAll: Unknown pseudo-class: div:example
 FAIL=Fragment.querySelectorAll: Unknown pseudo-class: div:linkexample
-FAIL=Fragment.querySelectorAll: Unknown pseudo-element: ::example
-FAIL=Fragment.querySelectorAll: Unknown pseudo-element: div::example
-FAIL=In-document Element.querySelector no parameter
 FAIL=In-document Element.querySelector: ::after pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::after
 FAIL=In-document Element.querySelector: ::before pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::before
+FAIL=In-document Element.querySelector: ::first-letter pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::first-letter
+FAIL=In-document Element.querySelector: ::first-line pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::first-line
 FAIL=In-document Element.querySelector: :after pseudo-element (one-colon syntax) selector, not matching any elements: #pseudo-element:after
 FAIL=In-document Element.querySelector: :before pseudo-element (one-colon syntax) selector, not matching any elements: #pseudo-element:before
 FAIL=In-document Element.querySelector: :checked pseudo-class selector, matching checked radio buttons and checkboxes: #pseudo-ui :checked
 FAIL=In-document Element.querySelector: :disabled pseudo-class selector, matching all disabled form controls: #pseudo-ui :disabled
 FAIL=In-document Element.querySelector: Attribute value selector, matching align attribute with value, unclosed bracket: #attr-value [align="center"
-FAIL:esc=In-document Element.querySelector: Empty String: 
-FAIL=In-document Element.querySelector: Invalid ID: #
-FAIL=In-document Element.querySelector: Invalid [att=value] selector: [*=test]
-FAIL=In-document Element.querySelector: Invalid [att=value] selector: [*|*=test]
-FAIL=In-document Element.querySelector: Invalid [att=value] selector: [class= space unquoted ]
-FAIL=In-document Element.querySelector: Invalid character: (
-FAIL=In-document Element.querySelector: Invalid character: )
-FAIL=In-document Element.querySelector: Invalid character: <
-FAIL=In-document Element.querySelector: Invalid character: >
-FAIL=In-document Element.querySelector: Invalid character: [
-FAIL=In-document Element.querySelector: Invalid character: ]
-FAIL=In-document Element.querySelector: Invalid character: {
-FAIL=In-document Element.querySelector: Invalid character: }
-FAIL=In-document Element.querySelector: Invalid class: .
-FAIL=In-document Element.querySelector: Invalid class: ..test
-FAIL=In-document Element.querySelector: Invalid class: .5cm
-FAIL=In-document Element.querySelector: Invalid class: .bar.
-FAIL=In-document Element.querySelector: Invalid class: .foo..quux
-FAIL=In-document Element.querySelector: Invalid combinator: div % address, p
-FAIL=In-document Element.querySelector: Invalid combinator: div ++ address, p
-FAIL=In-document Element.querySelector: Invalid combinator: div ~~ address, p
 FAIL=In-document Element.querySelector: Invalid group of selectors: div,
-FAIL=In-document Element.querySelector: Invalid namespace: $|div
-FAIL=In-document Element.querySelector: Invalid namespace: ^|div
-FAIL=In-document Element.querySelector: Invalid pseudo-element: :: before
-FAIL=In-document Element.querySelector: Invalid pseudo-element: :::before
-FAIL=In-document Element.querySelector: Relative selector: >*
-FAIL=In-document Element.querySelector: Undeclared namespace: :not(ns|div)
-FAIL=In-document Element.querySelector: Undeclared namespace: ns|div
+FAIL=In-document Element.querySelector: Slotted selector (no matching closing paren): ::slotted(foo
 FAIL=In-document Element.querySelector: Unknown pseudo-class: :example
 FAIL=In-document Element.querySelector: Unknown pseudo-class: div:example
 FAIL=In-document Element.querySelector: Unknown pseudo-class: div:linkexample
-FAIL=In-document Element.querySelector: Unknown pseudo-element: ::example
-FAIL=In-document Element.querySelector: Unknown pseudo-element: div::example
-FAIL=In-document Element.querySelectorAll no parameter
 FAIL=In-document Element.querySelectorAll returns NodeList instance
 FAIL=In-document Element.querySelectorAll: ::after pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::after
 FAIL=In-document Element.querySelectorAll: ::before pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::before
+FAIL=In-document Element.querySelectorAll: ::first-letter pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::first-letter
+FAIL=In-document Element.querySelectorAll: ::first-line pseudo-element (two-colon syntax) selector, not matching any elements: #pseudo-element::first-line
 FAIL=In-document Element.querySelectorAll: :after pseudo-element (one-colon syntax) selector, not matching any elements: #pseudo-element:after
 FAIL=In-document Element.querySelectorAll: :before pseudo-element (one-colon syntax) selector, not matching any elements: #pseudo-element:before
 FAIL=In-document Element.querySelectorAll: :checked pseudo-class selector, matching checked radio buttons and checkboxes: #pseudo-ui :checked
@@ -1955,40 +1574,11 @@ FAIL=In-document Element.querySelectorAll: :disabled pseudo-class selector, matc
 FAIL=In-document Element.querySelectorAll: :enabled pseudo-class selector, matching all enabled form controls: #pseudo-ui :enabled
 FAIL=In-document Element.querySelectorAll: :link and :visited pseudo-class selectors, matching a and area elements with href attributes: #pseudo-link :link, #pseudo-link :visited
 FAIL=In-document Element.querySelectorAll: Attribute value selector, matching align attribute with value, unclosed bracket: #attr-value [align="center"
-FAIL:esc=In-document Element.querySelectorAll: Empty String: 
-FAIL=In-document Element.querySelectorAll: Invalid ID: #
-FAIL=In-document Element.querySelectorAll: Invalid [att=value] selector: [*=test]
-FAIL=In-document Element.querySelectorAll: Invalid [att=value] selector: [*|*=test]
-FAIL=In-document Element.querySelectorAll: Invalid [att=value] selector: [class= space unquoted ]
-FAIL=In-document Element.querySelectorAll: Invalid character: (
-FAIL=In-document Element.querySelectorAll: Invalid character: )
-FAIL=In-document Element.querySelectorAll: Invalid character: <
-FAIL=In-document Element.querySelectorAll: Invalid character: >
-FAIL=In-document Element.querySelectorAll: Invalid character: [
-FAIL=In-document Element.querySelectorAll: Invalid character: ]
-FAIL=In-document Element.querySelectorAll: Invalid character: {
-FAIL=In-document Element.querySelectorAll: Invalid character: }
-FAIL=In-document Element.querySelectorAll: Invalid class: .
-FAIL=In-document Element.querySelectorAll: Invalid class: ..test
-FAIL=In-document Element.querySelectorAll: Invalid class: .5cm
-FAIL=In-document Element.querySelectorAll: Invalid class: .bar.
-FAIL=In-document Element.querySelectorAll: Invalid class: .foo..quux
-FAIL=In-document Element.querySelectorAll: Invalid combinator: div % address, p
-FAIL=In-document Element.querySelectorAll: Invalid combinator: div ++ address, p
-FAIL=In-document Element.querySelectorAll: Invalid combinator: div ~~ address, p
 FAIL=In-document Element.querySelectorAll: Invalid group of selectors: div,
-FAIL=In-document Element.querySelectorAll: Invalid namespace: $|div
-FAIL=In-document Element.querySelectorAll: Invalid namespace: ^|div
-FAIL=In-document Element.querySelectorAll: Invalid pseudo-element: :: before
-FAIL=In-document Element.querySelectorAll: Invalid pseudo-element: :::before
-FAIL=In-document Element.querySelectorAll: Relative selector: >*
-FAIL=In-document Element.querySelectorAll: Undeclared namespace: :not(ns|div)
-FAIL=In-document Element.querySelectorAll: Undeclared namespace: ns|div
+FAIL=In-document Element.querySelectorAll: Slotted selector (no matching closing paren): ::slotted(foo
 FAIL=In-document Element.querySelectorAll: Unknown pseudo-class: :example
 FAIL=In-document Element.querySelectorAll: Unknown pseudo-class: div:example
 FAIL=In-document Element.querySelectorAll: Unknown pseudo-class: div:linkexample
-FAIL=In-document Element.querySelectorAll: Unknown pseudo-element: ::example
-FAIL=In-document Element.querySelectorAll: Unknown pseudo-element: div::example
 [dom/nodes/ParentNode-querySelector-escapes.html]
 FAIL="U+fffd" should match with "#\u0000"
 FAIL="abU+fffdc" should match with "#ab\u0000c"
