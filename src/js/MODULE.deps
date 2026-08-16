@@ -501,7 +501,10 @@ budget: Realm       header_lines=25  public_methods=1  members=3
 # the 64th every one of them silently ran no script.
 # The worker's console line and the realm work landed in two worktrees off one base; the number
 # below is measured with both in the tree rather than reasoned about from either.
-budget: Interpreter header_lines=1361 public_methods=78 members=32
+# +1 header line for `InvokeConstructor`: an empty class between two others is
+# still `constructor(...args){ super(...args) }`, and calling only the immediate
+# parent left WebIDL2's Interface/Container/Base chain with `tokens` unset.
+budget: Interpreter header_lines=1363 public_methods=78 members=32
 # One module, as the engine sees it: what it is called, its tree, its own
 # top-level scope, what it publishes, what it asked for, and how far it has
 # got. Six fields and a status, and every one of them is something the

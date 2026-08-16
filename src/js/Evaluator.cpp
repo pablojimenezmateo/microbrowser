@@ -521,8 +521,11 @@ Result Interpreter::EvaluateCall(const Node& node, Environment& scope) {
       super_arguments.push_back(value.value);
     }
     const Value instance = self_binding == nullptr ? Value::Undefined() : *self_binding;
-    const Result constructed = CallFunction(
-        Value::Obj(current_function->object->SuperConstructor()), instance, super_arguments);
+    if (const Value* new_target = scope.Lookup("__newtarget__")) {
+      pending_new_target_ = *new_target;
+    }
+    const Result constructed =
+        InvokeConstructor(current_function->object->SuperConstructor(), instance, super_arguments);
     if (constructed.IsAbrupt()) {
       return constructed;
     }

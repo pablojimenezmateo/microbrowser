@@ -246,6 +246,47 @@ Result Interpreter::InitializeFields(Object* instance, Object* constructor) {
   return Result::Normal();
 }
 
+Result Interpreter::InvokeConstructor(Object* ctor, const Value& self,
+                                      const std::vector<Value>& arguments) {
+  // A derived class with no constructor of its own is `constructor(...args) {
+  // super(...args) }`. Calling the immediate parent as a function is not that:
+  // if the parent is also empty, the body never runs and `class C extends B {}`
+  // where B extends A leaves A's constructor uncalled. WebIDL2's AST is that
+  // shape -- Interface extends Container extends Base -- and `tokens.name =`
+  // then throws on undefined.
+  if (ctor == nullptr) {
+    return Throw("TypeError", "undefined is not a constructor");
+  }
+  Object* parent = ctor->SuperConstructor();
+  const bool implicit_derived =
+      parent != nullptr && ctor->Body() == nullptr && ctor->Code() == nullptr;
+  if (parent == nullptr) {
+    Object* instance = constructing_.empty() ? nullptr : constructing_.back();
+    if (instance != nullptr) {
+      const Result fields = InitializeFields(instance, ctor);
+      if (fields.IsAbrupt()) {
+        return fields;
+      }
+    }
+    return CallFunction(Value::Obj(ctor), self, arguments);
+  }
+  if (implicit_derived) {
+    const Result base = InvokeConstructor(parent, self, arguments);
+    if (base.IsAbrupt()) {
+      return base;
+    }
+    const Value bound = BoundThisAfterSuper(self, base, nullptr);
+    if (bound.IsObject()) {
+      const Result fields = InitializeFields(bound.object, ctor);
+      if (fields.IsAbrupt()) {
+        return fields;
+      }
+    }
+    return Result::Normal(bound.IsObject() ? bound : base.value);
+  }
+  return CallFunction(Value::Obj(ctor), self, arguments);
+}
+
 Value Interpreter::BoundThisAfterSuper(const Value& instance, const Result& super_result,
                                        Value* rebind_self) {
   Value bound = instance;

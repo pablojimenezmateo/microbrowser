@@ -456,6 +456,28 @@ void RegisterJsConformanceTests(std::vector<TestCase>& tests) {
                "1,true,true");
   });
 
+  AddTest(tests, "JsConformance/AnEmptyClassBetweenTwoOthersStillRunsTheBase", [] {
+    // `class C extends B {}` is `constructor(...args){ super(...args) }`. If
+    // B is also empty, that has to reach A, not stop at B's missing body.
+    // WebIDL2's Interface extends Container extends Base is this shape, and
+    // idlharness died on `tokens.name =` with tokens undefined.
+    ExpectEval("class A { constructor(n){ this.n = n } } class B extends A {} "
+               "class C extends B {} new C(7).n",
+               "7");
+    ExpectEval("class A { constructor(){ this.n = 1 } } class B extends A {} "
+               "class C extends B { constructor(){ super(); this.m = 2 } } "
+               "const o = new C(); o.n + ':' + o.m",
+               "1:2");
+    ExpectEval("class A { n = 5 } class B extends A {} class C extends B {} new C().n",
+               "5");
+    ExpectEval("class A { constructor(){ this.t = new.target.name } } "
+               "class B extends A {} class C extends B {} new C().t",
+               "C");
+    ExpectEval("class A { constructor(){ this.t = new.target.name } } class B extends A {} "
+               "class C extends B { constructor(){ super() } } new C().t",
+               "C");
+  });
+
   AddTest(tests, "JsConformance/AClassCanExtendMapAndSet", [] {
     ExpectEval("class C extends Map {} const c = new C(); c.set(1,2); c.get(1) + ':' + c.size",
                "2:1");

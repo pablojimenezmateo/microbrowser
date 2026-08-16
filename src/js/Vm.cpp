@@ -937,8 +937,14 @@ Result Interpreter::RunFrames(std::size_t entry_depth) {
         Object* parent = current.object->SuperConstructor();
         // The parent constructor and the field initializers both hold values in
         // C++ locals while they run, so no safepoint fires underneath them.
+        // `new.target` belongs to the original `new`, not to this super call:
+        // PushFrame took it when the derived body started, so it has to be
+        // put back before the parent runs or the base sees undefined.
+        if (const Value* new_target = FrameName("__newtarget__", kSlotNewTarget)) {
+          pending_new_target_ = *new_target;
+        }
         ++call_depth_;
-        Result done = CallFunction(Value::Obj(parent), instance, arguments);
+        Result done = InvokeConstructor(parent, instance, arguments);
         Value* self_slot = FrameName("this", kSlotThis);
         Value bound = BoundThisAfterSuper(
             instance, done, self_slot == nullptr ? nullptr : self_slot);

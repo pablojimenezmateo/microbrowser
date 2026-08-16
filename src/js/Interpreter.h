@@ -697,11 +697,8 @@ class Interpreter {
   // from the outside.
   Result EvaluateRegExpLiteral(const Node& node);
   Result EvaluateTaggedTemplate(const Node& node, Environment& scope);
-  // `new C(...)`: a fresh instance with C's prototype, the field ordering a
-  // class needs, and the rule that a constructor returning an object replaces
-  // the instance. Shared by the tree-walker's New and the machine's, so the
-  // ordering that lets a derived field read a base one is written once.
   Result Construct(const Value& callee, const std::vector<Value>& arguments);
+  Result InvokeConstructor(Object* ctor, const Value& self, const std::vector<Value>& arguments);
   // What to call the thing that turned out not to be a function: its value,
   // and the name the compiler recorded for the call when it knew one.
   std::string DescribeCallee(const CompiledFunction& code, std::uint32_t at,

@@ -936,44 +936,13 @@ Result Interpreter::Construct(const Value& callee, const std::vector<Value>& arg
   const Value self = Value::Obj(instance);
   active_objects_.push_back(instance);
   constructing_.push_back(instance);
-  // A base class initializes its fields before the constructor body runs. A
-  // derived one does it after its super() call instead, which is the ordering
-  // that lets a derived field read a base one.
-  Object* parent = callee.object->SuperConstructor();
-  if (parent == nullptr) {
-    const Result fields = InitializeFields(instance, callee.object);
-    if (fields.IsAbrupt()) {
-      active_objects_.pop_back();
-      constructing_.pop_back();
-      return fields;
-    }
-  } else if (callee.object->Body() == nullptr && callee.object->Code() == nullptr) {
-    // A derived class with no explicit constructor gets an implicit
-    // `constructor(...args){ super(...args) }`. Without it, `class B extends A
-    // { n = 5 }` runs no constructor at all and leaves both the base's state
-    // and its own fields unset.
-    pending_new_target_ = callee;
-    const Result base = CallFunction(Value::Obj(parent), self, arguments);
-    pending_new_target_ = Value::Undefined();
-    if (base.IsAbrupt()) {
-      active_objects_.pop_back();
-      constructing_.pop_back();
-      return base;
-    }
-    // An implicit `constructor(...args){ super(...args) }` is still a super
-    // call, so it too may have been handed a different object to be.
-    const Result fields = InitializeFields(constructing_.back(), callee.object);
-    if (fields.IsAbrupt()) {
-      active_objects_.pop_back();
-      constructing_.pop_back();
-      return fields;
-    }
-  }
   // `new.target` is in effect for exactly this call. Taken by whichever call
   // path binds the frame, and cleared there, so an ordinary call made later
-  // does not inherit it.
+  // does not inherit it. An implicit constructor chain must not consume it
+  // before the base body runs -- that is why the chain is InvokeConstructor
+  // rather than CallFunction of the immediate parent.
   pending_new_target_ = callee;
-  const Result constructed = CallFunction(callee, self, arguments);
+  const Result constructed = InvokeConstructor(callee.object, self, arguments);
   pending_new_target_ = Value::Undefined();
   // What `super()` left, which is `instance` unless a base constructor
   // returned an object of its own and became what this class is.
