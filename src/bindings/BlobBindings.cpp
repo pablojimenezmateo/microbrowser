@@ -22,6 +22,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/FetchSupport.h"
 #include "js/Heap.h"
 #include "js/Interpreter.h"
 #include "util/StringUtil.h"
@@ -70,6 +71,14 @@ void AppendBufferBytes(std::string& body, const Value& part) {
   const js::BufferView* view = part.object->View();
   if (view == nullptr || view->bytes == nullptr) {
     return;  // detached: contribute nothing
+  }
+  // A typed-array view keeps its own shared_ptr after the ArrayBuffer is
+  // detached. The backing buffer's view is the one postMessage nulls.
+  if (view->buffer != nullptr) {
+    const js::BufferView* backing = view->buffer->View();
+    if (backing == nullptr || backing->bytes == nullptr) {
+      return;
+    }
   }
   const std::size_t element_size = js::ElementSize(view->kind);
   const std::size_t byte_length = view->length * element_size;
@@ -341,6 +350,34 @@ js::Value ArrayBufferFromBytes(js::Interpreter& interpreter, std::string_view bo
   return buffer.value;
 }
 
+js::Value Uint8ArrayFromBytes(js::Interpreter& interpreter, std::string_view body) {
+  const Value buffer = ArrayBufferFromBytes(interpreter, body);
+  if (!buffer.IsObject()) {
+    return buffer;
+  }
+  const Value* view_ctor = interpreter.GlobalScope()->Lookup("Uint8Array");
+  if (view_ctor == nullptr) {
+    return interpreter.MakeError("TypeError", "Uint8Array is unavailable");
+  }
+  const js::Result array = interpreter.ConstructValue(*view_ctor, {buffer});
+  if (array.IsAbrupt() || !array.value.IsObject()) {
+    return array.IsAbrupt() ? array.value
+                            : interpreter.MakeError("TypeError", "failed to allocate Uint8Array");
+  }
+  return array.value;
+}
+
+js::Value SettledOrRejected(js::Interpreter& interpreter, const Value& value) {
+  if (!value.IsObject()) {
+    const Value promise = interpreter.NewPromiseValue();
+    if (promise.IsObject()) {
+      interpreter.SettleAsyncResult(promise.object, value, true);
+    }
+    return promise;
+  }
+  return Settled(interpreter, value);
+}
+
 }  // namespace
 
 js::Value MakeBlobValue(js::Interpreter& interpreter, std::string body, std::string type) {
@@ -368,6 +405,10 @@ void DomBindings::InstallBlob() {
   if (const Value* existing = interpreter_->Global()->Get("Blob"); existing != nullptr) {
     return;
   }
+  // `Blob.stream()` is a ReadableStream. Install it here rather than only
+  // beside `fetch`, so a Blob exists with a stream even when there is no
+  // network behind this layer (unit tests, a worker with no host).
+  InstallReadableStream();
   const Value prototype = interpreter_->NewObjectValue();
   const Value constructor = interpreter_->NewNativeValue("Blob", [prototype](NativeCall& call) {
     if (!call.interpreter.IsConstructCall(call.self)) {
@@ -442,18 +483,31 @@ void DomBindings::InstallBlob() {
       prototype.object->Set("text", text);
     }
     const Value array_buffer = interpreter_->NewNativeValue("arrayBuffer", [](NativeCall& call) {
-      const Value buffer = ArrayBufferFromBytes(call.interpreter, BlobBody(call.self));
-      if (!buffer.IsObject()) {
-        const Value promise = call.interpreter.NewPromiseValue();
-        if (promise.IsObject()) {
-          call.interpreter.SettleAsyncResult(promise.object, buffer, true);
-        }
-        return promise;
-      }
-      return Settled(call.interpreter, buffer);
+      return SettledOrRejected(call.interpreter,
+                               ArrayBufferFromBytes(call.interpreter, BlobBody(call.self)));
     });
     if (array_buffer.IsObject()) {
       prototype.object->Set("arrayBuffer", array_buffer);
+    }
+    const Value bytes = interpreter_->NewNativeValue("bytes", [](NativeCall& call) {
+      return SettledOrRejected(call.interpreter,
+                               Uint8ArrayFromBytes(call.interpreter, BlobBody(call.self)));
+    });
+    if (bytes.IsObject()) {
+      prototype.object->Set("bytes", bytes);
+    }
+    const Value stream = interpreter_->NewNativeValue("stream", [](NativeCall& call) {
+      // Holder, not the Blob: the stream must still yield after the Blob is
+      // collected, and MakeBodyStream already answers from a body's `#body`.
+      const Value holder = call.interpreter.NewObjectValue();
+      if (!holder.IsObject()) {
+        return Value::Undefined();
+      }
+      holder.object->SetHidden(kBodySlot, Value::String(BlobBody(call.self)));
+      return MakeBodyStream(call.interpreter, holder);
+    });
+    if (stream.IsObject()) {
+      prototype.object->Set("stream", stream);
     }
     if (js::Object* tag = interpreter_->SymbolToStringTag()) {
       prototype.object->SetHidden(js::PropertyKey::Symbol(tag), Value::String("Blob"));

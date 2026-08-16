@@ -18,11 +18,11 @@
 // sender's object graph. The same `js::StructuredSerialize` a worker message
 // crosses a thread with, for the same reason.
 //
-// What is deliberately absent: the transfer list. `postMessage(value, [port])`
-// detaches what it names, and a transfer that silently copied instead would
-// leave a page holding two live views on what it believes is one -- a wrong
-// answer rather than a missing feature. It throws.
+// ArrayBuffers in the transfer list are detached after the message is cloned.
+// MessagePorts and everything else still throw: a transfer that silently copied
+// a port would leave a page holding two live ends of what it believes is one.
 
+#include <algorithm>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -31,6 +31,7 @@
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
 #include "bindings/Timers.h"
+#include "js/Heap.h"
 #include "js/StructuredClone.h"
 
 namespace microbrowser::bindings {
@@ -62,6 +63,32 @@ bool FlagOn(const Value& port, const char* slot) {
   return found != nullptr && js::ToBoolean(*found);
 }
 
+// The ArrayBuffer a transfer list entry names. A typed array or DataView
+// transfers its backing buffer, which is the specification's rule and what
+// `postMessage(view, [view.buffer])` already does by writing the buffer.
+js::Object* TransferableBuffer(const Value& value) {
+  if (!value.IsObject()) {
+    return nullptr;
+  }
+  const js::Object::Kind kind = value.object->GetKind();
+  if (kind == js::Object::Kind::ArrayBuffer) {
+    return value.object;
+  }
+  if (kind == js::Object::Kind::TypedArray || kind == js::Object::Kind::DataView) {
+    const js::BufferView* view = value.object->View();
+    return view == nullptr ? nullptr : view->buffer;
+  }
+  return nullptr;
+}
+
+bool BufferIsDetached(js::Object* buffer) {
+  if (buffer == nullptr) {
+    return true;
+  }
+  const js::BufferView* view = buffer->View();
+  return view == nullptr || view->bytes == nullptr;
+}
+
 }  // namespace
 
 void DomBindings::InstallMessageChannel() {
@@ -87,16 +114,36 @@ void DomBindings::InstallMessageChannel() {
     if (owner == nullptr || !call.self.IsObject()) {
       return Value::Undefined();
     }
-    // A transfer list is refused rather than ignored: see the note at the top.
+    std::vector<js::Object*> transferred;
     const Value transfer = Argument(call.arguments, 1);
-    if (transfer.IsObject() && transfer.object->GetKind() == js::Object::Kind::Array &&
-        transfer.object->ElementCount() != 0) {
-      return ThrowDom(call, "DataCloneError", "transferring objects is not supported");
+    if (transfer.IsObject() && transfer.object->GetKind() == js::Object::Kind::Array) {
+      const std::size_t count = transfer.object->ElementCount();
+      transferred.reserve(count);
+      for (std::size_t i = 0; i < count; ++i) {
+        js::Object* buffer = TransferableBuffer(transfer.object->GetElement(i));
+        if (buffer == nullptr) {
+          return ThrowDom(call, "DataCloneError", "transferring objects is not supported");
+        }
+        if (BufferIsDetached(buffer)) {
+          return ThrowDom(call, "DataCloneError", "the ArrayBuffer is detached");
+        }
+        if (std::find(transferred.begin(), transferred.end(), buffer) != transferred.end()) {
+          return ThrowDom(call, "DataCloneError",
+                          "the ArrayBuffer is already in the transfer list");
+        }
+        transferred.push_back(buffer);
+      }
     }
     const std::optional<js::SerializedValue> serialized =
         js::StructuredSerialize(call.interpreter, Argument(call.arguments, 0));
     if (!serialized.has_value()) {
       return ThrowDom(call, "DataCloneError", "the message could not be cloned");
+    }
+    // Detach after clone: the message still carries the bytes, the sender's
+    // buffer does not. Copy-then-null is observably the same as a move for
+    // everything a page can read off either side.
+    for (js::Object* buffer : transferred) {
+      buffer->MakeView(js::BufferView{});
     }
     const Value* other = call.self.object->GetOwn(kEntangledSlot);
     if (other == nullptr || !other->IsObject() || FlagOn(*other, kClosedSlot) ||

@@ -1999,6 +1999,35 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     timers.RunDue(*bound.interpreter, 0);
     ExpectEqString(js::ToString(bound.interpreter->Run("JSON.stringify(out)").value),
                    "\"\\n\\n\"", "native endings convert per string part");
+    bound.interpreter->Run(
+        "globalThis.bytesGot = '';"
+        "const blob = new Blob(['PASS']);"
+        "blob.bytes().then(u => {"
+        "  bytesGot = (u instanceof Uint8Array) + ',' + u.length + ',' + u[0] + ',' +"
+        "             (blob.bytes() !== blob.bytes());"
+        "});");
+    bound.interpreter->DrainMicrotasks();
+    ExpectEqString(js::ToString(bound.interpreter->Run("bytesGot").value), "true,4,80,true",
+                   "bytes() yields a new Uint8Array copy each call");
+    bound.interpreter->Run(
+        "globalThis.streamGot = '';"
+        "const streamBlob = new Blob(['AB']);"
+        "const stream = streamBlob.stream();"
+        "streamGot = (stream instanceof ReadableStream) + ',' + (stream !== streamBlob.stream());"
+        "stream.getReader().read().then(x => {"
+        "  streamGot += '|' + Array.from(x.value).join(',') + ':' + x.done;"
+        "});");
+    bound.interpreter->DrainMicrotasks();
+    ExpectEqString(js::ToString(bound.interpreter->Run("streamGot").value),
+                   "true,true|65,66:false", "stream() is a new one-chunk ReadableStream");
+    ExpectScript("<body></body>",
+                 "const buffer = new ArrayBuffer(4);"
+                 "const view = new Uint8Array(buffer);"
+                 "view[0] = 65; view[1] = 66;"
+                 "new MessageChannel().port1.postMessage(buffer, [buffer]);"
+                 "new Blob([view]).size + ',' + new Blob([buffer]).size + ',' +"
+                 "new Blob([view, 'hello']).size",
+                 "0,0,5");
   });
 
   AddTest(tests, "DomBindings/FileReaderReadsABlobAsText", [] {
