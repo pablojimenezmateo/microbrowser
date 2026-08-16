@@ -31,6 +31,8 @@ constexpr const char* kObserversSlot = "#performance:observers";
 // page whose observers are all idle without walking their queues.
 constexpr const char* kQueuedSlot = "#queued";
 constexpr const char* kPerformanceMarker = "#isPerformance";
+constexpr const char* kEntryKindSlot = "#entryKind";
+constexpr const char* kDetailSlot = "#detail";
 
 bool IsPerformance(const Value& value) {
   if (!value.IsObject()) {
@@ -105,6 +107,179 @@ std::string StringField(const Value& object, const char* name) {
   return value == nullptr ? std::string() : js::ToString(*value);
 }
 
+bool IsPerformanceTimingName(std::string_view name) {
+  // The reserved names `performance.mark` may not use on a Window: they are the
+  // readonly attributes of PerformanceTiming. A mark called `navigationStart`
+  // would look like a timing field and is a SyntaxError instead.
+  static constexpr const char* kNames[] = {
+      "navigationStart", "unloadEventStart", "unloadEventEnd", "redirectStart", "redirectEnd",
+      "fetchStart", "domainLookupStart", "domainLookupEnd", "connectStart", "connectEnd",
+      "secureConnectionStart", "requestStart", "responseStart", "responseEnd", "domLoading",
+      "domInteractive", "domContentLoadedEventStart", "domContentLoadedEventEnd", "domComplete",
+      "loadEventStart", "loadEventEnd"};
+  for (const char* field : kNames) {
+    if (name == field) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool IsWindowGlobal(js::Interpreter& interpreter) {
+  const Value* window = interpreter.GlobalScope()->Lookup("Window");
+  return window != nullptr;
+}
+
+double CurrentNow(js::Interpreter& interpreter) {
+  const Value* last = interpreter.Global()->GetOwn("#performance:now");
+  return last == nullptr ? 0.0 : js::ToNumber(*last);
+}
+
+Value InstallIllegalInterface(js::Interpreter& interpreter, const char* name,
+                              const Value& parent_proto, const Value& parent_ctor) {
+  const Value prototype = interpreter.NewObjectValue();
+  if (!prototype.IsObject()) {
+    return prototype;
+  }
+  if (parent_proto.IsObject()) {
+    prototype.object->SetPrototype(parent_proto.object);
+  }
+  const std::string message = std::string("Illegal constructor: ") + name;
+  const Value constructor = interpreter.NewNativeValue(
+      name, [message](NativeCall& call) { return call.Throw("TypeError", message); });
+  if (!constructor.IsObject()) {
+    return prototype;
+  }
+  if (parent_ctor.IsObject()) {
+    constructor.object->SetPrototype(parent_ctor.object);
+  }
+  SetFunctionLength(constructor, 0);
+  DefinePrototypeSlot(constructor.object, prototype);
+  DefineNonEnumerable(prototype.object, "constructor", constructor);
+  interpreter.GlobalScope()->Declare(name, constructor, false);
+  DefineNonEnumerable(interpreter.Global(), name, constructor);
+  if (js::Object* tag = interpreter.SymbolToStringTag()) {
+    prototype.object->SetHidden(js::PropertyKey::Symbol(tag), Value::String(name));
+  }
+  return prototype;
+}
+
+void InstallDetailGetter(js::Interpreter& interpreter, const Value& prototype,
+                         const char* kind) {
+  const Value getter = interpreter.NewNativeValue(
+      "get detail", [kind](NativeCall& call) -> Value {
+        if (!call.self.IsObject()) {
+          return call.Throw("TypeError", "Illegal invocation");
+        }
+        const Value* entry_kind = call.self.object->GetOwn(kEntryKindSlot);
+        if (entry_kind == nullptr || js::ToString(*entry_kind) != kind) {
+          return call.Throw("TypeError", "Illegal invocation");
+        }
+        const Value* detail = call.self.object->GetOwn(kDetailSlot);
+        return detail == nullptr ? Value::Null() : *detail;
+      });
+  if (getter.IsObject() && prototype.IsObject()) {
+    SetFunctionLength(getter, 0);
+    prototype.object->DefineAccessor("detail", getter.object, nullptr);
+  }
+}
+
+void InstallEntryInterfaces(js::Interpreter& interpreter) {
+  const Value entry_proto =
+      InstallIllegalInterface(interpreter, "PerformanceEntry", Value::Undefined(), Value::Undefined());
+  if (entry_proto.IsObject()) {
+    interpreter.Global()->SetHidden("#proto:PerformanceEntry", entry_proto);
+    const Value to_json = interpreter.NewNativeValue("toJSON", [](NativeCall& call) -> Value {
+      if (!call.self.IsObject() || call.self.object->GetOwn(kEntryKindSlot) == nullptr) {
+        return call.Throw("TypeError", "Illegal invocation");
+      }
+      const Value json = call.interpreter.NewObjectValue();
+      if (!json.IsObject()) {
+        return json;
+      }
+      json.object->Set("name", call.interpreter.GetPropertyValue(call.self, "name"));
+      json.object->Set("entryType", call.interpreter.GetPropertyValue(call.self, "entryType"));
+      json.object->Set("startTime", call.interpreter.GetPropertyValue(call.self, "startTime"));
+      json.object->Set("duration", call.interpreter.GetPropertyValue(call.self, "duration"));
+      if (const Value* detail = call.self.object->GetOwn(kDetailSlot)) {
+        json.object->Set("detail", *detail);
+      }
+      return json;
+    });
+    if (to_json.IsObject()) {
+      SetFunctionLength(to_json, 0);
+      entry_proto.object->Set("toJSON", to_json);
+    }
+  }
+
+  const Value mark_proto = interpreter.NewObjectValue();
+  if (mark_proto.IsObject()) {
+    if (entry_proto.IsObject()) {
+      mark_proto.object->SetPrototype(entry_proto.object);
+    }
+    const Value constructor = interpreter.NewNativeValue(
+        "PerformanceMark", [](NativeCall& call) -> Value {
+          if (!call.interpreter.IsConstructCall(call.self)) {
+            return call.Throw("TypeError", "PerformanceMark constructor requires 'new'");
+          }
+          if (!RequireArguments(call, "PerformanceMark", "constructor", 1)) {
+            return call.ThrownValue();
+          }
+          const std::string name = js::ToString(Argument(call.arguments, 0));
+          if (IsWindowGlobal(call.interpreter) && IsPerformanceTimingName(name)) {
+            return ThrowDom(call, "SyntaxError",
+                            "Failed to construct 'PerformanceMark': '" + name +
+                                "' is a reserved PerformanceTiming name");
+          }
+          double start = CurrentNow(call.interpreter);
+          Value detail = Value::Null();
+          const Value options = Argument(call.arguments, 1);
+          if (options.IsObject()) {
+            if (const Value* given = options.object->Get("startTime")) {
+              start = js::ToNumber(*given);
+              if (start < 0.0) {
+                return call.Throw("TypeError", "PerformanceMark startTime is negative");
+              }
+            }
+            if (const Value* given = options.object->Get("detail");
+                given != nullptr && !given->IsUndefined()) {
+              detail = *given;
+            }
+          }
+          return MakeEntry(call.interpreter, "mark", name, start, 0.0, detail);
+        });
+    if (constructor.IsObject()) {
+      SetFunctionLength(constructor, 1);
+      if (const Value* entry_ctor = entry_proto.IsObject() ? entry_proto.object->GetOwn("constructor")
+                                                           : nullptr;
+          entry_ctor != nullptr && entry_ctor->IsObject()) {
+        constructor.object->SetPrototype(entry_ctor->object);
+      }
+      DefinePrototypeSlot(constructor.object, mark_proto);
+      DefineNonEnumerable(mark_proto.object, "constructor", constructor);
+      interpreter.GlobalScope()->Declare("PerformanceMark", constructor, false);
+      DefineNonEnumerable(interpreter.Global(), "PerformanceMark", constructor);
+    }
+    if (js::Object* tag = interpreter.SymbolToStringTag()) {
+      mark_proto.object->SetHidden(js::PropertyKey::Symbol(tag), Value::String("PerformanceMark"));
+    }
+    InstallDetailGetter(interpreter, mark_proto, "mark");
+    interpreter.Global()->SetHidden("#proto:PerformanceMark", mark_proto);
+  }
+
+  const Value entry_ctor = entry_proto.IsObject()
+                               ? (entry_proto.object->GetOwn("constructor") != nullptr
+                                      ? *entry_proto.object->GetOwn("constructor")
+                                      : Value::Undefined())
+                               : Value::Undefined();
+  const Value measure_proto =
+      InstallIllegalInterface(interpreter, "PerformanceMeasure", entry_proto, entry_ctor);
+  if (measure_proto.IsObject()) {
+    InstallDetailGetter(interpreter, measure_proto, "measure");
+    interpreter.Global()->SetHidden("#proto:PerformanceMeasure", measure_proto);
+  }
+}
+
 }  // namespace
 
 // The two the other half of the module needs, declared in PerformanceEntries.h
@@ -112,15 +287,27 @@ std::string StringField(const Value& object, const char* name) {
 namespace performance_entries {
 
 Value MakeEntry(js::Interpreter& interpreter, std::string_view type, std::string_view name,
-                double start, double duration) {
+                double start, double duration, const Value& detail) {
   const Value entry = interpreter.NewObjectValue();
   if (!entry.IsObject()) {
     return entry;
+  }
+  const char* proto_key = "#proto:PerformanceEntry";
+  if (type == "mark") {
+    proto_key = "#proto:PerformanceMark";
+  } else if (type == "measure") {
+    proto_key = "#proto:PerformanceMeasure";
+  }
+  if (const Value* proto = interpreter.Global()->GetOwn(proto_key);
+      proto != nullptr && proto->IsObject()) {
+    entry.object->SetPrototype(proto->object);
   }
   entry.object->Set("entryType", Value::String(std::string(type)));
   entry.object->Set("name", Value::String(std::string(name)));
   entry.object->Set("startTime", Value::Number(start));
   entry.object->Set("duration", Value::Number(duration));
+  entry.object->SetHidden(kEntryKindSlot, Value::String(std::string(type)));
+  entry.object->SetHidden(kDetailSlot, detail.IsUndefined() ? Value::Null() : detail);
   return entry;
 }
 
@@ -300,18 +487,29 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
       return call.ThrownValue();
     }
     const std::string name = js::ToString(Argument(call.arguments, 0));
+    if (IsWindowGlobal(call.interpreter) && IsPerformanceTimingName(name)) {
+      return ThrowDom(call, "SyntaxError",
+                      "Failed to execute 'mark' on 'Performance': '" + name +
+                          "' is a reserved PerformanceTiming name");
+    }
     // `{startTime}` in the options, which reddit's page-load timer uses to stamp
     // a mark at a moment that has already passed.
-    double start = 0.0;
-    const Value* last = call.interpreter.Global()->GetOwn("#performance:now");
-    start = last == nullptr ? 0.0 : js::ToNumber(*last);
+    double start = CurrentNow(call.interpreter);
+    Value detail = Value::Null();
     const Value options = Argument(call.arguments, 1);
     if (options.IsObject()) {
       if (const Value* given = options.object->Get("startTime")) {
         start = js::ToNumber(*given);
+        if (start < 0.0) {
+          return call.Throw("TypeError", "Failed to execute 'mark': startTime is negative");
+        }
+      }
+      if (const Value* given = options.object->Get("detail");
+          given != nullptr && !given->IsUndefined()) {
+        detail = *given;
       }
     }
-    const Value entry = MakeEntry(call.interpreter, "mark", name, start, 0.0);
+    const Value entry = MakeEntry(call.interpreter, "mark", name, start, 0.0, detail);
     Record(call.interpreter, entry);
     return entry;
   });
@@ -355,6 +553,7 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
       return found;
     };
 
+    Value detail = Value::Null();
     const Value second = Argument(call.arguments, 1);
     if (second.IsObject()) {
       if (const Value* given = second.object->Get("start")) {
@@ -362,6 +561,10 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
       }
       if (const Value* given = second.object->Get("end")) {
         end = js::ToNumber(*given);
+      }
+      if (const Value* given = second.object->Get("detail");
+          given != nullptr && !given->IsUndefined()) {
+        detail = *given;
       }
     } else if (!second.IsUndefined()) {
       start = mark_time(js::ToString(second));
@@ -371,7 +574,7 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
       }
     }
     const Value entry =
-        MakeEntry(call.interpreter, "measure", name, start, std::max(0.0, end - start));
+        MakeEntry(call.interpreter, "measure", name, start, std::max(0.0, end - start), detail);
     Record(call.interpreter, entry);
     return entry;
   });
@@ -488,6 +691,7 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
   DefineNonEnumerable(interpreter.Global(), "performance", performance);
   interpreter.GlobalScope()->Declare("performance", performance, false);
   interpreter.Global()->SetHidden("#performance:now", Value::Number(kTimerResolutionMs));
+  InstallEntryInterfaces(interpreter);
 
   // --- PerformanceObserver --------------------------------------------------
 

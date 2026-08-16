@@ -26,12 +26,13 @@
 
 namespace microbrowser::bindings::performance_entries {
 
-// One entry, as the object a page reads. A plain object rather than a class with
-// a prototype: every field a page touches is a data property, `toJSON` is the
-// only method the specification puts on one, and a page that spreads an entry
-// into its telemetry payload gets the fields either way.
+// One entry, as the object a page reads. The prototype is PerformanceMark,
+// PerformanceMeasure or PerformanceEntry, looked up from the global at creation
+// so `instanceof` and `Object.prototype.toString` name the interface. Fields a
+// page reads are still data properties; `detail` is the accessor on the
+// prototype, because idlharness gets it there.
 js::Value MakeEntry(js::Interpreter& interpreter, std::string_view type, std::string_view name,
-                    double start, double duration);
+                    double start, double duration, const js::Value& detail = js::Value::Null());
 
 // Records `entry` on the document's entry list and queues it on every observer
 // watching its type. Bounded: the list drops its oldest past a cap, because a

@@ -272,6 +272,22 @@ void RegisterPerformanceApiTests(std::vector<TestCase>& tests) {
                    "Errors: " + session.Errors());
   });
 
+  AddTest(tests, "PerformanceApi/MarksAndMeasuresAreTheirOwnInterfaces", [] {
+    Session session;
+    session.Run("",
+                "const m = performance.mark('x', {detail: 7});"
+                "console.log(Object.prototype.toString.call(m));"
+                "console.log(m instanceof PerformanceMark);"
+                "console.log(m.detail);"
+                "console.log(new PerformanceMark('y').name);"
+                "try { performance.mark('navigationStart') } catch (e) { console.log(e.name) }"
+                "const n = performance.measure('z');"
+                "console.log(Object.prototype.toString.call(n));");
+    ExpectEqString(session.Console(),
+                   "[object PerformanceMark]|true|7|y|SyntaxError|[object PerformanceMeasure]",
+                   "Errors: " + session.Errors());
+  });
+
   AddTest(tests, "PerformanceApi/AnEntryProducedInACallbackWaitsForTheNextDelivery", [] {
     // Otherwise a callback that marks would re-enter the delivery it is in, and a
     // page controls how deep that goes.
