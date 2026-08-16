@@ -29,6 +29,10 @@ struct SelectorParseMode {
   int depth = 0;
   bool relative = false;
   bool inside_has = false;
+  // Null means no `@namespace` rules are in scope, which is the cascade: a
+  // named prefix does not parse. CSSOM parse points this at the prefixes the
+  // sheet has declared so far.
+  const SelectorNamespaces* namespaces = nullptr;
 };
 
 // Parses a selector list out of `tokens[from, to)`. Returns empty on anything

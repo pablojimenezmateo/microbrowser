@@ -33,6 +33,8 @@ enum class DeclarationValidity {
 };
 
 // `property` is the CSS name (`background-color`, not `backgroundColor`).
+// On `Unknown`, `out` still receives the token serialization (`.1em` → `0.1em`)
+// so a caller that keeps the declaration stores the canonical form.
 DeclarationValidity CanonicaliseDeclaration(std::string_view property, std::string_view value,
                                             std::string* out);
 

@@ -17,6 +17,7 @@
 #include "bindings/WebIdl.h"
 #include "css/StyleResolver.h"
 #include "css/StyleSheet.h"
+#include "css/Cssom.h"
 #include "dom/Node.h"
 #include "url/Url.h"
 #include "util/PerformanceCounters.h"
@@ -649,58 +650,19 @@ void DomBindings::InstallCssOm() {
     css.object->Set("supports", supports);
   }
 
-  // CSS.escape: enough for an ident. A fuller escapable-string grammar is not
-  // what pages probe for; they need a function that turns `a b` into something
-  // `querySelector` can take.
+  // CSS.escape is serialize-an-identifier. One function with selector
+  // serialization, because a querySelector argument and a class selector that
+  // disagreed about `\-` would be two answers to the same grammar.
   const Value escape = interpreter_->NewNativeValue("escape", [](NativeCall& call) -> Value {
-    const std::string input = js::ToString(Argument(call.arguments, 0));
-    std::string out;
-    out.reserve(input.size() + 8);
-    std::size_t unit = 0;
-    for (std::size_t i = 0; i < input.size();) {
-      const unsigned char lead = static_cast<unsigned char>(input[i]);
-      std::uint32_t cp = 0;
-      std::size_t width = 1;
-      if (lead < 0x80) {
-        cp = lead;
-      } else if ((lead & 0xE0) == 0xC0 && i + 1 < input.size()) {
-        cp = (lead & 0x1F) << 6 | (static_cast<unsigned char>(input[i + 1]) & 0x3F);
-        width = 2;
-      } else if ((lead & 0xF0) == 0xE0 && i + 2 < input.size()) {
-        cp = static_cast<std::uint32_t>(lead & 0x0F) << 12 |
-             static_cast<std::uint32_t>(static_cast<unsigned char>(input[i + 1]) & 0x3F) << 6 |
-             static_cast<std::uint32_t>(static_cast<unsigned char>(input[i + 2]) & 0x3F);
-        width = 3;
-      } else if ((lead & 0xF8) == 0xF0 && i + 3 < input.size()) {
-        cp = static_cast<std::uint32_t>(lead & 0x07) << 18 |
-             static_cast<std::uint32_t>(static_cast<unsigned char>(input[i + 1]) & 0x3F) << 12 |
-             static_cast<std::uint32_t>(static_cast<unsigned char>(input[i + 2]) & 0x3F) << 6 |
-             static_cast<std::uint32_t>(static_cast<unsigned char>(input[i + 3]) & 0x3F);
-        width = 4;
-      } else {
-        char buf[8];
-        std::snprintf(buf, sizeof(buf), "\\%x ", lead);
-        out += buf;
-        ++i;
-        ++unit;
-        continue;
-      }
-      const bool as_name =
-          (cp == '_' || (cp >= 'a' && cp <= 'z') || (cp >= 'A' && cp <= 'Z') || cp >= 0x80) ||
-          (unit > 0 && ((cp >= '0' && cp <= '9') || cp == '-')) ||
-          (unit == 0 && cp == '-' && i + width < input.size());
-      if (as_name) {
-        out.append(input, i, width);
-      } else {
-        char buf[16];
-        std::snprintf(buf, sizeof(buf), "\\%x ", static_cast<unsigned>(cp));
-        out += buf;
-      }
-      i += width;
-      ++unit;
+    if (!RequireArguments(call, "CSS", "escape", 1)) {
+      return call.ThrownValue();
+    }
+    std::string input;
+    if (!ToDomString(call, Argument(call.arguments, 0), input)) {
+      return call.ThrownValue();
     }
     util::AddPerformanceCounter(util::PerfCounterId::CssEscapeCalls);
-    return Value::String(std::move(out));
+    return Value::String(css::SerializeCssIdent(input));
   });
   if (escape.IsObject()) {
     SetFunctionLength(escape, 1);

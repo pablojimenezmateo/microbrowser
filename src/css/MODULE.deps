@@ -44,7 +44,10 @@ budget: Token            header_lines=75 public_methods=2  members=8
 # names, which is the wrong trade in the struct the whole cascade reads.
 # `:has()` and `:lang()` added no member: the first reuses `arguments`, the
 # second packs its ranges into `value`.
-budget: SelectorPart header_lines=105 public_methods=2 members=8
+# +1 member for the prefix of `ns|e` / `[ns|attr]`. CSSOM serializes the prefix
+# the author wrote; matching it without a resolved URI would style the wrong
+# elements, so Named matches nothing until the cascade grows `@namespace`.
+budget: SelectorPart header_lines=115 public_methods=2 members=9
 budget: NthPattern       header_lines=20 public_methods=2  members=4
 budget: CompoundSelector header_lines=25 public_methods=2  members=2
 budget: Specificity      header_lines=30 public_methods=4  members=3

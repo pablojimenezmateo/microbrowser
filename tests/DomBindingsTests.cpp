@@ -152,7 +152,7 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript("<html><body></body></html>", "CSS.supports('display: flex')", "true");
     ExpectScript("<html><body></body></html>",
                  "CSS.supports('display', 'not-a-real-value')", "false");
-    ExpectScript("<html><body></body></html>", "CSS.escape('foo bar')", "foo\\20 bar");
+    ExpectScript("<html><body></body></html>", "CSS.escape('foo bar')", "foo\\ bar");
     ExpectScript("<html><body></body></html>", "CSS.escape('0abc')", "\\30 abc");
   });
 

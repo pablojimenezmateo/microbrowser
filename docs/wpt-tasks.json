@@ -521,10 +521,10 @@
         "D3"
       ],
       "target": "97%",
-      "status": "in_progress",
+      "status": "done",
       "agent": "wpt-d7",
       "adr": "",
-      "notes": "",
+      "notes": "**Done 2026-08-16: css/cssom/ is 1744/2169 (80.4%)**, +10.2 points from D3's 70.2% floor, against a Firefox ceiling of 97.4%. Specified-value serialization (`.1em` → `0.1em`, quoted `url()`, `rgba` alpha kept, font-family quoting, `CSS.escape` as serialize-an-identifier), overflow/margin/padding shorthand collapsing, and namespaced selector serialization (`*|e` kept when the sheet has a default `@namespace`; `ns|e` round-trips). Remaining: constructable-sheet TIMEOUTs, keyframes, border/flex/list-style/outline shorthand collapsing, computed font-family quoting, HTML/SVG/MathML interface objects.",
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.4%"
     },

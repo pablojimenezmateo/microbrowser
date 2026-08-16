@@ -32,27 +32,32 @@ std::vector<css::Declaration> ReadDeclarations(const Value& style) {
 }
 
 std::string SerializeCssText(const std::vector<css::Declaration>& declarations) {
-  std::string text;
-  for (const css::Declaration& declaration : declarations) {
-    if (!text.empty()) {
-      text += "; ";
-    }
-    text += declaration.property;
-    text += ": ";
-    text += declaration.value;
-    if (declaration.important) {
-      text += " !important";
-    }
-  }
-  if (!text.empty()) {
-    text += ';';
-  }
-  return text;
+  return css::SerializeCssDeclarationBlock(declarations);
 }
 
 std::vector<css::Declaration> ElementDeclarations(dom::Element& element) {
   const std::string* text = element.GetAttribute("style");
-  return css::ParseDeclarationList(text == nullptr ? "" : *text);
+  std::vector<css::Declaration> declarations =
+      css::ParseDeclarationList(text == nullptr ? "" : *text);
+  std::vector<css::Declaration> kept;
+  kept.reserve(declarations.size());
+  for (css::Declaration& declaration : declarations) {
+    std::string canonical;
+    switch (css::CanonicaliseDeclaration(declaration.property, declaration.value, &canonical)) {
+      case css::DeclarationValidity::Invalid:
+        continue;
+      case css::DeclarationValidity::Canonical:
+        declaration.value = std::move(canonical);
+        break;
+      case css::DeclarationValidity::Unknown:
+        if (!canonical.empty()) {
+          declaration.value = std::move(canonical);
+        }
+        break;
+    }
+    kept.push_back(std::move(declaration));
+  }
+  return kept;
 }
 
 std::string PageCssName(std::string_view name) {
@@ -154,19 +159,31 @@ void InstallCssomStylePrototype(js::Interpreter& interpreter, const js::Value& i
       return Value::String(geometry->QueryUsedValue(*element, wanted).value_or(std::string()));
     }
     if (dom::Element* element = StyleElement(call.self)) {
-      for (const css::Declaration& declaration : ElementDeclarations(*element)) {
-        if (declaration.property == wanted) {
-          return Value::String(declaration.value);
+      const std::vector<css::Declaration> declarations = ElementDeclarations(*element);
+      for (css::Declaration declaration : declarations) {
+        if (declaration.property != wanted) {
+          continue;
+        }
+        std::string canonical;
+        switch (css::CanonicaliseDeclaration(declaration.property, declaration.value,
+                                             &canonical)) {
+          case css::DeclarationValidity::Invalid:
+            return Value::String("");
+          case css::DeclarationValidity::Canonical:
+            return Value::String(std::move(canonical));
+          case css::DeclarationValidity::Unknown:
+            return Value::String(canonical.empty() ? declaration.value : std::move(canonical));
         }
       }
-      return Value::String("");
+      return Value::String(css::SpecifiedShorthandValue(wanted, declarations));
     }
-    for (const css::Declaration& declaration : ReadDeclarations(call.self)) {
+    const std::vector<css::Declaration> declarations = ReadDeclarations(call.self);
+    for (const css::Declaration& declaration : declarations) {
       if (declaration.property == wanted) {
         return Value::String(declaration.value);
       }
     }
-    return Value::String("");
+    return Value::String(css::SpecifiedShorthandValue(wanted, declarations));
   });
   style_method("getPropertyPriority", 1, [](NativeCall& call) -> Value {
     if (!IsCssomStyleThis(call.self)) {
@@ -219,6 +236,9 @@ void InstallCssomStylePrototype(js::Interpreter& interpreter, const js::Value& i
       case css::DeclarationValidity::Unknown:
         if (!CssomKeepsUnknownDeclaration(name, value)) {
           return Value::Undefined();
+        }
+        if (!canonical.empty()) {
+          value = std::move(canonical);
         }
         break;
     }
@@ -329,8 +349,7 @@ void InstallCssomStylePrototype(js::Interpreter& interpreter, const js::Value& i
                return Value::String("");
              }
              if (dom::Element* element = StyleElement(call.self)) {
-               const std::string* text = element->GetAttribute("style");
-               return Value::String(text == nullptr ? "" : *text);
+               return Value::String(SerializeCssText(ElementDeclarations(*element)));
              }
              return Value::String(SerializeCssText(ReadDeclarations(call.self)));
            },
@@ -356,6 +375,9 @@ void InstallCssomStylePrototype(js::Interpreter& interpreter, const js::Value& i
                  case css::DeclarationValidity::Unknown:
                    if (!CssomKeepsUnknownDeclaration(declaration.property, declaration.value)) {
                      continue;
+                   }
+                   if (!canonical.empty()) {
+                     declaration.value = std::move(canonical);
                    }
                    break;
                }

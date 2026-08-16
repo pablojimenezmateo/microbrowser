@@ -73514,6 +73514,8 @@ FAIL=@import rules are not parsed in CSSStyleSheet.replace
 FAIL=@import rules are not parsed in CSSStyleSheet.replaceSync
 FAIL=@import rules should not trigger any loads.
 FAIL=Inserting an @import rule through insertRule on a constructed stylesheet throws an exception
+[css/cssom/CSSStyleSheet-constructable-insertRule-base-uri.html]
+harness=FAIL
 [css/cssom/CSSStyleSheet-constructable-replace-cssRules.html]
 FAIL=cssRules tests (sync: false)
 FAIL=cssRules tests (sync: true)
@@ -73542,6 +73544,8 @@ harness=TIMEOUT
 harness=TIMEOUT
 [css/cssom/HTMLLinkElement-disabled-007.html]
 harness=TIMEOUT
+[css/cssom/HTMLLinkElement-disabled-alternate.html]
+harness=FAIL
 [css/cssom/HTMLLinkElement-load-event-002.html]
 harness=TIMEOUT
 [css/cssom/HTMLLinkElement-load-event.html]
@@ -73553,6 +73557,12 @@ harness=TIMEOUT
 [css/cssom/MutationObserver-style.html]
 FAIL=Updating cssText triggers an observation callback even if the value is the same
 FAIL=Updating style property with the same value does not trigger an observation callback
+[css/cssom/adoptedstylesheets-adopt-link.tentative.html]
+harness=FAIL
+[css/cssom/adoptedstylesheets-adopt-style-subresource.tentative.html]
+harness=FAIL
+[css/cssom/adoptedstylesheets-adopt-style.tentative.html]
+harness=FAIL
 [css/cssom/adoptedstylesheets-observablearray.html]
 FAIL=document.adoptedStyleSheets should allow mutation in-place
 FAIL=shadowRoot.adoptedStyleSheets should allow mutation in-place
@@ -73629,8 +73639,6 @@ FAIL=The style attribute must return a CSSFontFaceDescriptors block
 FAIL=CSSStyleDeclaration values are represented within CSSFontFaceRule
 [css/cssom/cssom-pagerule.html]
 FAIL=Set selectorText to named page after rule was removed
-[css/cssom/cssom-ruleTypeAndOrder.html]
-FAIL=Type of #s-3 is expected to be style rule
 [css/cssom/cssstyledeclaration-all-shorthand.html]
 FAIL=getPropertyValue('all') returns css-wide keyword when 'all' overrides prior property
 FAIL=getPropertyValue('all') returns css-wide keyword when 'all' overrides prior property via insertRule
@@ -73693,11 +73701,6 @@ FAIL=setProperty with shorthand should update only the declarations being set
 FAIL=newly set declaration should be after all declarations in the same logical property group but have different logical kind
 [css/cssom/delete-namespace-rule-when-child-rule-exists.html]
 FAIL=Deleting a @namespace rule when list contains anything other than @import or @namespace rules should throw InvalidStateError.
-[css/cssom/escape.html]
-FAIL=Dash number prefix
-FAIL=Null bytes
-FAIL=Number of arguments
-FAIL=Various tests
 [css/cssom/flex-serialization.html]
 FAIL=Multiple values flex with CSS-wide and two non-CSS-wide-keyword values should serialize correctly.
 FAIL=Multiple values flex with CSS-wide keyword should serialize correctly.
@@ -73708,12 +73711,6 @@ FAIL=Computed: digit-starting family name stays quoted
 FAIL=Computed: mixed font-family list serialization
 FAIL=Computed: quoted 'serif' stays quoted
 FAIL=Serialization of quoted "<generic-family>"
-FAIL=Specified: digit-starting family name stays quoted
-FAIL=Specified: double-space family name stays quoted
-FAIL=Specified: mixed font-family list serialization
-FAIL=Specified: quoted multi-word name normalizes to unquoted
-FAIL=Specified: quoted single-word name normalizes to unquoted
-FAIL=Specified: single-digit family name stays quoted
 [css/cssom/font-shorthand-serialization.html]
 FAIL=The font shorthand should be serialized just like any other shorthand.
 [css/cssom/getComputedStyle-detached-subtree.html]
@@ -73884,6 +73881,8 @@ FAIL=Window interface: operation getComputedStyle(Element, optional CSSOMString?
 FAIL=shorthand_properties
 [css/cssom/insertRule-charset-no-index.html]
 FAIL=insertRule with charset and undefined index argument
+[css/cssom/insertRule-from-script.html]
+harness=FAIL
 [css/cssom/insertRule-import-no-index.html]
 FAIL=insertRule with import and omitted index argument
 FAIL=insertRule with import and undefined index argument
@@ -73904,13 +73903,8 @@ FAIL=appendMedium with a comma-separated list leaves an existing list unchanged
 [css/cssom/medialist-deletemedium-parse-and-remove-all.html]
 FAIL=deleteMedium matches a query that differs only in whitespace
 FAIL=deleteMedium removes every matching query, not only the first
-[css/cssom/overflow-serialization.html]
-FAIL=Overflow-x/y longhands on element with different keywords should serialize correctly.
-FAIL=Overflow-x/y longhands on element with same CSS-wide keyword should serialize correctly.
-FAIL=Overflow-x/y longhands on element with same non-CSS-wide keyword should serialize correctly.
-FAIL=Overflow-x/y longhands with different keywords should serialize correctly.
-FAIL=Overflow-x/y longhands with same CSS-wide keyword should serialize correctly.
-FAIL=Overflow-x/y longhands with same non-CSS-wide keyword should serialize correctly.
+[css/cssom/medialist-dynamic-001.html]
+harness=FAIL
 [css/cssom/page-descriptors.html]
 FAIL=CSSPageDescriptors properties tests
 [css/cssom/preferred-stylesheet-order.html]
@@ -73946,8 +73940,6 @@ FAIL=escaped character in attribute name with any namespace
 FAIL=escaped character in attribute prefix
 FAIL=escaped character in both attribute prefix and name
 FAIL=single pseudo (simple) selector "lang" which accepts arguments in the sequence of simple selectors that is not a universal selector
-[css/cssom/serialization-CSSDeclaration-with-important.html]
-FAIL=Inline style declaration with whitespace between '!' and 'important'.
 [css/cssom/serialize-custom-props.html]
 FAIL=An <integer> custom prop can take a 12-digit integer
 FAIL=An <integer> custom prop can take a 25-digit integer
@@ -73975,224 +73967,23 @@ FAIL=type - no features - character case normalization
 FAIL=type - no features - negation
 FAIL=type - omission of all
 [css/cssom/serialize-namespaced-type-selectors.html]
-FAIL=Type selector with any namespace
-FAIL=Type selector with any namespace followed by attribute selector
-FAIL=Type selector with any namespace followed by class
-FAIL=Type selector with any namespace followed by id
-FAIL=Type selector with any namespace followed by pseudo class
-FAIL=Type selector with any namespace followed by pseudo element
-FAIL=Type selector with namespace
 FAIL=Type selector with namespace equal to default namespace
 FAIL=Type selector with namespace equal to default namespace followed by attribute selector
 FAIL=Type selector with namespace equal to default namespace followed by class
 FAIL=Type selector with namespace equal to default namespace followed by id
 FAIL=Type selector with namespace equal to default namespace followed by pseudo class
 FAIL=Type selector with namespace equal to default namespace followed by pseudo element
-FAIL=Type selector with namespace followed by attribute selector
-FAIL=Type selector with namespace followed by class
-FAIL=Type selector with namespace followed by id
-FAIL=Type selector with namespace followed by pseudo class
-FAIL=Type selector with namespace followed by pseudo element
-FAIL=Universal selector in any namespace
-FAIL=Universal selector in any namespace followed by attribute selector
-FAIL=Universal selector in any namespace followed by class
-FAIL=Universal selector in any namespace followed by id
-FAIL=Universal selector in any namespace followed by pseudo class
-FAIL=Universal selector in any namespace followed by pseudo element
-FAIL=Universal selector with namespace
 FAIL=Universal selector with namespace equal to default namespace
 FAIL=Universal selector with namespace equal to default namespace followed by attribute selector
 FAIL=Universal selector with namespace equal to default namespace followed by class
 FAIL=Universal selector with namespace equal to default namespace followed by id
 FAIL=Universal selector with namespace equal to default namespace followed by pseudo class
 FAIL=Universal selector with namespace equal to default namespace followed by pseudo element
-FAIL=Universal selector with namespace followed by attribute selector
-FAIL=Universal selector with namespace followed by class
-FAIL=Universal selector with namespace followed by id
-FAIL=Universal selector with namespace followed by pseudo class
-FAIL=Universal selector with namespace followed by pseudo element
-[css/cssom/serialize-values.html]
-FAIL=background-color: rgba(5, 7, 10, 0.5)
-FAIL=background-image: url(http://localhost/)
-FAIL=background-position: -.1em -.1em
-FAIL=background-position: -.1em -.5%
-FAIL=background-position: -.1em -0px
-FAIL=background-position: -.1em -1px
-FAIL=background-position: -.1em -5%
-FAIL=background-position: -.1em .1em
-FAIL=background-position: -.1em .5%
-FAIL=background-position: -.1em 0px
-FAIL=background-position: -.1em 1px
-FAIL=background-position: -.1em 5%
-FAIL=background-position: -.1em bottom
-FAIL=background-position: -.1em center
-FAIL=background-position: -.1em top
-FAIL=background-position: -.5% -.1em
-FAIL=background-position: -.5% -.5%
-FAIL=background-position: -.5% -0px
-FAIL=background-position: -.5% -1px
-FAIL=background-position: -.5% -5%
-FAIL=background-position: -.5% .1em
-FAIL=background-position: -.5% .5%
-FAIL=background-position: -.5% 0px
-FAIL=background-position: -.5% 1px
-FAIL=background-position: -.5% 5%
-FAIL=background-position: -.5% bottom
-FAIL=background-position: -.5% center
-FAIL=background-position: -.5% top
-FAIL=background-position: -0px -.1em
-FAIL=background-position: -0px -.5%
-FAIL=background-position: -0px -0px
-FAIL=background-position: -0px -1px
-FAIL=background-position: -0px -5%
-FAIL=background-position: -0px .1em
-FAIL=background-position: -0px .5%
-FAIL=background-position: -0px 0px
-FAIL=background-position: -0px 1px
-FAIL=background-position: -0px 5%
-FAIL=background-position: -0px bottom
-FAIL=background-position: -0px center
-FAIL=background-position: -0px top
-FAIL=background-position: -1px -.1em
-FAIL=background-position: -1px -.5%
-FAIL=background-position: -1px -0px
-FAIL=background-position: -1px .1em
-FAIL=background-position: -1px .5%
-FAIL=background-position: -5% -.1em
-FAIL=background-position: -5% -.5%
-FAIL=background-position: -5% -0px
-FAIL=background-position: -5% .1em
-FAIL=background-position: -5% .5%
-FAIL=background-position: .1em -.1em
-FAIL=background-position: .1em -.5%
-FAIL=background-position: .1em -0px
-FAIL=background-position: .1em -1px
-FAIL=background-position: .1em -5%
-FAIL=background-position: .1em .1em
-FAIL=background-position: .1em .5%
-FAIL=background-position: .1em 0px
-FAIL=background-position: .1em 1px
-FAIL=background-position: .1em 5%
-FAIL=background-position: .1em bottom
-FAIL=background-position: .1em center
-FAIL=background-position: .1em top
-FAIL=background-position: .5% -.1em
-FAIL=background-position: .5% -.5%
-FAIL=background-position: .5% -0px
-FAIL=background-position: .5% -1px
-FAIL=background-position: .5% -5%
-FAIL=background-position: .5% .1em
-FAIL=background-position: .5% .5%
-FAIL=background-position: .5% 0px
-FAIL=background-position: .5% 1px
-FAIL=background-position: .5% 5%
-FAIL=background-position: .5% bottom
-FAIL=background-position: .5% center
-FAIL=background-position: .5% top
-FAIL=background-position: 0px -.1em
-FAIL=background-position: 0px -.5%
-FAIL=background-position: 0px -0px
-FAIL=background-position: 0px .1em
-FAIL=background-position: 0px .5%
-FAIL=background-position: 1px -.1em
-FAIL=background-position: 1px -.5%
-FAIL=background-position: 1px -0px
-FAIL=background-position: 1px .1em
-FAIL=background-position: 1px .5%
-FAIL=background-position: 5% -.1em
-FAIL=background-position: 5% -.5%
-FAIL=background-position: 5% -0px
-FAIL=background-position: 5% .1em
-FAIL=background-position: 5% .5%
-FAIL=background-position: center -.1em
-FAIL=background-position: center -.5%
-FAIL=background-position: center -0px
-FAIL=background-position: center .1em
-FAIL=background-position: center .5%
-FAIL=background-position: left -.1em
-FAIL=background-position: left -.5%
-FAIL=background-position: left -0px
-FAIL=background-position: left .1em
-FAIL=background-position: left .5%
-FAIL=background-position: right -.1em
-FAIL=background-position: right -.5%
-FAIL=background-position: right -0px
-FAIL=background-position: right .1em
-FAIL=background-position: right .5%
-FAIL=baseline-shift: .1em
-FAIL=baseline-shift: .5%
-FAIL=border-bottom-color: rgba(5, 7, 10, 0.5)
-FAIL=border-bottom-width: .1em
-FAIL=border-left-color: rgba(5, 7, 10, 0.5)
-FAIL=border-left-width: .1em
-FAIL=border-right-color: rgba(5, 7, 10, 0.5)
-FAIL=border-right-width: .1em
-FAIL=border-spacing: .1em
-FAIL=border-top-color: rgba(5, 7, 10, 0.5)
-FAIL=border-top-width: .1em
-FAIL=bottom: .1em
-FAIL=bottom: .5%
-FAIL=color: rgba(5, 7, 10, 0.5)
-FAIL=content: 'string'
-FAIL=content: counter(par-num, decimal)
-FAIL=content: url(http://localhost/)
-FAIL=font-family: 'Lucida Grande'
-FAIL=font-size: .1em
-FAIL=font-size: .5%
-FAIL=height: .1em
-FAIL=height: .5%
-FAIL=left: .1em
-FAIL=left: .5%
-FAIL=letter-spacing: .1em
-FAIL=line-height: -0
-FAIL=line-height: .1em
-FAIL=line-height: .5%
-FAIL=list-style-image: url(http://localhost/)
-FAIL=margin-bottom: .1em
-FAIL=margin-bottom: .5%
-FAIL=margin-left: .1em
-FAIL=margin-left: .5%
-FAIL=margin-right: .1em
-FAIL=margin-right: .5%
-FAIL=margin-top: .1em
-FAIL=margin-top: .5%
-FAIL=max-height: .1em
-FAIL=max-height: .5%
-FAIL=max-width: .1em
-FAIL=max-width: .5%
-FAIL=min-height: .1em
-FAIL=min-height: .5%
-FAIL=min-width: .1em
-FAIL=min-width: .5%
-FAIL=outline-color: invert
-FAIL=outline-color: rgba(5, 7, 10, 0.5)
-FAIL=outline-width: .1em
-FAIL=padding-bottom: .1em
-FAIL=padding-bottom: .5%
-FAIL=padding-left: .1em
-FAIL=padding-left: .5%
-FAIL=padding-right: .1em
-FAIL=padding-right: .5%
-FAIL=padding-top: .1em
-FAIL=padding-top: .5%
-FAIL=right: .1em
-FAIL=right: .5%
-FAIL=text-indent: .1em
-FAIL=text-indent: .5%
-FAIL=top: .1em
-FAIL=top: .5%
-FAIL=width: .1em
-FAIL=width: .5%
-FAIL=word-spacing: .1em
-[css/cssom/serialize-variable-reference.html]
-FAIL=Longhand with variable preserves original serialization but trims whitespace: without whitespace
-FAIL=Shorthand with variable preserves original serialization but trims whitespace: without whitespace
 [css/cssom/setproperty-null-undefined.html]
 FAIL=Verify that setting a CSS property to null is treated like empty string.
 [css/cssom/shorthand-serialization.html]
 FAIL=Shorthand serialization after setting
 FAIL=Shorthand serialization with 'initial' value, one longhand with important flag.
-FAIL=Shorthand serialization with just longhands.
 FAIL=Shorthand serialization with shorthand and longhands mixed.
 [css/cssom/shorthand-values.html]
 FAIL=The serialization of border-top: 1px; border-right: 1px; border-bottom: 1px; border-left: 1px; border-image: none; should be canonical.
@@ -74204,11 +73995,7 @@ FAIL=The serialization of border: 1px; border-top: 1px; should be canonical.
 FAIL=The serialization of border: 1px; border-top: 2px; should be canonical.
 FAIL=The serialization of border: solid; border-style: dotted should be canonical.
 FAIL=The serialization of list-style-type: circle; list-style-position: inside; list-style-image: none; should be canonical.
-FAIL=The serialization of margin-top: 1px; margin-right: 2px; margin-bottom: 3px; margin-left: 4px; should be canonical.
 FAIL=The serialization of outline-width: 2px; outline-style: dotted; outline-color: blue; should be canonical.
-FAIL=The serialization of overflow-x: scroll; overflow-y: hidden; should be canonical.
-FAIL=The serialization of overflow-x: scroll; overflow-y: scroll; should be canonical.
-FAIL=The serialization of padding-top: 1px; padding-right: 2px; padding-bottom: 3px; padding-left: 4px; should be canonical.
 [css/cssom/style-sheet-interfaces-001.html]
 FAIL=StyleSheet_property_values
 FAIL=disabled attribute getter/setter

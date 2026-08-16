@@ -400,11 +400,12 @@ std::vector<Token> Scanner::Run() {
       continue;
     }
     if (IsWhitespace(c)) {
-      while (IsWhitespace(At())) {
-        ++position_;
-      }
       Token token;
       token.kind = Token::Kind::Whitespace;
+      while (IsWhitespace(At())) {
+        token.value.push_back(At());
+        ++position_;
+      }
       tokens.push_back(token);
       continue;
     }
@@ -622,7 +623,7 @@ std::string ReconstructTokens(const std::vector<Token>& tokens, std::size_t from
     switch (token.kind) {
       case Token::Kind::Whitespace:
         if (!out.empty()) {
-          out.push_back(' ');
+          out += token.value.empty() ? " " : token.value;
         }
         break;
       case Token::Kind::Ident:
@@ -653,7 +654,11 @@ std::string ReconstructTokens(const std::vector<Token>& tokens, std::size_t from
       case Token::Kind::Number:
       case Token::Kind::Percentage:
       case Token::Kind::Dimension: {
-        if (token.is_integer) {
+        // CSSOM serializes zero without a sign, so `-0px` and `-0` read back as
+        // `0px` / `0`. IEEE `-0.0 == 0.0`, which is the whole test.
+        if (token.number == 0.0) {
+          out += '0';
+        } else if (token.is_integer) {
           out += std::to_string(static_cast<long long>(token.number));
         } else {
           std::string text = std::to_string(token.number);

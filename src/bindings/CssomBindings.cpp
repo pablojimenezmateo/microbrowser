@@ -483,6 +483,9 @@ void DomBindings::InstallCssomSheetRules() {
           if (!CssomKeepsUnknownDeclaration(property, stored)) {
             return Value::Bool(true);
           }
+          if (!canonical.empty()) {
+            stored = std::move(canonical);
+          }
           break;
       }
       std::vector<css::Declaration> declarations = declarations_of(receiver_target);

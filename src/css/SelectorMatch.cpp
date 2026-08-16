@@ -166,7 +166,7 @@ bool operator==(const SelectorPart& a, const SelectorPart& b) {
   // comparison nothing could trust.
   return a.kind == b.kind && a.name == b.name && a.value == b.value && a.match == b.match &&
          a.attribute_case == b.attribute_case && a.name_space == b.name_space &&
-         a.arguments == b.arguments && a.nth == b.nth;
+         a.ns_prefix == b.ns_prefix && a.arguments == b.arguments && a.nth == b.nth;
 }
 
 namespace {

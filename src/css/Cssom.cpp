@@ -1,6 +1,8 @@
 #include "css/Cssom.h"
 
+#include <algorithm>
 #include <cstdio>
+#include <vector>
 
 #include "css/CssText.h"
 #include "css/DeclarationText.h"
@@ -103,7 +105,7 @@ void AppendHexEscape(std::string& out, unsigned value) {
   out += buf;
 }
 
-std::string SerializeCssIdent(std::string_view ident) {
+std::string EscapeCssIdent(std::string_view ident) {
   std::string out;
   for (std::size_t i = 0; i < ident.size(); ++i) {
     const unsigned char c = static_cast<unsigned char>(ident[i]);
@@ -111,11 +113,19 @@ std::string SerializeCssIdent(std::string_view ident) {
       out += "\xEF\xBF\xBD";
       continue;
     }
+    if (ident.size() == 1 && c == '-') {
+      out += "\\-";
+      continue;
+    }
     const bool leading_digit = i == 0 && c >= '0' && c <= '9';
     const bool dash_digit = i == 1 && ident[0] == '-' && c >= '0' && c <= '9';
-    if (c < 0x20 || c == 0x7F || leading_digit || dash_digit || !IsIdent(c) ||
-        (i == 0 && c == '-' && ident.size() == 1)) {
+    if (c < 0x20 || c == 0x7F || leading_digit || dash_digit) {
       AppendHexEscape(out, c);
+      continue;
+    }
+    if (!IsIdent(c)) {
+      out.push_back('\\');
+      out.push_back(static_cast<char>(c));
       continue;
     }
     out.push_back(static_cast<char>(c));
@@ -164,16 +174,20 @@ std::string SerializeNth(const NthPattern& nth) {
   return out;
 }
 
-std::string SerializeSelectorListInner(const std::vector<Selector>& selectors);
+std::string SerializeSelectorListInner(const std::vector<Selector>& selectors, bool has_default);
 
-std::string SerializeNamespacePrefix(SelectorPart::NamespaceMatch name_space, bool attribute) {
-  if (name_space == SelectorPart::NamespaceMatch::Any) {
-    // Types: this engine has no default namespace, so `*|div` and `div` match
-    // the same set and CSSOM serializes the shorter form. Attributes keep `*|`
-    // because `[attr]` is the null namespace, not any.
-    return attribute ? "*|" : "";
+std::string SerializeNamespacePrefix(const SelectorPart& part, bool attribute, bool has_default) {
+  if (part.name_space == SelectorPart::NamespaceMatch::Named) {
+    return EscapeCssIdent(part.ns_prefix) + "|";
   }
-  if (name_space == SelectorPart::NamespaceMatch::None) {
+  if (part.name_space == SelectorPart::NamespaceMatch::Any) {
+    // Types: `*|div` and `div` match the same set when the sheet has no default
+    // namespace, so CSSOM serializes the shorter form. A default `@namespace`
+    // makes them different, and `*|` stays. Attributes keep `*|` either way
+    // because `[attr]` is the null namespace, not any.
+    return (attribute || has_default) ? "*|" : "";
+  }
+  if (part.name_space == SelectorPart::NamespaceMatch::None) {
     // `[|attr]` and `[attr]` match the same set (attributes have no default
     // namespace). CSSOM serializes the shorter form.
     return attribute ? "" : "|";
@@ -185,20 +199,20 @@ bool IsLegacyPseudoElementName(std::string_view name) {
   return name == "before" || name == "after" || name == "first-letter" || name == "first-line";
 }
 
-std::string SerializeSelectorPart(const SelectorPart& part) {
+std::string SerializeSelectorPart(const SelectorPart& part, bool has_default) {
   switch (part.kind) {
     case SelectorPart::Kind::Universal:
-      return SerializeNamespacePrefix(part.name_space, false) + "*";
+      return SerializeNamespacePrefix(part, false, has_default) + "*";
     case SelectorPart::Kind::Type:
-      return SerializeNamespacePrefix(part.name_space, false) + SerializeCssIdent(part.name);
+      return SerializeNamespacePrefix(part, false, has_default) + EscapeCssIdent(part.name);
     case SelectorPart::Kind::Class:
-      return "." + SerializeCssIdent(part.name);
+      return "." + EscapeCssIdent(part.name);
     case SelectorPart::Kind::Id:
-      return "#" + SerializeCssIdent(part.name);
+      return "#" + EscapeCssIdent(part.name);
     case SelectorPart::Kind::Attribute: {
       std::string out = "[";
-      out += SerializeNamespacePrefix(part.name_space, true);
-      out += SerializeCssIdent(part.name);
+      out += SerializeNamespacePrefix(part, true, has_default);
+      out += EscapeCssIdent(part.name);
       if (part.match != SelectorPart::AttributeMatch::Exists) {
         switch (part.match) {
           case SelectorPart::AttributeMatch::Equals:
@@ -240,13 +254,13 @@ std::string SerializeSelectorPart(const SelectorPart& part) {
     case SelectorPart::Kind::PseudoElement:
       return "::" + part.name;
     case SelectorPart::Kind::Is:
-      return ":is(" + SerializeSelectorListInner(part.arguments) + ")";
+      return ":is(" + SerializeSelectorListInner(part.arguments, has_default) + ")";
     case SelectorPart::Kind::Where:
-      return ":where(" + SerializeSelectorListInner(part.arguments) + ")";
+      return ":where(" + SerializeSelectorListInner(part.arguments, has_default) + ")";
     case SelectorPart::Kind::Not:
-      return ":not(" + SerializeSelectorListInner(part.arguments) + ")";
+      return ":not(" + SerializeSelectorListInner(part.arguments, has_default) + ")";
     case SelectorPart::Kind::Has:
-      return ":has(" + SerializeSelectorListInner(part.arguments) + ")";
+      return ":has(" + SerializeSelectorListInner(part.arguments, has_default) + ")";
     case SelectorPart::Kind::Nth: {
       const char* name = "nth-child";
       if (part.nth.of_type && part.nth.from_end) {
@@ -262,7 +276,7 @@ std::string SerializeSelectorPart(const SelectorPart& part) {
       out += SerializeNth(part.nth);
       if (!part.arguments.empty()) {
         out += " of ";
-        out += SerializeSelectorListInner(part.arguments);
+        out += SerializeSelectorListInner(part.arguments, has_default);
       }
       out += ')';
       return out;
@@ -275,29 +289,31 @@ std::string SerializeSelectorPart(const SelectorPart& part) {
       if (part.arguments.empty()) {
         return ":host";
       }
-      return ":host(" + SerializeSelectorListInner(part.arguments) + ")";
+      return ":host(" + SerializeSelectorListInner(part.arguments, has_default) + ")";
     case SelectorPart::Kind::Scope:
       return ":scope";
     case SelectorPart::Kind::Slotted:
-      return "::slotted(" + SerializeSelectorListInner(part.arguments) + ")";
+      return "::slotted(" + SerializeSelectorListInner(part.arguments, has_default) + ")";
   }
   return {};
 }
 
-std::string SerializeCompound(const CompoundSelector& compound) {
+std::string SerializeCompound(const CompoundSelector& compound, bool has_default) {
   std::string out;
   const bool drop_universal = compound.parts.size() > 1;
   for (const SelectorPart& part : compound.parts) {
     if (drop_universal && part.kind == SelectorPart::Kind::Universal &&
-        part.name_space != SelectorPart::NamespaceMatch::None) {
+        part.name_space != SelectorPart::NamespaceMatch::None &&
+        part.name_space != SelectorPart::NamespaceMatch::Named &&
+        !(part.name_space == SelectorPart::NamespaceMatch::Any && has_default)) {
       continue;
     }
-    out += SerializeSelectorPart(part);
+    out += SerializeSelectorPart(part, has_default);
   }
   return out.empty() ? "*" : out;
 }
 
-std::string SerializeOneSelector(const Selector& selector) {
+std::string SerializeOneSelector(const Selector& selector, bool has_default) {
   std::string out;
   for (const CompoundSelector& compound : selector.compounds) {
     if (!out.empty()) {
@@ -323,26 +339,26 @@ std::string SerializeOneSelector(const Selector& selector) {
     } else if (compound.combinator == Combinator::LaterSibling) {
       out += "~ ";
     }
-    out += SerializeCompound(compound);
+    out += SerializeCompound(compound, has_default);
   }
   return out;
 }
 
-std::string SerializeSelectorListInner(const std::vector<Selector>& selectors) {
+std::string SerializeSelectorListInner(const std::vector<Selector>& selectors, bool has_default) {
   std::string out;
   for (const Selector& selector : selectors) {
     if (!out.empty()) {
       out += ", ";
     }
-    out += SerializeOneSelector(selector);
+    out += SerializeOneSelector(selector, has_default);
   }
   return out;
 }
 
-std::string CanonicalSelectorText(std::string_view prelude) {
-  const std::vector<Selector> selectors = ParseSelectorList(prelude);
+std::string CanonicalSelectorText(std::string_view prelude, const SelectorNamespaces& namespaces) {
+  const std::vector<Selector> selectors = ParseSelectorList(prelude, namespaces);
   if (!selectors.empty()) {
-    return SerializeSelectorListInner(selectors);
+    return SerializeSelectorListInner(selectors, namespaces.has_default);
   }
   return {};
 }
@@ -385,13 +401,36 @@ void WriteCssomCssText(CssomRule& rule) {
   }
 }
 
+void NoteNamespace(std::string_view prelude, SelectorNamespaces& namespaces) {
+  const std::vector<Token> tokens = Tokenize(prelude);
+  std::string prefix;
+  bool saw_name = false;
+  for (const Token& token : tokens) {
+    if (token.kind == Token::Kind::Whitespace || token.kind == Token::Kind::EndOfFile) {
+      continue;
+    }
+    if (!saw_name && token.kind == Token::Kind::Ident) {
+      prefix = Lowered(token.value);
+      saw_name = true;
+      continue;
+    }
+    if (prefix.empty()) {
+      namespaces.has_default = true;
+    } else {
+      namespaces.prefixes.push_back(std::move(prefix));
+    }
+    return;
+  }
+}
+
 std::vector<CssomRule> ParseRuleList(const std::vector<Token>& tokens, std::size_t from,
-                                     std::size_t to);
+                                     std::size_t to, SelectorNamespaces& namespaces);
 CssomRule AtRule(const std::vector<Token>& tokens, std::size_t at_index, std::size_t prelude_end,
-                 std::size_t block_start, std::size_t block_end, bool has_block);
+                 std::size_t block_start, std::size_t block_end, bool has_block,
+                 SelectorNamespaces& namespaces);
 
 void ParsePageBlock(const std::vector<Token>& tokens, std::size_t from, std::size_t to,
-                    CssomRule& rule) {
+                    CssomRule& rule, SelectorNamespaces& namespaces) {
   std::size_t at = from;
   std::string declarations;
   const auto flush = [&]() {
@@ -426,7 +465,8 @@ void ParsePageBlock(const std::vector<Token>& tokens, std::size_t from, std::siz
       if (at < to && tokens[at].kind == Token::Kind::RightBrace) {
         ++at;
       }
-      rule.children.push_back(AtRule(tokens, at_index, prelude_end, block_start, block_end, true));
+      rule.children.push_back(
+          AtRule(tokens, at_index, prelude_end, block_start, block_end, true, namespaces));
       continue;
     }
     const std::size_t start = at;
@@ -443,7 +483,8 @@ void ParsePageBlock(const std::vector<Token>& tokens, std::size_t from, std::siz
 }
 
 CssomRule AtRule(const std::vector<Token>& tokens, std::size_t at_index, std::size_t prelude_end,
-                 std::size_t block_start, std::size_t block_end, bool has_block) {
+                 std::size_t block_start, std::size_t block_end, bool has_block,
+                 SelectorNamespaces& namespaces) {
   CssomRule rule;
   rule.at_name = Lowered(tokens[at_index].value);
   rule.type = AtRuleType(rule.at_name);
@@ -453,9 +494,9 @@ CssomRule AtRule(const std::vector<Token>& tokens, std::size_t at_index, std::si
   }
   if (has_block) {
     if (rule.type == CssomRuleType::Media || rule.type == CssomRuleType::Supports) {
-      rule.children = ParseRuleList(tokens, block_start, block_end);
+      rule.children = ParseRuleList(tokens, block_start, block_end, namespaces);
     } else if (rule.type == CssomRuleType::Page) {
-      ParsePageBlock(tokens, block_start, block_end, rule);
+      ParsePageBlock(tokens, block_start, block_end, rule, namespaces);
     } else if (rule.type == CssomRuleType::FontFace || rule.type == CssomRuleType::Margin) {
       rule.declarations = ParseDeclarationList(ReconstructTokens(tokens, block_start, block_end));
     }
@@ -493,7 +534,7 @@ CssomRule AtRule(const std::vector<Token>& tokens, std::size_t at_index, std::si
 }
 
 std::vector<CssomRule> ParseRuleList(const std::vector<Token>& tokens, std::size_t from,
-                                     std::size_t to) {
+                                     std::size_t to, SelectorNamespaces& namespaces) {
   std::vector<CssomRule> rules;
   std::size_t at = from;
   while (at < to && tokens[at].kind != Token::Kind::EndOfFile) {
@@ -517,7 +558,11 @@ std::vector<CssomRule> ParseRuleList(const std::vector<Token>& tokens, std::size
         const std::string name = Lowered(tokens[at_index].value);
         // `@charset` is not a CSSRule. Omitting it is the spec, not a short list.
         if (name != "charset") {
-          rules.push_back(AtRule(tokens, at_index, at, 0, 0, false));
+          CssomRule rule = AtRule(tokens, at_index, at, 0, 0, false, namespaces);
+          if (rule.type == CssomRuleType::Namespace) {
+            NoteNamespace(rule.prelude, namespaces);
+          }
+          rules.push_back(std::move(rule));
         }
         ++at;
         continue;
@@ -529,7 +574,8 @@ std::vector<CssomRule> ParseRuleList(const std::vector<Token>& tokens, std::size
       if (at < to && tokens[at].kind == Token::Kind::RightBrace) {
         ++at;
       }
-      rules.push_back(AtRule(tokens, at_index, prelude_end, block_start, block_end, true));
+      rules.push_back(AtRule(tokens, at_index, prelude_end, block_start, block_end, true,
+                             namespaces));
       continue;
     }
 
@@ -550,7 +596,8 @@ std::vector<CssomRule> ParseRuleList(const std::vector<Token>& tokens, std::size
     }
     CssomRule rule;
     rule.type = CssomRuleType::Style;
-    rule.prelude = CanonicalSelectorText(ReconstructTokens(tokens, prelude_start, prelude_end));
+    rule.prelude = CanonicalSelectorText(ReconstructTokens(tokens, prelude_start, prelude_end),
+                                         namespaces);
     if (rule.prelude.empty()) {
       continue;
     }
@@ -566,6 +613,9 @@ std::vector<CssomRule> ParseRuleList(const std::vector<Token>& tokens, std::size
           declaration.value = std::move(canonical);
           break;
         case DeclarationValidity::Unknown:
+          if (!canonical.empty()) {
+            declaration.value = std::move(canonical);
+          }
           break;
       }
       kept.push_back(std::move(declaration));
@@ -579,18 +629,23 @@ std::vector<CssomRule> ParseRuleList(const std::vector<Token>& tokens, std::size
 
 }  // namespace
 
+std::string SerializeCssIdent(std::string_view ident) {
+  return EscapeCssIdent(ident);
+}
+
 std::vector<CssomRule> ParseCssom(std::string_view source) {
   const std::vector<Token> tokens = Tokenize(source);
-  return ParseRuleList(tokens, 0, tokens.size());
+  SelectorNamespaces namespaces;
+  return ParseRuleList(tokens, 0, tokens.size(), namespaces);
 }
 
 std::string SerializeSelectorList(const std::vector<Selector>& selectors) {
-  return SerializeSelectorListInner(selectors);
+  return SerializeSelectorListInner(selectors, false);
 }
 
 std::string SerializeSelectorList(std::string_view text) {
   const std::vector<Selector> selectors = ParseSelectorList(text);
-  return selectors.empty() ? std::string() : SerializeSelectorListInner(selectors);
+  return selectors.empty() ? std::string() : SerializeSelectorListInner(selectors, false);
 }
 
 std::string JoinCssomRules(const std::vector<CssomRule>& rules) {
@@ -666,6 +721,149 @@ bool SetCssomPageSelectorText(CssomRule& rule, std::string_view selector) {
   rule.prelude = std::move(canonical);
   WriteCssomCssText(rule);
   return true;
+}
+
+namespace {
+
+const Declaration* FindDeclaration(const std::vector<Declaration>& declarations,
+                                   std::string_view name) {
+  for (const Declaration& declaration : declarations) {
+    if (declaration.property == name) {
+      return &declaration;
+    }
+  }
+  return nullptr;
+}
+
+std::string CollapseSides(const std::string& top, const std::string& right,
+                          const std::string& bottom, const std::string& left) {
+  if (top == right && right == bottom && bottom == left) {
+    return top;
+  }
+  if (top == bottom && left == right) {
+    return top + " " + right;
+  }
+  if (left == right) {
+    return top + " " + right + " " + bottom;
+  }
+  return top + " " + right + " " + bottom + " " + left;
+}
+
+std::string CollapseOverflow(const Declaration* x, const Declaration* y) {
+  if (x == nullptr || y == nullptr || x->important != y->important) {
+    return {};
+  }
+  if (x->value == y->value) {
+    return x->value;
+  }
+  return x->value + " " + y->value;
+}
+
+std::string CollapseBoxShorthand(const std::vector<Declaration>& declarations,
+                                 std::string_view prefix) {
+  const Declaration* top = FindDeclaration(declarations, std::string(prefix) + "-top");
+  const Declaration* right = FindDeclaration(declarations, std::string(prefix) + "-right");
+  const Declaration* bottom = FindDeclaration(declarations, std::string(prefix) + "-bottom");
+  const Declaration* left = FindDeclaration(declarations, std::string(prefix) + "-left");
+  if (top == nullptr || right == nullptr || bottom == nullptr || left == nullptr) {
+    return {};
+  }
+  if (top->important != right->important || right->important != bottom->important ||
+      bottom->important != left->important) {
+    return {};
+  }
+  return CollapseSides(top->value, right->value, bottom->value, left->value);
+}
+
+}  // namespace
+
+std::string SpecifiedShorthandValue(std::string_view property,
+                                    const std::vector<Declaration>& declarations) {
+  if (const Declaration* direct = FindDeclaration(declarations, property)) {
+    return direct->value;
+  }
+  if (property == "overflow") {
+    return CollapseOverflow(FindDeclaration(declarations, "overflow-x"),
+                            FindDeclaration(declarations, "overflow-y"));
+  }
+  if (property == "margin" || property == "padding") {
+    return CollapseBoxShorthand(declarations, property);
+  }
+  return {};
+}
+
+std::string SerializeCssDeclarationBlock(const std::vector<Declaration>& declarations) {
+  std::vector<char> used(declarations.size(), 0);
+  std::string text;
+  const auto emit = [&](std::string_view name, std::string_view value, bool important) {
+    if (!text.empty()) {
+      text += "; ";
+    }
+    text += name;
+    text += ": ";
+    text += value;
+    if (important) {
+      text += " !important";
+    }
+  };
+  const auto index_of = [&](std::string_view name) -> int {
+    for (std::size_t i = 0; i < declarations.size(); ++i) {
+      if (declarations[i].property == name) {
+        return static_cast<int>(i);
+      }
+    }
+    return -1;
+  };
+  const auto mark = [&](int index) {
+    if (index >= 0) {
+      used[static_cast<std::size_t>(index)] = 1;
+    }
+  };
+
+  for (std::size_t i = 0; i < declarations.size(); ++i) {
+    if (used[i] != 0) {
+      continue;
+    }
+    const Declaration& declaration = declarations[i];
+    if (declaration.property == "overflow-x" || declaration.property == "overflow-y") {
+      const int x = index_of("overflow-x");
+      const int y = index_of("overflow-y");
+      const std::string collapsed =
+          CollapseOverflow(x >= 0 ? &declarations[static_cast<std::size_t>(x)] : nullptr,
+                           y >= 0 ? &declarations[static_cast<std::size_t>(y)] : nullptr);
+      if (!collapsed.empty()) {
+        emit("overflow", collapsed, declaration.important);
+        mark(x);
+        mark(y);
+        continue;
+      }
+    }
+    if (declaration.property.starts_with("margin-") ||
+        declaration.property.starts_with("padding-")) {
+      const std::string_view prefix =
+          declaration.property.starts_with("margin-") ? "margin" : "padding";
+      const std::string collapsed = CollapseBoxShorthand(declarations, prefix);
+      if (!collapsed.empty()) {
+        const int top = index_of(std::string(prefix) + "-top");
+        const int right = index_of(std::string(prefix) + "-right");
+        const int bottom = index_of(std::string(prefix) + "-bottom");
+        const int left = index_of(std::string(prefix) + "-left");
+        const bool important =
+            top >= 0 && declarations[static_cast<std::size_t>(top)].important;
+        emit(prefix, collapsed, important);
+        mark(top);
+        mark(right);
+        mark(bottom);
+        mark(left);
+        continue;
+      }
+    }
+    emit(declaration.property, declaration.value, declaration.important);
+  }
+  if (!text.empty()) {
+    text += ';';
+  }
+  return text;
 }
 
 }  // namespace microbrowser::css

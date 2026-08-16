@@ -8,6 +8,7 @@
 #include "TestSupport.h"
 #include "css/ComputedStyle.h"
 #include "css/Cssom.h"
+#include "css/DeclarationText.h"
 #include "css/StyleResolver.h"
 #include "css/StyleSheet.h"
 #include "css/Tokenizer.h"
@@ -789,6 +790,37 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
     ExpectEqString(css::SerializeSelectorList("!!"), "", "unparseable is empty");
   });
 
+  AddTest(tests, "Cssom/NamespacedSelectorsSerializeWithDefaultNamespace", [] {
+    const std::vector<css::CssomRule> no_default = css::ParseCssom(
+        "@namespace ns url(ns); *|e { x: 1 } ns|e { x: 1 } |e { x: 1 }");
+    ExpectEqInt(static_cast<long long>(no_default.size()), 4, "namespace plus three style rules");
+    ExpectEqString(no_default[1].prelude, "e", "any-namespace drops star-pipe without default");
+    ExpectEqString(no_default[2].prelude, "ns|e", "named prefix is kept");
+    ExpectEqString(no_default[3].prelude, "|e", "no-namespace type keeps the pipe");
+
+    const std::vector<css::CssomRule> with_default = css::ParseCssom(
+        "@namespace url(default_ns); @namespace ns url(ns); *|e { x: 1 } e { x: 1 }");
+    ExpectEqString(with_default[2].prelude, "*|e", "any-namespace keeps star-pipe with default");
+    ExpectEqString(with_default[3].prelude, "e", "unprefixed type stays unprefixed");
+  });
+
+  AddTest(tests, "Cssom/DeclarationBlockCollapsesShorthands", [] {
+    ExpectEqString(css::SerializeCssDeclarationBlock({{"overflow-x", "scroll", false},
+                                                      {"overflow-y", "hidden", false}}),
+                   "overflow: scroll hidden;", "overflow longhands");
+    ExpectEqString(css::SerializeCssDeclarationBlock({{"overflow-x", "scroll", false},
+                                                      {"overflow-y", "scroll", false}}),
+                   "overflow: scroll;", "matching overflow longhands");
+    ExpectEqString(css::SerializeCssDeclarationBlock({{"margin-top", "1px", false},
+                                                      {"margin-right", "2px", false},
+                                                      {"margin-bottom", "3px", false},
+                                                      {"margin-left", "4px", false}}),
+                   "margin: 1px 2px 3px 4px;", "margin longhands");
+    ExpectEqString(css::SpecifiedShorthandValue(
+                       "overflow", {{"overflow-x", "scroll", false}, {"overflow-y", "hidden", false}}),
+                   "scroll hidden", "overflow getter");
+  });
+
   AddTest(tests, "Cssom/ParseKeepsMediaNestedAndCanonicalisesSelectors", [] {
     const std::vector<css::CssomRule> rules =
         css::ParseCssom("DIV { color: red } @media print { a { color: green } }");
@@ -809,6 +841,41 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
     ExpectEqInt(static_cast<long long>(rules[0].children.size()), 1, "margin at-rule");
     ExpectEqInt(static_cast<long long>(rules[0].children[0].type), 9, "margin");
     ExpectEqString(rules[0].children[0].at_name, "top-left", "margin name");
+  });
+
+  AddTest(tests, "Cssom/SpecifiedValuesSerializeCanonically", [] {
+    // CSSOM specified-value serialization, not computed: `.1em` is `0.1em`, a
+    // quoted family that is a valid ident sequence drops its quotes, and a
+    // functional colour keeps the alpha the page wrote rather than an 8-bit
+    // channel. css/cssom/serialize-values.html is 172 subtests of this.
+    const auto canon = [](std::string_view property, std::string_view value) {
+      std::string out;
+      const css::DeclarationValidity result =
+          css::CanonicaliseDeclaration(property, value, &out);
+      Expect(result != css::DeclarationValidity::Invalid,
+             std::string(property) + " " + std::string(value) + " parsed");
+      return out.empty() ? std::string(value) : out;
+    };
+    ExpectEqString(canon("width", ".1em"), "0.1em", "leading zero on a number");
+    ExpectEqString(canon("width", "-.1em"), "-0.1em", "and on a negative");
+    ExpectEqString(canon("line-height", "-0"), "0", "minus zero is zero");
+    ExpectEqString(canon("background-image", "url(http://localhost/)"),
+                   "url(\"http://localhost/\")", "url() quotes its argument");
+    ExpectEqString(canon("content", "'string'"), "\"string\"", "strings use double quotes");
+    ExpectEqString(canon("content", "counter(par-num, decimal)"), "counter(par-num)",
+                   "counter() drops the default list style");
+    ExpectEqString(canon("color", "rgba(5, 7, 10, 0.5)"), "rgba(5, 7, 10, 0.5)",
+                   "specified alpha is not an 8-bit channel");
+    ExpectEqString(canon("color", "#000"), "rgb(0, 0, 0)", "hash still becomes rgb()");
+    ExpectEqString(canon("outline-color", "invert"), "invert", "outline-color's extra keyword");
+    ExpectEqString(canon("font-family", "'Lucida Grande'"), "Lucida Grande",
+                   "quoted ident sequence drops quotes");
+    ExpectEqString(canon("font-family", "'34J'"), "\"34J\"", "digit-starting names stay quoted");
+    ExpectEqString(canon("font-family", "\"serif\""), "\"serif\"",
+                   "quoted generic family stays a family name");
+    ExpectEqString(css::SerializeCssIdent("-"), "\\-", "a lone dash is backslash-escaped");
+    ExpectEqString(css::SerializeCssIdent("0a"), "\\30 a", "a leading digit is hex-escaped");
+    ExpectEqString(css::SerializeCssIdent("-0a"), "-\\30 a", "and after a leading dash too");
   });
 }
 

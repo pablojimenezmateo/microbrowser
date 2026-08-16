@@ -60,13 +60,86 @@ constexpr std::string_view kReservedFamilyNames[] = {
     "inherit", "initial", "unset", "revert", "revert-layer", "default",
 };
 
+constexpr std::string_view kGenericFamilies[] = {
+    "serif",         "sans-serif", "cursive",       "fantasy",     "monospace",
+    "system-ui",     "math",       "ui-serif",      "ui-sans-serif",
+    "ui-monospace",  "ui-rounded",
+};
+
 bool Contains(const auto& list, std::string_view value) {
   return std::find(std::begin(list), std::end(list), value) != std::end(list);
 }
 
+bool IsIdentStartByte(unsigned char c) {
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c >= 0x80;
+}
+
+bool IsIdentByte(unsigned char c) {
+  return IsIdentStartByte(c) || (c >= '0' && c <= '9') || c == '-';
+}
+
+bool CanUnquoteFamilyName(std::string_view name) {
+  if (name.empty() || name.find("  ") != std::string_view::npos) {
+    return false;
+  }
+  bool word_start = true;
+  bool any = false;
+  for (std::size_t i = 0; i < name.size(); ++i) {
+    const unsigned char c = static_cast<unsigned char>(name[i]);
+    if (c == ' ') {
+      if (word_start) {
+        return false;
+      }
+      word_start = true;
+      continue;
+    }
+    if (word_start) {
+      const bool dash_ident = c == '-' && i + 1 < name.size() &&
+                              IsIdentStartByte(static_cast<unsigned char>(name[i + 1]));
+      if (!IsIdentStartByte(c) && !dash_ident) {
+        return false;
+      }
+      word_start = false;
+      any = true;
+    } else if (!IsIdentByte(c)) {
+      return false;
+    }
+  }
+  return any && !word_start;
+}
+
+std::string QuoteCssString(std::string_view text) {
+  std::string out = "\"";
+  for (const char c : text) {
+    if (c == '"' || c == '\\') {
+      out.push_back('\\');
+    }
+    out.push_back(c);
+  }
+  out.push_back('"');
+  return out;
+}
+
+std::string SerializeFamilyName(std::string_view name, bool was_quoted) {
+  const std::string lowered = util::AsciiLowerCase(name);
+  if (was_quoted && (Contains(kGenericFamilies, std::string_view(lowered)) ||
+                     Contains(kReservedFamilyNames, std::string_view(lowered)))) {
+    return QuoteCssString(name);
+  }
+  if (!CanUnquoteFamilyName(name)) {
+    return QuoteCssString(name);
+  }
+  return std::string(name);
+}
+
+struct ParsedFamily {
+  std::string name;
+  bool quoted = false;
+};
+
 bool ParseFontFamily(std::string_view value, std::string* out) {
   const std::vector<Token> tokens = Tokenize(value);
-  std::vector<std::string> families;
+  std::vector<ParsedFamily> families;
   std::size_t at = 0;
   const auto skip_ws = [&]() {
     while (at < tokens.size() && tokens[at].kind == Token::Kind::Whitespace) {
@@ -82,31 +155,32 @@ bool ParseFontFamily(std::string_view value, std::string* out) {
     if (at >= tokens.size() || tokens[at].kind == Token::Kind::EndOfFile) {
       return false;
     }
-    std::string family;
+    ParsedFamily family;
     if (tokens[at].kind == Token::Kind::String) {
-      family = tokens[at].value;
+      family.name = tokens[at].value;
+      family.quoted = true;
       ++at;
     } else if (tokens[at].kind == Token::Kind::Ident) {
-      family = tokens[at].value;
+      family.name = tokens[at].value;
       ++at;
       while (at < tokens.size() && (tokens[at].kind == Token::Kind::Whitespace ||
                                     tokens[at].kind == Token::Kind::Ident)) {
         if (tokens[at].kind == Token::Kind::Ident) {
-          if (!family.empty()) {
-            family.push_back(' ');
+          if (!family.name.empty()) {
+            family.name.push_back(' ');
           }
-          family += tokens[at].value;
+          family.name += tokens[at].value;
         }
         ++at;
       }
-      const std::string lowered_family = util::AsciiLowerCase(family);
+      const std::string lowered_family = util::AsciiLowerCase(family.name);
       if (Contains(kReservedFamilyNames, std::string_view(lowered_family))) {
         return false;
       }
     } else {
       return false;
     }
-    if (family.empty()) {
+    if (family.name.empty()) {
       return false;
     }
     families.push_back(std::move(family));
@@ -134,7 +208,7 @@ bool ParseFontFamily(std::string_view value, std::string* out) {
       if (i != 0) {
         serialized += ", ";
       }
-      serialized += families[i];
+      serialized += SerializeFamilyName(families[i].name, families[i].quoted);
     }
     *out = std::move(serialized);
   }
@@ -212,8 +286,8 @@ DeclarationValidity CanonicaliseDeclaration(std::string_view property, std::stri
 
   if (Contains(kColorProperties, std::string_view(name))) {
     // `currentcolor` is a keyword rather than a colour: it has no red, green or blue until an
-    // element is asked, so it serializes as itself.
-    if (lowered == "currentcolor") {
+    // element is asked, so it serializes as itself. `invert` is outline-color's extra keyword.
+    if (lowered == "currentcolor" || (name == "outline-color" && lowered == "invert")) {
       if (out != nullptr) {
         *out = lowered;
       }
@@ -226,13 +300,20 @@ DeclarationValidity CanonicaliseDeclaration(std::string_view property, std::stri
     // **A named colour serializes as its name.** CSSOM serializes a specified value component by
     // component, and an identifier is an identifier: `el.style.color = 'red'` reads back `"red"` in
     // every browser, where `'#f00'` reads back `"rgb(255, 0, 0)"`. Only the numeric notations
-    // collapse. The *computed* value is `rgb(255, 0, 0)` either way, and that is a different
-    // question asked in a different place.
+    // collapse. Functional notation keeps its specified numbers -- `rgba(..., 0.5)` is 0.5, not the
+    // 8-bit channel 128/255 -- because a Color *is* eight bits and cannot round-trip 0.5.
     const bool is_identifier =
         std::all_of(lowered.begin(), lowered.end(),
                     [](char c) { return (c >= 'a' && c <= 'z') || c == '-'; });
     if (out != nullptr) {
-      *out = is_identifier ? lowered : gfx::SerializeColorText(*color);
+      if (is_identifier) {
+        *out = lowered;
+      } else if (!trimmed.empty() && trimmed.front() == '#') {
+        *out = gfx::SerializeColorText(*color);
+      } else {
+        const std::vector<Token> tokens = Tokenize(trimmed);
+        *out = ReconstructTokens(tokens, 0, tokens.size());
+      }
     }
     return DeclarationValidity::Canonical;
   }
@@ -256,6 +337,33 @@ DeclarationValidity CanonicaliseDeclaration(std::string_view property, std::stri
     return DeclarationValidity::Canonical;
   }
 
+  if (name == "content") {
+    const std::vector<Token> tokens = Tokenize(trimmed);
+    std::string serialized = ReconstructTokens(tokens, 0, tokens.size());
+    constexpr std::string_view kDefaultList = ", decimal)";
+    if (serialized.starts_with("counter(") && serialized.ends_with(kDefaultList)) {
+      serialized.resize(serialized.size() - kDefaultList.size());
+      serialized.push_back(')');
+    }
+    if (out != nullptr) {
+      *out = std::move(serialized);
+    }
+    return DeclarationValidity::Canonical;
+  }
+
+  // Custom properties preserve the token stream the page wrote. Reconstructing
+  // them would turn a 25-digit integer into a double.
+  if (name.size() >= 2 && name[0] == '-' && name[1] == '-') {
+    return DeclarationValidity::Unknown;
+  }
+
+  // Token-level specified-value serialization: `.1em` → `0.1em`, `'x'` → `"x"`,
+  // `url(x)` → `url("x")`. The property grammar is not checked, so this stays
+  // Unknown -- a name that is not a CSS property is still dropped by the caller.
+  if (out != nullptr) {
+    const std::vector<Token> tokens = Tokenize(trimmed);
+    *out = ReconstructTokens(tokens, 0, tokens.size());
+  }
   return DeclarationValidity::Unknown;
 }
 

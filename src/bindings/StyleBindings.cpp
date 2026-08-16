@@ -1,6 +1,7 @@
 #include "bindings/BindingSupport.h"
 #include "bindings/CssomInternals.h"
 #include "css/DeclarationText.h"
+#include "css/StyleSheet.h"
 #include "bindings/DomBindings.h"
 #include "bindings/WebIdl.h"
 
@@ -167,10 +168,25 @@ js::Value DomBindings::MakeStyle(dom::Element& element) {
     }
     const std::string* text = static_cast<dom::Element*>(self)->GetAttribute("style");
     const std::string wanted = ToCssName(written);
-    for (const auto& declaration : Parse(text == nullptr ? std::string() : *text)) {
-      if (declaration.first == wanted) {
-        return Value::String(declaration.second);
+    const std::vector<css::Declaration> declarations =
+        css::ParseDeclarationList(text == nullptr ? "" : *text);
+    for (css::Declaration declaration : declarations) {
+      if (declaration.property != wanted) {
+        continue;
       }
+      std::string canonical;
+      switch (css::CanonicaliseDeclaration(declaration.property, declaration.value, &canonical)) {
+        case css::DeclarationValidity::Invalid:
+          return Value::String("");
+        case css::DeclarationValidity::Canonical:
+          return Value::String(std::move(canonical));
+        case css::DeclarationValidity::Unknown:
+          return Value::String(canonical.empty() ? declaration.value : std::move(canonical));
+      }
+    }
+    const std::string shorthand = css::SpecifiedShorthandValue(wanted, declarations);
+    if (!shorthand.empty()) {
+      return Value::String(shorthand);
     }
     const Value inherited =
         call.interpreter.GetPropertyValue(receiver_target, KeyOfTrapArgument(key));
@@ -228,21 +244,24 @@ js::Value DomBindings::MakeStyle(dom::Element& element) {
     // where one left alone behaves as it always did.
     const std::string property = ToCssName(written);
     const std::string raw_value = js::ToString(Argument(call.arguments, 2));
-    const std::string value(util::TrimAscii(raw_value));
+    std::string stored(util::TrimAscii(raw_value));
     std::string canonical;
-    switch (css::CanonicaliseDeclaration(property, value, &canonical)) {
+    switch (css::CanonicaliseDeclaration(property, stored, &canonical)) {
       case css::DeclarationValidity::Invalid:
         return Value::Bool(true);
       case css::DeclarationValidity::Canonical:
         PutDeclaration(target_element, property, canonical);
         return Value::Bool(true);
       case css::DeclarationValidity::Unknown:
-        if (!CssomKeepsUnknownDeclaration(property, value)) {
+        if (!CssomKeepsUnknownDeclaration(property, stored)) {
           return Value::Bool(true);
+        }
+        if (!canonical.empty()) {
+          stored = std::move(canonical);
         }
         break;
     }
-    PutDeclaration(target_element, property, value);
+    PutDeclaration(target_element, property, stored);
     return Value::Bool(true);
   });
 

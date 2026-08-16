@@ -147,6 +147,9 @@ bool TypeSelectorMatches(const SelectorPart& part, const dom::Element& element) 
       // which is correct and is why it is spelled out rather than folded into
       // the case above.
       return element.Namespace().IsNone() && element.LocalName() == part.name;
+    case SelectorPart::NamespaceMatch::Named:
+      // The prefix is a name, not a URI, until `@namespace` reaches the cascade.
+      return false;
   }
   return false;
 }
@@ -157,6 +160,9 @@ bool AttributeSelectorMatches(const SelectorPart& part, const dom::Element& elem
       (part.attribute_case == SelectorPart::AttributeCase::Default &&
        HtmlMatchesCaselessly(part.name) && IsHtmlElement(element));
 
+  if (part.name_space == SelectorPart::NamespaceMatch::Named) {
+    return false;
+  }
   if (part.name_space == SelectorPart::NamespaceMatch::Any) {
     // `[*|att]`: the local name in *any* namespace, so the qualified-name
     // lookup every other path uses cannot answer it.

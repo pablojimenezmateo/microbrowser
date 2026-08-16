@@ -107,14 +107,12 @@ struct SelectorPart {
   enum class AttributeCase : std::uint8_t { Default, Insensitive, Sensitive };
 
   // The namespace part written before a `|` on a type or attribute selector.
-  // `Default` is no `|` at all -- which means *any* namespace for a type
-  // selector (this engine declares no default namespace) and *no* namespace for
-  // an attribute, since an unprefixed attribute is in none. A named prefix
-  // (`svg|rect`) needs an `@namespace` rule to resolve, and this engine has
-  // none, so the parser rejects the selector rather than guessing at a URI --
-  // matching a prefix it could not resolve would style elements the author
-  // never named.
-  enum class NamespaceMatch : std::uint8_t { Default, Any, None };
+  // `Default` is no `|` at all -- any namespace for a type (when the sheet has
+  // no default `@namespace`) and no namespace for an attribute. `Named` is a
+  // prefix the sheet declared (`ns|e`); matching it without a URI would style
+  // the wrong elements, so the matcher treats Named as matching nothing and
+  // CSSOM still serializes the prefix the author wrote.
+  enum class NamespaceMatch : std::uint8_t { Default, Any, None, Named };
 
   Kind kind = Kind::Universal;
   std::string name;
@@ -122,6 +120,8 @@ struct SelectorPart {
   AttributeMatch match = AttributeMatch::Exists;
   AttributeCase attribute_case = AttributeCase::Default;
   NamespaceMatch name_space = NamespaceMatch::Default;
+  // Only when `name_space` is `Named`. Empty otherwise.
+  std::string ns_prefix;
   // The argument list of `Is`, `Where`, `Not` and `Has`, and the `of S` of
   // `:nth-child(An+B of S)`. Empty for every other kind.
   std::vector<Selector> arguments;
@@ -400,10 +400,20 @@ StyleSheet ParseStyleSheet(std::string_view input, const MediaContext& context =
 // with no selector.
 std::vector<Declaration> ParseDeclarationList(std::string_view input);
 
+// Prefixes a stylesheet's `@namespace` rules have declared. A selector that
+// names a prefix not on this list is invalid. Empty is the cascade default:
+// no default namespace, no prefixes -- `ns|e` does not parse.
+struct SelectorNamespaces {
+  bool has_default = false;
+  std::vector<std::string> prefixes;
+};
+
 // Parses one selector list ("a, b > c"). Empty when nothing parsed, which is
 // how an unsupported selector drops its whole rule rather than matching
-// everything.
-std::vector<Selector> ParseSelectorList(std::string_view input);
+// everything. `namespaces` is what CSSOM's `selectorText` needs to keep `*|e`
+// when the sheet has a default namespace, and to accept `ns|e` at all.
+std::vector<Selector> ParseSelectorList(std::string_view input,
+                                        const SelectorNamespaces& namespaces = {});
 
 // `CSS.supports(conditionText)` — the same grammar `@supports` uses, so a page
 // and a stylesheet cannot disagree. `SupportsDeclaration` is the two-argument

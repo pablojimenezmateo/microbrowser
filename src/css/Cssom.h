@@ -38,9 +38,23 @@ struct CssomRule {
 // Top-level CSSOM rules, with `@media` / `@supports` nested rather than flattened.
 std::vector<CssomRule> ParseCssom(std::string_view source);
 
+// CSSOM serialize-a-CSS-declaration-block: longhands that form a shorthand
+// (`overflow-x`/`overflow-y`, the four margins, the four paddings) collapse.
+std::string SerializeCssDeclarationBlock(const std::vector<Declaration>& declarations);
+
+// The specified value of a shorthand reconstructed from its longhands, or empty
+// when the longhands are not all present. `el.style.overflow` after setting
+// overflow-x and overflow-y is the reason this is not just cssText.
+std::string SpecifiedShorthandValue(std::string_view property,
+                                    const std::vector<Declaration>& declarations);
+
 // CSSOM's serialize-a-selector-list. Empty when `text` does not parse.
 std::string SerializeSelectorList(const std::vector<Selector>& selectors);
 std::string SerializeSelectorList(std::string_view text);
+
+// CSSOM serialize-an-identifier, which is also `CSS.escape`. One function so a
+// selector and an escaped querySelector argument cannot disagree about `\-`.
+std::string SerializeCssIdent(std::string_view ident);
 
 std::string JoinCssomRules(const std::vector<CssomRule>& rules);
 void RefreshCssomCssText(CssomRule& rule);

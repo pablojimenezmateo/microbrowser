@@ -1,5 +1,6 @@
 #include "css/Selectors.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <string>
@@ -187,6 +188,21 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
   bool saw_part = false;
   bool failed = false;
 
+  const auto nest = [&](bool relative, bool inside_has) {
+    SelectorParseMode nested = mode;
+    nested.depth = depth + 1;
+    nested.relative = relative;
+    nested.inside_has = inside_has;
+    return nested;
+  };
+  const auto knows_prefix = [&](std::string_view prefix) {
+    if (mode.namespaces == nullptr) {
+      return false;
+    }
+    const auto& prefixes = mode.namespaces->prefixes;
+    return std::find(prefixes.begin(), prefixes.end(), prefix) != prefixes.end();
+  };
+
   const auto finish_compound = [&] {
     if (saw_part) {
       compound.combinator = pending;
@@ -286,8 +302,17 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
       case Token::Kind::Ident: {
         if (i + 1 < to && tokens[i + 1].kind == Token::Kind::Delim &&
             tokens[i + 1].value == "|") {
-          // A named prefix. See `take_local_name`: unresolvable, so invalid.
-          failed = true;
+          const std::string prefix = Lowered(token.value);
+          if (!knows_prefix(prefix)) {
+            failed = true;
+            break;
+          }
+          std::size_t at = i + 2;
+          take_local_name(at, SelectorPart::NamespaceMatch::Named);
+          if (!failed && !compound.parts.empty()) {
+            compound.parts.back().ns_prefix = prefix;
+          }
+          i = at;
           break;
         }
         SelectorPart part;
@@ -359,8 +384,7 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
             SelectorPart part;
             part.kind = SelectorPart::Kind::Slotted;
             part.name = "slotted";
-            part.arguments = ParseSelectors(tokens, i + 3, close,
-                                            {depth + 1, false, mode.inside_has});
+            part.arguments = ParseSelectors(tokens, i + 3, close, nest(false, mode.inside_has));
             if (part.arguments.empty()) {
               failed = true;
               break;
@@ -409,7 +433,7 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
             // matches nothing rather than a parse failure.
             for (const auto& [start, end] : SplitOnCommas(tokens, i + 2, close)) {
               std::vector<Selector> one =
-                  ParseSelectors(tokens, start, end, {depth + 1, false, mode.inside_has});
+                  ParseSelectors(tokens, start, end, nest(false, mode.inside_has));
               for (Selector& selector : one) {
                 part.arguments.push_back(std::move(selector));
               }
@@ -421,7 +445,7 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
             }
             part.kind = SelectorPart::Kind::Not;
             part.arguments =
-                ParseSelectors(tokens, i + 2, close, {depth + 1, false, mode.inside_has});
+                ParseSelectors(tokens, i + 2, close, nest(false, mode.inside_has));
             if (part.arguments.empty()) {
               failed = true;  // `:not()` is unforgiving, and `:not()` is invalid
               break;
@@ -435,7 +459,7 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
               break;
             }
             part.kind = SelectorPart::Kind::Has;
-            part.arguments = ParseSelectors(tokens, i + 2, close, {depth + 1, true, true});
+            part.arguments = ParseSelectors(tokens, i + 2, close, nest(true, true));
             if (part.arguments.empty()) {
               failed = true;
               break;
@@ -490,7 +514,7 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
                 break;
               }
               part.arguments =
-                  ParseSelectors(tokens, of + 1, close, {depth + 1, false, mode.inside_has});
+                  ParseSelectors(tokens, of + 1, close, nest(false, mode.inside_has));
               if (part.arguments.empty()) {
                 failed = true;
                 break;
@@ -511,7 +535,7 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
             }
             part.kind = SelectorPart::Kind::Host;
             part.arguments =
-                ParseSelectors(tokens, i + 2, close, {depth + 1, false, mode.inside_has});
+                ParseSelectors(tokens, i + 2, close, nest(false, mode.inside_has));
             if (part.arguments.empty()) {
               failed = true;
               break;
@@ -587,13 +611,23 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
           failed = true;
           break;
         }
-        // A named prefix (`[svg|href]`) needs an `@namespace` rule to resolve.
+        // A named prefix (`[svg|href]`) is valid only when the sheet declared it.
         if (at + 1 < to && tokens[at + 1].kind == Token::Kind::Delim &&
             tokens[at + 1].value == "|" &&
             !(at + 2 < to && tokens[at + 2].kind == Token::Kind::Delim &&
               tokens[at + 2].value == "=")) {
-          failed = true;
-          break;
+          const std::string prefix = Lowered(tokens[at].value);
+          if (!knows_prefix(prefix)) {
+            failed = true;
+            break;
+          }
+          part.name_space = SelectorPart::NamespaceMatch::Named;
+          part.ns_prefix = prefix;
+          at += 2;
+          if (at >= to || tokens[at].kind != Token::Kind::Ident) {
+            failed = true;
+            break;
+          }
         }
         part.name = Lowered(tokens[at++].value);
         while (at < to && tokens[at].kind == Token::Kind::Whitespace) {
@@ -682,13 +716,16 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
   return selectors;
 }
 
-std::vector<Selector> ParseSelectorList(std::string_view input) {
+std::vector<Selector> ParseSelectorList(std::string_view input,
+                                        const SelectorNamespaces& namespaces) {
   const std::vector<Token> tokens = Tokenize(input);
   std::size_t end = tokens.size();
   while (end > 0 && tokens[end - 1].kind == Token::Kind::EndOfFile) {
     --end;
   }
-  return ParseSelectors(tokens, 0, end);
+  SelectorParseMode mode;
+  mode.namespaces = &namespaces;
+  return ParseSelectors(tokens, 0, end, mode);
 }
 
 }  // namespace microbrowser::css
