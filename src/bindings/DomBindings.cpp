@@ -119,7 +119,26 @@ std::unique_ptr<dom::Node> DomBindings::TakeUnattached(dom::Node* node) {
 
 DomBindings* BindingsForDocument(const dom::Document& document) {
   for (const LiveOwner& owner : LiveOwners()) {
-    if (owner.bindings != nullptr && &owner.bindings->Document() == &document) {
+    if (owner.bindings == nullptr) {
+      continue;
+    }
+    if (&owner.bindings->Document() == &document) {
+      return owner.bindings;
+    }
+    // Inert documents -- `createHTMLDocument`, `createDocument`, `new Document`
+    // -- have no LiveOwners entry of their own. Their `unique_ptr` lives in the
+    // layer that made them. Without this, inserting a clone of one into a
+    // frame silently did nothing: TakeUnattached never found the node, and
+    // Range-insertNode's restoreIframe left `document.body` null.
+    auto holds = [&document](const std::vector<std::unique_ptr<dom::Node>>& list) {
+      for (const std::unique_ptr<dom::Node>& node : list) {
+        if (node.get() == &document) {
+          return true;
+        }
+      }
+      return false;
+    };
+    if (holds(owner.bindings->unattached_) || holds(owner.bindings->detached_)) {
       return owner.bindings;
     }
   }

@@ -254,6 +254,44 @@ void RegisterFrameTests(std::vector<TestCase>& tests) {
                    "the parent can call a function the child's classic script declared");
   });
 
+  AddTest(tests, "Frames/RestoringAChildDocumentKeepsBody", [] {
+    // Range-insertNode clones the iframe's documentElement into a reference
+    // createHTMLDocument, wipes the iframe, then clones it back. setupRangeTests
+    // then does document.body.insertBefore -- which throws if the clone lost body.
+    Session session;
+    ScriptedFactory factory;
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true, OkResponse("text/html", "<body>ok</body>")});
+    factory.script.push_back(ScriptedTransport::Exchange{
+        "page.example", 443, true,
+        OkResponse("text/html", "<!doctype html><title>child</title><body><p>hi</p></body>")});
+    session.engine.PageLoader().SetTransport(factory);
+
+    session.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    session.Send(ipc::NavigateMessage{"https://page.example/"});
+
+    session.Run(
+        "const f = document.createElement('iframe');"
+        "document.body.appendChild(f);"
+        "f.onload = function () {"
+        "  const ref = document.implementation.createHTMLDocument('');"
+        "  ref.removeChild(ref.documentElement);"
+        "  ref.appendChild(f.contentDocument.documentElement.cloneNode(true));"
+        "  while (f.contentDocument.firstChild && f.contentDocument.firstChild.nodeType != 10) {"
+        "    f.contentDocument.removeChild(f.contentDocument.firstChild);"
+        "  }"
+        "  while (f.contentDocument.lastChild && f.contentDocument.lastChild.nodeType != 10) {"
+        "    f.contentDocument.removeChild(f.contentDocument.lastChild);"
+        "  }"
+        "  f.contentDocument.appendChild(ref.documentElement.cloneNode(true));"
+        "  console.log(String(f.contentDocument.body && f.contentDocument.body.tagName));"
+        "};"
+        "f.src = '/child.html';");
+
+    ExpectEqString(Joined(session.engine.ConsoleOutput()), "BODY",
+                   "wiping an iframe and cloning its documentElement back leaves document.body");
+  });
+
   AddTest(tests, "Frames/AssigningSrcRenavigatesTheFrame", [] {
     // `iframe.src = other` is an *attribute* write, so it moves the document's mutation version
     // and leaves its structure version alone. The collection pass is gated on structure -- it has

@@ -96,9 +96,9 @@ class DomBindings {
   dom::Document& Document() { return *document_; }
 
   // Hands over a node this layer created and nobody has inserted yet. What the
-  // DOM's "adopt" step needs when a node crosses documents: the `unique_ptr` is
-  // parked in the layer that made it. See TreeMutation.cpp's insertion path.
+  // DOM's "adopt" step needs when a node crosses documents.
   std::unique_ptr<dom::Node> TakeUnattached(dom::Node* node);
+  friend DomBindings* BindingsForDocument(const dom::Document& document);
 
   // The wrapper for a node, made once and cached. Public because the engine
   // will need it to hand an event its target.
