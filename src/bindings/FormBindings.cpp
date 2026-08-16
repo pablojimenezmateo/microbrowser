@@ -18,6 +18,7 @@
 // controls a form owns.
 
 #include <cstddef>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -162,11 +163,85 @@ void InstallInputFiles(js::Interpreter& interpreter, const js::Value& input_inte
   }
 }
 
+void ForEachSelectOption(dom::Element& select, const std::function<void(dom::Element&)>& visit) {
+  for (const auto& child : select.Children()) {
+    if (child == nullptr || !child->IsElement()) {
+      continue;
+    }
+    auto& element = static_cast<dom::Element&>(*child);
+    if (element.TagName() == "option") {
+      visit(element);
+    } else if (element.TagName() == "optgroup") {
+      for (const auto& grand : element.Children()) {
+        if (grand != nullptr && grand->IsElement() &&
+            static_cast<dom::Element&>(*grand).TagName() == "option") {
+          visit(static_cast<dom::Element&>(*grand));
+        }
+      }
+    }
+  }
+}
+
+void InstallSelectOptions(js::Interpreter& interpreter, const js::Value& select_interface,
+                          DomBindings* owner) {
+  if (!select_interface.IsObject()) {
+    return;
+  }
+  const Value length_get = interpreter.NewNativeValue("length", [](NativeCall& call) {
+    dom::Node* self = NodeOf(call.self);
+    if (self == nullptr || !self->IsElement()) {
+      return Value::Number(0);
+    }
+    std::size_t count = 0;
+    ForEachSelectOption(static_cast<dom::Element&>(*self), [&](dom::Element&) { ++count; });
+    return Value::Number(static_cast<double>(count));
+  });
+  if (length_get.IsObject()) {
+    length_get.object->Set(kOwnerSlot, PointerValue(owner));
+    select_interface.object->DefineAccessor("length", length_get.object, nullptr);
+  }
+  const Value iterate_get =
+      interpreter.NewNativeValue("[Symbol.iterator]", [owner](NativeCall& call) {
+        // Capture the select here: a data property on the prototype was invoked
+        // with the prototype as `this`, so NodeOf was null and spread yielded
+        // nothing. The getter runs against the instance.
+        dom::Node* self = NodeOf(call.self);
+        return call.interpreter.NewNativeValue(
+            "[Symbol.iterator]", [owner, self](NativeCall& inner) {
+              std::vector<Value> options;
+              if (owner != nullptr && self != nullptr && self->IsElement()) {
+                ForEachSelectOption(static_cast<dom::Element&>(*self),
+                                    [&](dom::Element& option) {
+                                      options.push_back(owner->WrapperFor(&option));
+                                    });
+              }
+              const Value entries = inner.interpreter.NewArrayValue(std::move(options));
+              if (!entries.IsObject()) {
+                return Value::Undefined();
+              }
+              const Value* protocol = entries.object->Get(
+                  js::PropertyKey::Symbol(inner.interpreter.SymbolIterator()));
+              if (protocol == nullptr) {
+                return Value::Undefined();
+              }
+              const js::Result made = inner.interpreter.CallFunction(*protocol, entries, {});
+              return made.completion == js::Completion::Throw ? inner.ThrowValue(made.value)
+                                                             : made.value;
+            });
+      });
+  if (iterate_get.IsObject()) {
+    iterate_get.object->Set(kOwnerSlot, PointerValue(owner));
+    select_interface.object->DefineAccessor(
+        js::PropertyKey::Symbol(interpreter.SymbolIterator()), iterate_get.object, nullptr);
+  }
+}
+
 }  // namespace
 
 void DomBindings::InstallFormApis() {
   InstallIndeterminate(*interpreter_, InterfaceNamed("HTMLInputElement"), this);
   InstallInputFiles(*interpreter_, InterfaceNamed("HTMLInputElement"), this);
+  InstallSelectOptions(*interpreter_, InterfaceNamed("HTMLSelectElement"), this);
   // `document.forms`, as an accessor so it follows the tree rather than
   // freezing what it looked like when the bindings were installed. reddit's
   // interstitial reads `document.forms[0]`.

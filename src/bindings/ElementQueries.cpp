@@ -163,6 +163,9 @@ js::Value MakeAttrImpl(DomBindings& owner, js::Interpreter& interpreter, dom::El
   // not a string: `ATTRIBUTE_NODE`. It answers even though this is not a Node
   // here, because the number is what a page switches on.
   entry.object->Set("nodeType", js::Value::Number(2));
+  if (js::Object* tag = interpreter.SymbolToStringTag()) {
+    entry.object->SetHidden(js::PropertyKey::Symbol(tag), js::Value::String("Attr"));
+  }
   // The element is captured as a pointer and the name by value, and the getter
   // looks the pair up again on every read. Holding the wrapper instead would
   // make this object keep an element alive that the page has dropped, which is

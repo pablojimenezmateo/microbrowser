@@ -1991,8 +1991,12 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "        i.files.item(0) === null && i.files === i.files; })()",
                  "true");
     ExpectScript("<body></body>",
-                 "(() => { try { new Blob([], {endings: 'NATIVE'}); return 'no' } catch (e) { return e.name } })()",
-                 "TypeError");
+                 "const s = document.createElement('select');"
+                 "const o = document.createElement('option');"
+                 "s.appendChild(o);"
+                 "typeof s[Symbol.iterator] + ',' + s.length + ',' + [...s].length + ',' +"
+                 "Object.prototype.toString.call(o) + ',' + o.tagName",
+                 "function,1,1,[object HTMLOptionElement],OPTION");
     Bound bound = Bind("<body></body>");
     bindings::TimerQueue timers;
     timers.Install(*bound.interpreter, 0);
