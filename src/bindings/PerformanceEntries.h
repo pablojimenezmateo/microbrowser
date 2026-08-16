@@ -39,4 +39,13 @@ js::Value MakeEntry(js::Interpreter& interpreter, std::string_view type, std::st
 // page can call `mark` in a loop.
 void Record(js::Interpreter& interpreter, const js::Value& entry);
 
+// User Timing argument conversion. Lives here because converting a mark name
+// to a timestamp reads the same PerformanceTiming fields this half writes.
+bool IsPerformanceTimingName(std::string_view name);
+bool ConvertMarkOptions(js::NativeCall& call, const js::Value& options, double& start,
+                        js::Value& detail);
+bool ConvertMarkToTimestamp(js::NativeCall& call, const js::Value& mark, double& out);
+bool ConvertNamedMark(js::NativeCall& call, const js::Value& value, double& out);
+bool CloneUserTimingDetail(js::NativeCall& call, const js::Value& value, js::Value& out);
+
 }  // namespace microbrowser::bindings::performance_entries

@@ -282,10 +282,11 @@ void RegisterPerformanceApiTests(std::vector<TestCase>& tests) {
                 "console.log(new PerformanceMark('y').name);"
                 "try { performance.mark('navigationStart') } catch (e) { console.log(e.name) }"
                 "try { new PerformanceMark('z', 1) } catch (e) { console.log(e.name) }"
+                "try { performance.measure('m', 'nope') } catch (e) { console.log(e.name) }"
                 "const n = performance.measure('z');"
                 "console.log(Object.prototype.toString.call(n));");
     ExpectEqString(session.Console(),
-                   "[object PerformanceMark]|true|7|y|SyntaxError|TypeError|[object PerformanceMeasure]",
+                   "[object PerformanceMark]|true|7|y|SyntaxError|TypeError|SyntaxError|[object PerformanceMeasure]",
                    "Errors: " + session.Errors());
   });
 

@@ -18,6 +18,11 @@ namespace {
 
 using js::NativeCall;
 using js::Value;
+using performance_entries::CloneUserTimingDetail;
+using performance_entries::ConvertMarkOptions;
+using performance_entries::ConvertMarkToTimestamp;
+using performance_entries::ConvertNamedMark;
+using performance_entries::IsPerformanceTimingName;
 using performance_entries::MakeEntry;
 using performance_entries::Record;
 using util::AddPerformanceCounter;
@@ -107,24 +112,6 @@ std::string StringField(const Value& object, const char* name) {
   return value == nullptr ? std::string() : js::ToString(*value);
 }
 
-bool IsPerformanceTimingName(std::string_view name) {
-  // The reserved names `performance.mark` may not use on a Window: they are the
-  // readonly attributes of PerformanceTiming. A mark called `navigationStart`
-  // would look like a timing field and is a SyntaxError instead.
-  static constexpr const char* kNames[] = {
-      "navigationStart", "unloadEventStart", "unloadEventEnd", "redirectStart", "redirectEnd",
-      "fetchStart", "domainLookupStart", "domainLookupEnd", "connectStart", "connectEnd",
-      "secureConnectionStart", "requestStart", "responseStart", "responseEnd", "domLoading",
-      "domInteractive", "domContentLoadedEventStart", "domContentLoadedEventEnd", "domComplete",
-      "loadEventStart", "loadEventEnd"};
-  for (const char* field : kNames) {
-    if (name == field) {
-      return true;
-    }
-  }
-  return false;
-}
-
 bool IsWindowGlobal(js::Interpreter& interpreter) {
   const Value* window = interpreter.GlobalScope()->Lookup("Window");
   return window != nullptr;
@@ -135,30 +122,82 @@ double CurrentNow(js::Interpreter& interpreter) {
   return last == nullptr ? 0.0 : js::ToNumber(*last);
 }
 
-// Web IDL dictionary conversion for PerformanceMarkOptions. Undefined and null
-// become the empty dictionary; a primitive is a TypeError. startTime, when
-// present, must not be negative.
-bool ConvertMarkOptions(NativeCall& call, const Value& options, double& start, Value& detail) {
-  if (options.IsUndefined() || options.IsNull()) {
-    return true;
+const Value* DictMember(const Value& dict, const char* name) {
+  const Value* given = dict.IsObject() ? dict.object->Get(name) : nullptr;
+  return given == nullptr || given->IsUndefined() ? nullptr : given;
+}
+
+Value RunMeasure(NativeCall& call) {
+  if (!RequirePerformanceThis(call)) {
+    return call.ThrownValue();
   }
-  if (!options.IsObject()) {
-    (void)call.Throw("TypeError", "PerformanceMarkOptions must be an object");
-    return false;
+  if (!RequireArguments(call, "Performance", "measure", 1)) {
+    return call.ThrownValue();
   }
-  if (const Value* given = options.object->Get("startTime");
-      given != nullptr && !given->IsUndefined()) {
-    start = js::ToNumber(*given);
-    if (start < 0.0) {
-      (void)call.Throw("TypeError", "PerformanceMark startTime is negative");
-      return false;
+  const std::string name = js::ToString(Argument(call.arguments, 0));
+  const Value second = Argument(call.arguments, 1);
+  const Value third = Argument(call.arguments, 2);
+  const bool has_end_mark = !third.IsUndefined();
+  double start = 0.0;
+  double end = CurrentNow(call.interpreter);
+  Value detail = Value::Null();
+
+  if (second.IsObject()) {
+    const Value* start_m = DictMember(second, "start");
+    const Value* end_m = DictMember(second, "end");
+    const Value* duration_m = DictMember(second, "duration");
+    const Value* detail_m = DictMember(second, "detail");
+    if (start_m != nullptr || end_m != nullptr || duration_m != nullptr || detail_m != nullptr) {
+      if (has_end_mark || (start_m == nullptr && end_m == nullptr) ||
+          (start_m != nullptr && duration_m != nullptr && end_m != nullptr)) {
+        return call.Throw("TypeError", "invalid PerformanceMeasureOptions");
+      }
+    }
+    if (has_end_mark) {
+      if (!ConvertNamedMark(call, third, end)) {
+        return call.ThrownValue();
+      }
+    } else if (end_m != nullptr) {
+      if (!ConvertMarkToTimestamp(call, *end_m, end)) {
+        return call.ThrownValue();
+      }
+    } else if (start_m != nullptr && duration_m != nullptr) {
+      if (!ConvertMarkToTimestamp(call, *start_m, start) ||
+          !ConvertMarkToTimestamp(call, Value::Number(js::ToNumber(*duration_m)), end)) {
+        return call.ThrownValue();
+      }
+      end = start + end;
+    }
+    if (start_m != nullptr) {
+      if (!ConvertMarkToTimestamp(call, *start_m, start)) {
+        return call.ThrownValue();
+      }
+    } else if (duration_m != nullptr && end_m != nullptr) {
+      double duration = 0.0;
+      if (!ConvertMarkToTimestamp(call, Value::Number(js::ToNumber(*duration_m)), duration)) {
+        return call.ThrownValue();
+      }
+      start = end - duration;
+    }
+    if (detail_m != nullptr && !CloneUserTimingDetail(call, *detail_m, detail)) {
+      return call.ThrownValue();
+    }
+  } else if (second.IsUndefined() || second.IsNull()) {
+    if (has_end_mark && !ConvertNamedMark(call, third, end)) {
+      return call.ThrownValue();
+    }
+  } else {
+    if (!ConvertNamedMark(call, second, start)) {
+      return call.ThrownValue();
+    }
+    if (has_end_mark && !ConvertNamedMark(call, third, end)) {
+      return call.ThrownValue();
     }
   }
-  if (const Value* given = options.object->Get("detail");
-      given != nullptr && !given->IsUndefined()) {
-    detail = *given;
-  }
-  return true;
+
+  const Value entry = MakeEntry(call.interpreter, "measure", name, start, end - start, detail);
+  Record(call.interpreter, entry);
+  return entry;
 }
 
 Value InstallIllegalInterface(js::Interpreter& interpreter, const char* name,
@@ -524,66 +563,7 @@ void Performance::Install(js::Interpreter& interpreter, std::int64_t now_ms) {
     interface_prototype.object->Set("mark", mark);
   }
 
-  const Value measure = interpreter.NewNativeValue("measure", [](NativeCall& call) {
-    if (!RequirePerformanceThis(call)) {
-      return call.ThrownValue();
-    }
-    if (!RequireArguments(call, "Performance", "measure", 1)) {
-      return call.ThrownValue();
-    }
-    const std::string name = js::ToString(Argument(call.arguments, 0));
-    // Two shapes: `measure(name, startMark, endMark)` and
-    // `measure(name, {start, end})`. Both are in the wild and reddit uses the
-    // second, so both resolve through one helper rather than two.
-    double start = 0.0;
-    double end = 0.0;
-    const Value* last = call.interpreter.Global()->GetOwn("#performance:now");
-    end = last == nullptr ? 0.0 : js::ToNumber(*last);
-
-    const auto mark_time = [&call](const std::string& mark_name) -> double {
-      const Value* entries = call.interpreter.Global()->GetOwn(kEntriesSlot);
-      if (entries == nullptr || !entries->IsObject()) {
-        return 0.0;
-      }
-      // The *last* mark with that name, which is what the specification says and
-      // what a page that marks the same name once per route expects.
-      double found = 0.0;
-      for (std::size_t i = 0; i < entries->object->ElementCount(); ++i) {
-        const Value entry = entries->object->GetElement(i);
-        if (StringField(entry, "name") == mark_name &&
-            StringField(entry, "entryType") == "mark") {
-          const Value* start_time = entry.object->Get("startTime");
-          found = start_time == nullptr ? 0.0 : js::ToNumber(*start_time);
-        }
-      }
-      return found;
-    };
-
-    Value detail = Value::Null();
-    const Value second = Argument(call.arguments, 1);
-    if (second.IsObject()) {
-      if (const Value* given = second.object->Get("start")) {
-        start = js::ToNumber(*given);
-      }
-      if (const Value* given = second.object->Get("end")) {
-        end = js::ToNumber(*given);
-      }
-      if (const Value* given = second.object->Get("detail");
-          given != nullptr && !given->IsUndefined()) {
-        detail = *given;
-      }
-    } else if (!second.IsUndefined()) {
-      start = mark_time(js::ToString(second));
-      const Value third = Argument(call.arguments, 2);
-      if (!third.IsUndefined()) {
-        end = mark_time(js::ToString(third));
-      }
-    }
-    const Value entry =
-        MakeEntry(call.interpreter, "measure", name, start, std::max(0.0, end - start), detail);
-    Record(call.interpreter, entry);
-    return entry;
-  });
+  const Value measure = interpreter.NewNativeValue("measure", RunMeasure);
   if (measure.IsObject()) {
     SetFunctionLength(measure, 1);
     interface_prototype.object->Set("measure", measure);

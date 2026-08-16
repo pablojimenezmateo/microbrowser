@@ -2,12 +2,14 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
 
 #include "bindings/BindingSupport.h"
 #include "bindings/PerformanceEntries.h"
+#include "js/StructuredClone.h"
 
 // The half of `performance` the *engine* drives: the `navigation` and `resource`
 // entries, and the legacy `performance.timing`.
@@ -265,5 +267,144 @@ void Performance::AddResourceTiming(js::Interpreter* interpreter, std::string_vi
   entry.object->Set("renderBlockingStatus", Value::String("non-blocking"));
   Record(*interpreter, entry);
 }
+
+namespace performance_entries {
+
+bool IsPerformanceTimingName(std::string_view name) {
+  static constexpr const char* kNames[] = {
+      "navigationStart", "unloadEventStart", "unloadEventEnd", "redirectStart", "redirectEnd",
+      "fetchStart", "domainLookupStart", "domainLookupEnd", "connectStart", "connectEnd",
+      "secureConnectionStart", "requestStart", "responseStart", "responseEnd", "domLoading",
+      "domInteractive", "domContentLoadedEventStart", "domContentLoadedEventEnd", "domComplete",
+      "loadEventStart", "loadEventEnd"};
+  for (const char* field : kNames) {
+    if (name == field) {
+      return true;
+    }
+  }
+  return false;
+}
+
+namespace {
+
+using js::NativeCall;
+using js::Value;
+
+const Value* DictMember(const Value& dict, const char* name) {
+  const Value* given = dict.IsObject() ? dict.object->Get(name) : nullptr;
+  return given == nullptr || given->IsUndefined() ? nullptr : given;
+}
+
+std::string StringField(const Value& object, const char* name) {
+  if (!object.IsObject()) {
+    return {};
+  }
+  const Value* value = object.object->Get(name);
+  return value == nullptr ? std::string() : js::ToString(*value);
+}
+
+bool FindMarkStartTime(js::Interpreter& interpreter, std::string_view name, double& out) {
+  const Value* entries = interpreter.Global()->GetOwn("#performance:entries");
+  if (entries == nullptr || !entries->IsObject()) {
+    return false;
+  }
+  bool found = false;
+  for (std::size_t i = 0; i < entries->object->ElementCount(); ++i) {
+    const Value entry = entries->object->GetElement(i);
+    if (StringField(entry, "name") != name || StringField(entry, "entryType") != "mark") {
+      continue;
+    }
+    const Value* start_time = entry.object->Get("startTime");
+    out = start_time == nullptr ? 0.0 : js::ToNumber(*start_time);
+    found = true;
+  }
+  return found;
+}
+
+double TimingField(js::Interpreter& interpreter, const std::string& name) {
+  const Value* timing = interpreter.Global()->GetOwn("#performance:timing");
+  const Value* field =
+      timing != nullptr && timing->IsObject() ? timing->object->Get(name) : nullptr;
+  return field == nullptr ? 0.0 : js::ToNumber(*field);
+}
+
+}  // namespace
+
+bool CloneUserTimingDetail(js::NativeCall& call, const js::Value& value, js::Value& out) {
+  if (value.IsNull()) {
+    out = js::Value::Null();
+    return true;
+  }
+  const std::optional<js::SerializedValue> serialized =
+      js::StructuredSerialize(call.interpreter, value);
+  if (!serialized) {
+    (void)ThrowDom(call, "DataCloneError", "the value could not be cloned");
+    return false;
+  }
+  out = js::StructuredDeserialize(call.interpreter, *serialized);
+  return true;
+}
+
+bool ConvertMarkToTimestamp(js::NativeCall& call, const js::Value& mark, double& out) {
+  if (mark.IsNumber()) {
+    out = mark.number;
+    if (out < 0.0) {
+      (void)call.Throw("TypeError", "timestamp is negative");
+      return false;
+    }
+    return true;
+  }
+  const std::string name = js::ToString(mark);
+  if (IsPerformanceTimingName(name)) {
+    if (call.interpreter.GlobalScope()->Lookup("Window") == nullptr) {
+      (void)call.Throw("TypeError", "PerformanceTiming names require a Window");
+      return false;
+    }
+    if (name == "navigationStart") {
+      out = 0.0;
+      return true;
+    }
+    const double end = TimingField(call.interpreter, name);
+    if (end == 0.0) {
+      (void)ThrowDom(call, "InvalidAccessError", "PerformanceTiming." + name + " is 0");
+      return false;
+    }
+    out = end - TimingField(call.interpreter, "navigationStart");
+    return true;
+  }
+  if (!FindMarkStartTime(call.interpreter, name, out)) {
+    (void)ThrowDom(call, "SyntaxError", "no such mark: " + name);
+    return false;
+  }
+  return true;
+}
+
+bool ConvertNamedMark(js::NativeCall& call, const js::Value& value, double& out) {
+  return ConvertMarkToTimestamp(call, js::Value::String(js::ToString(value)), out);
+}
+
+bool ConvertMarkOptions(js::NativeCall& call, const js::Value& options, double& start,
+                        js::Value& detail) {
+  if (options.IsUndefined() || options.IsNull()) {
+    return true;
+  }
+  if (!options.IsObject()) {
+    (void)call.Throw("TypeError", "PerformanceMarkOptions must be an object");
+    return false;
+  }
+  if (const js::Value* given = DictMember(options, "startTime")) {
+    start = js::ToNumber(*given);
+    if (start < 0.0) {
+      (void)call.Throw("TypeError", "PerformanceMark startTime is negative");
+      return false;
+    }
+  }
+  if (const js::Value* given = DictMember(options, "detail")) {
+    return CloneUserTimingDetail(call, *given, detail);
+  }
+  return true;
+}
+
+}  // namespace performance_entries
 
 }  // namespace microbrowser::bindings
