@@ -45,7 +45,7 @@ FAIL=Verify delete() on detached iframe returns an error
 FAIL=Verify keys() on detached iframe returns an error
 FAIL=Verify open() on detached iframe returns an error
 [storage/buckets/idlharness-worker.https.any.html]
-FAIL=idl_test setup
+harness=TIMEOUT
 [storage/buckets/opaque-origin.https.window.html]
 harness=TIMEOUT
 [storage/buckets/storage_bucket_object.tentative.https.any.html]
@@ -83,9 +83,39 @@ FAIL=estimate() resolves to dictionary with members, including usageDetails
 [storage/estimate-usage-details.https.tentative.any.worker.html]
 FAIL=estimate() resolves to dictionary with members, including usageDetails
 [storage/idlharness.https.any.html]
-FAIL=idl_test setup
+FAIL=Navigator interface: attribute storage
+FAIL=Navigator interface: navigator must inherit property "storage" with the proper type
+FAIL=StorageManager interface object length
+FAIL=StorageManager interface object name
+FAIL=StorageManager interface: existence and properties of interface object
+FAIL=StorageManager interface: existence and properties of interface prototype object
+FAIL=StorageManager interface: existence and properties of interface prototype object's "constructor" property
+FAIL=StorageManager interface: existence and properties of interface prototype object's @@unscopables property
+FAIL=StorageManager interface: navigator.storage must inherit property "estimate()" with the proper type
+FAIL=StorageManager interface: navigator.storage must inherit property "persist()" with the proper type
+FAIL=StorageManager interface: navigator.storage must inherit property "persisted()" with the proper type
+FAIL=StorageManager interface: operation estimate()
+FAIL=StorageManager interface: operation persist()
+FAIL=StorageManager interface: operation persisted()
+FAIL=StorageManager must be primary interface of navigator.storage
+FAIL=Stringification of navigator.storage
 [storage/idlharness.https.any.worker.html]
-FAIL=idl_test setup
+FAIL=StorageManager interface object length
+FAIL=StorageManager interface object name
+FAIL=StorageManager interface: existence and properties of interface object
+FAIL=StorageManager interface: existence and properties of interface prototype object
+FAIL=StorageManager interface: existence and properties of interface prototype object's "constructor" property
+FAIL=StorageManager interface: existence and properties of interface prototype object's @@unscopables property
+FAIL=StorageManager interface: member persist
+FAIL=StorageManager interface: navigator.storage must inherit property "estimate()" with the proper type
+FAIL=StorageManager interface: navigator.storage must inherit property "persisted()" with the proper type
+FAIL=StorageManager interface: navigator.storage must not have property "persist"
+FAIL=StorageManager interface: operation estimate()
+FAIL=StorageManager interface: operation persisted()
+FAIL=StorageManager must be primary interface of navigator.storage
+FAIL=Stringification of navigator.storage
+FAIL=WorkerNavigator interface: attribute storage
+FAIL=WorkerNavigator interface: navigator must inherit property "storage" with the proper type
 [storage/opaque-origin.https.window.html]
 harness=TIMEOUT
 [storage/partitioned-estimate-usage-details-caches.tentative.https.sub.html]

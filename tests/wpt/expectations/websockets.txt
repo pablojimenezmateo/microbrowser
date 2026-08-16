@@ -1273,9 +1273,9 @@ FAIL=Event handler for open should have [TreatNonCallableAsNull]
 [websockets/extended-payload-length.html]
 harness=TIMEOUT
 [websockets/idlharness.any.html]
-FAIL=idl_test setup
+harness=TIMEOUT
 [websockets/idlharness.any.worker.html]
-FAIL=idl_test setup
+harness=TIMEOUT
 [websockets/interfaces/CloseEvent/clean-close.html]
 harness=TIMEOUT
 [websockets/interfaces/CloseEvent/constructor.html]

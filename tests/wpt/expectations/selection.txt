@@ -345,7 +345,7 @@ FAIL=getSelection() on XML document with null defaultView must be null
 FAIL=window.getSelection() instanceof Selection in an iframe immediately after appendChild
 FAIL=window.getSelection() instanceof Selection in an iframe onload
 [selection/idlharness.window.html]
-FAIL=idl_test setup
+harness=TIMEOUT
 [selection/modify-extend-word-trailing-inline-block.tentative.html]
 FAIL=Selection.modify: Extending a word towards the end of a line ended by an inline-block.
 [selection/modify-line-flex-column.tentative.html]

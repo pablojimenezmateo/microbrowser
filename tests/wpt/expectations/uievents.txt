@@ -27,7 +27,136 @@ FAIL=MouseEvent.getModifierState() returns false for every modifier when none ar
 FAIL=InputEvent construtor with InputEventInit where data is empty string
 FAIL=InputEvent construtor with InputEventInit where data is non empty string
 [uievents/idlharness.window.html]
-FAIL=idl_test setup
+FAIL=CompositionEvent interface object length
+FAIL=CompositionEvent interface object name
+FAIL=CompositionEvent interface: attribute data
+FAIL=CompositionEvent interface: calling initCompositionEvent(DOMString, optional boolean, optional boolean, optional WindowProxy?, optional DOMString) on new CompositionEvent("event") with too few arguments must throw TypeError
+FAIL=CompositionEvent interface: existence and properties of interface object
+FAIL=CompositionEvent interface: existence and properties of interface prototype object
+FAIL=CompositionEvent interface: existence and properties of interface prototype object's "constructor" property
+FAIL=CompositionEvent interface: new CompositionEvent("event") must inherit property "data" with the proper type
+FAIL=CompositionEvent interface: new CompositionEvent("event") must inherit property "initCompositionEvent(DOMString, optional boolean, optional boolean, optional WindowProxy?, optional DOMString)" with the proper type
+FAIL=CompositionEvent interface: operation initCompositionEvent(DOMString, optional boolean, optional boolean, optional WindowProxy?, optional DOMString)
+FAIL=FocusEvent interface object length
+FAIL=FocusEvent interface object name
+FAIL=FocusEvent interface: attribute relatedTarget
+FAIL=FocusEvent interface: existence and properties of interface object
+FAIL=FocusEvent interface: existence and properties of interface prototype object
+FAIL=FocusEvent interface: existence and properties of interface prototype object's "constructor" property
+FAIL=FocusEvent interface: new FocusEvent("event") must inherit property "relatedTarget" with the proper type
+FAIL=InputEvent interface object length
+FAIL=InputEvent interface object name
+FAIL=InputEvent interface: attribute data
+FAIL=InputEvent interface: attribute inputType
+FAIL=InputEvent interface: attribute isComposing
+FAIL=InputEvent interface: existence and properties of interface object
+FAIL=InputEvent interface: existence and properties of interface prototype object
+FAIL=InputEvent interface: existence and properties of interface prototype object's "constructor" property
+FAIL=InputEvent interface: new InputEvent("event") must inherit property "data" with the proper type
+FAIL=InputEvent interface: new InputEvent("event") must inherit property "inputType" with the proper type
+FAIL=InputEvent interface: new InputEvent("event") must inherit property "isComposing" with the proper type
+FAIL=KeyboardEvent interface object length
+FAIL=KeyboardEvent interface object name
+FAIL=KeyboardEvent interface: attribute altKey
+FAIL=KeyboardEvent interface: attribute charCode
+FAIL=KeyboardEvent interface: attribute code
+FAIL=KeyboardEvent interface: attribute ctrlKey
+FAIL=KeyboardEvent interface: attribute isComposing
+FAIL=KeyboardEvent interface: attribute key
+FAIL=KeyboardEvent interface: attribute keyCode
+FAIL=KeyboardEvent interface: attribute location
+FAIL=KeyboardEvent interface: attribute metaKey
+FAIL=KeyboardEvent interface: attribute repeat
+FAIL=KeyboardEvent interface: attribute shiftKey
+FAIL=KeyboardEvent interface: calling getModifierState(DOMString) on new KeyboardEvent("event") with too few arguments must throw TypeError
+FAIL=KeyboardEvent interface: calling initKeyboardEvent(DOMString, optional boolean, optional boolean, optional Window?, optional DOMString, optional unsigned long, optional boolean, optional boolean, optional boolean, optional boolean) on new KeyboardEvent("event") with too few arguments must throw TypeError
+FAIL=KeyboardEvent interface: constant DOM_KEY_LOCATION_LEFT on interface object
+FAIL=KeyboardEvent interface: constant DOM_KEY_LOCATION_LEFT on interface prototype object
+FAIL=KeyboardEvent interface: constant DOM_KEY_LOCATION_NUMPAD on interface object
+FAIL=KeyboardEvent interface: constant DOM_KEY_LOCATION_NUMPAD on interface prototype object
+FAIL=KeyboardEvent interface: constant DOM_KEY_LOCATION_RIGHT on interface object
+FAIL=KeyboardEvent interface: constant DOM_KEY_LOCATION_RIGHT on interface prototype object
+FAIL=KeyboardEvent interface: constant DOM_KEY_LOCATION_STANDARD on interface object
+FAIL=KeyboardEvent interface: constant DOM_KEY_LOCATION_STANDARD on interface prototype object
+FAIL=KeyboardEvent interface: existence and properties of interface object
+FAIL=KeyboardEvent interface: existence and properties of interface prototype object
+FAIL=KeyboardEvent interface: existence and properties of interface prototype object's "constructor" property
+FAIL=KeyboardEvent interface: new KeyboardEvent("event") must inherit property "DOM_KEY_LOCATION_LEFT" with the proper type
+FAIL=KeyboardEvent interface: new KeyboardEvent("event") must inherit property "DOM_KEY_LOCATION_NUMPAD" with the proper type
+FAIL=KeyboardEvent interface: new KeyboardEvent("event") must inherit property "DOM_KEY_LOCATION_RIGHT" with the proper type
+FAIL=KeyboardEvent interface: new KeyboardEvent("event") must inherit property "DOM_KEY_LOCATION_STANDARD" with the proper type
+FAIL=KeyboardEvent interface: new KeyboardEvent("event") must inherit property "altKey" with the proper type
+FAIL=KeyboardEvent interface: new KeyboardEvent("event") must inherit property "charCode" with the proper type
+FAIL=KeyboardEvent interface: new KeyboardEvent("event") must inherit property "code" with the proper type
+FAIL=KeyboardEvent interface: new KeyboardEvent("event") must inherit property "ctrlKey" with the proper type
+FAIL=KeyboardEvent interface: new KeyboardEvent("event") must inherit property "getModifierState(DOMString)" with the proper type
+FAIL=KeyboardEvent interface: new KeyboardEvent("event") must inherit property "initKeyboardEvent(DOMString, optional boolean, optional boolean, optional Window?, optional DOMString, optional unsigned long, optional boolean, optional boolean, optional boolean, optional boolean)" with the proper type
+FAIL=KeyboardEvent interface: new KeyboardEvent("event") must inherit property "isComposing" with the proper type
+FAIL=KeyboardEvent interface: new KeyboardEvent("event") must inherit property "key" with the proper type
+FAIL=KeyboardEvent interface: new KeyboardEvent("event") must inherit property "keyCode" with the proper type
+FAIL=KeyboardEvent interface: new KeyboardEvent("event") must inherit property "location" with the proper type
+FAIL=KeyboardEvent interface: new KeyboardEvent("event") must inherit property "metaKey" with the proper type
+FAIL=KeyboardEvent interface: new KeyboardEvent("event") must inherit property "repeat" with the proper type
+FAIL=KeyboardEvent interface: new KeyboardEvent("event") must inherit property "shiftKey" with the proper type
+FAIL=KeyboardEvent interface: operation getModifierState(DOMString)
+FAIL=KeyboardEvent interface: operation initKeyboardEvent(DOMString, optional boolean, optional boolean, optional Window?, optional DOMString, optional unsigned long, optional boolean, optional boolean, optional boolean, optional boolean)
+FAIL=Stringification of (() => { const ev = document.createEvent("TextEvent"); ev.initTextEvent("event"); return ev; })()
+FAIL=Stringification of new CompositionEvent("event")
+FAIL=Stringification of new FocusEvent("event")
+FAIL=Stringification of new InputEvent("event")
+FAIL=Stringification of new KeyboardEvent("event")
+FAIL=Stringification of new UIEvent("event")
+FAIL=TextEvent interface object length
+FAIL=TextEvent interface object name
+FAIL=TextEvent interface: (() => { const ev = document.createEvent("TextEvent"); ev.initTextEvent("event"); return ev; })() must inherit property "data" with the proper type
+FAIL=TextEvent interface: (() => { const ev = document.createEvent("TextEvent"); ev.initTextEvent("event"); return ev; })() must inherit property "initTextEvent(DOMString, optional boolean, optional boolean, optional Window?, optional DOMString)" with the proper type
+FAIL=TextEvent interface: attribute data
+FAIL=TextEvent interface: calling initTextEvent(DOMString, optional boolean, optional boolean, optional Window?, optional DOMString) on (() => { const ev = document.createEvent("TextEvent"); ev.initTextEvent("event"); return ev; })() with too few arguments must throw TypeError
+FAIL=TextEvent interface: existence and properties of interface object
+FAIL=TextEvent interface: existence and properties of interface prototype object
+FAIL=TextEvent interface: existence and properties of interface prototype object's "constructor" property
+FAIL=TextEvent interface: existence and properties of interface prototype object's @@unscopables property
+FAIL=TextEvent interface: operation initTextEvent(DOMString, optional boolean, optional boolean, optional Window?, optional DOMString)
+FAIL=TextEvent must be primary interface of (() => { const ev = document.createEvent("TextEvent"); ev.initTextEvent("event"); return ev; })()
+FAIL=UIEvent interface object length
+FAIL=UIEvent interface object name
+FAIL=UIEvent interface: (() => { const ev = document.createEvent("TextEvent"); ev.initTextEvent("event"); return ev; })() must inherit property "detail" with the proper type
+FAIL=UIEvent interface: (() => { const ev = document.createEvent("TextEvent"); ev.initTextEvent("event"); return ev; })() must inherit property "initUIEvent(DOMString, optional boolean, optional boolean, optional Window?, optional long)" with the proper type
+FAIL=UIEvent interface: (() => { const ev = document.createEvent("TextEvent"); ev.initTextEvent("event"); return ev; })() must inherit property "view" with the proper type
+FAIL=UIEvent interface: (() => { const ev = document.createEvent("TextEvent"); ev.initTextEvent("event"); return ev; })() must inherit property "which" with the proper type
+FAIL=UIEvent interface: attribute detail
+FAIL=UIEvent interface: attribute view
+FAIL=UIEvent interface: attribute which
+FAIL=UIEvent interface: calling initUIEvent(DOMString, optional boolean, optional boolean, optional Window?, optional long) on (() => { const ev = document.createEvent("TextEvent"); ev.initTextEvent("event"); return ev; })() with too few arguments must throw TypeError
+FAIL=UIEvent interface: calling initUIEvent(DOMString, optional boolean, optional boolean, optional Window?, optional long) on new CompositionEvent("event") with too few arguments must throw TypeError
+FAIL=UIEvent interface: calling initUIEvent(DOMString, optional boolean, optional boolean, optional Window?, optional long) on new FocusEvent("event") with too few arguments must throw TypeError
+FAIL=UIEvent interface: calling initUIEvent(DOMString, optional boolean, optional boolean, optional Window?, optional long) on new InputEvent("event") with too few arguments must throw TypeError
+FAIL=UIEvent interface: calling initUIEvent(DOMString, optional boolean, optional boolean, optional Window?, optional long) on new KeyboardEvent("event") with too few arguments must throw TypeError
+FAIL=UIEvent interface: calling initUIEvent(DOMString, optional boolean, optional boolean, optional Window?, optional long) on new UIEvent("event") with too few arguments must throw TypeError
+FAIL=UIEvent interface: existence and properties of interface object
+FAIL=UIEvent interface: existence and properties of interface prototype object
+FAIL=UIEvent interface: existence and properties of interface prototype object's "constructor" property
+FAIL=UIEvent interface: new CompositionEvent("event") must inherit property "detail" with the proper type
+FAIL=UIEvent interface: new CompositionEvent("event") must inherit property "initUIEvent(DOMString, optional boolean, optional boolean, optional Window?, optional long)" with the proper type
+FAIL=UIEvent interface: new CompositionEvent("event") must inherit property "view" with the proper type
+FAIL=UIEvent interface: new CompositionEvent("event") must inherit property "which" with the proper type
+FAIL=UIEvent interface: new FocusEvent("event") must inherit property "detail" with the proper type
+FAIL=UIEvent interface: new FocusEvent("event") must inherit property "initUIEvent(DOMString, optional boolean, optional boolean, optional Window?, optional long)" with the proper type
+FAIL=UIEvent interface: new FocusEvent("event") must inherit property "view" with the proper type
+FAIL=UIEvent interface: new FocusEvent("event") must inherit property "which" with the proper type
+FAIL=UIEvent interface: new InputEvent("event") must inherit property "detail" with the proper type
+FAIL=UIEvent interface: new InputEvent("event") must inherit property "initUIEvent(DOMString, optional boolean, optional boolean, optional Window?, optional long)" with the proper type
+FAIL=UIEvent interface: new InputEvent("event") must inherit property "view" with the proper type
+FAIL=UIEvent interface: new InputEvent("event") must inherit property "which" with the proper type
+FAIL=UIEvent interface: new KeyboardEvent("event") must inherit property "detail" with the proper type
+FAIL=UIEvent interface: new KeyboardEvent("event") must inherit property "initUIEvent(DOMString, optional boolean, optional boolean, optional Window?, optional long)" with the proper type
+FAIL=UIEvent interface: new KeyboardEvent("event") must inherit property "view" with the proper type
+FAIL=UIEvent interface: new KeyboardEvent("event") must inherit property "which" with the proper type
+FAIL=UIEvent interface: new UIEvent("event") must inherit property "detail" with the proper type
+FAIL=UIEvent interface: new UIEvent("event") must inherit property "initUIEvent(DOMString, optional boolean, optional boolean, optional Window?, optional long)" with the proper type
+FAIL=UIEvent interface: new UIEvent("event") must inherit property "view" with the proper type
+FAIL=UIEvent interface: new UIEvent("event") must inherit property "which" with the proper type
+FAIL=UIEvent interface: operation initUIEvent(DOMString, optional boolean, optional boolean, optional Window?, optional long)
 [uievents/interface/click-event.htm]
 FAIL=synthetic click event is a PointerEvent
 [uievents/interface/keyboard-accesskey-click-event.html]
