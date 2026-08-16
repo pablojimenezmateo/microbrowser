@@ -214,8 +214,8 @@ bool QueueReaderTask(js::Interpreter& interpreter, const Value& callback, bool h
 
 void QueueCompletion(DomBindings* owner, js::Interpreter& interpreter, const Value& reader,
                      double generation, double size) {
-  const Value complete = interpreter.NewNativeValue(
-      "frComplete", [owner, reader, generation, size](NativeCall& call) -> Value {
+  const Value progress = interpreter.NewNativeValue(
+      "frProgress", [owner, reader, generation, size](NativeCall& call) -> Value {
         if (NumberSlot(reader, kGenSlot, 0) != generation ||
             NumberSlot(reader, kReadySlot, kEmpty) != kLoading) {
           return Value::Undefined();
@@ -227,15 +227,41 @@ void QueueCompletion(DomBindings* owner, js::Interpreter& interpreter, const Val
             NumberSlot(reader, kReadySlot, kEmpty) != kLoading) {
           return Value::Undefined();
         }
-        SetSlot(reader, kResultSlot, DecodeResult(call.interpreter, reader));
-        SetSlot(reader, kReadySlot, Value::Number(kDone));
-        FileReaderAccess::FireProgress(*owner, reader, "load", size);
-        FileReaderAccess::FireProgress(*owner, reader, "loadend", size);
+        const Value finish = call.interpreter.NewNativeValue(
+            "frLoad", [owner, reader, generation, size](NativeCall& inner) -> Value {
+              if (NumberSlot(reader, kGenSlot, 0) != generation ||
+                  NumberSlot(reader, kReadySlot, kEmpty) != kLoading) {
+                return Value::Undefined();
+              }
+              SetSlot(reader, kResultSlot, DecodeResult(inner.interpreter, reader));
+              SetSlot(reader, kReadySlot, Value::Number(kDone));
+              FileReaderAccess::FireProgress(*owner, reader, "load", size);
+              if (NumberSlot(reader, kGenSlot, 0) != generation) {
+                return Value::Undefined();
+              }
+              const Value ended = inner.interpreter.NewNativeValue(
+                  "frLoadEnd", [owner, reader, generation, size](NativeCall&) -> Value {
+                    if (NumberSlot(reader, kGenSlot, 0) != generation) {
+                      return Value::Undefined();
+                    }
+                    FileReaderAccess::FireProgress(*owner, reader, "loadend", size);
+                    return Value::Undefined();
+                  });
+              if (ended.IsObject()) {
+                ended.object->Set("#reader", reader);
+                QueueReaderTask(inner.interpreter, ended, false);
+              }
+              return Value::Undefined();
+            });
+        if (finish.IsObject()) {
+          finish.object->Set("#reader", reader);
+          QueueReaderTask(call.interpreter, finish, false);
+        }
         return Value::Undefined();
       });
-  if (complete.IsObject()) {
-    complete.object->Set("#reader", reader);
-    QueueReaderTask(interpreter, complete, false);
+  if (progress.IsObject()) {
+    progress.object->Set("#reader", reader);
+    QueueReaderTask(interpreter, progress, false);
   }
 }
 

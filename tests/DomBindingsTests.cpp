@@ -1999,7 +1999,9 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectEqString(js::ToString(bound.interpreter->Run("reader.readyState").value), "1",
                    "LOADING after readAsText");
     Expect(timers.RunDue(*bound.interpreter, 0), "loadstart is a host task");
-    Expect(timers.RunDue(*bound.interpreter, 0), "completion is a later turn");
+    Expect(timers.RunDue(*bound.interpreter, 0), "progress is a later turn");
+    Expect(timers.RunDue(*bound.interpreter, 0), "load is a later turn");
+    Expect(timers.RunDue(*bound.interpreter, 0), "loadend is a later turn");
     ExpectEqString(js::ToString(bound.interpreter->Run("seen").value), "2:hello",
                    "load fires with DONE and the body");
     ExpectEqString(
