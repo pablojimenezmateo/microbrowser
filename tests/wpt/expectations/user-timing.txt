@@ -4,55 +4,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [user-timing/clearMeasures.html]
 harness=TIMEOUT
-[user-timing/entry_type.any.html]
-FAIL=Validate the user timing entry type PerformanceMark
-FAIL=Validate the user timing entry type PerformanceMeasure
-[user-timing/entry_type.any.worker.html]
-FAIL=Validate the user timing entry type PerformanceMark
-FAIL=Validate the user timing entry type PerformanceMeasure
-[user-timing/idlharness.any.html]
-FAIL=PerformanceMark interface object length
-FAIL=PerformanceMark interface object name
-FAIL=PerformanceMark interface: attribute detail
-FAIL=PerformanceMark interface: existence and properties of interface object
-FAIL=PerformanceMark interface: existence and properties of interface prototype object
-FAIL=PerformanceMark interface: existence and properties of interface prototype object's "constructor" property
-FAIL=PerformanceMark interface: existence and properties of interface prototype object's @@unscopables property
-FAIL=PerformanceMark interface: mark must inherit property "detail" with the proper type
-FAIL=PerformanceMark must be primary interface of mark
-FAIL=PerformanceMeasure interface object length
-FAIL=PerformanceMeasure interface object name
-FAIL=PerformanceMeasure interface: attribute detail
-FAIL=PerformanceMeasure interface: existence and properties of interface object
-FAIL=PerformanceMeasure interface: existence and properties of interface prototype object
-FAIL=PerformanceMeasure interface: existence and properties of interface prototype object's "constructor" property
-FAIL=PerformanceMeasure interface: existence and properties of interface prototype object's @@unscopables property
-FAIL=PerformanceMeasure interface: measure must inherit property "detail" with the proper type
-FAIL=PerformanceMeasure must be primary interface of measure
-FAIL=Stringification of mark
-FAIL=Stringification of measure
-[user-timing/invoke_with_timing_attributes.html]
-FAIL=performance.mark should throw if used with timing attribute connectEnd
-FAIL=performance.mark should throw if used with timing attribute connectStart
-FAIL=performance.mark should throw if used with timing attribute domComplete
-FAIL=performance.mark should throw if used with timing attribute domContentLoadedEventEnd
-FAIL=performance.mark should throw if used with timing attribute domContentLoadedEventStart
-FAIL=performance.mark should throw if used with timing attribute domInteractive
-FAIL=performance.mark should throw if used with timing attribute domLoading
-FAIL=performance.mark should throw if used with timing attribute domainLookupEnd
-FAIL=performance.mark should throw if used with timing attribute domainLookupStart
-FAIL=performance.mark should throw if used with timing attribute fetchStart
-FAIL=performance.mark should throw if used with timing attribute loadEventEnd
-FAIL=performance.mark should throw if used with timing attribute loadEventStart
-FAIL=performance.mark should throw if used with timing attribute navigationStart
-FAIL=performance.mark should throw if used with timing attribute redirectEnd
-FAIL=performance.mark should throw if used with timing attribute redirectStart
-FAIL=performance.mark should throw if used with timing attribute requestStart
-FAIL=performance.mark should throw if used with timing attribute responseEnd
-FAIL=performance.mark should throw if used with timing attribute responseStart
-FAIL=performance.mark should throw if used with timing attribute secureConnectionStart
-FAIL=performance.mark should throw if used with timing attribute unloadEventEnd
-FAIL=performance.mark should throw if used with timing attribute unloadEventStart
 [user-timing/invoke_without_parameter.html]
 FAIL=window.performance.mark() throws a TypeError exception when invoke without a parameter.
 FAIL=window.performance.measure() throws a TypeError exception when invoke without a parameter.
