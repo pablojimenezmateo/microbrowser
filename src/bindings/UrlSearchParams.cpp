@@ -20,6 +20,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/WebIdl.h"
 #include "util/StringUtil.h"
 #include "util/UrlEncoded.h"
 
@@ -156,7 +157,20 @@ void DomBindings::InstallUrlSearchParams() {
 
   const auto method = [this, &prototype](const char* name, double length,
                                          js::NativeFunction function) {
-    const Value native = interpreter_->NewNativeValue(name, std::move(function));
+    // Brand, then arity, then the operation. Web IDL throws TypeError for a
+    // call whose this is not a URLSearchParams (idlharness uses null) and for
+    // fewer arguments than the operation requires — both before any conversion.
+    const Value native = interpreter_->NewNativeValue(
+        name, [fn = std::move(function), name, length](NativeCall& call) -> Value {
+          if (!IsSearchParamsValue(call.self)) {
+            return call.Throw("TypeError", "Illegal invocation");
+          }
+          const auto required = static_cast<std::size_t>(length);
+          if (required > 0 && !RequireArguments(call, "URLSearchParams", name, required)) {
+            return call.ThrownValue();
+          }
+          return fn(call);
+        });
     if (native.IsObject()) {
       native.object->Set(kOwnerSlot, OwnerValue(this));
       SetFunctionLength(native, length);
@@ -359,13 +373,22 @@ void DomBindings::InstallUrlSearchParams() {
   // `for (const [name, value] of params)` is `entries`, and literally the same function object --
   // which is what the specification says, so a page that replaces one has replaced both.
   if (const Value* entries = prototype.object->Get("entries"); entries != nullptr) {
-    prototype.object->Set(js::PropertyKey::Symbol(interpreter_->SymbolIterator()), *entries);
+    const js::PropertyKey iterator_key =
+        js::PropertyKey::Symbol(interpreter_->SymbolIterator());
+    prototype.object->Set(iterator_key, *entries);
+    // Web IDL default: operations are enumerable, but the pair iterator is
+    // not — idlharness asks `enumerable === false` on @@iterator specifically.
+    prototype.object->HideProperty(iterator_key);
   }
 
-  const Value size = interpreter_->NewNativeValue("size", [](NativeCall& call) {
+  const Value size = interpreter_->NewNativeValue("get size", [](NativeCall& call) {
+    if (!IsSearchParamsValue(call.self)) {
+      return call.Throw("TypeError", "Illegal invocation");
+    }
     return Value::Number(static_cast<double>(ReadPairs(call.self).size()));
   });
   if (size.IsObject()) {
+    SetFunctionLength(size, 0);
     prototype.object->DefineAccessor("size", size.object, nullptr);
   }
 
@@ -374,6 +397,9 @@ void DomBindings::InstallUrlSearchParams() {
   // native returns.
   const Value constructor =
       interpreter_->NewNativeValue("URLSearchParams", [prototype](NativeCall& call) {
+        if (!call.interpreter.IsConstructCall(call.self)) {
+          return call.Throw("TypeError", "URLSearchParams constructor requires 'new'");
+        }
         const Value made = call.interpreter.NewObjectValue();
         if (!made.IsObject()) {
           return Value::Undefined();

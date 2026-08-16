@@ -2559,16 +2559,37 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
     ExpectScript(kPage, "new URLSearchParams({x: '1', y: '2'}).toString()", "x=1&y=2");
     ExpectScript(kPage, "new URLSearchParams([['k','v'],['k','w']]).toString()", "k=v&k=w");
     ExpectScript(kPage, "new URLSearchParams().toString()", "");
-    // Web IDL readonly: assignment throws even without 'use strict'.
+    // Web IDL readonly: getter-only. Assignment in sloppy mode does not stick.
     ExpectScript(kPage,
-                 "try { new URL('http://example.org/').searchParams = 1; 'no' } "
-                 "catch (e) { e.name }",
-                 "TypeError");
+                 "const u = new URL('http://example.org/'); const p = u.searchParams;"
+                 " u.searchParams = 1; u.searchParams === p",
+                 "true");
     ExpectScript(kPage, "URL.length + ':' + URL.canParse.length + ':' + URL.parse.length", "1:1:1");
     ExpectScript(kPage, "Object.getOwnPropertyDescriptor(URL.prototype, 'constructor').enumerable",
                  "false");
     ExpectScript(kPage, "webkitURL === URL", "true");
     ExpectScript(kPage, "URLSearchParams.prototype.append.length", "2");
+    ExpectScript(kPage, "URL.prototype.toJSON.name", "toJSON");
+    ExpectScript(kPage,
+                 "Object.getOwnPropertyDescriptor(URLSearchParams.prototype, "
+                 "Symbol.iterator).enumerable",
+                 "false");
+    // Web IDL this-brand: the prototype is not a URL, and neither is null.
+    ExpectScript(kPage,
+                 "try { URL.prototype.href } catch (e) { e.name }",
+                 "TypeError");
+    ExpectScript(kPage,
+                 "try { URLSearchParams.prototype.get.call(null, 'a') } catch (e) { e.name }",
+                 "TypeError");
+    ExpectScript(kPage,
+                 "try { new URLSearchParams().get() } catch (e) { e.name }",
+                 "TypeError");
+    ExpectScript(kPage,
+                 "try { URLSearchParams() } catch (e) { e.name }",
+                 "TypeError");
+    ExpectScript(kPage,
+                 "Object.getOwnPropertyDescriptor(URL.prototype, 'href').get.name",
+                 "get href");
     // A copy, not an alias: writing to one must not show up in the other.
     ExpectScript(kPage,
                  "const a = new URLSearchParams('n=1'); const b = new URLSearchParams(a);"

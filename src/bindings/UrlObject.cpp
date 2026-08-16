@@ -129,6 +129,18 @@ std::string HrefOf(const Value& self) {
   return href == nullptr ? std::string() : js::ToString(*href);
 }
 
+// Web IDL this-brand: getters and operations on URL.prototype run with `this`
+// equal to the prototype, and that must TypeError rather than answer as if
+// the empty href were a URL. The hidden href slot is the brand — only a
+// constructed URL has one.
+bool RequireUrlThis(NativeCall& call) {
+  if (call.self.IsObject() && call.self.object->GetOwn(kHrefSlot) != nullptr) {
+    return true;
+  }
+  (void)call.Throw("TypeError", "Illegal invocation");
+  return false;
+}
+
 // The first `<base>` element in tree order, which is what the HTML Standard names -- a second one
 // is inert rather than an override.
 const dom::Element* FindFirstBaseElement(const dom::Node& node) {
@@ -252,6 +264,9 @@ void DomBindings::InstallUrlConstructor() {
 
   const Value constructor =
       interpreter_->NewNativeValue("URL", [this, prototype, parse_arguments](NativeCall& call) {
+        if (!call.interpreter.IsConstructCall(call.self)) {
+          return call.Throw("TypeError", "URL constructor requires 'new'");
+        }
         if (call.arguments.empty()) {
           return call.Throw("TypeError", "Failed to construct URL: 1 argument required");
         }
@@ -285,19 +300,28 @@ void DomBindings::InstallUrlConstructor() {
   // The components, as accessors on the prototype over the one href slot. On the prototype rather
   // than as own properties so that a setter cannot be shadowed by the value it wrote.
   for (const Part part : kAllParts) {
-    const Value get = interpreter_->NewNativeValue(PartName(part), [part](NativeCall& call) {
+    const std::string getter_name = std::string("get ") + PartName(part);
+    const Value get = interpreter_->NewNativeValue(getter_name.c_str(), [part](NativeCall& call) {
+      if (!RequireUrlThis(call)) {
+        return call.ThrownValue();
+      }
       const std::optional<url::Url> url = url::Url::Parse(HrefOf(call.self));
       return Value::String(url.has_value() ? ReadPart(*url, part) : std::string());
     });
     if (!get.IsObject()) {
       continue;
     }
+    SetFunctionLength(get, 0);
     if (part == Part::Origin) {
       prototype.object->DefineAccessor(PartName(part), get.object, nullptr);
       continue;
     }
+    const std::string setter_name = std::string("set ") + PartName(part);
     const Value set =
-        interpreter_->NewNativeValue(PartName(part), [this, part](NativeCall& call) -> Value {
+        interpreter_->NewNativeValue(setter_name.c_str(), [this, part](NativeCall& call) -> Value {
+          if (!RequireUrlThis(call)) {
+            return call.ThrownValue();
+          }
           std::string value;
           if (!CoerceToUsvString(call, Argument(call.arguments, 0), value)) {
             return call.ThrownValue();
@@ -318,6 +342,7 @@ void DomBindings::InstallUrlConstructor() {
         });
     if (set.IsObject()) {
       set.object->Set(kOwnerSlot, OwnerValue(this));
+      SetFunctionLength(set, 1);
       prototype.object->DefineAccessor(PartName(part), get.object, set.object);
     }
   }
@@ -327,9 +352,9 @@ void DomBindings::InstallUrlConstructor() {
   // changing `url.href`. The link is the pair of slots below — the URL holds its params object,
   // the params object holds the URL — and it is created lazily, because most URLs never grow one.
   const Value search_params_get =
-      interpreter_->NewNativeValue("searchParams", [this](NativeCall& call) -> Value {
-        if (!call.self.IsObject()) {
-          return Value::Undefined();
+      interpreter_->NewNativeValue("get searchParams", [this](NativeCall& call) -> Value {
+        if (!RequireUrlThis(call)) {
+          return call.ThrownValue();
         }
         if (const Value* existing = call.self.object->GetOwn(kSearchParamsSlot);
             existing != nullptr && existing->IsObject()) {
@@ -343,30 +368,35 @@ void DomBindings::InstallUrlConstructor() {
         }
         return params;
       });
-  // Web IDL readonly: assignment throws TypeError even in sloppy mode. A
-  // getter-only accessor would be a silent no-op here, and
-  // `url.searchParams = x` is how the suite asks whether the attribute is
-  // actually readonly.
-  const Value search_params_set = interpreter_->NewNativeValue(
-      "searchParams", [](NativeCall& call) -> Value {
-        return call.Throw("TypeError", "Cannot set property searchParams which has only a getter");
-      });
+  // Web IDL readonly: getter only. Assignment in sloppy mode is a silent
+  // no-op; strict mode TypeErrors. A throwing setter made `url.searchParams = x`
+  // throw without strict, which is not what the attribute is, and idlharness
+  // asks that the setter be undefined.
   if (search_params_get.IsObject()) {
     search_params_get.object->Set(kOwnerSlot, OwnerValue(this));
-    prototype.object->DefineAccessor("searchParams", search_params_get.object,
-                                     search_params_set.IsObject() ? search_params_set.object
-                                                                  : nullptr);
+    SetFunctionLength(search_params_get, 0);
+    prototype.object->DefineAccessor("searchParams", search_params_get.object, nullptr);
   }
 
   // `toString` and `toJSON` both answer with `href`, which is what makes a URL usable everywhere a
-  // string is — `fetch(new URL(...))` is the common case and it goes through ToString.
-  const Value to_string = interpreter_->NewNativeValue("toString", [](NativeCall& call) {
+  // string is — `fetch(new URL(...))` is the common case and it goes through ToString. Two
+  // natives rather than one function installed twice: Web IDL names them separately, and
+  // idlharness asks `toJSON.name === "toJSON"`.
+  const auto href_string = [](NativeCall& call) -> Value {
+    if (!RequireUrlThis(call)) {
+      return call.ThrownValue();
+    }
     return Value::String(HrefOf(call.self));
-  });
+  };
+  const Value to_string = interpreter_->NewNativeValue("toString", href_string);
+  const Value to_json = interpreter_->NewNativeValue("toJSON", href_string);
   if (to_string.IsObject()) {
     SetFunctionLength(to_string, 0);
     prototype.object->Set("toString", to_string);
-    prototype.object->Set("toJSON", to_string);
+  }
+  if (to_json.IsObject()) {
+    SetFunctionLength(to_json, 0);
+    prototype.object->Set("toJSON", to_json);
   }
   DefinePrototypeSlot(constructor.object, prototype);
   DefineNonEnumerable(prototype.object, "constructor", constructor);
