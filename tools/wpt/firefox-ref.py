@@ -154,10 +154,14 @@ def parse_baseline(path):
 
 
 def load_refusals(path):
-    """Load the refusal mapping: area -> ADR reason.
+    """Load the *full* refusals: area -> ADR reason.
 
-    Format: tab-separated, area<TAB>ADR-NNNN<TAB>reason
+    Format: tab-separated, area<TAB>ADR<TAB>full|partial<TAB>what is refused.
     Lines starting with # are comments.
+
+    Only `full` rows are returned. A partial refusal names some deliberate
+    failures inside an area whose other tests are ordinary bugs, and marking
+    such an area `refused` here would tell an agent to stop working it.
     """
     refusals = {}
     if not path or not os.path.exists(path):
@@ -168,8 +172,10 @@ def load_refusals(path):
             if not line or line.startswith("#"):
                 continue
             parts = line.split("\t")
+            if len(parts) >= 3 and parts[2].strip() != "full":
+                continue
             if len(parts) >= 2:
-                refusals[parts[0]] = parts[1] if len(parts) >= 2 else "refused"
+                refusals[parts[0].strip()] = parts[1].strip()
     return refusals
 
 

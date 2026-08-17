@@ -1,32 +1,34 @@
-# WPT area refusals: area<TAB>ADR/reason
-# Each line maps a WPT area (as it appears in directories.txt and wpt-baseline.md)
+# WPT area refusals: area<TAB>ADR/reason<TAB>full|partial<TAB>what is refused
+#
+# Each row maps a WPT area (as it appears in directories.txt and wpt-baseline.md)
 # to the ADR that says this browser will not implement the capability it tests.
 #
 # Only areas in our directories.txt checkout are listed here. Areas not checked
 # out (webrtc/, geolocation/, webaudio/, etc.) are implicitly refused by their
 # absence from directories.txt.
 #
-# A refusal means: do not chase this area's pass rate. A test we refuse is a
-# decision with a name, not a bug. The ceiling table marks these as "refused".
+# The third column is load-bearing and was the reason this file sat empty until
+# 2026-08-17: every refusal here is *partial*, and a reader that treated a
+# partial refusal as a full one would tell an agent to stop working an area
+# where most of the tests are ordinary bugs. `full` means do not chase the area
+# at all; `partial` means some named failures in it are deliberate, and the
+# area's ceiling is Firefox's rate on the tests this browser can run.
 #
-# Partial refusals (area has some refused and some implemented tests) are noted
-# but the area is NOT marked refused -- its ceiling is Firefox's rate on the
-# tests this browser can run.
+# A refusal is a decision with a name, not a bug. When a test fails because of
+# one, the expectation line carries a comment naming the ADR -- rule 1 of
+# docs/wpt-plan.md §0, not a new rule.
 
 # --- Full refusals: the entire area is out of scope ---
 # (none of the checked-out areas are fully refused; areas like webrtc/ and
 # geolocation/ are not in directories.txt at all)
 
-# --- Partial refusals: some tests in the area are blocked by ADR decisions ---
-# These are NOT marked as refused in the ceiling table. They are documented here
-# so an agent working the area knows which failures are deliberate.
-#
-# html/: ADR 0011/0012/0026 -- document.write deliberately unimplemented
-# html/browsers/: ADR 0026 §6 -- window.open returns null, opener absent
-# workers/: ADR 0022 §1 -- SharedWorker refused (DedicatedWorker implemented)
-# content-security-policy/: ADR 0020 §3 -- report-uri/report-to/Report-Only not implemented
-# css/selectors/: ADR 0012/0016/0033 -- :visited matches nothing (privacy)
-# streams/: ADR 0020 §1 -- new ReadableStream({start}) illegal constructor
-# IndexedDB/: ADR 0021/0038 -- memory tier only, no disk persistence by default
-# websockets/: server does not speak WebSocket protocol (infrastructure, not ADR refusal)
-# domparsing/: DOMParser absent (returns second Document, session-log deliberate absence)
+# --- Partial refusals ---
+html	ADR 0011/0012/0026	partial	document.write deliberately unimplemented
+html/browsers	ADR 0026 §6	partial	window.open returns null, opener absent
+workers	ADR 0022 §1	partial	SharedWorker refused; DedicatedWorker implemented
+content-security-policy	ADR 0020 §3	partial	report-uri/report-to/Report-Only not implemented
+css/selectors	ADR 0012/0016/0033	partial	:visited matches nothing (privacy)
+streams	ADR 0020 §1	partial	new ReadableStream({start}) is an illegal constructor
+IndexedDB	ADR 0021/0038	partial	memory tier only, no disk persistence by default
+websockets	infrastructure	partial	our server does not speak the WebSocket protocol
+domparsing	ADR 0012	partial	DOMParser absent -- it returns a second Document
