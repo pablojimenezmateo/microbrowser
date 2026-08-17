@@ -932,6 +932,14 @@ std::string NumericCharacterReferences(std::string_view utf8) {
     }
     return digits;
   };
+  // The six low bits of a continuation byte, already `std::uint32_t`. Spelling
+  // it inline was `(static_cast<unsigned char>(b) & 0x3F) << 6`, whose operands
+  // promote to `int` before the shift and then convert back -- which the ubsan
+  // preset's `-Wsign-conversion -Werror` refuses, so that preset did not build
+  // at all.
+  const auto continuation = [utf8](std::size_t at) -> std::uint32_t {
+    return static_cast<std::uint32_t>(static_cast<unsigned char>(utf8[at])) & 0x3Fu;
+  };
   for (std::size_t i = 0; i < utf8.size();) {
     const unsigned char lead = static_cast<unsigned char>(utf8[i]);
     std::uint32_t cp = 0;
@@ -940,19 +948,15 @@ std::string NumericCharacterReferences(std::string_view utf8) {
       cp = lead;
     } else if (lead < 0xE0 && i + 1 < utf8.size()) {
       width = 2;
-      cp = (static_cast<std::uint32_t>(lead & 0x1F) << 6) |
-           (static_cast<unsigned char>(utf8[i + 1]) & 0x3F);
+      cp = (static_cast<std::uint32_t>(lead & 0x1F) << 6) | continuation(i + 1);
     } else if (lead < 0xF0 && i + 2 < utf8.size()) {
       width = 3;
-      cp = (static_cast<std::uint32_t>(lead & 0x0F) << 12) |
-           ((static_cast<unsigned char>(utf8[i + 1]) & 0x3F) << 6) |
-           (static_cast<unsigned char>(utf8[i + 2]) & 0x3F);
+      cp = (static_cast<std::uint32_t>(lead & 0x0F) << 12) | (continuation(i + 1) << 6) |
+           continuation(i + 2);
     } else if (lead < 0xF8 && i + 3 < utf8.size()) {
       width = 4;
-      cp = (static_cast<std::uint32_t>(lead & 0x07) << 18) |
-           ((static_cast<unsigned char>(utf8[i + 1]) & 0x3F) << 12) |
-           ((static_cast<unsigned char>(utf8[i + 2]) & 0x3F) << 6) |
-           (static_cast<unsigned char>(utf8[i + 3]) & 0x3F);
+      cp = (static_cast<std::uint32_t>(lead & 0x07) << 18) | (continuation(i + 1) << 12) |
+           (continuation(i + 2) << 6) | continuation(i + 3);
     } else {
       cp = 0xFFFD;
     }
