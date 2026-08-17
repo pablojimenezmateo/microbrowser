@@ -203,8 +203,17 @@ void Interpreter::InstallFunctionPrototype() {
     bound->Set(kBoundThis, Argument(call.arguments, 0));
     bound->Set(kBoundArguments, call.interpreter.NewArrayValue(rest));
     const Value* name = target->GetOwn("name");
-    bound->SetHidden("name",
-                     Value::String("bound " + (name == nullptr ? std::string() : ToString(*name))));
+    // `Define` rather than `Set`, because `NewNative` already defined `name` as
+    // non-writable -- which is what a function's `name` is, and what idlharness
+    // checks. A `Set` over it is refused *silently*, so every bound function
+    // was called "bound" with the target's name dropped: SetFunctionName in the
+    // specification is a define, not an assignment, for exactly this reason.
+    Object::Property name_property;
+    name_property.value =
+        Value::String("bound " + (name == nullptr ? std::string() : ToString(*name)));
+    name_property.writable = false;
+    name_property.enumerable = false;
+    bound->Define("name", std::move(name_property));
     return Value::Obj(bound);
   });
 }
