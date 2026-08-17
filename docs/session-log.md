@@ -6561,3 +6561,83 @@ And the ordering rule this session had to learn the hard way: **a re-record meas
 started with**, so anything landed while one is in flight makes it stale. Batch A's expectations are
 committed with the four commits that came after them named in the message, and a full-suite run
 against a pinned commit is what replaces them.
+
+---
+
+## WPT strategy — the unit of measurement was wrong · 2026-08-17
+
+**Status:** done
+**Check:** `python3 tools/wpt/firefox-gap.py` against Firefox 156.0a1's wpt.fyi run, joined to
+`microbrowser_wpt --list` and `tests/wpt/expectations/`. 23,069 of our 23,146 in-scope testharness
+files are present in that run, so the join is all but complete. Sampled 12 of the 4,293 files the
+join says we pass and ran them: 11 passed, 1 was a real unrecorded failure. Sampled 25 reftests: 0
+passed.
+**Landed:** `tools/wpt/firefox-gap.py`, `docs/wpt-firefox-gap.md`, the `full|partial` column in
+`docs/wpt-refusals.tsv`, `firefox_gap` on 72 tasks, milestone M-O with O1-O4, task F9, and the
+rewritten §The target in `docs/wpt-plan.md`.
+**Left:** F9 and F2 (reftests), O1-O4 (HTML's elements). The ranked table is regenerable; re-run
+the tool after any re-record.
+
+**Found: three separate things, and the first one invalidates a lot of prose.**
+
+### A subtest percentage is not comparable to another browser, and this project had been treating it as though it were
+
+`firefox-ref.py` produced a `gap` column by subtracting our subtest percentage from Firefox's. The
+two rates do not share a denominator. Ours counts the subtests we *reported*; Firefox's counts the
+subtests that *exist*. A test that dies before `done()` contributes zero subtests to our
+denominator and its full count to Firefox's -- **so our rate goes up as we fail worse, and it is
+least trustworthy exactly where we are least correct.** Firefox reports **1,128,812 subtests that
+never enter our denominator at all**, against the 481,764 that do.
+
+The worked example is `url/`, which the ceiling table records as "us 97.9%, firefox 89.9%, ceiling
+**done**" -- on 9,909 subtests where Firefox has 15,420. We do not beat Firefox at URLs. We decline
+to report a third of the question and then average what is left.
+
+The column is also unrankable. `gap %` puts `FileAPI/FileReader` (2 subtests) and
+`encoding/legacy-mb-japanese` (447,722) in joint first place, both at `100.0`. Ranking by
+*absolute* subtests behind is no better: it puts three generated encoding tables above every
+layout, DOM and script area combined.
+
+**The unit that works is a test file, counted as passed only when every subtest in it passed.**
+That is the same rule on both sides and cannot be inflated by a harness that stopped early. It is
+stricter by construction, which is the point. Against Firefox 156.0a1: we pass **4,293 of the
+37,165 files Firefox passes, 11.6%**, where the baseline's aggregate subtest rate reads 22.3% and
+individual areas read 76.1%, 90.2% and 99.8%. Every one of those numbers is arithmetically
+correct. Only one of them is a comparison.
+
+This is the `font.lookup_hits` lesson again, in a third place: **a number computed over the half of
+an operation that cannot fail reads as evidence the operation is fine.** It has now cost this
+project a counter, a `0 unexpected` line, and a whole ranking.
+
+### 20,998 reftests -- 48% of the suite -- are in no number this project quotes
+
+`RunReftest` in `tools/wpt/main.cpp` runs them. The baseline is recorded `--testharness-only`. The
+expectation format writes down only failures. So a reftest nobody ran and a reftest that passed are
+the same silence, and the runner reports `expected OK, got FAIL` for every one it runs. A 25-file
+random sample passes **0**, all on pixel differences -- 304 pixels on
+`css/CSS2/linebox/line-height-095.xht`, 20,237 on
+`css/css-display/run-in/run-in-contains-table-row-001.xht`. Firefox passes 17,961 of them.
+
+That is task F9, and F2 (fuzzy reftests plus a diff image beside each failure) has to come first:
+without it those two numbers are the same line in a file and no session can tell an anti-aliasing
+tolerance from a missing feature.
+
+### The ranking, once it worked, found 1,689 files with no task anywhere
+
+`html/semantics/` is the second-largest gap in the tree at 1,517 files and had no task. `html/syntax/`
+had none either. Every *other* area did. That is milestone M-O now (O1-O4, naming 1,376 of the
+1,689). Two things fell out of writing them:
+
+- **`html/syntax/` is 124 blocked against 48 feature**, on the oldest module in the tree, where we
+  already fully pass 170 files. The work there is plumbing, not parsing. Confirm with one
+  `--verbose` run before opening the tokenizer.
+- **367 files are recorded as passing that Firefox fails**, `html/editing` alone having 90. An
+  expectation file cannot tell "passes" from "never run", so each is a real divergence worth a
+  comment or a test nobody has run, and there is no third possibility.
+
+### And `docs/wpt-refusals.tsv` had no data rows at all
+
+Every refusal in it was a comment, so the ceiling table's `refused` column had never once fired.
+The rows are machine-readable now, with a `full|partial` column that is load-bearing: **every
+refusal this project has is partial**, and a reader that treated one as full would tell an agent to
+abandon an area whose other tests are ordinary bugs.
