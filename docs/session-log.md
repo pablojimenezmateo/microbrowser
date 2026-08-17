@@ -6641,3 +6641,56 @@ Every refusal in it was a comment, so the ceiling table's `refused` column had n
 The rows are machine-readable now, with a `full|partial` column that is load-bearing: **every
 refusal this project has is partial**, and a reader that treated one as full would tell an agent to
 abandon an area whose other tests are ordinary bugs.
+
+### The re-rank · same day
+
+The milestone letters had been read as a sequence, and nobody had checked what
+that sequence was ordered by. Ranked by files Firefox passes and we do not, with
+each milestone's areas unioned so tasks sharing an area are not double-counted:
+
+| # | was | milestone | gap | blocked | reftests FF passes |
+|--:|---|---|--:|--:|--:|
+| 1 | 6th | M-F paint, colour and graphics | 3,527 | 1,226 | 2,779 |
+| 2 | 8th | M-H the network and the security around it | 2,851 | **1,913** | 2 |
+| 3 | 5th | M-E layout | 1,481 | 773 | **11,344** |
+| 4 | new | M-O HTML's own elements | 1,376 | 566 | 132 |
+| 5 | 7th | M-G script, the event loop, and timing | 805 | 297 | 18 |
+| 6 | 10th | M-J navigation, browsing contexts, process split | 549 | 298 | 4 |
+| 7 | 3rd | M-C the DOM and its bindings | 460 | 97 | 28 |
+| 8 | 4th | M-D CSS: cascade, values, object model | 421 | 156 | 320 |
+| 9 | 9th | M-I storage | 339 | 82 | 1 |
+| 10 | 12th | M-L media | 314 | 142 | 2 |
+| 11 | 11th | M-K text and internationalisation | 170 | 41 | 331 |
+
+M-C and M-D were 3rd and 4th by letter and are 7th and 8th by measurement. Four
+of the last five sessions were M-D and one was M-K; those five areas total **409
+files**, and `html/canvas/element/` alone is 731 with nothing gating it.
+
+**Gate 0 is F2 then F9, plus B6, and it is not optional.** M-E's rank of 3 is a
+floor rather than a measurement: 11,344 of its files are reftests that no number
+covers. Ranking a suite half of which is unmeasured is the same error one level
+up, so the gate comes first and layout may well turn out to be first after it.
+
+### Three things the ranking found that were not features
+
+- **`html/canvas/` was one task over two features.** 2,654 gap files, of which
+  **1,921 are `html/canvas/offscreen/`** -- a worker feature, now F6b, depending
+  on G5, and larger than G5's own "889 tests" estimate of it. What is left in F6
+  is `html/canvas/element/`: **731 files with 19 blocked**, the purest
+  feature-work ratio in the top ten of the tree. The 2D context exists, the tests
+  reach it, and they disagree with it 731 times.
+- **H9 (an https origin) is a multiplier that was filed as a chore.** 612 gap
+  files carry `.https.` and cannot run without one, `upgrade-insecure-requests/`
+  is 99 more (all of them), `fetch/metadata/` is 66, and it is one of three gates
+  on H8's 1,330. ~2,000 files behind one self-signed certificate, with no target
+  and no rank.
+- **H8 is the second-largest task in the tree and was not startable.** 1,330
+  files, **1,083 blocked**, no dependencies recorded. Every one is a generated
+  `*.http.html`, and A2's notes had already named the three gates from the other
+  side. It depends on J1b, H9 and A2 now. 1,083 blocked files do not become
+  1,083 expectation comments.
+
+**The transferable check: read `blocked` against `gap` before picking inside a
+milestone.** The two extremes are one milestone apart -- `html/canvas/element/`
+at 19 blocked of 731, where feature code moves the number today, and
+`referrer-policy/` at 1,083 of 1,330, where it moves nothing at all.

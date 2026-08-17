@@ -31,77 +31,147 @@
     {
       "id": "M-A",
       "title": "the instrument",
-      "status": "done"
+      "status": "done",
+      "order": 0
     },
     {
       "id": "M-B",
       "title": "the baseline",
-      "status": "done"
+      "status": "done",
+      "order": 0
     },
     {
       "id": "M-C",
       "title": "the DOM and its bindings",
-      "status": "not_started"
+      "status": "not_started",
+      "order": 7,
+      "firefox_gap": {
+        "files": 460,
+        "blocked": 97,
+        "reftests_firefox_passes": 28
+      }
     },
     {
       "id": "M-D",
       "title": "CSS: cascade, values, object model",
-      "status": "not_started"
+      "status": "not_started",
+      "order": 8,
+      "firefox_gap": {
+        "files": 421,
+        "blocked": 156,
+        "reftests_firefox_passes": 320
+      }
     },
     {
       "id": "M-E",
       "title": "layout",
-      "status": "not_started"
+      "status": "not_started",
+      "order": 3,
+      "firefox_gap": {
+        "files": 1481,
+        "blocked": 773,
+        "reftests_firefox_passes": 11344
+      }
     },
     {
       "id": "M-F",
       "title": "paint, colour and graphics",
-      "status": "not_started"
+      "status": "not_started",
+      "order": 1,
+      "firefox_gap": {
+        "files": 3527,
+        "blocked": 1226,
+        "reftests_firefox_passes": 2779
+      }
     },
     {
       "id": "M-G",
       "title": "script, the event loop, and timing",
-      "status": "not_started"
+      "status": "not_started",
+      "order": 5,
+      "firefox_gap": {
+        "files": 805,
+        "blocked": 297,
+        "reftests_firefox_passes": 18
+      }
     },
     {
       "id": "M-H",
       "title": "the network and the security around it",
-      "status": "not_started"
+      "status": "not_started",
+      "order": 2,
+      "firefox_gap": {
+        "files": 2851,
+        "blocked": 1913,
+        "reftests_firefox_passes": 2
+      }
     },
     {
       "id": "M-I",
       "title": "storage",
-      "status": "not_started"
+      "status": "not_started",
+      "order": 9,
+      "firefox_gap": {
+        "files": 339,
+        "blocked": 82,
+        "reftests_firefox_passes": 1
+      }
     },
     {
       "id": "M-J",
       "title": "navigation, browsing contexts, the process split",
-      "status": "not_started"
+      "status": "not_started",
+      "order": 6,
+      "firefox_gap": {
+        "files": 549,
+        "blocked": 298,
+        "reftests_firefox_passes": 4
+      }
     },
     {
       "id": "M-K",
       "title": "text and internationalisation",
-      "status": "not_started"
+      "status": "not_started",
+      "order": 11,
+      "firefox_gap": {
+        "files": 170,
+        "blocked": 41,
+        "reftests_firefox_passes": 331
+      }
     },
     {
       "id": "M-L",
       "title": "media",
-      "status": "not_started"
+      "status": "not_started",
+      "order": 10,
+      "firefox_gap": {
+        "files": 314,
+        "blocked": 142,
+        "reftests_firefox_passes": 2
+      }
     },
     {
       "id": "M-M",
       "title": "speed, memory, idle CPU",
-      "status": "not_started"
+      "status": "not_started",
+      "order": 12
     },
     {
       "id": "M-N",
       "title": "the acceptance sites",
-      "status": "not_started"
+      "status": "not_started",
+      "order": 13
     },
     {
       "id": "M-O",
       "title": "HTML's own elements",
-      "status": "not_started"
+      "status": "not_started",
+      "order": 4,
+      "firefox_gap": {
+        "files": 1376,
+        "blocked": 566,
+        "reftests_firefox_passes": 132
+      }
     }
   ],
   "tasks": [
@@ -1062,24 +1132,47 @@
     {
       "id": "F6",
       "milestone": "M-F",
-      "title": "canvas 2D against the suite",
-      "area": "html/canvas/",
-      "scope": "The 2D context measured by WPT rather than by hand-written tests.",
-      "check": "html/canvas/ >= 60%.",
+      "title": "the 2D context against the suite",
+      "area": "html/canvas/element/",
+      "scope": "The 2D context on an <canvas> element, measured by WPT rather than by hand-written tests. OffscreenCanvas is F6b and is a different feature.",
+      "check": "html/canvas/element/ re-measured; firefox_gap.files below 350.",
       "depends": [],
-      "target": "35%",
+      "target": "55%",
       "status": "not_started",
       "agent": null,
       "adr": "0029",
-      "notes": "Baseline 2026-08-10: 12.2%. OffscreenCanvas is not defined, which is 889 tests on its own.",
+      "notes": "Baseline 2026-08-10: 12.2%. OffscreenCanvas is not defined, which is 889 tests on its own.\n\n**Split in two on 2026-08-17, and the split is the finding.** `html/canvas/` is 2,654 gap files, and 1,921 of them are `html/canvas/offscreen/` -- a different feature, in a worker, now F6b. What is left here is `html/canvas/element/`: **731 files with only 19 blocked**, the purest feature-work ratio in the top ten and the largest such block in the tree. Nothing gates it: the 2D context exists, the tests reach it, and they disagree with it 731 times.",
       "ceiling_source": "firefox",
       "firefox_ceiling": "78.5%",
       "firefox_gap": {
-        "files": 2654,
-        "blocked": 976,
-        "feature": 1678,
+        "files": 731,
+        "blocked": 19,
+        "feature": 712,
         "we_pass": 334,
-        "reftests_firefox_passes": 173
+        "reftests_firefox_passes": 116
+      }
+    },
+    {
+      "id": "F6b",
+      "milestone": "M-F",
+      "title": "OffscreenCanvas",
+      "area": "html/canvas/offscreen/",
+      "scope": "OffscreenCanvas, transferControlToOffscreen, and the 2D context running on a worker thread.",
+      "check": "html/canvas/offscreen/ re-measured; firefox_gap.files below 1200.",
+      "depends": [
+        "G5"
+      ],
+      "target": "40%",
+      "status": "not_started",
+      "agent": "",
+      "adr": "0022",
+      "notes": "**Split out of F6 on 2026-08-17: 1,921 gap files, 957 of them blocked** -- the single largest task in the tree, and it is a worker feature rather than a canvas feature. G5's own notes had already named it (`OffscreenCanvas`, 889 tests) as one of the three things left in a worker after the global scope landed; it is larger than that estimate. Depends on G5 for that reason. The blocked half is what to measure first: 957 files where the harness never reported is a plumbing number, and `OffscreenCanvas is not defined` is one symbol.",
+      "firefox_gap": {
+        "files": 1921,
+        "blocked": 957,
+        "feature": 964,
+        "we_pass": 0,
+        "reftests_firefox_passes": 57
       }
     },
     {
@@ -1481,12 +1574,16 @@
       "area": "referrer-policy/",
       "scope": "Where this browser deliberately deviates for privacy, the expectation line names the ADR.",
       "check": "Every failing test in referrer-policy/ and upgrade-insecure-requests/ has an expectation naming an ADR.",
-      "depends": [],
+      "depends": [
+        "J1b",
+        "H9",
+        "A2"
+      ],
       "target": "",
       "status": "not_started",
       "agent": null,
       "adr": "0033",
-      "notes": "",
+      "notes": "\n\n**Re-ranked 2026-08-17: 1,330 gap files, 1,083 of them blocked** -- the second-largest task in the tree after F6b, and it was carrying no target and no dependencies. It is not a privacy-deviation-recording exercise until the tests run at all. Every file is a generated `*.http.html` under `referrer-policy/{4K,4K-1,4K+1,gen}/`, and A2's notes name the three gates from the other side: `common/security-features/subresource/*.py`, iframes, and cross-origin https contexts. Hence depends J1b, H9, A2. Do not start it before those; 1,083 blocked files will not become 1,083 expectation comments.",
       "ceiling_source": "firefox",
       "firefox_ceiling": "unmeasured",
       "firefox_gap": {
@@ -1511,7 +1608,7 @@
       "status": "not_started",
       "agent": null,
       "adr": "0040",
-      "notes": "A large fraction of html/ and fetch/ is .https. only.\n\n**2026-08-12**: `fetch/metadata/`'s `helper.sub.js` builds origins from `{{ports[https][0]}}`, so the whole \"non-trustworthy\" / \"HTTPS upgrade\" half of 87 tests is unreachable without this."
+      "notes": "A large fraction of html/ and fetch/ is .https. only.\n\n**2026-08-12**: `fetch/metadata/`'s `helper.sub.js` builds origins from `{{ports[https][0]}}`, so the whole \"non-trustworthy\" / \"HTTPS upgrade\" half of 87 tests is unreachable without this.\n\n**Re-ranked 2026-08-17 and it is a multiplier, not a chore.** 612 gap files have `.https.` in the name and cannot run at all without this; `upgrade-insecure-requests/` is 99 more, all of them; and it is one of the three gates on H8's 1,330. It also unblocks `fetch/metadata/` (66), whose triage in A2 named it as gate 2 of 3. That is ~2,000 files behind one self-signed certificate. Rank it with the large tasks rather than with the harness chores."
     },
     {
       "id": "H10",

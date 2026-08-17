@@ -425,8 +425,69 @@ denominator is subtests this browser *reported*, so it shrinks when a test dies
 early. Read a percentage as "did this area move between two runs of this
 binary", never as "how far behind Firefox is this area". For the second question
 the unit is a test file and the document is `docs/wpt-firefox-gap.md`; see §The
-target above for why. Milestone ordering below still reflects the older ranking
-and is being revised area by area as tasks are picked up.
+target above for why.
+
+### The order · **re-ranked 2026-08-17**
+
+**The milestones below are lettered in the order they were written, not the
+order to do them in.** They used to be read as a sequence, which is how the last
+five sessions came to spend four on M-D and one on M-K — **the 8th and 11th**
+largest gaps in the tree — while the 1st and 2nd have had no session at all. The
+five together are 409 files; `html/canvas/element/` alone is 731, and nothing
+gates it. The letters stay, because
+they are referenced from the ledger, the session log and half the ADRs. The
+order is this table, and it is `milestones[].order` in `docs/wpt-tasks.json`.
+
+| # | milestone | gap | blocked | reftests FF passes | why here |
+|--:|---|--:|--:|--:|---|
+| **0** | **the measurement gate** — F2, F9, B6 | — | — | 17,961 | not a milestone. See below |
+| 1 | M-F paint, colour and graphics | 3,527 | 1,226 | 2,779 | F6b alone is 1,921 |
+| 2 | M-H the network and the security around it | 2,851 | **1,913** | 2 | two thirds of it is plumbing |
+| 3 | M-E layout | 1,481 | 773 | **11,344** | rank not yet knowable — see gate 0 |
+| 4 | M-O HTML's own elements | 1,376 | 566 | 132 | added 2026-08-17 |
+| 5 | M-G script, the event loop, and timing | 805 | 297 | 18 | |
+| 6 | M-J navigation, browsing contexts, process split | 549 | 298 | 4 | gates M-O's largest task |
+| 7 | M-C the DOM and its bindings | 460 | 97 | 28 | C6 in progress |
+| 8 | M-D CSS: cascade, values, object model | 421 | 156 | 320 | four of the last five sessions |
+| 9 | M-I storage | 339 | 82 | 1 | |
+| 10 | M-L media | 314 | 142 | 2 | |
+| 11 | M-K text and internationalisation | 170 | 41 | 331 | `encoding/` is done; this is the tail |
+| 12 | M-M speed, memory, idle CPU | — | — | — | a milestone of measurements, not gaps |
+| 13 | M-N the acceptance sites | — | — | — | gates, not tasks |
+
+**Gate 0 comes before the ranking means anything, and it is three tasks in two
+other milestones.** F2 (fuzzy reftests) then F9 (reftests recorded at all), plus
+B6 (a committed summary state). Until F9 lands, **11,344 of M-E's files and
+2,779 of M-F's are not in any number** — so M-E's rank of 3 is a floor, not a
+measurement, and it is entirely possible that layout is first. Ranking the rest
+of this table against a suite half of which is unmeasured is exactly the mistake
+this section replaces. Do gate 0 first.
+
+**Read the `blocked` column against the gap column before picking inside a
+milestone.** A blocked file is one whose harness never reported; it is plumbing,
+and plumbing is usually cheaper per file than a specification. The two extremes
+in the tree are one milestone apart: `html/canvas/element/` is 731 files with
+**19** blocked — pure feature work, nothing gating it — and `referrer-policy/` is
+1,330 files with **1,083** blocked, where writing feature code today would move
+nothing at all.
+
+### Three prerequisites that multiply, and were not written down as such
+
+Ranking by files made these visible; each gates far more than its own task.
+
+- **H9, an https origin in the harness.** 612 gap files carry `.https.` in the
+  name and cannot run at all without one; `upgrade-insecure-requests/` is 99
+  more, every one of them; `fetch/metadata/` is 66 (A2's triage named it as gate
+  2 of 3); and it is one of three gates on H8's 1,330. **~2,000 files behind one
+  self-signed certificate**, and it was filed as a harness chore with no target.
+- **J1b, same-origin iframes** (in progress). Gates O3 (520 files, the largest
+  task in M-O), H8's generated tests, J2 and G6.
+- **A2, the remaining `.py` handlers** (in progress). Gates the
+  `common/security-features/subresource/*.py` half of H8.
+
+**H8 now depends on all three** and did not depend on anything before. It is the
+second-largest task in the tree and it is *not* startable: 1,083 blocked files
+do not become 1,083 expectation comments.
 
 ---
 
@@ -441,11 +502,19 @@ reports per-subtest results. Reached.
 
 ---
 
-### M-B — The baseline · **next, blocks nothing but informs everything**
+### M-B — The baseline · **done, except B6 — which is in gate 0**
 
 One full run of every checked-out area, recorded, with the failures grouped by
 *cause* rather than by test. This is the only milestone that must happen before
 the others, and it is one long machine run plus one session of reading.
+
+**B6 is still open and it is part of gate 0** (§2, The order): without a
+committed summary state, a per-area re-measurement cannot regenerate
+`docs/wpt-baseline.md` and every re-record is hand-merged into it. Three
+sessions in a row have tripped over that. And the milestone's own premise needs
+an amendment the 2026-08-17 measurement forced: **this baseline covers the
+testharness half of the suite and says nothing about the other 20,998 files.**
+Completing it is F9, in M-F, and it gates the ranking of everything below.
 
 | id | task | parallel with | output |
 |---|---|---|---|
@@ -485,7 +554,7 @@ and a line in the table; `ctest` is green against them.
 
 ---
 
-### M-C — The DOM and its bindings
+### M-C — The DOM and its bindings · **#7 in the order**
 
 The largest single lever: `dom/`, `domparsing/`, `shadow-dom/`,
 `custom-elements/`, `html/dom/`. Almost everything else in the suite depends on
@@ -694,7 +763,7 @@ that costs.
 
 ---
 
-### M-D — CSS: the cascade, values, and the object model
+### M-D — CSS: the cascade, values, and the object model · **#8 in the order**
 
 `css/css-syntax/`, `css/css-values/`, `css/css-cascade/`, `css/css-variables/`,
 `css/css-conditional/`, `css/selectors/`, `css/cssom/`, `css/cssom-view/`.
@@ -718,7 +787,7 @@ reftests, which makes them cheap to run and unambiguous to read.
 
 ---
 
-### M-E — Layout
+### M-E — Layout · **#3 in the order**
 
 The largest area by test count and the one where reftests dominate, which means
 it is also the milestone that will find bugs in the rasterizer by accident.
@@ -746,7 +815,7 @@ in these areas failing for a *harness* reason.
 
 ---
 
-### M-F — Paint, colour and graphics
+### M-F — Paint, colour and graphics · **#1 in the order**
 
 `css/css-backgrounds/`, `css/css-images/`, `css/css-color/`,
 `css/css-transforms/`, `css/css-ui/`, `svg/`, `html/canvas/`.
@@ -758,10 +827,21 @@ in these areas failing for a *harness* reason.
 | F3 | `css/css-color/` — `color()`, `lab()`/`lch()`/`oklab()`, `color-mix()`, and the serialization rules | — | 60% |
 | F4 | Gradients — `linear-gradient` interpolation, `repeating-*`, `conic-gradient` | F2 | `css-images` 60% |
 | F5 | `css/css-transforms/` — 3D transforms, `perspective`, `transform-style`, and what a stacking context does to them | F2 | 60% |
-| F6 | `html/canvas/` — the 2D context against the suite rather than against hand-written tests | — | 35% (§0.5) |
+| F6 | `html/canvas/element/` — the 2D context against the suite rather than against hand-written tests | — | 55% · **731 files, 19 blocked** |
+| F6b | `html/canvas/offscreen/` — `OffscreenCanvas`, `transferControlToOffscreen`, and a 2D context on a worker thread | G5 | 40% · **1,921 files, 957 blocked** |
 | F7 | `svg/` — triage first: this browser renders SVG as an image, and the suite tests it as a document. Decide the scope in an ADR before writing code | — | ADR + a number |
 | F8 | Image formats — WebP and AVIF decoders (ADR 0023 counted them); `png/` and the image parts of `css-images` | — | fuzzers + 80% of `png/` |
 | F9 | **Harness:** reftests enter the measurement at all — record them in `tests/wpt/expectations/`, count them in the baseline | F2 | a non-zero reftest number |
+
+**F6 was one task over two features until 2026-08-17, and the split is worth
+more than either half.** `html/canvas/` is 2,654 gap files; **1,921 of them are
+`html/canvas/offscreen/`**, which is a worker feature, not a canvas feature —
+G5's own notes had already named `OffscreenCanvas` as one of the three things
+left in a worker after the global scope landed, at "889 tests", and it is more
+than twice that. It is now F6b and depends on G5. What is left in F6 is
+`html/canvas/element/`: **731 files with 19 blocked**, the purest ratio of
+ordinary specification work in the top ten of the whole tree. Nothing gates it.
+The 2D context exists, the tests reach it, and they disagree with it 731 times.
 
 **F9 is the largest unmeasured surface in the project and it was found on
 2026-08-17, not built.** 20,998 reftest files are in scope — **48% of the
@@ -787,7 +867,7 @@ supported.
 
 ---
 
-### M-G — Script, the event loop, and timing
+### M-G — Script, the event loop, and timing · **#5 in the order**
 
 `html/webappapis/`, `hr-time/`, `user-timing/`, `performance-timeline/`,
 `web-animations/`, `workers/`, `streams/`, `webmessaging/`, `console/`.
@@ -808,7 +888,7 @@ closed.
 
 ---
 
-### M-H — The network, and the security around it
+### M-H — The network, and the security around it · **#2 in the order**
 
 `fetch/`, `xhr/`, `cors/`, `url/`, `mimesniff/`,
 `content-security-policy/`, `subresource-integrity/`, `referrer-policy/`,
@@ -835,7 +915,7 @@ approximate. Task H1 decides what replaces them.
 
 ---
 
-### M-I — Storage
+### M-I — Storage · **#9 in the order**
 
 `webstorage/`, `IndexedDB/`, `storage/`, `FileAPI/`.
 
@@ -850,7 +930,7 @@ approximate. Task H1 decides what replaces them.
 
 ---
 
-### M-J — Navigation, browsing contexts, and the process split
+### M-J — Navigation, browsing contexts, and the process split · **#6 in the order**
 
 `html/browsers/`, plus the parts of `html/semantics/` about `<iframe>`.
 
@@ -872,7 +952,7 @@ something that does not exist.
 
 ---
 
-### M-K — Text and internationalisation
+### M-K — Text and internationalisation · **#11 in the order**
 
 `encoding/`, and the text halves of `css/css-text/`, `css/css-fonts/`,
 `css/css-writing-modes/`.
@@ -888,7 +968,7 @@ something that does not exist.
 
 ---
 
-### M-L — Media
+### M-L — Media · **#10 in the order**
 
 `media-source/`, `html/semantics/embedded-content/media-elements/`.
 
@@ -903,7 +983,7 @@ something that does not exist.
 
 ---
 
-### M-M — Speed, memory, and idle CPU, as a first-class milestone
+### M-M — Speed, memory, and idle CPU, as a first-class milestone · **#12 in the order**
 
 Not a WPT milestone: WPT has almost nothing to say about any of the four core
 principles except correctness. This runs continuously alongside everything else
@@ -925,7 +1005,7 @@ claimed.
 
 ---
 
-### M-N — The acceptance sites
+### M-N — The acceptance sites · **#13 in the order**
 
 The five sites in `docs/adr/0007-compatibility-targets.md` plus the four the
 user named. These are **gates, not tasks**: each one is checked at the end of a
@@ -950,7 +1030,7 @@ an ADR before it needs code, and the ADR may well be a refusal with a fallback.
 
 ---
 
-### M-O — HTML's own elements · **added 2026-08-17**
+### M-O — HTML's own elements · **#4 in the order** · **added 2026-08-17**
 
 `html/semantics/`, `html/syntax/`. **This milestone exists because the ranking
 by test file found 1,689 files with no task anywhere in this plan**, which is
@@ -1014,33 +1094,53 @@ well as* its task.
 
 ---
 
-## 4. Parallelism: what can actually run at once
+## 4. Parallelism: what can actually run at once · **re-ranked 2026-08-17**
 
-Four to six agents, sustainably, once M-B is done:
+Four to six agents, sustainably. The graph is now the ranked order of §2, not
+the milestone letters:
 
 ```
-        M-B baseline  (one agent, one long run)
-              │
-   ┌──────────┼───────────┬──────────────┬───────────────┐
-   ▼          ▼           ▼              ▼               ▼
- M-C C1,C2  M-E E2,E4   M-D D1,D8     M-H H2,H3       M-K K1
- (bindings) (layout)    (css values)  (url, sniff)    (encoding)
-   │          │           │              │
-   ▼          ▼           ▼              ▼
- C4..C10    E1,E3,E5..  D3,D4,D5..     H4..H8  (after H1)
- (parallel) (parallel)  (parallel)     (parallel)
+  gate 0   F2 ──▶ F9            B6
+           (fuzzy)  (reftests    (summary state)
+                     measured)
+              │  half the suite enters the measurement here
+   ┌──────────┼──────────┬─────────────┬──────────────┬────────────┐
+   ▼          ▼          ▼             ▼              ▼            ▼
+  F6        H9         J1b*          A2*            G5*          O1,O2,O4
+ canvas    https      iframes      handlers       workers       forms,script,
+ element   origin                                                 syntax
+  731       ~2,000      gates O3,     gates H8's      gates F6b
+  files     files       H8, J2, G6    generated half
+             │           │              │             │
+             └───────────┴──────┬───────┘             ▼
+                                ▼                    F6b  OffscreenCanvas
+                          H8  referrer-policy         1,921 files
+                              1,330 files
+                                                     ▼
+                        (after gate 0)  M-E layout — 11,344 reftests
 ```
+
+`*` = already in progress.
 
 The dependency edges that actually matter, and are the only ones worth
 serialising on:
 
+- **F2 before F9, and F9 before ranking anything in M-E.** 20,998 reftest files
+  — 48% of the suite — are in no number this project quotes, and without a
+  fuzzy tolerance and a diff image a 304-pixel difference and a 20,237-pixel one
+  are the same line in a file. This is the one edge that gates the *plan* rather
+  than a task.
+- **H9 (an https origin) before H8, and before anything with `.https.` in its
+  name.** ~2,000 gap files, and it had no target and no rank until 2026-08-17.
+- **J1b (same-origin iframes) before O3, H8, J2 and G6.**
+- **A2 (the `.py` handlers) before H8 and any `fetch/`-adjacent task.**
+- **G5 (workers) before F6b.** OffscreenCanvas is a worker feature.
 - **C1 and C2 before everything in M-C, M-I and much of M-H.** Exception
   identity is load-bearing for `assert_throws_*`, which is most of the suite's
-  negative tests.
-- **F2 (fuzzy reftests) before any reftest-heavy layout task.** Otherwise M-E's
-  numbers are noise.
-- **H1 (the `.py` decision) before any `fetch/`-adjacent task.**
-- **J1 (same-origin iframes) before J2, J3 and G6.**
+  negative tests. (Both done.)
+
+**F6, O1, O2 and O4 depend on nothing** and are 1,587 files between them. If an
+agent is free and gate 0 is claimed, those are the four to take.
 
 Everything else is independent. Two agents in the same `src/` module at the same
 time is the real collision risk, so the table above is also a rough map of which
