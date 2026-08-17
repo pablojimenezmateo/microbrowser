@@ -878,6 +878,35 @@ int main(int argc, char** argv) {
     // refused to start would be a worse answer than the one it replaced.
     std::fprintf(stderr, "no https origin this run: %s\n", certificate.error.c_str());
   } else {
+    // A run killed by a signal never reaches the destructor above, so sweep
+    // what earlier runs left before adding to it. The file is a public
+    // certificate and its authority is trusted by nothing once its run is over
+    // -- the reason to remove it is that /tmp otherwise accumulates one per
+    // interrupted run forever. Liveness is `kill(pid, 0)`, and EPERM counts as
+    // alive: another user's process is still a process.
+    {
+      std::error_code code;
+      for (const std::filesystem::directory_entry& entry :
+           std::filesystem::directory_iterator(std::filesystem::temp_directory_path(), code)) {
+        const std::string name = entry.path().filename().string();
+        constexpr std::string_view kPrefix = "microbrowser-wpt-ca-";
+        if (name.compare(0, kPrefix.size(), kPrefix) != 0 || entry.path().extension() != ".pem") {
+          continue;
+        }
+        const std::string digits =
+            name.substr(kPrefix.size(), name.size() - kPrefix.size() - 4);
+        char* end = nullptr;
+        const long owner = std::strtol(digits.c_str(), &end, 10);
+        if (end == nullptr || *end != '\0' || owner <= 0) {
+          continue;
+        }
+        if (::kill(static_cast<pid_t>(owner), 0) == 0 || errno == EPERM) {
+          continue;  // that run is still going, and it is not necessarily ours
+        }
+        std::error_code ignored;
+        std::filesystem::remove(entry.path(), ignored);
+      }
+    }
     ca_file.path = std::filesystem::temp_directory_path() /
                    ("microbrowser-wpt-ca-" + std::to_string(::getpid()) + ".pem");
     std::ofstream stream(ca_file.path, std::ios::binary | std::ios::trunc);
