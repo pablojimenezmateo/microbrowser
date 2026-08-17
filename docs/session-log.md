@@ -6703,7 +6703,7 @@ at 19 blocked of 731, where feature code moves the number today, and
 its tolerance and a failing one leaves three files". Both halves, run:
 
 ```
-$ microbrowser_wpt --reftests-only --list | grep -c 'fuzzy='
+$ microbrowser_wpt --reftests-only --list --verbose | grep -c 'fuzzy='
 686
 $ microbrowser_wpt --reftests-only --verbose --retries 0 $(the 686)
 199 ok, 485 unexpected
@@ -6767,6 +6767,32 @@ with `Set` — which a non-writable property **refuses without saying so**. Ever
 bound function in this browser was called `"bound"`. SetFunctionName is a define
 in the specification for exactly this reason, and this is the second time in
 this repository that a silently-refused write has looked like a missing feature.
+
+**The `ctest` WPT gate does not fit in its own cap on this machine, and that is
+not a result.** `ctest --test-dir build/microbrowser-perf -R microbrowser_wpt`
+was killed at `***Timeout 5400.14 sec` having reported nothing at all —
+`set_tests_properties(... TIMEOUT 5400)` against a run of **23,146** tests that
+was at 7,100 after 90 minutes. So the repository's own gate currently cannot
+pass here whatever the browser does, and its failure line says "Timeout", which
+reads exactly like a hang. Run the binary directly with `--areas` when you need
+the number; ctest's cap is the next thing to raise or shard.
+
+Run directly, it is red for reasons that predate this session: **1,143
+unexpected at 7,500 of 23,146**, where this session stopped it — a partial
+number, and quoted as one, because finishing it would have bought a snapshot of
+a state that is already written down rather than a verdict on this work. It is
+the state `CLAUDE.md` already records
+— seven expectation files unmeasured against this tree since the 2026-08-15
+merge, plus five areas re-recorded since.
+
+**What rules this session's changes out of that, cheaply:** the only change here
+that alters browser behaviour is `bind().name`, and `grep -rn 'bound '` over the
+whole pinned checkout, filtered to lines mentioning `.name`, returns **nothing**
+— no WPT test asserts on a bound function's name, so that fix cannot have moved
+a single result in either direction. The `ToInt` fix removes a read of freed
+memory whose contents were in practice still intact, and the ubsan fix is
+bit-identical by construction. A two-hour baseline run against the parent commit
+would say the same thing and was not worth the machine time.
 
 **A note for whoever runs `tools/run-checks.sh asan` next:** it includes the
 whole WPT gate as its 25th ctest test, under a sanitizer build with

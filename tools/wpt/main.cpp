@@ -93,7 +93,8 @@ constexpr const char* kUsage =
     "  --summary-state FILE  carry a sharded run's counts between invocations; usable\n"
     "                        without --summary, which is what the first shard wants\n"
     "  --long-timeout MS     for a test marked `timeout=long` (default 60000)\n"
-    "  --list                print the tests that would run and exit\n"
+    "  --list                print the tests that would run and exit; with --verbose,\n"
+    "                        a reftest's `<meta name=fuzzy>` tolerance too\n"
     "  --refresh-manifest    re-walk the checkout instead of using the cache\n"
     "  --serve               run only the server, in the foreground\n"
     "  --port N              first http port (default: an unused one)\n"
@@ -818,10 +819,17 @@ int main(int argc, char** argv) {
 
   if (options.list_only) {
     for (const WptTest& test : tests) {
-      // The tolerance is printed because it is the only way to check that a
-      // `<meta name=fuzzy>` was read at all without running the test -- and a
-      // tolerance silently dropped looks exactly like a browser bug.
-      const std::string fuzzy = microbrowser::wpt::SerializeFuzzy(test.fuzzy);
+      // The tolerance is printed under --verbose, because it is the only way to
+      // check that a `<meta name=fuzzy>` was read at all without running the
+      // test, and a tolerance silently dropped looks exactly like a browser
+      // bug. **Under --verbose only**: `tools/wpt/firefox-gap.py` reads this
+      // list as `kind<space>path` and takes everything after the first field as
+      // the path, so an unconditional third column would silently rename 686
+      // reftests and drop them out of the join with Firefox's results. Teaching
+      // that reader to stop at the first space instead is *not* the fix -- 37
+      // paths in the checkout contain one.
+      const std::string fuzzy =
+          options.verbose ? microbrowser::wpt::SerializeFuzzy(test.fuzzy) : std::string();
       std::printf("%s %s%s\n", test.kind == TestKind::Reftest ? "reftest    " : "testharness",
                   test.url_path.c_str(), fuzzy.empty() ? "" : ("  fuzzy=" + fuzzy).c_str());
     }

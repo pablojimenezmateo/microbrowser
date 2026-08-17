@@ -20,7 +20,7 @@ namespace microbrowser::wpt {
 // nobody reads, and 20,998 files -- 48% of the checkout -- were in that state.
 //
 // Upstream's answer is `<meta name=fuzzy>`, an author's statement of how much
-// noise this particular pair is allowed to produce. 657 files in the pinned
+// noise this particular pair is allowed to produce. 678 files in the pinned
 // checkout carry one. Every rule below is transcribed from wptrunner
 // (`tools/wptrunner/wptrunner/executors/base.py`, `RefTestExecutor.is_pass`),
 // because a tolerance we invented would make our numbers incomparable with

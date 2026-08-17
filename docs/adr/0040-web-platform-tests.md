@@ -209,7 +209,8 @@ a different reason.** `<meta name=fuzzy>` is read by `tools/wpt/TestList.cpp` an
 applied by `tools/wpt/Reftest.cpp`, whose pass rule is a transcription of
 wptrunner's `RefTestExecutor.is_pass` — invented tolerances would make our
 numbers incomparable with Firefox's, which is the whole point of
-`docs/wpt-firefox-gap.md`. 686 of the enumerated reftests carry one; six of them
+`docs/wpt-firefox-gap.md`. 678 files carry one and 686 enumerated tests get one
+(a file with `<meta name=variant>` becomes several); six of them
 pass on it today, two with a *non-zero floor* (`63-64;100-200`) that an exact
 comparison could never satisfy. A failing reftest can now leave
 `<stem>.{test,ref,diff}.ppm` beside each other with `--reftest-artifacts DIR`,

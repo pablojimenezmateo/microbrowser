@@ -424,10 +424,12 @@ std::vector<WptTest> EnumerateTests(const std::string& wpt_root,
         test.kind = TestKind::Reftest;
         test.reference = ResolveReference(relative, reference);
         test.reference_mismatch = mismatch;
-        // Only the test's own head is read. Upstream's manifest also collects a
-        // fuzzy annotation from the *reference*; in the pinned checkout not one
-        // of the 657 files carrying one is a reference, so reading them would
-        // double the walk's file reads to find nothing.
+        // Only the test's own head is read, and only its first `kHeadBytes`.
+        // Both are checked rather than assumed, because a tolerance silently
+        // dropped looks exactly like a browser bug: of the 678 annotated files
+        // in the pinned checkout, **none** is a reference (upstream's manifest
+        // also collects a fuzzy annotation from the reference document) and
+        // **none** carries its annotation past 16KB.
         test.fuzzy = ResolveFuzzy(ParseFuzzy(head), relative, test.reference);
         AppendVariants(test, ParseHtmlVariants(head), all);
       }

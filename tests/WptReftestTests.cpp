@@ -40,7 +40,8 @@ gfx::Canvas Filled(std::uint32_t argb, int width = 4, int height = 4) {
 void RegisterWptReftestTests(std::vector<TestCase>& tests) {
   AddTest(tests, "WptReftest/ParsesBothSpellingsOfATolerance", [] {
     // The two forms upstream accepts, both present in the pinned checkout:
-    // 490 files use the bare one and 167 the named one.
+    // of 678 annotations, 607 name their halves and 65 are positional. (The
+    // other six are the `{{ fuzzy }}` templates the next test covers.)
     FuzzyAllowance bare;
     Expect(wpt::ParseFuzzyRanges("0-15;0-200", &bare), "the positional form parses");
     ExpectEqInt(bare.max_difference.high, 15, "the first range is maxDifference");
