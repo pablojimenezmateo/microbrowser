@@ -195,7 +195,13 @@ bool SummaryAccumulator::SaveState(const std::string& path, std::string* error) 
     }
     return false;
   }
-  stream << "# microbrowser_wpt --summary-state. Generated; a run cache, not an artefact.\n"
+  // It used to call itself "a run cache, not an artefact", which was true while
+  // it lived in /tmp and is the reason docs/wpt-baseline.md was hand-merged for
+  // a week. The copy in the repository is the document's memory: every number
+  // the table gives for an area a run did not touch is read from here.
+  stream << "# microbrowser_wpt --summary-state. Generated -- committed at "
+            "tests/wpt/summary-state.tsv,\n"
+            "# where it is docs/wpt-baseline.md's memory. Filled by tools/wpt/baseline.sh.\n"
             "# A<TAB>area<TAB>tests<TAB>ok<TAB>error<TAB>timeout<TAB>crash<TAB>subtests<TAB>passed\n"
             "# S|H<TAB>tests<TAB>subtests<TAB>example<TAB>message\n";
   for (const auto& [name, area] : areas_) {
@@ -305,12 +311,19 @@ bool SummaryAccumulator::Write(const std::string& path, const std::string& revis
             "next run overwrites it, and that overwrite is the point -- the diff of this file is\n"
             "what a session moved. The argument for the instrument is `docs/adr/0040`; the work it\n"
             "sequences is `docs/wpt-plan.md`.\n\n"
-         << "This file is written from `--summary-state` alone. **A run whose state file does\n"
-            "not already describe every area would produce a document about only the areas it\n"
-            "ran** -- complete-looking and wrong -- so the writer now refuses when the document\n"
-            "already has more rows than the run does, and says so. A per-area re-measurement is\n"
-            "therefore a hand-merge of its rows into this table until one full run has written a\n"
-            "state file that covers everything (plan task B6).\n\n"
+         << "This file is written from `--summary-state` alone, and that state is committed at\n"
+            "`tests/wpt/summary-state.tsv`. `tools/wpt/baseline.sh` is what fills it -- sharded and\n"
+            "resumable, because a shard's counts are written only when it finishes (plan task B6).\n"
+            "Re-measure one area into this table with:\n\n"
+            "```\n"
+            "microbrowser_wpt --testharness-only --summary docs/wpt-baseline.md \\\n"
+            "    --summary-state tests/wpt/summary-state.tsv <area>/\n"
+            "```\n\n"
+            "and commit both files: the run replaces that area's row and its causes, and keeps\n"
+            "every other row from the state. **Pass the state file.** Without it the document is\n"
+            "rewritten down to the areas the run measured -- complete-looking and wrong -- which\n"
+            "happened three times before the state was committed, so the writer refuses when the\n"
+            "table it is about to replace has more rows than the run has areas.\n\n"
          << "WPT revision: `" << revision << "`\n\n";
 
   std::snprintf(buffer, sizeof(buffer), "%.1f%%", Percent(subtests_passed, subtests_total));

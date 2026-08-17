@@ -114,14 +114,56 @@ awk '
   END { if (bad) { printf "%d tests are not covered by exactly one shard\n", bad; exit 1 } }
 ' "$SHARDS" "$TESTS" || exit 2
 
+# **What is already done is derived from the state file, not only from the
+# ledger.** The ledger lives under /tmp and the state file is committed, so a run
+# picked up by a later session -- or on another machine -- has to be able to work
+# out where it is from the artefact in the repository. A shard writes its counts
+# only when it finishes, so an area present in the state means the shard that
+# covers it completed; a shard is skipped when every area under it is there.
+awk -v state="$STATE" '
+  function area_of(path) {
+    n = split(path, part, "/")
+    return n >= 3 ? part[1] "/" part[2] : part[1]
+  }
+  BEGIN {
+    while ((getline line < state) > 0) {
+      if (substr(line, 1, 2) == "A\t") {
+        split(line, field, "\t")
+        present[field[2]] = 1
+      }
+    }
+  }
+  NR == FNR { shard[++shards] = $0; next }
+  {
+    for (i = 1; i <= shards; i++) {
+      if (index($0, shard[i]) == 1) {
+        need[shard[i] SUBSEP area_of($0)] = 1
+        covers[shard[i]] = 1
+      }
+    }
+  }
+  END {
+    for (i = 1; i <= shards; i++) {
+      if (!(shard[i] in covers)) { continue }
+      complete = 1
+      for (key in need) {
+        split(key, part, SUBSEP)
+        if (part[1] == shard[i] && !(part[2] in present)) { complete = 0 }
+      }
+      if (complete) { print shard[i] }
+    }
+  }
+' "$SHARDS" "$TESTS" > "$WORK/state-done.txt"
+
 total_shards=$(grep -c . "$SHARDS")
 echo "$total_shards shards over $(grep -c . "$TESTS") testharness tests; state: $STATE"
+echo "$(grep -c . "$WORK/state-done.txt") shards are already in the state file and will be skipped"
 
 n=0
 while read -r shard; do
   [[ -z "$shard" ]] && continue
   n=$((n + 1))
-  if grep -qxF "$shard" "$DONE"; then
+  if grep -qxF "$shard" "$DONE" || grep -qxF "$shard" "$WORK/state-done.txt"; then
     continue
   fi
   slug="${shard//\//_}"
