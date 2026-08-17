@@ -696,6 +696,10 @@ target_link_libraries(microbrowser_encconf PRIVATE microbrowser_html)
 add_executable(microbrowser_wpt
   tools/wpt/main.cpp
   tools/wpt/Server.cpp
+  # The run's own certificate authority. OpenSSL is named here and in
+  # Server.cpp, which is the same seam ADR 0001 draws in src/net: the record
+  # layer is theirs, everything above it is ours.
+  tools/wpt/Certificate.cpp
   tools/wpt/Handlers.cpp
   tools/wpt/TestList.cpp
   tools/wpt/Expectations.cpp
@@ -705,7 +709,8 @@ target_include_directories(microbrowser_wpt PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}
 target_compile_definitions(microbrowser_wpt PRIVATE
   MICROBROWSER_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(microbrowser_wpt PRIVATE microbrowser_engine microbrowser_gfx
-                                               microbrowser_ipc microbrowser_platform)
+                                               microbrowser_ipc microbrowser_platform
+                                               OpenSSL::SSL OpenSSL::Crypto)
 
 add_executable(microbrowser_tests
   tests/TestMain.cpp
@@ -727,6 +732,12 @@ add_executable(microbrowser_tests
   # this costs no dependency -- and until it was here the only way to exercise a transcription was to
   # run the whole suite, which is the better part of a day.
   tools/wpt/Handlers.cpp
+  # The runner's certificate authority. Compiled in for the reason Handlers.cpp
+  # is: a certificate whose SANs or basic constraints are wrong fails as a
+  # twenty-second TLS timeout in every `.https.` test, and running the suite to
+  # find that out is the better part of a day.
+  tools/wpt/Certificate.cpp
+  tests/WptCertificateTests.cpp
   # The summary state file, which is the memory of a sharded baseline: every
   # number docs/wpt-baseline.md gives for an area a run did not touch comes from
   # it. Checking that by taking a baseline costs hours.
@@ -849,7 +860,9 @@ target_link_libraries(microbrowser_tests PRIVATE microbrowser_app microbrowser_t
                                                 microbrowser_media
                                                 microbrowser_ui
                                                 microbrowser_js
-                                                microbrowser_bindings)
+                                                microbrowser_bindings
+                                                # tools/wpt/Certificate.cpp, above.
+                                                OpenSSL::SSL OpenSSL::Crypto)
 target_include_directories(microbrowser_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests"
                                                    "${CMAKE_CURRENT_SOURCE_DIR}/tools")
 target_compile_definitions(microbrowser_tests PRIVATE
