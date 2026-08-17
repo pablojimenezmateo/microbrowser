@@ -6799,3 +6799,73 @@ whole WPT gate as its 25th ctest test, under a sanitizer build with
 `--timeout-multiplier 6`. That is hours. The unit shards alone are
 `ctest --test-dir build/microbrowser-asan -E microbrowser_wpt`, which is 44
 seconds and is what a change to `src/` or `tools/` actually needs.
+
+## The suite was spending its time on nothing · 2026-08-17
+
+**Status:** done. Follow-on from F2, prompted by "the check took longer than the
+implementation — can we run only the affected tests?"
+
+**Check:** `websockets/` (702 tests, a third of them expected timeouts), same
+binary, same results, before and after: **61m33s of CPU → 4m01s**. One test,
+`uievents/click/auxclick_event.html`: 10.12s CPU → 0.20s.
+
+**Landed:** *A wait with nothing to watch must still wait, or 7,000 tests each
+burn a core* · *Write down why --jobs stays at half the cores, with the run that
+proves it*
+
+**Found:**
+
+**`platform::WaitOnDescriptors` ignored its own timeout when it had nothing to
+watch.** Its header says "blocks until one of `descriptors` is ready, or
+`timeout_ms` elapses"; the empty-list branch returned false immediately, making
+the second half a lie. A page that has finished loading has no sockets and does
+have a timer, so under the WPT runner it span: **16.6 million turns of the pump
+loop in ten seconds**, one core flat out, for a page doing nothing. 6,930 of the
+suite's 23,146 tests are expected to TIMEOUT and every window-variant one of
+them was doing it.
+
+**The application never reached that branch**, which is why zero-idle-CPU looked
+intact: `SdlWindow::WaitEventOrDescriptors` checks for an empty list itself and
+routes to `SDL_WaitEventTimeout`. Only `tools/wpt` and `tools/snapshot` called
+it directly. **A contract with one caller that works around it is a contract
+nobody is checking** — there are now two tests on it, next to
+`IdleWait/FullyIdleBlocks`, because that test guards half the property and the
+half it does not guard is where this lived.
+
+**How it was found, which is the transferable part.** Not by reading code: by
+`/usr/bin/time` on one area and noticing `user 61m33s` against `real 7m37s` on
+work that was supposed to be *waiting*. Then one test at a time until a window
+variant (10.16s wall, 10.04s user) sat beside its worker twin (10.17s wall, 0.17s
+user) — same assertions, same deadline, one spinning and one not. Then a
+temporary counter in the pump loop, which named the branch in a single run. The
+scoped-summary instruments this repository already has could not have found it:
+the cost was in a `poll` that returned instantly, which is not a scope.
+
+**Then the trap on the other side, which is the more valuable half.** With the
+CPU freed the run is bound by deadlines rather than work, so `--jobs` looks like
+free wall clock — `websockets/` 461.9s → 120.5s from 12 to 64. On a CPU-bound
+area it is a catastrophe that reports itself as an improvement.
+`encoding/legacy-mb-japanese/`, 482 tests:
+
+| jobs | wall | cpu | subtests | timeouts | unexpected |
+|--:|--:|--:|--:|--:|--:|
+| 12 | 104.2s | 605.0s | **441,614** | 18 | 10 |
+| 64 | 60.6s | 106.9s | **32,929** | 447 | 439 |
+
+Twice as fast, and it reports **100.0% passing against 97.8%** while 408,685
+subtests disappear. testharness.js's ten seconds is wall clock, so
+oversubscription converts tests that would report into tests that die before
+`done()` — and a test that dies early contributes zero to our denominator, so
+**the pass rate rises as the run gets worse**. That is the third time this
+project has been bitten by the same shape (`font.lookup_hits`, `0 unexpected`,
+`--long-timeout`) and the first time it was caught before it reached a
+committed number. The default is unchanged and the argument is now written where
+someone would go to change it.
+
+**On the question that started this.** "Only the affected tests" already exists
+and is the intended inner loop — `microbrowser_wpt css/css-syntax/` by path
+prefix. The 60-area gate is CI scale, and reaching for it because a JavaScript
+builtin changed was the wrong instinct; the right one was the grep that showed
+no test in the checkout asserts on a bound function's name. What was genuinely
+broken was not the granularity, it was that a third of the suite burned a core
+doing nothing.
