@@ -36,6 +36,13 @@ namespace microbrowser::wpt {
 // is a transcription of a specific file with that file quoted beside it, not a
 // guess at what a name suggests. The ADR's own amendment says what changed.
 //
+// It also terminates TLS, which is the fourth thing and was the last to arrive
+// (task H9): 1,268 of the files in scope have `.https.` in their name, and a
+// secure origin is not something a static file server can fake. The certificate
+// is generated per run by `tools/wpt/Certificate.h` and is trusted by this
+// run's test processes and by nothing else -- read that header before touching
+// any of it, because the scoping is the whole design.
+//
 // **Origins without root.** WPT's own hostnames (`web-platform.test`) need an
 // /etc/hosts entry. `*.localhost` does not: glibc resolves every label under it
 // to loopback, and `url::Host::IsLoopbackOrLocalhost` already treats the whole
