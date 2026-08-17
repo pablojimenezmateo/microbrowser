@@ -2230,8 +2230,9 @@
         "F2"
       ],
       "target": "",
-      "status": "not_started",
-      "agent": "",
+      "status": "in_progress",
+      "agent": "wpt-f9",
+      "claimed": "2026-08-17",
       "adr": "0040",
       "notes": "**Measured 2026-08-17 and it is the largest unmeasured surface in the project: 20,998 reftest files are in scope, 48% of the suite, and not one of them is in any number this project quotes.** Firefox passes 17,961. A 25-file random sample of ours passes 0, every one on pixel differences (line-height-095 by 304 pixels, run-in-contains-table-row-001 by 20,237). The runner reported each as `expected OK, got FAIL`, which is the expectation format saying it believed all 25 passed.\n\nDo F2 first: without <meta name=fuzzy> and a diff image beside each failure, a 304-pixel difference and a 20,237-pixel one are the same line in a file, and no session can tell an anti-aliasing tolerance from a missing feature. That is what F2 means by 'without it M-E's numbers are noise'.\n\nThis is not expected to produce a large pass count quickly -- it is expected to stop the project reporting a rate over half of its own test suite. Judge it by whether the reftest column in docs/wpt-firefox-gap.md is a measurement, not by what the measurement says.",
       "firefox_gap_unblocks": {
