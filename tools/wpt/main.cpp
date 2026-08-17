@@ -62,6 +62,7 @@
 #include "platform/SystemFonts.h"
 #include "util/WaitDescriptor.h"
 #include "wpt/Expectations.h"
+#include "wpt/Reftest.h"
 #include "wpt/Server.h"
 #include "wpt/Summary.h"
 #include "wpt/TestList.h"
@@ -97,6 +98,8 @@ constexpr const char* kUsage =
     "  --serve               run only the server, in the foreground\n"
     "  --port N              first http port (default: an unused one)\n"
     "  --verbose             one line per test, and the server's requests\n"
+    "  --reftest-artifacts DIR  write test/ref/diff PPMs for each failing reftest\n"
+    "  --reftest-artifacts-limit N  stop after N of them (default 64)\n"
     "  --testharness-only / --reftests-only\n";
 
 struct Options {
@@ -104,6 +107,13 @@ struct Options {
   std::string expectations_dir = "tests/wpt/expectations";
   std::string summary_path;
   std::string summary_state_path;
+  // Where a failing reftest leaves its three images. Opt-in, and bounded, for
+  // one reason: a full reftest run is 20,998 files, three 1.4MB PPMs each, and
+  // a flag that quietly wrote 90GB would be a worse instrument than none. The
+  // bound is a *budget the parent hands out* rather than a count the children
+  // keep, because the children are separate processes -- see where it is spent.
+  std::string reftest_artifacts_dir;
+  int reftest_artifacts_limit = 64;
   std::vector<std::string> prefixes;
   int jobs = 0;
   int timeout_ms = 10000;
@@ -501,9 +511,17 @@ RenderedPage RenderPage(microbrowser::platform::SystemFontProvider& fonts, const
   return page;
 }
 
+// Renders a reftest and its reference and compares them, within whatever
+// tolerance the test asked for.
+//
+// `artifacts_dir`, when set, is where a *failure* leaves the three images:
+// `<stem>.test.ppm`, `<stem>.ref.ppm` and `<stem>.diff.ppm`. Task F2's whole
+// argument is that a pixel count cannot distinguish an antialiasing difference
+// from a missing feature and a picture can, in one second.
 std::string RunReftest(microbrowser::platform::SystemFontProvider& fonts,
-                       microbrowser::gfx::TextRenderer& text, const std::string& test_url,
-                       const std::string& reference_url, bool mismatch, int timeout_ms) {
+                       microbrowser::gfx::TextRenderer& text, const WptTest& test,
+                       const std::string& test_url, const std::string& reference_url,
+                       const std::string& artifacts_dir, int timeout_ms) {
   const auto rasterize = [&](const std::string& url) {
     RenderedPage page = RenderPage(fonts, url, timeout_ms / 2);
     microbrowser::gfx::Canvas canvas{800, 600};
@@ -515,25 +533,54 @@ std::string RunReftest(microbrowser::platform::SystemFontProvider& fonts,
   const microbrowser::gfx::Canvas actual = rasterize(test_url);
   const microbrowser::gfx::Canvas expected = rasterize(reference_url);
 
-  std::size_t differing = 0;
-  for (int y = 0; y < actual.Height(); ++y) {
-    const std::uint32_t* actual_row = actual.Row(y);
-    const std::uint32_t* expected_row = expected.Row(y);
-    if (actual_row == nullptr || expected_row == nullptr) {
-      continue;
+  const microbrowser::wpt::ImageDifference difference =
+      microbrowser::wpt::CompareCanvases(actual, expected);
+  // `rel=mismatch` is not "fails the fuzzy check": it asks for a *visible*
+  // difference, so it is answered by the same tolerance read the other way
+  // round. Two renderings that differ only inside the allowance are the same
+  // picture, and a mismatch test they satisfy has not proved anything.
+  const bool within = microbrowser::wpt::FuzzyAllows(difference, test.fuzzy);
+  if (within != test.reference_mismatch) {
+    // A pass says how much room it had left, because "passed" and "passed by
+    // one pixel of a 1,500-pixel tolerance" are different facts about the
+    // renderer and only one of them survives the next change to it.
+    if (difference.pixels_different == 0) {
+      return "H\tOK\t";
     }
-    for (int x = 0; x < actual.Width(); ++x) {
-      if (actual_row[x] != expected_row[x]) {
-        ++differing;
-      }
+    return "H\tOK\t" + std::to_string(difference.pixels_different) +
+           " pixels differ, worst channel " + std::to_string(difference.max_per_channel) +
+           "; within " + microbrowser::wpt::SerializeFuzzy(test.fuzzy);
+  }
+
+  std::string message;
+  if (test.reference_mismatch) {
+    message = "the two rendered the same";
+    if (difference.pixels_different != 0) {
+      message += " within the tolerance (" + std::to_string(difference.pixels_different) +
+                 " pixels differ, worst channel " + std::to_string(difference.max_per_channel) + ")";
+    }
+  } else {
+    message = std::to_string(difference.pixels_different) + " pixels differ, worst channel " +
+              std::to_string(difference.max_per_channel);
+    if (!test.fuzzy.IsExact()) {
+      message += "; allowed " + microbrowser::wpt::SerializeFuzzy(test.fuzzy);
     }
   }
-  const bool identical = differing == 0;
-  if (identical != mismatch) {
-    return "H\tOK\t";
+
+  if (!artifacts_dir.empty()) {
+    const std::string stem =
+        artifacts_dir + "/" + microbrowser::wpt::ArtifactStem(test.url_path);
+    const bool wrote = microbrowser::wpt::WritePpm(actual, stem + ".test.ppm") &&
+                       microbrowser::wpt::WritePpm(expected, stem + ".ref.ppm") &&
+                       microbrowser::wpt::WritePpm(
+                           microbrowser::wpt::DifferenceImage(actual, expected), stem + ".diff.ppm");
+    message += wrote ? "; wrote " + stem + ".{test,ref,diff}.ppm"
+                     : "; could not write artifacts to " + artifacts_dir;
   }
-  return "H\tFAIL\t" + std::string(mismatch ? "the two rendered identically"
-                                            : std::to_string(differing) + " pixels differ");
+  // Tabs are the report's field separator and a message carrying one would
+  // become a field of its own.
+  std::replace(message.begin(), message.end(), '\t', ' ');
+  return "H\tFAIL\t" + message;
 }
 
 // --- The parent --------------------------------------------------------------
@@ -544,6 +591,9 @@ struct RunningTest {
   std::size_t index = 0;
   std::string output;
   std::chrono::steady_clock::time_point deadline;
+  // This child was given the artifacts directory, so a FAIL from it spends one
+  // of the run's artifact budget.
+  bool may_write_artifacts = false;
 };
 
 enum class Outcome { Expected, Unexpected, Disabled };
@@ -688,6 +738,10 @@ int main(int argc, char** argv) {
       options.serve_only = true;
     } else if (argument == "--verbose" || argument == "-v") {
       options.verbose = true;
+    } else if (argument == "--reftest-artifacts") {
+      options.reftest_artifacts_dir = value();
+    } else if (argument == "--reftest-artifacts-limit") {
+      options.reftest_artifacts_limit = ParseInt(value(), options.reftest_artifacts_limit);
     } else if (argument == "--testharness-only") {
       options.testharness_only = true;
     } else if (argument == "--reftests-only") {
@@ -764,8 +818,12 @@ int main(int argc, char** argv) {
 
   if (options.list_only) {
     for (const WptTest& test : tests) {
-      std::printf("%s %s\n", test.kind == TestKind::Reftest ? "reftest    " : "testharness",
-                  test.url_path.c_str());
+      // The tolerance is printed because it is the only way to check that a
+      // `<meta name=fuzzy>` was read at all without running the test -- and a
+      // tolerance silently dropped looks exactly like a browser bug.
+      const std::string fuzzy = microbrowser::wpt::SerializeFuzzy(test.fuzzy);
+      std::printf("%s %s%s\n", test.kind == TestKind::Reftest ? "reftest    " : "testharness",
+                  test.url_path.c_str(), fuzzy.empty() ? "" : ("  fuzzy=" + fuzzy).c_str());
     }
     std::fprintf(stderr, "%zu tests\n", tests.size());
     return 0;
@@ -773,6 +831,15 @@ int main(int argc, char** argv) {
   if (tests.empty()) {
     std::fprintf(stderr, "no tests matched\n");
     return 1;
+  }
+  if (!options.reftest_artifacts_dir.empty()) {
+    std::error_code code;
+    std::filesystem::create_directories(options.reftest_artifacts_dir, code);
+    if (code) {
+      std::fprintf(stderr, "could not create %s: %s\n", options.reftest_artifacts_dir.c_str(),
+                   code.message().c_str());
+      return 2;
+    }
   }
 
   // The server is forked before anything else is created, and before the font
@@ -808,6 +875,7 @@ int main(int argc, char** argv) {
   std::size_t timeouts = 0;
   std::size_t subtests_passed = 0;
   std::size_t subtests_total = 0;
+  int artifacts_written = 0;
   std::vector<RunningTest> running;
   std::vector<std::string> failure_report;
   microbrowser::wpt::SummaryAccumulator summary;
@@ -823,6 +891,7 @@ int main(int argc, char** argv) {
   // you look for one.
   std::vector<std::size_t> retry_queue;
   std::vector<int> retries_left(tests.size(), options.retries);
+  std::vector<bool> artifacts_counted(tests.size(), false);
 
   const auto finish = [&](std::size_t index, const Report& report) {
     const WptTest& test = tests[index];
@@ -900,7 +969,12 @@ int main(int argc, char** argv) {
       // first script error: ..." is computed, escaped, sent down the pipe and
       // thrown away, and a session diagnosing 86 timeouts has to rebuild the
       // runner to see it.
-      if (report.harness != "OK" && !report.harness_message.empty()) {
+      //
+      // A message on an *OK* harness is printed too, and only a reftest ever
+      // has one: it is how far inside its tolerance the pair landed, which is
+      // the one number that says whether a passing reftest is passing by a
+      // margin or by luck.
+      if (!report.harness_message.empty()) {
         std::printf("  %s: %s\n", report.harness.c_str(), report.harness_message.c_str());
       }
       // And every subtest that did not pass, with the message that says why.
@@ -993,14 +1067,22 @@ int main(int argc, char** argv) {
           (test.long_timeout ? options.long_timeout_ms : options.timeout_ms) *
               options.timeout_multiplier +
           kReportGraceMs;
+      // Decided here, in the parent, because the children cannot see each
+      // other's failures. A few over the limit is possible -- the children
+      // already in flight when the budget runs out still have the directory --
+      // and that is the right trade against a shared counter between processes.
+      const bool may_write_artifacts = test.kind == TestKind::Reftest &&
+                                       !options.reftest_artifacts_dir.empty() &&
+                                       artifacts_written < options.reftest_artifacts_limit;
       const pid_t pid = ::fork();
       if (pid == 0) {
         ::close(pipes[0]);
         const std::string url = origin + "/" + test.url_path;
         std::string report;
         if (test.kind == TestKind::Reftest) {
-          report = RunReftest(fonts, text, url, origin + "/" + test.reference,
-                              test.reference_mismatch, budget_ms);
+          report = RunReftest(fonts, text, test, url, origin + "/" + test.reference,
+                              may_write_artifacts ? options.reftest_artifacts_dir : std::string(),
+                              budget_ms);
         } else {
           report = RunTestharness(fonts, url, budget_ms);
         }
@@ -1033,6 +1115,7 @@ int main(int argc, char** argv) {
       // report and this produces a corpse.
       child.deadline = std::chrono::steady_clock::now() +
                        std::chrono::milliseconds(budget_ms + 5000);
+      child.may_write_artifacts = may_write_artifacts;
       running.push_back(std::move(child));
     }
 
@@ -1095,6 +1178,20 @@ int main(int argc, char** argv) {
         report.harness_message = "the test process exited without a report";
       } else {
         report = ParseReport(child.output, server.Ports());
+      }
+      // Once per test rather than once per run of it: a disagreeing result is
+      // re-run before it is believed, and the retry overwrites the same three
+      // files, so counting both spends the budget at half the tests it names.
+      if (child.may_write_artifacts && report.harness == "FAIL" &&
+          !artifacts_counted[child.index]) {
+        artifacts_counted[child.index] = true;
+        ++artifacts_written;
+        if (artifacts_written == options.reftest_artifacts_limit) {
+          std::fprintf(stderr,
+                       "\n%d reftest artifact sets written to %s; no more will be "
+                       "(--reftest-artifacts-limit)\n",
+                       artifacts_written, options.reftest_artifacts_dir.c_str());
+        }
       }
       finish(child.index, report);
       running.erase(running.begin() + static_cast<std::ptrdiff_t>(index));

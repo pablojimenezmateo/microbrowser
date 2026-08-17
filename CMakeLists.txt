@@ -699,6 +699,7 @@ add_executable(microbrowser_wpt
   tools/wpt/Handlers.cpp
   tools/wpt/TestList.cpp
   tools/wpt/Expectations.cpp
+  tools/wpt/Reftest.cpp
   tools/wpt/Summary.cpp)
 target_include_directories(microbrowser_wpt PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tools")
 target_compile_definitions(microbrowser_wpt PRIVATE
@@ -714,7 +715,13 @@ add_executable(microbrowser_tests
   tests/ArchitectureInvariantsTests.cpp
   tests/WptExpectationsTests.cpp
   tests/WptHandlerTests.cpp
+  tests/WptReftestTests.cpp
   tools/wpt/Expectations.cpp
+  # The fuzzy-tolerance transcription and the image comparison behind every
+  # reftest verdict, for the same reason Handlers.cpp is here: a rule this
+  # project got wrong would make 20,998 files' worth of results incomparable
+  # with Firefox's, and running the suite to find out takes a day.
+  tools/wpt/Reftest.cpp
   # The handler table itself, compiled into the test binary. It names nothing but its own header, so
   # this costs no dependency -- and until it was here the only way to exercise a transcription was to
   # run the whole suite, which is the better part of a day.
@@ -982,11 +989,14 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/wpt")
                    --wpt-root "${CMAKE_CURRENT_SOURCE_DIR}/third_party/wpt"
                    --expectations "${CMAKE_CURRENT_SOURCE_DIR}/tests/wpt/expectations"
                    --areas "${CMAKE_CURRENT_SOURCE_DIR}/tests/wpt/areas.txt"
-                   # Reftests are excluded until fuzzy matching exists (task F2
-                   # in docs/wpt-plan.md). Without a tolerance, an exact pixel
-                   # comparison against a reference rendered by the same
-                   # rasterizer says "different" for antialiasing noise, and a
-                   # suite whose failures are noise is one nobody reads.
+                   # Reftests are excluded until they have expectations (task
+                   # F9 in docs/wpt-plan.md), which is a different reason from
+                   # the one this line used to give. Fuzzy matching landed with
+                   # task F2 on 2026-08-17, so the comparison is no longer a
+                   # column of antialiasing noise -- but the expectation format
+                   # writes down only failures, so until reftest results are
+                   # recorded, gating on them would fail 20,998 tests that are
+                   # all "expected OK" by default.
                    --testharness-only)
   # A WPT run is minutes, not seconds. ctest's default 1500s cap would kill it
   # mid-run and report a timeout that says nothing about the browser.

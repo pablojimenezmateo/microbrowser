@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+#include "wpt/Reftest.h"
+
 namespace microbrowser::wpt {
 
 enum class TestKind {
@@ -20,6 +22,11 @@ struct WptTest {
   std::string reference;
   // `rel=mismatch`: the two must differ rather than match.
   bool reference_mismatch = false;
+  // Reftests only. `<meta name=fuzzy>`, already resolved against *this* test's
+  // reference -- an annotation scoped to a reference this test does not use is
+  // dropped here rather than carried to the comparison, so the runner has one
+  // tolerance and no matching to do.
+  FuzzyAllowance fuzzy;
   // `<meta name=timeout content=long>` or `// META: timeout=long`.
   bool long_timeout = false;
 };

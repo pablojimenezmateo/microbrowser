@@ -46,6 +46,7 @@ void RegisterFocusTests(std::vector<TestCase>& tests);
 void RegisterDomBindingsTests(std::vector<TestCase>& tests);
 void RegisterWptExpectationsTests(std::vector<TestCase>& tests);
 void RegisterWptHandlerTests(std::vector<TestCase>& tests);
+void RegisterWptReftestTests(std::vector<TestCase>& tests);
 void RegisterJsConformanceTests(std::vector<TestCase>& tests);
 void RegisterJsInterpreterTests(std::vector<TestCase>& tests);
 void RegisterJsLexerTests(std::vector<TestCase>& tests);
@@ -228,6 +229,7 @@ std::vector<TestCase> CollectTests() {
   microbrowser::tests::RegisterDomBindingsTests(tests);
   microbrowser::tests::RegisterWptExpectationsTests(tests);
   microbrowser::tests::RegisterWptHandlerTests(tests);
+  microbrowser::tests::RegisterWptReftestTests(tests);
   microbrowser::tests::RegisterJsConformanceTests(tests);
   microbrowser::tests::RegisterJsInterpreterTests(tests);
   microbrowser::tests::RegisterJsLexerTests(tests);

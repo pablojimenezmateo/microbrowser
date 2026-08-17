@@ -150,6 +150,32 @@ std::string ResolveReference(std::string_view test_path, std::string_view href) 
   return result;
 }
 
+// Picks the `<meta name=fuzzy>` that applies to the reference this test
+// actually uses.
+//
+// An unscoped annotation applies to every reference; a scoped one applies only
+// when its href resolves to the same document. Scoped wins, because a test that
+// wrote both meant the specific one -- and a scoped annotation naming a
+// reference this test does not use is not ours to apply.
+FuzzyAllowance ResolveFuzzy(const std::vector<FuzzyAnnotation>& annotations,
+                            std::string_view test_path, const std::string& reference) {
+  FuzzyAllowance allowance;
+  bool scoped = false;
+  for (const FuzzyAnnotation& annotation : annotations) {
+    if (annotation.reference.empty()) {
+      if (!scoped) {
+        allowance = annotation.allowance;
+      }
+      continue;
+    }
+    if (ResolveReference(test_path, annotation.reference) == reference) {
+      allowance = annotation.allowance;
+      scoped = true;
+    }
+  }
+  return allowance;
+}
+
 bool HasLongTimeout(std::string_view head) {
   const std::size_t position = head.find("name=\"timeout\"");
   const std::size_t alternate = head.find("name=timeout");
@@ -213,7 +239,9 @@ std::vector<std::string> ParseHtmlVariants(std::string_view head) {
 // Bumped when the walk's classification changes. The cache is keyed by the
 // checkout's HEAD, which does not move when this file does -- without a version
 // here, expanding HTML variants would keep serving the unsplit list.
-constexpr std::string_view kManifestVersion = "2";
+//
+// 3: reftests carry their `<meta name=fuzzy>` tolerance (plan task F2).
+constexpr std::string_view kManifestVersion = "3";
 
 std::filesystem::path CachePath(const std::string& wpt_root) {
   return std::filesystem::path(wpt_root) / ".microbrowser-manifest.tsv";
@@ -262,6 +290,9 @@ bool LoadCache(const std::string& wpt_root, const std::string& revision,
     test.reference = fields[2];
     test.reference_mismatch = fields[3] == "1";
     test.long_timeout = fields[4] == "1";
+    if (fields.size() > 5 && !fields[5].empty()) {
+      ParseFuzzyRanges(fields[5], &test.fuzzy);
+    }
     out.push_back(std::move(test));
   }
   return !out.empty();
@@ -277,7 +308,7 @@ void SaveCache(const std::string& wpt_root, const std::string& revision,
   for (const WptTest& test : tests) {
     stream << (test.kind == TestKind::Reftest ? "R" : "T") << '\t' << test.url_path << '\t'
            << test.reference << '\t' << (test.reference_mismatch ? '1' : '0') << '\t'
-           << (test.long_timeout ? '1' : '0') << '\n';
+           << (test.long_timeout ? '1' : '0') << '\t' << SerializeFuzzy(test.fuzzy) << '\n';
   }
 }
 
@@ -393,6 +424,11 @@ std::vector<WptTest> EnumerateTests(const std::string& wpt_root,
         test.kind = TestKind::Reftest;
         test.reference = ResolveReference(relative, reference);
         test.reference_mismatch = mismatch;
+        // Only the test's own head is read. Upstream's manifest also collects a
+        // fuzzy annotation from the *reference*; in the pinned checkout not one
+        // of the 657 files carrying one is a reference, so reading them would
+        // double the walk's file reads to find nothing.
+        test.fuzzy = ResolveFuzzy(ParseFuzzy(head), relative, test.reference);
         AppendVariants(test, ParseHtmlVariants(head), all);
       }
     }
