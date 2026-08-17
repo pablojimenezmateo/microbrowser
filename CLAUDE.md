@@ -159,6 +159,15 @@ days without either seeing the other, so several things were built twice. What s
   closing note): *re-record every area a merge touched, not just the ones its branch named.*
 
 
+**Superseded 2026-08-17 — the table below was ranked by tests-blocked, which was the best signal
+available then and is not the ranking now.** The current one is `docs/wpt-firefox-gap.md` and the
+plan's §2 "The order", ranked by test files Firefox passes and we do not. It reorders the
+milestones almost end for end (M-F and M-H first at 3,527 and 2,851 files; M-C and M-D, which four
+of the last five sessions worked, seventh and eighth), and **gate 0 comes before all of it**: F2
+then F9, because 20,998 reftest files — 48% of the suite — are in no number this project quotes.
+Two of the four rows below have since landed. Keep the table for the caveats under it, which still
+hold.
+
 **What is actually blocking the WPT score, ranked, measured 2026-08-12.** 8,417 tests report *no
 subtests at all* — the harness never reached `done()`, so none of them is visible in the pass rate.
 That bucket is the score, and it is three projects rather than a long tail:
