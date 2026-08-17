@@ -501,10 +501,12 @@ nothing at all.
 Ranking by files made these visible; each gates far more than its own task.
 
 - **H9, an https origin in the harness.** 612 gap files carry `.https.` in the
-  name and cannot run at all without one; `upgrade-insecure-requests/` is 99
-  more, every one of them; `fetch/metadata/` is 66 (A2's triage named it as gate
-  2 of 3); and it is one of three gates on H8's 1,330. **~2,000 files behind one
-  self-signed certificate**, and it was filed as a harness chore with no target.
+  name and cannot run at all without one; all 99 of `upgrade-insecure-requests/`
+  are among them; `fetch/metadata/` adds 66 (A2's triage named it as gate 2 of
+  3). **644 files behind one self-signed certificate**, before counting H8's
+  1,330, which it also gates. It was filed as a harness chore with no target —
+  and, having no `area`, it carries no `firefox_gap` and would sort as *zero* in
+  a ranking by files. That is what `firefox_gap_unblocks` is for.
 - **J1b, same-origin iframes** (in progress). Gates O3 (520 files, the largest
   task in M-O), H8's generated tests, J2 and G6.
 - **A2, the remaining `.py` handlers** (in progress). Gates the

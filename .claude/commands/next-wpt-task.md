@@ -34,6 +34,11 @@ In this order:
 
 Take the task with the **highest `firefox_gap.files`** whose `status` is `not_started`, subject to:
 
+- **A task with no `area` has no `firefox_gap` and would sort as zero.** Rank it by
+  `firefox_gap_unblocks.files` instead, against the same list. H9 is the case that matters: an
+  https origin in the harness, no area, no target, and 644 files that cannot run at all without it
+  — plus one of three gates on H8's 1,330. It would never be picked by files alone.
+
 - **Gate 0 first.** If F2, F9 or B6 is unclaimed, take it before anything else. Until F9 lands,
   20,998 reftest files — 48% of the suite — are in no number this project quotes, and the ranking
   below them is a floor rather than a measurement.
