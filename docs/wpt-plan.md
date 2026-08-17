@@ -214,6 +214,13 @@ several things at once:
 
 ### The loop, for one task
 
+`/next-wpt-task` is this section as a command: it picks by rank, claims, checks
+the gate and the dependencies, and stops after one task. `tools/agent-loop.sh -c
+/next-wpt-task -n 5` runs five of them, each in a fresh process. **`/next-session`
+is a different command reading a different ledger** (`docs/roadmap-sessions.json`,
+sequenced by which page it unblocks); the two disagree on purpose and this
+document supersedes it, as §0 says.
+
 ```bash
 tools/wpt/fetch.sh                                  # once per machine
 ./build/microbrowser/microbrowser_wpt --list css/css-flexbox/ | wc -l
@@ -255,9 +262,27 @@ message.
 
 ### Claiming a task
 
-`docs/wpt-tasks.json` is the state. Set `status: "in_progress"` and `agent` to
-something identifying, commit *that alone*, and push before starting. A conflict
-on that one-line commit is the cheapest possible collision.
+`docs/wpt-tasks.json` is the state. Set `status: "in_progress"`, `agent` to
+something identifying, and `claimed` to today's date; commit *that alone*, and
+push before starting. A conflict on that one-line commit is the cheapest
+possible collision.
+
+**And releasing one, which had no rule until 2026-08-17.** A session that ends
+without finishing leaves its task `in_progress` forever, and the next agent —
+correctly following the paragraph above — skips it. Seven tasks were in that
+state on 2026-08-17, including J1b (549 files, #6 in the order) and G5 (which
+gates F6b's 1,921). Four of them had no claim commit at all, so there was not
+even a date to judge them by.
+
+**A claim is stale when no commit has touched its area since the claim, or when
+the claim is more than three days old and the task is not the one you are
+currently reading a commit from.** A stale claim may be re-taken. Say so in the
+claiming commit — "re-taking D4, claimed 2026-08-16, last commit in
+`css/cssom-view` 2026-08-16, target not reached" — so the original agent, if it
+does come back, can see what happened rather than hitting a conflict.
+
+`claimed` is now a field. An `in_progress` task without one is stale by
+definition: nobody recorded when it started, so nobody can tell whether it is.
 
 ---
 

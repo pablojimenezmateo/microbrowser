@@ -837,8 +837,14 @@ lowest unfinished session, implements it, runs its check, commits, records what 
 `docs/session-log.md`, and stops.
 
 ```bash
-tools/agent-loop.sh -n 5    # five sessions, each in a brand-new agent process
+tools/agent-loop.sh -n 5                      # five roadmap sessions, each a fresh process
+tools/agent-loop.sh -c /next-wpt-task -n 5    # five WPT tasks, ranked by the Firefox gap
 ```
+
+**Two ledgers, and picking the wrong command works silently.** `/next-session` reads
+`docs/roadmap-sessions.json` and sequences by which page a session unblocks; `/next-wpt-task` reads
+`docs/wpt-tasks.json` and ranks by test files Firefox passes and we do not. "Continue with the WPT
+work" means the second one. `docs/wpt-plan.md` supersedes the roadmap wherever the two disagree.
 
 The process boundary is the point: a long conversation fills with the debris of work already
 committed and starts reasoning about its own transcript instead of the repository. Each iteration
