@@ -83,7 +83,8 @@ constexpr const char* kUsage =
     "  --wpt-root DIR        checkout to run (default third_party/wpt)\n"
     "  --expectations DIR    expectation files (default tests/wpt/expectations)\n"
     "  --areas FILE          run the path prefixes listed in FILE, one per line\n"
-    "  --jobs N              tests in flight at once (default: half the cores)\n"
+    "  --jobs N              tests in flight at once (default: half the cores). Raising\n"
+    "                        it deletes subtests from a CPU-bound area; see the source\n"
     "  --timeout MS          per test, before it is killed (default 10000)\n"
     "  --retries N           re-runs of a result that disagrees (default 1)\n"
     "  --timeout-multiplier N  scale every deadline; use it on a slow build\n"
@@ -871,6 +872,34 @@ int main(int argc, char** argv) {
 
   int jobs = options.jobs;
   if (jobs <= 0) {
+    // **Half the cores, and the temptation to raise it is a trap with a
+    // measurement attached.** A WPT run looks like it should scale far past the
+    // core count: 6,930 of the suite's 23,146 tests are expected to TIMEOUT,
+    // and a test that times out is a browser sitting in `poll`. On a
+    // timeout-heavy area that is exactly true -- `websockets/` (702 tests) on a
+    // 24-core machine went 461.9s wall at 12 jobs to 120.5s at 64, with CPU
+    // flat at ~230s.
+    //
+    // On a CPU-bound area it is catastrophic, and quietly.
+    // `encoding/legacy-mb-japanese/` (482 tests), same machine:
+    //
+    //     jobs=12   104.2s wall   605.0s cpu   441,614 subtests    18 timeouts
+    //     jobs=64    60.6s wall   106.9s cpu    32,929 subtests   447 timeouts
+    //
+    // Twice as fast, and it reports **100.0% passing** against 97.8%. It is not
+    // faster and it is not passing: 408,685 subtests were deleted from the
+    // measurement. testharness.js gives up after ten seconds of *wall clock*,
+    // so oversubscription turns a test that would report into one that dies
+    // before `done()` -- and a test that dies early contributes zero subtests
+    // to our denominator, which makes the pass rate go **up** as the run gets
+    // worse. (The 441,614 matches the 447,722 docs/wpt-plan.md quotes for that
+    // directory independently; 12 is the honest number.)
+    //
+    // This is the `--long-timeout` bug of 2026-08-16 in a new costume, and the
+    // rule from it holds here: **compare the subtest count against the previous
+    // record before believing a re-record.** `--jobs` is a flag; raise it by
+    // hand for an interactive run over an area you know is timeout-bound, and
+    // never for one that writes expectations.
     const long cores = ::sysconf(_SC_NPROCESSORS_ONLN);
     jobs = static_cast<int>(std::max<long>(1, cores / 2));
   }
