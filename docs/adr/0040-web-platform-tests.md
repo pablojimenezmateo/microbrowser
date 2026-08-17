@@ -204,6 +204,20 @@ the same rasterizer calls antialiasing noise a difference; a suite whose
 failures are noise is one nobody reads. `ctest` already excludes them for the
 same reason.
 
+**Amended 2026-08-17 — the tolerance exists (task F2), and the exclusion now has
+a different reason.** `<meta name=fuzzy>` is read by `tools/wpt/TestList.cpp` and
+applied by `tools/wpt/Reftest.cpp`, whose pass rule is a transcription of
+wptrunner's `RefTestExecutor.is_pass` — invented tolerances would make our
+numbers incomparable with Firefox's, which is the whole point of
+`docs/wpt-firefox-gap.md`. 686 of the enumerated reftests carry one; six of them
+pass on it today, two with a *non-zero floor* (`63-64;100-200`) that an exact
+comparison could never satisfy. A failing reftest can now leave
+`<stem>.{test,ref,diff}.ppm` beside each other with `--reftest-artifacts DIR`,
+bounded by `--reftest-artifacts-limit` because 20,998 files × three 1.4MB images
+is 90GB. What remains excluded is *recording* them, which is task F9: the
+expectation format writes down only failures, so a reftest nobody ran and a
+reftest that passed are still the same silence.
+
 **The build the expectations came from is part of the expectations.** A page
 that has not reported inside testharness.js's own ten seconds is a `TIMEOUT`
 whatever the reason, and the Debug build is four to seven times slower than the

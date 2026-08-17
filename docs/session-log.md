@@ -6694,3 +6694,82 @@ up, so the gate comes first and layout may well turn out to be first after it.
 milestone.** The two extremes are one milestone apart -- `html/canvas/element/`
 at 19 blocked of 731, where feature code moves the number today, and
 `referrer-policy/` at 1,083 of 1,330, where it moves nothing at all.
+
+## F2 — a reftest gets a tolerance and a picture · 2026-08-17
+
+**Status:** done
+
+**Check:** the task's check is "a reftest with a fuzzy annotation passes within
+its tolerance and a failing one leaves three files". Both halves, run:
+
+```
+$ microbrowser_wpt --reftests-only --list | grep -c 'fuzzy='
+686
+$ microbrowser_wpt --reftests-only --verbose --retries 0 $(the 686)
+199 ok, 485 unexpected
+  ok  css/css-transforms/ttwf-transform-skewx-001.html
+      OK: 200 pixels differ, worst channel 64; within 63-64;100-200
+  ok  css/css-images/image-orientation/image-orientation-none-content-images.html
+      OK: 35 pixels differ, worst channel 2; within 0-5;0-150
+  ... four more
+$ microbrowser_wpt --reftests-only --reftest-artifacts DIR css/CSS2/backgrounds/
+265 unexpected results; 33 sets = 99 files, 137MB
+```
+
+**Landed:**
+
+- *A bound function keeps its target's name, which a silent refused Set had dropped*
+- *Keep the string a WPT handler parses an int out of alive while it parses it*
+- *Give a reftest a tolerance and a picture of what it disagreed about (task F2)*
+- *Make the ubsan preset build again, which one UTF-8 shift had stopped*
+
+**Left:** F9 is startable and is the top of gate 0. Nothing else in F2 is
+outstanding. The expectation diff of this session is **empty**, deliberately:
+reftests are not recorded until F9, so nothing in `tests/wpt/expectations/`
+could move. `ctest`'s `--testharness-only` line stays, with its comment now
+naming F9 as the reason rather than F2.
+
+**Found — three things, and the first is the one worth carrying:**
+
+**The tolerance was not what was failing these tests.** Six of 686 annotated
+reftests pass because of their annotation. The plan predicted this in words
+("F9 is not expected to produce a large pass count") and it is now measured, so
+the next session should not read F9 as a source of passes. What fuzzy matching
+bought is that the *failures* are now readable, and that is worth more: the
+first three images this ever produced, on
+`css/CSS2/backgrounds/background-003.xht`, show the reference's green stripe
+missing from the test entirely. A paint bug, told from an antialiasing
+difference in one second by looking at it, where the pixel count (205,040 on the
+neighbouring `background-root-014a.xht`) says only "different".
+
+**Two of the six pass on a *floor*, and that is why the rule is a
+transcription rather than a reading of it.** `ttwf-transform-skewx-001` is
+annotated `63-64;100-200` — an author saying "this pair differs by about 200
+pixels at about 64 levels, and if it does not, something changed". A naive
+"within the maximum" reading admits it; wptrunner's actual rule also has two
+escape hatches for a pair that matched *exactly*, which look redundant and are
+not: a tolerance records what one engine needed, and another engine getting the
+pair perfect must not be a failure. Both are in
+`tests/WptReftestTests.cpp` with that argument attached, because a transcription
+is exactly the kind of code that reads correct and is not.
+
+**The tree was broken in three ways when this session started, and two of them
+were invisible.** `microbrowser_tests` had one failure
+(`BindFixesTheReceiverAndPrependsArguments`); `run-checks.sh asan` had a
+stack-use-after-scope in `tools/wpt/Handlers.cpp`, firing in three shards at
+once; and `run-checks.sh ubsan` did not compile at all — `-Wsign-conversion
+-Werror` is set by that preset alone, so a `<< 6` on a promoted `int` had stopped
+it at the compile and it had therefore never run a test. All three are fixed
+here. The `bind` one is the instructive one: `NewNative` was changed to define
+`name` as non-writable (own, non-enumerable, non-writable is what a function's
+`name` is, and idlharness checks all three), and `bind` then set the bound name
+with `Set` — which a non-writable property **refuses without saying so**. Every
+bound function in this browser was called `"bound"`. SetFunctionName is a define
+in the specification for exactly this reason, and this is the second time in
+this repository that a silently-refused write has looked like a missing feature.
+
+**A note for whoever runs `tools/run-checks.sh asan` next:** it includes the
+whole WPT gate as its 25th ctest test, under a sanitizer build with
+`--timeout-multiplier 6`. That is hours. The unit shards alone are
+`ctest --test-dir build/microbrowser-asan -E microbrowser_wpt`, which is 44
+seconds and is what a change to `src/` or `tools/` actually needs.

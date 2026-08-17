@@ -165,6 +165,8 @@ plan's §2 "The order", ranked by test files Firefox passes and we do not. It re
 milestones almost end for end (M-F and M-H first at 3,527 and 2,851 files; M-C and M-D, which four
 of the last five sessions worked, seventh and eighth), and **gate 0 comes before all of it**: F2
 then F9, because 20,998 reftest files — 48% of the suite — are in no number this project quotes.
+**F2 landed 2026-08-17, so F9 is the top of gate 0 now**; see the reftest paragraph in the
+web-platform-tests section below for what the tolerance turned out to be worth.
 Two of the four rows below have since landed. Keep the table for the caveats under it, which still
 hold.
 
@@ -754,6 +756,20 @@ harness never reported at all**, and 17,961 are reftests that no number in this 
 mentions (task F9). Then `docs/adr/0040-web-platform-tests.md` before touching `tools/wpt/`, and
 `docs/wpt-plan.md` before deciding what to work on — it is ranked by `firefox_gap.files` now, and
 so is `docs/wpt-tasks.json`.
+
+**A reftest has a tolerance and can leave a picture (task F2, 2026-08-17), and the picture is the
+half that matters.** `<meta name=fuzzy>` is read at enumeration time and applied by a transcription
+of wptrunner's own rule — not an invented one, because the whole point of the gap document is that
+our numbers are comparable with Firefox's. 686 enumerated reftests carry an annotation and **six**
+pass on it, which is the size of the effect and the reason not to read F9 as a source of passes.
+What it bought is `--reftest-artifacts DIR`, which writes `<stem>.{test,ref,diff}.ppm` for each
+failure — the reference washed out with every differing pixel painted yellow at one level and red
+at 255. **Use it before writing layout code for a reftest area.** The first three images it ever
+produced showed `css/CSS2/backgrounds/background-003.xht` missing the reference's green stripe
+entirely: a paint bug, told apart from an antialiasing difference by eye in one second, where the
+pixel count says only "different". Opt-in and bounded (`--reftest-artifacts-limit`, default 64),
+because three 1.4MB images over a full reftest run is 90GB. A *passing* reftest reports how much
+room it had left, under `--verbose`.
 
 ```bash
 python3 tools/wpt/firefox-gap.py --cache /tmp/firefox-wpt-summary.json  # regenerate the ranking

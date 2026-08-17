@@ -1074,10 +1074,10 @@
       "check": "A reftest with a fuzzy annotation passes within its tolerance and a failing one leaves three files.",
       "depends": [],
       "target": "",
-      "status": "in_progress",
+      "status": "done",
       "agent": "wpt-f2",
       "adr": "0040",
-      "notes": "Blocks every reftest-heavy layout task -- without it M-E's numbers are noise.",
+      "notes": "**Done 2026-08-17.** `<meta name=fuzzy>` is read at enumeration time (tools/wpt/TestList.cpp, manifest cache version 3) and resolved against the reference the test actually uses, so the runner carries one tolerance and does no matching. The pass rule is tools/wpt/Reftest.cpp, a transcription of wptrunner's RefTestExecutor.is_pass including its two escape hatches for an exact match -- an invented tolerance would make our numbers incomparable with Firefox's, which is the whole point of docs/wpt-firefox-gap.md. `--reftest-artifacts DIR` writes <stem>.{test,ref,diff}.ppm per failure, bounded by --reftest-artifacts-limit (default 64) because 20,998 files x three 1.4MB images is 90GB.\n\nCheck, run: 686 enumerated reftests carry an annotation; running all of them gave 199 OK and 485 unexpected, and **six** of the 199 passed on the tolerance rather than exactly -- two of those (css/css-transforms/ttwf-transform-skew*) at `63-64;100-200`, a floor no exact comparison could satisfy. A failing one leaves three files: verified on css/CSS2/backgrounds/, 33 sets written, and the first showed background-003.xht missing the reference's green stripe entirely.\n\n**The tolerance is not what was failing these tests**, and the next session should not expect F9 to find passes: six files of 686 is the size of the effect. What F2 bought is that a reftest failure is now readable.",
       "firefox_gap_unblocks": {
         "files": 17961,
         "why": "the same 17,961, because F9 without a fuzzy tolerance and a diff image records noise rather than a measurement"

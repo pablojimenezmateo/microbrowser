@@ -850,7 +850,7 @@ in these areas failing for a *harness* reason.
 | id | task | depends on | target |
 |---|---|---|---|
 | F1 | `background` on inline boxes (a known old.reddit gap), `background-clip`/`origin`/`repeat` in full | — | `css-backgrounds` 70% |
-| F2 | **Harness:** fuzzy reftests (`<meta name=fuzzy>`), and a reftest failure that writes both PPMs and a diff next to each other | — | reftests trustworthy |
+| F2 | **Harness:** fuzzy reftests (`<meta name=fuzzy>`), and a reftest failure that writes both PPMs and a diff next to each other | — | **done 2026-08-17** |
 | F3 | `css/css-color/` — `color()`, `lab()`/`lch()`/`oklab()`, `color-mix()`, and the serialization rules | — | 60% |
 | F4 | Gradients — `linear-gradient` interpolation, `repeating-*`, `conic-gradient` | F2 | `css-images` 60% |
 | F5 | `css/css-transforms/` — 3D transforms, `perspective`, `transform-style`, and what a stacking context does to them | F2 | 60% |
@@ -888,6 +888,28 @@ and a diff image beside each failure, a 304-pixel difference and a
 anti-aliasing tolerance from a missing feature. F9 is not expected to produce a
 large pass count. It is expected to stop this project quoting a rate over half
 of its own suite.
+
+**F2 landed 2026-08-17. F9 is startable and is the top of gate 0 now.** The
+tolerance is `tools/wpt/Reftest.cpp`, transcribed from wptrunner rather than
+invented; 686 enumerated reftests carry a `<meta name=fuzzy>` and six pass on
+it. Three things the next session should take from it before recording anything:
+
+- **The tolerance is not what is failing these tests.** Running all 686
+  fuzzy-annotated reftests: 199 OK, 485 unexpected, and only **six** of the 199
+  needed the tolerance at all. Fuzzy matching was a precondition for the
+  measurement being honest, not a source of passes, exactly as this section
+  said. Do not expect F9 to find more.
+- **`--reftest-artifacts DIR` is how to read a reftest failure**, and it is
+  worth using before writing any layout code. The first three images this ever
+  produced (`css/CSS2/backgrounds/background-003.xht`) showed the reference's
+  green stripe missing from the test in one second — a paint bug, not a
+  tolerance. It is opt-in and bounded (`--reftest-artifacts-limit`, default 64)
+  because a full reftest run at three 1.4MB PPMs each is 90GB.
+- **A passing reftest now says how much room it had left**, in its harness
+  message under `--verbose`: `35 pixels differ, worst channel 2; within
+  0-5;0-150`. A reftest passing by one pixel of its tolerance and one passing
+  exactly are different facts about the renderer, and only one of them survives
+  the next change to it.
 
 **Exit:** `css-backgrounds` ≥ 70%, `css-transforms` ≥ 60%, fuzzy reftests
 supported.
