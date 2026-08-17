@@ -738,6 +738,13 @@ add_executable(microbrowser_tests
   # find that out is the better part of a day.
   tools/wpt/Certificate.cpp
   tests/WptCertificateTests.cpp
+  # The server, for its substitution table -- `/common/get-host-info.sub.js` is
+  # one of these files and almost every cross-origin test reads its origins from
+  # it, so a wrong answer here is not a failing test but a test that asks its
+  # question of the wrong server. It had no test at all until an https origin
+  # needed two more entries in the table.
+  tools/wpt/Server.cpp
+  tests/WptServerTests.cpp
   # The summary state file, which is the memory of a sharded baseline: every
   # number docs/wpt-baseline.md gives for an area a run did not touch comes from
   # it. Checking that by taking a baseline costs hours.
