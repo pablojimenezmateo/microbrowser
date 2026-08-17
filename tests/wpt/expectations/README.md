@@ -41,11 +41,36 @@ TIMEOUT=Adopting an orphan
 FAIL=Referrer Policy: expects full referrer
 ```
 
+## Reftests
+
+A reftest renders two pages and compares the pixels, so it has no subtests: its
+whole result is one `harness=FAIL` line, or nothing at all when it agreed with
+its reference. **13,604 of them were recorded on 2026-08-17** (plan task F9);
+before that day nothing had ever written a reftest result down, so a reftest that
+passed and a reftest nobody ran were the same silence and every number this
+project quoted covered 52% of its own suite.
+
+Three things follow from having them here:
+
+- **Absence means PASS for a reftest too**, and that reading is only sound
+  because the *whole* reftest suite was recorded in one run — 20,998 files in
+  105 seconds. Re-record all of them, not a directory, if that ever stops being
+  true.
+- **`ctest` does not compare them yet** (task F10). Eight of the 20,998 are
+  intermittent across two runs of the same binary — seven `@font-face` tests
+  whose font this browser never loads, and one animation — and a gate that is a
+  coin toss is worse than one that does not run. `microbrowser_wpt
+  --reftests-only` is the check, and it takes two minutes.
+- **`--reftest-artifacts DIR` is how to read one.** A `harness=FAIL` line says
+  how many pixels differed, which cannot tell an antialiasing tolerance from a
+  missing feature; the three PPMs it writes can, by eye, in one second.
+
 ## Working with them
 
 ```bash
 ./build/microbrowser/microbrowser_wpt dom/                     # check
 ./build/microbrowser/microbrowser_wpt --update-expectations dom/   # record
+./build/microbrowser/microbrowser_wpt --reftests-only css/CSS2/    # the pixel half
 git diff tests/wpt/expectations/                               # the session
 ```
 

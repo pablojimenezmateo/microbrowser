@@ -22,6 +22,8 @@ FAIL=Not in containing block and not intersecting.
 harness=TIMEOUT
 [intersection-observer/cross-origin-iframe.sub.html]
 harness=TIMEOUT
+[intersection-observer/cross-origin-tall-iframe-rendering.sub.html]
+harness=FAIL
 [intersection-observer/cross-origin-tall-iframe.sub.html]
 harness=TIMEOUT
 [intersection-observer/disconnect.html]

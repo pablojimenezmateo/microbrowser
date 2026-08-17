@@ -746,6 +746,10 @@ FAIL=ElementInternals.form should throws NotSupportedError if the target element
 FAIL=ElementInternals.labels should throw NotSupportedError if the target element is not a form-associated custom element
 FAIL=LABEL association
 FAIL=LABEL click
+[custom-elements/form-associated/ElementInternals-reportValidity-bubble.html]
+harness=FAIL
+[custom-elements/form-associated/ElementInternals-reportValidity-delegatesFocus.html]
+harness=FAIL
 [custom-elements/form-associated/ElementInternals-setFormValue-nullish-value.html]
 FAIL=ElementInternals.setFormValue(null) clears submission value
 FAIL=ElementInternals.setFormValue(undefined) clears submission value
@@ -858,6 +862,8 @@ FAIL=HTML parser must perform a microtask checkpoint before constructing a custo
 FAIL=HTML parser must perform a microtask checkpoint before constructing a custom element during the adoption agency algorithm
 [custom-elements/pseudo-class-defined-customized-builtins.html]
 harness=TIMEOUT
+[custom-elements/pseudo-class-defined-print.html]
+harness=FAIL
 [custom-elements/pseudo-class-defined.html]
 harness=TIMEOUT
 [custom-elements/range-and-constructors.html]

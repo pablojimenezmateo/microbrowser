@@ -2011,6 +2011,8 @@ harness=TIMEOUT
 FAIL=Mixed HTML/SVG/MathML tree with various mixed-case attributes
 [dom/nodes/remove-and-adopt-thcrash.html]
 FAIL=Check that removing a node and then adopting its parent into a different window/document doesn't crash.
+[dom/nodes/remove-from-shadow-host-and-adopt-into-iframe.html]
+harness=FAIL
 [dom/nodes/remove-next-sibling-during-replace-with.html]
 FAIL=remove-next-sibling-during-replace-with
 # **`Observable` is refused, and every failure under dom/observable/ below is
@@ -4068,6 +4070,8 @@ FAIL=Event order: OpaqueRange updates between beforeinput and input (textarea).
 [dom/ranges/tentative/OpaqueRange-validation.html]
 FAIL=createValueRange handles all range types correctly: forward, backwards, and out-of-bounds.
 FAIL=createValueRange throws IndexSizeError for out-of-bounds offsets.
+[dom/slot-recalc.html]
+harness=FAIL
 [dom/traversal/NodeIterator-removal-during-filtering.html]
 FAIL=Removing an ancestor of the in-flight position during filtering, pointer before it, with no following node within root
 FAIL=Removing the accepted node during its own filtering retargets the reference and returns the filtered node

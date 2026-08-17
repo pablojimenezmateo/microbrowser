@@ -12,7 +12,11 @@
 # add several thousand tests to the gate before anyone has looked at them.
 #
 # Reftests are excluded by `--testharness-only` in the ctest registration, not
-# here -- 20,923 of them, until fuzzy matching exists (plan task F2).
+# here. All 20,998 of them have committed expectations as of 2026-08-17 (plan
+# task F9); what still keeps them out of the gate is eight intermittents, and
+# CMakeLists.txt is where that is written down. `microbrowser_wpt
+# --reftests-only` runs the whole pixel half in about two minutes and is not
+# limited by this file.
 #
 # Where each area actually stands is `docs/wpt-baseline.md`, which is generated
 # by the run that measured it.

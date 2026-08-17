@@ -32,6 +32,8 @@ FAIL=Tests that XML and CSS attributeTypes can be switched between.
 FAIL=Tests animation on 'currentColor'.
 [svg/animations/animate-currentcolor-in-visited-link.html]
 harness=TIMEOUT
+[svg/animations/animate-display-to-none-001.html]
+harness=FAIL
 [svg/animations/animate-dynamic-update-attributeName.html]
 FAIL=Test behavior on dynamic-update of attributeName
 [svg/animations/animate-elem-02-t-drt.html]
@@ -52,6 +54,8 @@ FAIL=A copy of the corresponding W3C-SVG-1.1 test, which dumps the animation at 
 FAIL=Tests end conditions are respected properly near the limits of float numeric precision
 [svg/animations/animate-fill-freeze-with-repeatDur.html]
 FAIL=Test for animation freeze when repeatDur is not a multiple of dur
+[svg/animations/animate-fill-underlying-value-change.html]
+harness=FAIL
 [svg/animations/animate-from-to-keyTimes.html]
 FAIL=Tests discrete from-to-keyTimes animations
 [svg/animations/animate-gradient-transform.html]
@@ -216,6 +220,8 @@ FAIL=This tests scripting a CSS property while animation is running
 FAIL=This tests scripting a CSS property while animation is running
 [svg/animations/change-target-while-animating-SVG-property.html]
 FAIL=This changes the target of an animation while its running
+[svg/animations/conditional-processing-01.html]
+harness=FAIL
 [svg/animations/conditional-processing-02.html]
 FAIL=beginEvent does not fire when ancestor fails conditional processing
 [svg/animations/correct-events-for-short-animations-with-syncbases.html]
@@ -255,10 +261,16 @@ FAIL=This test forces use shadow tree recreation while an animating is running
 harness=TIMEOUT
 [svg/animations/invalid-attribute-type-does-not-block-begin-event.html]
 harness=TIMEOUT
+[svg/animations/invalid-attribute-type-does-not-block-other-animations.html]
+harness=FAIL
+[svg/animations/invalid-attribute-type-does-not-block-same-group-animation.html]
+harness=FAIL
 [svg/animations/keysplines-x-limits.html]
 FAIL='keySplines' with x-values outside of the 0 to 1 range
 [svg/animations/keysplines-y-limits.html]
 FAIL='keySplines' with y-values outside of the 0 to 1 range
+[svg/animations/media-fragment-override-animation.html]
+harness=FAIL
 [svg/animations/multiple-animations-ending.html]
 FAIL=This checks the effect on multiple animations ending on one target
 [svg/animations/multiple-animations-fill-freeze.html]
@@ -347,6 +359,10 @@ FAIL=Seeking forwards to a new interval dispatches both 'endEvent' and 'beginEve
 FAIL=Seeking backwards to a new interval dispatches both 'endEvent' and 'beginEvent'
 [svg/animations/seeking-to-large-time.html]
 FAIL=SVGSVGElement.prototype.setCurrentTime: Large time argument
+[svg/animations/set-animation-end-1.html]
+harness=FAIL
+[svg/animations/set-animation-end-2.html]
+harness=FAIL
 [svg/animations/set-dynamic-attributeName-css-property-cleanup.html]
 FAIL=Changing attributeName on set element clears old animated CSS property
 [svg/animations/short-simple-duration-and-fractional-repeatcount.html]
@@ -359,6 +375,8 @@ FAIL=Check correct event bases for onclick
 harness=ERROR
 [svg/animations/smil-values-trailing-semicolon.html]
 FAIL=Trailing semicolons in SMIL values attribute should produce valid path
+[svg/animations/stop-animation-01.html]
+harness=FAIL
 [svg/animations/svgangle-animation-deg-to-grad.html]
 FAIL=Tests SVGAngle animation from deg to grad.
 [svg/animations/svgangle-animation-deg-to-rad.html]
@@ -573,6 +591,10 @@ FAIL=Test SVGTransformList animation with invalid values: String value in transf
 FAIL=Test SVGTransformList animation with invalid values: String value in transform list values for from and to attributes.
 [svg/animations/svgtransformlist-animation-invalid-value-3.html]
 FAIL=Test SVGTransformList animation with invalid values: String value in transform list values for from and to attributes.
+[svg/animations/switch-animation-01.html]
+harness=FAIL
+[svg/animations/switch-animation-02.html]
+harness=FAIL
 [svg/animations/syncbase-escaped-dots.html]
 FAIL=Multiple escaped dots in syncbase ID (begin="a\.b\.c.begin")
 FAIL=Single escaped dot in syncbase ID (begin="my\.anim.begin")
@@ -580,6 +602,12 @@ FAIL=Single escaped dot in syncbase ID (begin="my\.anim.begin")
 FAIL=Remove/Add syncbase while animation is running
 [svg/animations/syncbases-with-tangled-dependencies.html]
 FAIL=Syncbases with tangled dependencies
+[svg/animations/use-animate-display-none-symbol-2.html]
+harness=FAIL
+[svg/animations/use-animate-display-none-symbol.html]
+harness=FAIL
+[svg/as-image/external-resource-inline-sheet.html]
+harness=FAIL
 [svg/coordinate-systems/SVGTransformList.consolidate-01.html]
 FAIL=SVGTransformList.prototype.consolidate, consolidates
 FAIL=SVGTransformList.prototype.consolidate, returns null for empty transform list
@@ -604,6 +632,8 @@ FAIL=SVGTransformList interface, appendItem() with SVGTransform that already exi
 FAIL=SVGTransformList interface, initialize() with SVGTransform that already exist in a list
 FAIL=SVGTransformList interface, insertItemBefore() with SVGTransform that already exist in a list
 FAIL=SVGTransformList interface, replaceItem() with SVGTransform that already exist in a list
+[svg/coordinate-systems/out-of-flow-svg-root.html]
+harness=FAIL
 [svg/coordinate-systems/outer-svg-intrinsic-size-001.html]
 FAIL=adding specified height, in presence of specified viewBox
 FAIL=adding specified width, in presence of specified viewBox
@@ -622,23 +652,83 @@ FAIL=specified width and height
 FAIL=specified width and modified specified height
 [svg/coordinate-systems/outer-svg-intrinsic-size-002.html]
 harness=TIMEOUT
+[svg/coordinate-systems/outer-svg-intrinsic-size-003.html]
+harness=FAIL
+[svg/coordinate-systems/outer-svg-intrinsic-size-004.html]
+harness=FAIL
+[svg/coordinate-systems/outer-svg-intrinsic-size-005.html]
+harness=FAIL
 [svg/coordinate-systems/svgtransformlist-replaceitem.html]
 FAIL=Dynamic update of transform; replaceItem()
 [svg/coordinate-systems/transform-translate-single-parameter.html]
 FAIL=Dynamic update of transform; setAttribute()
+[svg/coordinate-systems/view-transform-viewBox.html]
+harness=FAIL
+[svg/coordinate-systems/viewBox-baseVal-change-invalid.html]
+harness=FAIL
 [svg/coordinate-systems/viewBox-invalid-attribute-baseval.tentative.html]
 FAIL=invalid (negative-width) viewBox attribute exposes baseVal {0, 0, 0, 0}
+[svg/coordinate-systems/viewBox-synthesized-in-img-001.tentative.html]
+harness=FAIL
+[svg/coordinate-systems/viewBox-zero-disables-rendering-001.svg]
+harness=FAIL
+[svg/coordinate-systems/viewBox-zero-disables-rendering-002.svg]
+harness=FAIL
+[svg/coordinate-systems/viewBox-zero-disables-rendering-003.svg]
+harness=FAIL
+[svg/coordinate-systems/viewBox-zero-disables-rendering-contexts.html]
+harness=FAIL
+[svg/coordinate-systems/viewBox-zero-disables-rendering-marker.svg]
+harness=FAIL
+[svg/coordinate-systems/viewBox-zero-disables-rendering-pattern.svg]
+harness=FAIL
+[svg/coordinate-systems/viewBox-zero-disables-rendering-symbol.svg]
+harness=FAIL
 [svg/embedded/attr-image-fetchpriority.optional.html]
 FAIL=default fetchpriority attribute on <image> elements should be 'auto'
 FAIL=fetchpriority attribute on <image> elements should reflect valid IDL values
 [svg/embedded/image-crossorigin.sub.html]
 harness=TIMEOUT
+[svg/embedded/image-embedding-nested-data-url-png.html]
+harness=FAIL
+[svg/embedded/image-embedding-nested-data-url.html]
+harness=FAIL
+[svg/embedded/image-embedding-nested-external-data-url-png.html]
+harness=FAIL
+[svg/embedded/image-embedding-nesteder-data-url.html]
+harness=FAIL
+[svg/embedded/image-remove-href-1.svg]
+harness=FAIL
+[svg/embedded/image-remove-href-3.svg]
+harness=FAIL
 [svg/extensibility/foreignObject/containing-block.html]
 FAIL=position
+[svg/extensibility/foreignObject/foreign-object-containing-svg-in-svg-in-object.html]
+harness=FAIL
+[svg/extensibility/foreignObject/foreign-object-margin-collapsing.html]
+harness=FAIL
+[svg/extensibility/foreignObject/foreign-object-size.html]
+harness=FAIL
+[svg/extensibility/foreignObject/foreign-object-with-position-under-clip-path.html]
+harness=FAIL
 [svg/extensibility/foreignObject/getboundingclientrect.html]
 FAIL=foreignObject: Element.prototype.getBoundingClientRect()
+[svg/extensibility/foreignObject/isolation-with-html.html]
+harness=FAIL
+[svg/extensibility/foreignObject/masked.html]
+harness=FAIL
+[svg/extensibility/foreignObject/overlapped-positioned-and-will-change-transform-descendant.html]
+harness=FAIL
+[svg/extensibility/foreignObject/position-svg-root-in-foreign-object.html]
+harness=FAIL
 [svg/extensibility/foreignObject/properties.svg]
 harness=TIMEOUT
+[svg/extensibility/foreignObject/scroll-transform-nested-stacked-children.html]
+harness=FAIL
+[svg/extensibility/foreignObject/stacking-context.html]
+harness=FAIL
+[svg/extensibility/foreignObject/will-change-in-transformed-foreign-object.html]
+harness=FAIL
 [svg/extensibility/interfaces/foreignObject-graphics.svg]
 harness=TIMEOUT
 [svg/fonts/zero-font-size-adjust-no-glyphs-font.html]
@@ -960,6 +1050,48 @@ harness=TIMEOUT
 harness=TIMEOUT
 [svg/geometry/parsing/y-valid.svg]
 harness=TIMEOUT
+[svg/geometry/reftests/circle-001.svg]
+harness=FAIL
+[svg/geometry/reftests/circle-002.svg]
+harness=FAIL
+[svg/geometry/reftests/circle-003.svg]
+harness=FAIL
+[svg/geometry/reftests/circle-004.svg]
+harness=FAIL
+[svg/geometry/reftests/circle-005.svg]
+harness=FAIL
+[svg/geometry/reftests/circle-calc-dynamic-viewport.html]
+harness=FAIL
+[svg/geometry/reftests/ellipse-001.svg]
+harness=FAIL
+[svg/geometry/reftests/ellipse-002.svg]
+harness=FAIL
+[svg/geometry/reftests/ellipse-003.svg]
+harness=FAIL
+[svg/geometry/reftests/ellipse-004.svg]
+harness=FAIL
+[svg/geometry/reftests/ellipse-005.svg]
+harness=FAIL
+[svg/geometry/reftests/ellipse-006.svg]
+harness=FAIL
+[svg/geometry/reftests/ellipse-calc-dynamic-viewport.html]
+harness=FAIL
+[svg/geometry/reftests/percentage-attribute.svg]
+harness=FAIL
+[svg/geometry/reftests/percentage.svg]
+harness=FAIL
+[svg/geometry/reftests/rect-001.svg]
+harness=FAIL
+[svg/geometry/reftests/rect-002.svg]
+harness=FAIL
+[svg/geometry/reftests/rect-003.svg]
+harness=FAIL
+[svg/geometry/reftests/rect-004.svg]
+harness=FAIL
+[svg/geometry/reftests/rect-007.svg]
+harness=FAIL
+[svg/geometry/reftests/rect-calc-dynamic-viewport.html]
+harness=FAIL
 [svg/geometry/svg-baseval-in-display-none.html]
 FAIL=Width with 30% of 400 viewport (float rounding)
 FAIL=With em
@@ -2800,6 +2932,62 @@ FAIL=Hit-test of <text> with overlapping <tspan> hits the top-most node
 FAIL=elementFromPoint(...) on <svg:text> with fill=none but fill=black descendants
 [svg/interact/scripted/text-hittest-003.html]
 FAIL=elementFromPoint(...) on visibility=hidden <svg:text> with visible descendants
+[svg/layout/svg-embed-intrinsic-size-min-size.html]
+harness=FAIL
+[svg/layout/svg-foreign-relayout-001.html]
+harness=FAIL
+[svg/layout/svg-foreign-relayout-002.html]
+harness=FAIL
+[svg/layout/svg-intrinsic-size-min-size.html]
+harness=FAIL
+[svg/layout/svg-use-symbol-animateMotion-print.html]
+harness=FAIL
+[svg/layout/svg-use-symbol-animateTransform-print.html]
+harness=FAIL
+[svg/layout/svg-use-symbol-opacity-print.html]
+harness=FAIL
+[svg/layout/svg-use-symbol-path-print.html]
+harness=FAIL
+[svg/layout/svg-use-symbol-width-2-print.html]
+harness=FAIL
+[svg/layout/svg-use-symbol-width-print.html]
+harness=FAIL
+[svg/linking/reftests/href-pattern-element.html]
+harness=FAIL
+[svg/linking/reftests/media-fragment-override-multiple.html]
+harness=FAIL
+[svg/linking/reftests/media-fragment-spatial-img-element.html]
+harness=FAIL
+[svg/linking/reftests/media-fragment-spatial-last-wins.html]
+harness=FAIL
+[svg/linking/reftests/media-fragment-spatial-overflow-clamped-nonzero-origin.html]
+harness=FAIL
+[svg/linking/reftests/media-fragment-spatial-percent-img-element.html]
+harness=FAIL
+[svg/linking/reftests/media-fragment-spatial-percent-no-natural-size.html]
+harness=FAIL
+[svg/linking/reftests/media-fragment-spatial-percent-nonsquare.html]
+harness=FAIL
+[svg/linking/reftests/media-fragment-spatial-percent-viewbox-no-size.html]
+harness=FAIL
+[svg/linking/reftests/media-fragment-spatial-percent-zero-size.html]
+harness=FAIL
+[svg/linking/reftests/media-fragment-spatial-percent.html]
+harness=FAIL
+[svg/linking/reftests/media-fragment-spatial-pixel-explicit.html]
+harness=FAIL
+[svg/linking/reftests/media-fragment-spatial-pixel-implicit.html]
+harness=FAIL
+[svg/linking/reftests/media-fragment-spatial-viewbox-only.html]
+harness=FAIL
+[svg/linking/reftests/media-fragment-spatial-viewbox-width.html]
+harness=FAIL
+[svg/linking/reftests/svgview-viewbox-override-multiple.html]
+harness=FAIL
+[svg/linking/reftests/use-template.html]
+harness=FAIL
+[svg/linking/reftests/view-viewbox-override.html]
+harness=FAIL
 [svg/linking/scripted/a-download-click.svg]
 harness=TIMEOUT
 [svg/linking/scripted/a.hreflang-getter-01.svg]
@@ -3141,6 +3329,22 @@ FAIL=Web Animations: property <fill-rule> from [initial] to [evenodd] at (1) sho
 FAIL=Web Animations: property <fill-rule> from [initial] to [evenodd] at (1.5) should be [evenodd]
 [svg/painting/inheritance.svg]
 harness=TIMEOUT
+[svg/painting/marker-001.svg]
+harness=FAIL
+[svg/painting/marker-004.svg]
+harness=FAIL
+[svg/painting/marker-005.svg]
+harness=FAIL
+[svg/painting/marker-006.svg]
+harness=FAIL
+[svg/painting/marker-007.svg]
+harness=FAIL
+[svg/painting/marker-008.svg]
+harness=FAIL
+[svg/painting/marker-009.svg]
+harness=FAIL
+[svg/painting/marker-orient-001.svg]
+harness=FAIL
 [svg/painting/parsing/color-interpolation-computed.svg]
 harness=TIMEOUT
 [svg/painting/parsing/color-interpolation-invalid.svg]
@@ -3263,14 +3467,76 @@ harness=TIMEOUT
 harness=TIMEOUT
 [svg/painting/parsing/text-rendering-valid.svg]
 harness=TIMEOUT
+[svg/painting/reftests/display-none-mask.html]
+harness=FAIL
+[svg/painting/reftests/marker-implicit-subpaths.html]
+harness=FAIL
+[svg/painting/reftests/marker-path-001.svg]
+harness=FAIL
+[svg/painting/reftests/mask-print.svg]
+harness=FAIL
+[svg/painting/reftests/non-scaling-stroke-001.html]
+harness=FAIL
+[svg/painting/reftests/non-scaling-stroke-002.html]
+harness=FAIL
+[svg/painting/reftests/non-scaling-stroke-003.html]
+harness=FAIL
+[svg/painting/reftests/non-scaling-stroke-005.html]
+harness=FAIL
+[svg/painting/reftests/non-scaling-stroke-006.html]
+harness=FAIL
+[svg/painting/reftests/non-scaling-stroke-007.html]
+harness=FAIL
+[svg/painting/reftests/non-scaling-stroke-008.html]
+harness=FAIL
+[svg/painting/reftests/non-scaling-stroke-009.html]
+harness=FAIL
+[svg/painting/reftests/non-scaling-stroke-010.html]
+harness=FAIL
+[svg/painting/reftests/non-scaling-stroke-non-uniform-scale.html]
+harness=FAIL
+[svg/painting/reftests/non-scaling-stroke-with-none-preserve-aspect-ratio.html]
+harness=FAIL
+[svg/painting/reftests/paint-context-001.svg]
+harness=FAIL
+[svg/painting/reftests/paint-context-002.svg]
+harness=FAIL
+[svg/painting/reftests/paint-context-003.svg]
+harness=FAIL
+[svg/painting/reftests/paint-context-004.svg]
+harness=FAIL
 [svg/painting/reftests/paint-context-005.svg]
 harness=TIMEOUT
+[svg/painting/reftests/paint-order-002.svg]
+harness=FAIL
+[svg/painting/reftests/small-nested-viewbox.html]
+harness=FAIL
+[svg/painting/reftests/symbol-in-mask.html]
+harness=FAIL
+[svg/painting/reftests/text-shadow-01.html]
+harness=FAIL
+[svg/painting/reftests/text-shadow-02.html]
+harness=FAIL
+[svg/painting/reftests/zero-scale-svg-transform-inside-g-tag.html]
+harness=FAIL
 [svg/painting/scripted/SVGMarkerElement-orientType-synchronization.html]
 FAIL=SVGMarkerElement.orientType synchronization, setting orientAngle using convertToSpecifiedUnits
 FAIL=SVGMarkerElement.orientType synchronization, setting orientAngle using valueInSpecifiedUnits
 FAIL=SVGMarkerElement.orientType synchronization, setting orientType to 'auto'
+[svg/painting/scripted/marker-element-added.html]
+harness=FAIL
 [svg/painting/scripted/paint-order-computed-value-01.svg]
 harness=TIMEOUT
+[svg/painting/subpixel-clip-path-transform.html]
+harness=FAIL
+[svg/painting/svg-child-will-change-transform-invalidation.html]
+harness=FAIL
+[svg/painting/text-clip-path-transform.html]
+harness=FAIL
+[svg/painting/text-mask-transform.html]
+harness=FAIL
+[svg/painting/will-change-under-mask.html]
+harness=FAIL
 [svg/path/animations/path-length-interpolation.tentative.html]
 FAIL=CSS Animations: property <path-length> from [0px] to [100px] at (-0.3) should be [0px]
 FAIL=CSS Animations: property <path-length> from [0px] to [100px] at (0) should be [0px]
@@ -3304,6 +3570,14 @@ FAIL=Web Animations: property <path-length> from [0px] to [100px] at (1.5) shoul
 FAIL=Web Animations: property <path-length> from [10px] to [2em] at (0) should be [10px]
 FAIL=Web Animations: property <path-length> from [10px] to [2em] at (0.5) should be [21px]
 FAIL=Web Animations: property <path-length> from [10px] to [2em] at (1) should be [32px]
+[svg/path/bearing/absolute.svg]
+harness=FAIL
+[svg/path/bearing/relative.svg]
+harness=FAIL
+[svg/path/distance/pathlength-circle-mutating.svg]
+harness=FAIL
+[svg/path/distance/pathlength-rect-mutating.svg]
+harness=FAIL
 [svg/path/error-handling/bounding.svg]
 harness=TIMEOUT
 [svg/path/interfaces/SVGAnimatedPathData-removed.svg]
@@ -3525,6 +3799,10 @@ harness=TIMEOUT
 harness=TIMEOUT
 [svg/path/property/inheritance.tentative.svg]
 harness=TIMEOUT
+[svg/path/property/marker-path.svg]
+harness=FAIL
+[svg/path/property/mpath.svg]
+harness=FAIL
 [svg/path/property/serialization.svg]
 harness=TIMEOUT
 [svg/path/property/test_style_flush_on_dom_api_with_d_property.html]
@@ -3532,6 +3810,8 @@ FAIL=getPointAtLength() with d property
 FAIL=getTotalLength() with d property
 FAIL=isPointInFill() with d property
 FAIL=isPointInStroke() with d property
+[svg/print/svg-use-page-break-crash-print.html]
+harness=FAIL
 [svg/pservers/inheritance.svg]
 harness=TIMEOUT
 [svg/pservers/parsing/stop-color-computed.svg]
@@ -3556,6 +3836,10 @@ FAIL=radialGradient fx and fy do not follow cx and cy changes
 FAIL=radialGradient fx and fy fall back to 50% with invalid values
 FAIL=radialGradient fx and fy remain 50% when cx and cy are set to different values
 FAIL=radialGradient fx and fy return to 50% when explicitly set then removed
+[svg/pservers/reftests/pattern-text-01.svg]
+harness=FAIL
+[svg/pservers/reftests/pattern-transform-01.svg]
+harness=FAIL
 [svg/pservers/reftests/percent-encoded-fragment-refs.html]
 FAIL=clip-path: url(#%6d%79%20%63%6c%69%70) resolves to clipPath id="my clip"
 FAIL=filter: url(#%66%31) resolves to filter id="f1"
@@ -3564,6 +3848,22 @@ FAIL=mask: url(#%6d%31) resolves to mask id="m1"
 harness=TIMEOUT
 [svg/pservers/scripted/svg-fill-currentcolor-visited-getcomputedstyle.html]
 FAIL=Property fill value 'currentColor' should not leak :visited for SVG fill with currentColor
+[svg/render/order/clip-path-filter-order.svg]
+harness=FAIL
+[svg/render/order/z-index.svg]
+harness=FAIL
+[svg/render/reftests/blending-001.svg]
+harness=FAIL
+[svg/render/reftests/blending-002.svg]
+harness=FAIL
+[svg/render/reftests/blending-svg-root.html]
+harness=FAIL
+[svg/render/reftests/change-sync-for-nested-use.html]
+harness=FAIL
+[svg/render/reftests/nested-svg-overflow-clip.html]
+harness=FAIL
+[svg/render/reftests/overflow-clip.html]
+harness=FAIL
 [svg/scripted/attr-script-fetchpriority.optional.html]
 FAIL=default fetchpriority attribute on SVG <script> elements should be 'auto'
 FAIL=fetchpriority attribute on SVG <script> elements should reflect valid IDL values
@@ -3583,10 +3883,44 @@ harness=TIMEOUT
 harness=TIMEOUT
 [svg/scripted/tspan-attrs-xyrotate-have-length.svg]
 harness=TIMEOUT
+[svg/shapes/ellipse-01.svg]
+harness=FAIL
+[svg/shapes/ellipse-02.svg]
+harness=FAIL
+[svg/shapes/ellipse-03.svg]
+harness=FAIL
+[svg/shapes/ellipse-05.svg]
+harness=FAIL
+[svg/shapes/ellipse-06.svg]
+harness=FAIL
+[svg/shapes/ellipse-07.svg]
+harness=FAIL
+[svg/shapes/ellipse-08.svg]
+harness=FAIL
 [svg/shapes/line-getPointAtLength.svg]
 harness=TIMEOUT
 [svg/shapes/line-pathLength.svg]
 harness=TIMEOUT
+[svg/shapes/rect-01.svg]
+harness=FAIL
+[svg/shapes/rect-02.svg]
+harness=FAIL
+[svg/shapes/rect-03.svg]
+harness=FAIL
+[svg/shapes/rect-04.svg]
+harness=FAIL
+[svg/shapes/rect-rx-set-by-css.svg]
+harness=FAIL
+[svg/shapes/reftests/ellipse-auto-rx-textpath.html]
+harness=FAIL
+[svg/shapes/reftests/pathlength-002.svg]
+harness=FAIL
+[svg/shapes/reftests/pathlength-004b.svg]
+harness=FAIL
+[svg/shapes/reftests/pathlength-005.html]
+harness=FAIL
+[svg/shapes/reftests/polygon-with-filtered-marker.html]
+harness=FAIL
 [svg/shapes/rx-ry-not-inherited.svg]
 harness=TIMEOUT
 [svg/shapes/scripted/disabled-shapes-not-hit.svg]
@@ -3609,6 +3943,62 @@ FAIL=deselectAll() clears selection of SVG text content
 FAIL=deselectAll() does not throw when nothing is selected
 FAIL=deselectAll() on inner svg clears the document selection
 FAIL=deselectAll() results in a collapsed selection
+[svg/struct/reftests/currentScale-change-repaint.html]
+harness=FAIL
+[svg/struct/reftests/nested-svg-through-display-contents.svg]
+harness=FAIL
+[svg/struct/reftests/outer-svg-transform.svg]
+harness=FAIL
+[svg/struct/reftests/svg-getIntersectionList-001.svg]
+harness=FAIL
+[svg/struct/reftests/use-adopted-with-external-resource.tentative.svg]
+harness=FAIL
+[svg/struct/reftests/use-data-url-setAttribute.tentative.html]
+harness=FAIL
+[svg/struct/reftests/use-event-handler-no-loss-of-events.html]
+harness=FAIL
+[svg/struct/reftests/use-external-html-resource-with-content-type-svg.html]
+harness=FAIL
+[svg/struct/reftests/use-external-html-resource-with-doctype.html]
+harness=FAIL
+[svg/struct/reftests/use-external-html-resource.html]
+harness=FAIL
+[svg/struct/reftests/use-external-resource-nested-image.html]
+harness=FAIL
+[svg/struct/reftests/use-external-resource-nested-symbol.html]
+harness=FAIL
+[svg/struct/reftests/use-external-resource-no-svg-root.html]
+harness=FAIL
+[svg/struct/reftests/use-external-resource-target-pseudo-001.html]
+harness=FAIL
+[svg/struct/reftests/use-external-resource-target-pseudo-002.html]
+harness=FAIL
+[svg/struct/reftests/use-external-resource-with-revalidation.tentative.html]
+harness=FAIL
+[svg/struct/reftests/use-external-svg-resource-no-fragment-id.html]
+harness=FAIL
+[svg/struct/reftests/use-foreignObject.html]
+harness=FAIL
+[svg/struct/reftests/use-ref-inside-data-url.tentative.html]
+harness=FAIL
+[svg/struct/reftests/use-referencing-non-svg-fragment-element.html]
+harness=FAIL
+[svg/struct/reftests/use-svg-dimensions-override-001.svg]
+harness=FAIL
+[svg/struct/reftests/use-svg-dimensions-override-002.svg]
+harness=FAIL
+[svg/struct/reftests/use-svg-inline-css.svg]
+harness=FAIL
+[svg/struct/reftests/use-symbol-dimensions-override-001.svg]
+harness=FAIL
+[svg/struct/reftests/use-symbol-dimensions-override-002.svg]
+harness=FAIL
+[svg/struct/reftests/use-symbol-inline-css-001.svg]
+harness=FAIL
+[svg/struct/reftests/use-symbol-inline-css-002.svg]
+harness=FAIL
+[svg/struct/reftests/use-symbol-inline-css-003.svg]
+harness=FAIL
 [svg/struct/scripted/autofocus-attribute.svg]
 harness=TIMEOUT
 [svg/struct/scripted/svg-checkIntersection-001.svg]
@@ -3683,6 +4073,22 @@ FAIL=Removing the type attribute restores the default CSS handling
 [svg/styling/attr-style-type.html]
 FAIL=Setting the content attribute updates the IDL attribute (type)
 FAIL=Setting type via the IDL attribute updates the content attribute
+[svg/styling/css-linked-parameters/css-linked-parameters-precedence-1.html]
+harness=FAIL
+[svg/styling/css-linked-parameters/css-linked-parameters-precedence-2.html]
+harness=FAIL
+[svg/styling/css-linked-parameters/img-with-linked-parameters-1.html]
+harness=FAIL
+[svg/styling/css-linked-parameters/img-with-linked-parameters-2.html]
+harness=FAIL
+[svg/styling/css-linked-parameters/img-with-url-fragment-identifiers-1.html]
+harness=FAIL
+[svg/styling/css-linked-parameters/img-with-url-fragment-identifiers-2.html]
+harness=FAIL
+[svg/styling/css-linked-parameters/img-with-url-function-1.html]
+harness=FAIL
+[svg/styling/css-linked-parameters/img-with-url-function-2.html]
+harness=FAIL
 [svg/styling/css-selectors-case-sensitivity.html]
 FAIL=Camel-cased svg foreignObject in html document matches sensitively.
 FAIL=Camel-cased viewBox on svg in html document matches sensitively.
@@ -3700,6 +4106,16 @@ FAIL=SVGLength should handle detached elements gracefully for CSS variables
 FAIL=SVGLength should handle standalone lengths gracefully for CSS variables
 FAIL=SVGLength.convertToSpecifiedUnits with CSS variables
 FAIL=SVGLength.newValueSpecifiedUnits with CSS variables
+[svg/styling/css-var-on-length-attributes-02.svg]
+harness=FAIL
+[svg/styling/css-var-on-length-attributes-04.svg]
+harness=FAIL
+[svg/styling/css-var-on-length-attributes-05.svg]
+harness=FAIL
+[svg/styling/css-var-on-length-attributes-06.html]
+harness=FAIL
+[svg/styling/css-var-on-length-attributes-quirk.html]
+harness=FAIL
 [svg/styling/glyph-orientation-horizontal.historical.html]
 FAIL=glyph-orientation-horizontal is not parsed in a style declaration
 [svg/styling/presentation-attributes-irrelevant.html]
@@ -3710,10 +4126,24 @@ FAIL=font-family presentation attribute supported on a relevant element
 harness=TIMEOUT
 [svg/styling/presentation-attributes-unknown.html]
 FAIL=font-family presentation attribute supported on an unknown SVG element
+[svg/styling/render/transform-box.svg]
+harness=FAIL
+[svg/styling/render/transform-origin-not-explicit-style-visual.svg]
+harness=FAIL
+[svg/styling/render/transform-origin.svg]
+harness=FAIL
+[svg/styling/render/transform.svg]
+harness=FAIL
 [svg/styling/required-properties.svg]
 harness=TIMEOUT
 [svg/styling/style-sheet-interfaces.svg]
 harness=TIMEOUT
+[svg/styling/svg-filter-render-same-origin-frame-in-same-origin-frame.tentative.https.html]
+harness=FAIL
+[svg/styling/svg-filter-render-same-origin-frame.tentative.https.html]
+harness=FAIL
+[svg/styling/svg-filter-render-srcdoc-frame.tentative.https.html]
+harness=FAIL
 [svg/styling/symbol-g-graphics-element.html]
 FAIL=<g> element has transform presentation style from being an SVGGraphicsElement
 FAIL=<symbol> element has transform presentation style from being an SVGGraphicsElement
@@ -3758,6 +4188,28 @@ harness=TIMEOUT
 harness=TIMEOUT
 [svg/text/parsing/text-decoration-style-computed.svg]
 harness=TIMEOUT
+[svg/text/reftests/lang-attribute.svg]
+harness=FAIL
+[svg/text/reftests/text-context-fill.svg]
+harness=FAIL
+[svg/text/reftests/text-path-transformed-002.html]
+harness=FAIL
+[svg/text/reftests/textpath-path-attr-precedence-over-href.svg]
+harness=FAIL
+[svg/text/reftests/textpath-path-attr-use-up-to-first-error.svg]
+harness=FAIL
+[svg/text/reftests/textpath-path-attr.svg]
+harness=FAIL
+[svg/text/reftests/textpath-shape-001.svg]
+harness=FAIL
+[svg/text/reftests/textpath-side-001.svg]
+harness=FAIL
+[svg/text/reftests/textpath-side-003.svg]
+harness=FAIL
+[svg/text/reftests/textpath-side-005.svg]
+harness=FAIL
+[svg/text/reftests/xml-lang-attribute.svg]
+harness=FAIL
 [svg/text/scripted/getcharnumatposition-slr.tentative.html]
 harness=TIMEOUT
 [svg/text/scripted/getcharnumatposition-zoomed.html]

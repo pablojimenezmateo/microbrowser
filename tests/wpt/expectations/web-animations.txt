@@ -120,6 +120,8 @@ FAIL=iteration composition of transform: [ scale(1), scale(2) ] animation
 FAIL=iteration composition of transform: scale(2) animation
 FAIL=iteration composition starts with non-zero value animation
 FAIL=iteration composition with negative final value animation
+[web-animations/animation-model/keyframe-effects/effect-value-opacity-replaced-effect-in-shadow-root.html]
+harness=FAIL
 [web-animations/animation-model/keyframe-effects/effect-value-overlapping-keyframes.html]
 FAIL=Overlapping keyframes at 0 and 1 use the appropriate value when the progress is outside the range [0, 1]
 FAIL=Overlapping keyframes between 0 and 1 use the appropriate value on each side of the overlap point
@@ -144,6 +146,14 @@ FAIL=A steps(1, end) function on a keyframe affects the resulting style
 FAIL=A steps(1, start) function on a keyframe affects the resulting style
 FAIL=A steps(2, end) function on a keyframe affects the resulting style
 FAIL=A steps(2, start) function on a keyframe affects the resulting style
+[web-animations/animation-model/keyframe-effects/transform-and-opacity-on-inline-001.html]
+harness=FAIL
+[web-animations/animation-model/side-effects-of-animations-current.html]
+harness=FAIL
+[web-animations/animation-model/side-effects-of-animations-in-effect.html]
+harness=FAIL
+[web-animations/animation-model/side-effects-of-animations-none.html]
+harness=FAIL
 [web-animations/animation-trigger/event-trigger-before-handlers.tentative.html]
 FAIL=Animation triggers are handled before registered event listeners
 [web-animations/animation-trigger/event-trigger-once.tentative.html]
@@ -1068,6 +1078,8 @@ FAIL=lineHeight responsive to style changes
 [web-animations/responsive/minHeight.html]
 FAIL=minHeight clamped to 0px on keyframes
 FAIL=minHeight responsive to style changes
+[web-animations/responsive/neutral-keyframe.html]
+harness=FAIL
 [web-animations/responsive/offset-path.html]
 FAIL=offset-path responsive to inherited offset-path changes
 [web-animations/responsive/offsetDistance.html]
@@ -1277,6 +1289,8 @@ FAIL=The cancel event should NOT be fired if the animation is already idle
 FAIL=The finished promise should NOT be rejected if the animation is already idle
 FAIL=The ready promise should be replaced when the animation is canceled
 FAIL=When an animation is canceled, it should create a resolved Promise
+[web-animations/timing-model/animations/document-timeline-animation.html]
+harness=FAIL
 [web-animations/timing-model/animations/finish-promise-after-reverse-delay.html]
 FAIL=Finish notification steps run when reversing during positive delay
 [web-animations/timing-model/animations/finishing-an-animation.html]
@@ -1426,6 +1440,8 @@ FAIL=After transitioning from a null timeline on an animation with a start time 
 FAIL=After transitioning from a null timeline on an animation with a sufficiently ancient start time it is finished
 [web-animations/timing-model/animations/start-time-compat.html]
 FAIL=Checking the start time of animations started at various times between two page rendering updates
+[web-animations/timing-model/animations/sync-start-times.html]
+harness=FAIL
 [web-animations/timing-model/animations/the-current-time-of-an-animation.html]
 FAIL=The current time does not progress if playback rate is 0
 FAIL=The current time is calculated from the timeline time, start time and playback rate
