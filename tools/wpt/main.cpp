@@ -94,6 +94,9 @@ constexpr const char* kUsage =
     "  --summary-state FILE  carry a sharded run's counts between invocations; usable\n"
     "                        without --summary, which is what the first shard wants\n"
     "  --long-timeout MS     for a test marked `timeout=long` (default 60000)\n"
+    "  --known-timeout-budget MS  what a test already expected to TIMEOUT is given\n"
+    "                        before it is called one again (default 5000; 0 disables).\n"
+    "                        Ignored by a recording or summarising run; see the source\n"
     "  --list                print the tests that would run and exit; with --verbose,\n"
     "                        a reftest's `<meta name=fuzzy>` tolerance too\n"
     "  --refresh-manifest    re-walk the checkout instead of using the cache\n"
@@ -126,6 +129,37 @@ struct Options {
   // given. A baseline run is dominated by the second -- 2,946 of the suite's
   // tests are `long`, and the ones that will never report cost a minute each.
   int long_timeout_ms = 60000;
+  // What a test whose *committed expectation is already* `harness=TIMEOUT` gets
+  // on its first attempt, instead of the full `--timeout`/`--long-timeout`.
+  //
+  // **This is sound for exactly one reason, and it is in `Compare`:** when the
+  // harness status is not OK, the subtest list is explicitly not comparable and
+  // the function returns before looking at it. So the entire information a
+  // gating run extracts from one of these 6,848 tests is a single bit -- did it
+  // still fail to report by the deadline -- and paying 65 seconds for that bit
+  // is what makes the gate an hour long. Measured 2026-08-17 on a 174-test
+  // shard of `referrer-policy/`: 360.6s at the full budget against 78.4s at
+  // 8,000ms, with the same 132 timeouts, the same 1 unexpected result and the
+  // same verdict on every test.
+  //
+  // **It can only hide an improvement, never invent a regression.** Shortening
+  // a budget can turn a test that would have reported into a TIMEOUT; it can
+  // never turn a TIMEOUT into a report. Since these tests are already expected
+  // to TIMEOUT, a false TIMEOUT is the expected result and the run stays green
+  // for a test that got worse in no way. What it can miss is a test that was
+  // fixed and now reports in the band between this budget and the full one --
+  // and a fixed test almost never lands there, because a page that works
+  // reports in well under a second. The two ways that band is closed anyway:
+  // a first attempt that *disagrees* is escalated to the full budget before it
+  // is believed (see `escalated` below), and a recording run never shortens
+  // anything at all.
+  //
+  // That last part is the interlock, and it is the important half. Shortening a
+  // deadline on a run that writes numbers is the `--long-timeout` bug of
+  // 2026-08-16 exactly -- 6,700 subtests silently deleted from a measurement
+  // that still said it finished. So `--update-expectations`, `--summary` and
+  // `--summary-state` each turn this off, and the run says so.
+  int known_timeout_budget_ms = 5000;
   int timeout_multiplier = 1;
   int retries = 1;
   int shard_index = 0;
@@ -739,6 +773,8 @@ int main(int argc, char** argv) {
       options.summary_state_path = value();
     } else if (argument == "--long-timeout") {
       options.long_timeout_ms = ParseInt(value(), options.long_timeout_ms);
+    } else if (argument == "--known-timeout-budget") {
+      options.known_timeout_budget_ms = ParseInt(value(), options.known_timeout_budget_ms);
     } else if (argument == "--update-expectations") {
       options.update_expectations = true;
     } else if (argument == "--list") {
@@ -945,10 +981,38 @@ int main(int argc, char** argv) {
   std::vector<int> retries_left(tests.size(), options.retries);
   std::vector<bool> artifacts_counted(tests.size(), false);
 
+  // The short budget for an already-expected TIMEOUT, and the interlock that
+  // keeps it away from anything that writes a number. See `known_timeout_budget_ms`.
+  const bool measuring =
+      options.update_expectations || !options.summary_path.empty() ||
+      !options.summary_state_path.empty();
+  const bool shorten_known_timeouts = options.known_timeout_budget_ms > 0 && !measuring;
+  // A test may be escalated to the full budget once: it is not a retry for
+  // flakiness (those are counted against `retries_left` and can run out), it is
+  // the second half of a measurement the first half deliberately truncated. A
+  // short-budget result that disagrees is never reported without it, so the
+  // gate cannot go red on a deadline this run chose to shorten.
+  std::vector<bool> escalated(tests.size(), false);
+  std::vector<bool> full_budget_only(tests.size(), false);
+  std::size_t shortened = 0;
+  std::size_t escalations = 0;
+
   const auto finish = [&](std::size_t index, const Report& report) {
     const WptTest& test = tests[index];
     const TestExpectation* expected = expectations.Find(test.url_path);
     const Comparison first_look = Compare(test, report, expected);
+    // Before the retry policy, because it is not one. A result produced under a
+    // budget this run shortened is not evidence of anything until it has been
+    // seen at the deadline the expectations were recorded with.
+    if (first_look.outcome == Outcome::Unexpected && !full_budget_only[index] &&
+        !escalated[index] && shorten_known_timeouts && expected != nullptr &&
+        expected->harness == "TIMEOUT") {
+      escalated[index] = true;
+      full_budget_only[index] = true;
+      ++escalations;
+      retry_queue.push_back(index);
+      return;
+    }
     if (retries_left[index] > 0) {
       // Two reasons to run it again, and they are the same reason.
       const bool disagrees = first_look.outcome == Outcome::Unexpected &&
@@ -1135,10 +1199,19 @@ int main(int argc, char** argv) {
       // The cost is bounded and paid only by a test that really does hang: the
       // grace is a few seconds on top of a deadline that already elapsed.
       constexpr int kReportGraceMs = 5000;
-      const int budget_ms =
-          (test.long_timeout ? options.long_timeout_ms : options.timeout_ms) *
-              options.timeout_multiplier +
-          kReportGraceMs;
+      int budget_ms = (test.long_timeout ? options.long_timeout_ms : options.timeout_ms) *
+                          options.timeout_multiplier +
+                      kReportGraceMs;
+      // No grace on the short budget. The grace exists so that testharness.js's
+      // own report wins the race against the kill; here the page's timer is not
+      // the one being waited for, and a test that has not said anything by now
+      // is being called a TIMEOUT on the strength of the expectation rather than
+      // on the strength of its own report.
+      if (shorten_known_timeouts && !full_budget_only[index] && expected != nullptr &&
+          expected->harness == "TIMEOUT") {
+        budget_ms = options.known_timeout_budget_ms * options.timeout_multiplier;
+        ++shortened;
+      }
       // Decided here, in the parent, because the children cannot see each
       // other's failures. A few over the limit is possible -- the children
       // already in flight when the budget runs out still have the directory --
@@ -1362,6 +1435,20 @@ int main(int argc, char** argv) {
                  reftests_run, reftests_passed,
                  100.0 * static_cast<double>(reftests_passed) / static_cast<double>(reftests_run),
                  reftests_blank);
+  }
+  // Never silent. A run that shortened a deadline has to say so on the same
+  // screen as its result, or the next person to compare two subtest counts is
+  // comparing two different experiments without knowing it.
+  if (shortened != 0) {
+    std::fprintf(stderr,
+                 "%zu tests already expected to TIMEOUT ran at %d ms rather than the full "
+                 "budget (%zu escalated back to it); pass --known-timeout-budget 0 for the "
+                 "full run\n",
+                 shortened, options.known_timeout_budget_ms, escalations);
+  } else if (measuring && options.known_timeout_budget_ms > 0) {
+    std::fprintf(stderr,
+                 "--known-timeout-budget ignored: this run records or summarises, so every "
+                 "test got its full deadline\n");
   }
   if (options.update_expectations) {
     return 0;
