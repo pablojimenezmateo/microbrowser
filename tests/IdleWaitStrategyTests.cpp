@@ -1,6 +1,8 @@
+#include <chrono>
 #include <vector>
 
 #include "TestSupport.h"
+#include "platform/DescriptorWait.h"
 #include "app/EventDrainBudget.h"
 #include "app/IdleWaitStrategy.h"
 #include "util/WaitDescriptor.h"
@@ -110,6 +112,41 @@ void RegisterIdleWaitStrategyTests(std::vector<TestCase>& tests) {
     const auto decision = ChooseIdleWait(state);
     Expect(decision.mode == IdleWaitMode::Poll, "a composed frame goes out first");
     Expect(!decision.watch_descriptors, "and a poll waits for nothing at all");
+  });
+
+  // The other half of the headline property, and the half that had no test.
+  // `ChooseIdleWait` deciding to block is worth nothing if the thing it blocks
+  // in returns immediately -- which is exactly what `WaitOnDescriptors` did
+  // with an empty descriptor list until 2026-08-17. It ignored its timeout and
+  // answered false, so a caller with no sockets open and a timer pending span.
+  // Under the WPT runner that was 16.6 million turns of the pump loop in ten
+  // seconds, one core at 100%, on a page doing nothing at all -- and roughly
+  // 7,000 of the suite's tests are in exactly that state.
+  //
+  // Asserted as a *lower* bound on elapsed time, because sleeping longer than
+  // asked is a loaded machine and sleeping not at all is the bug.
+  AddTest(tests, "IdleWait/AnEmptyWaitStillHonoursItsTimeout", [] {
+    const auto started = std::chrono::steady_clock::now();
+    const bool ready = platform::WaitOnDescriptors({}, 50);
+    const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+                             std::chrono::steady_clock::now() - started)
+                             .count();
+    Expect(!ready, "nothing was watched, so nothing became ready");
+    Expect(elapsed >= 40,
+           "a wait with nothing to watch must still wait: returning immediately is how a "
+           "page with a pending timer and no sockets burns a core");
+  });
+
+  AddTest(tests, "IdleWait/AnEmptyWaitWithNoDeadlineDoesNotHang", [] {
+    // A negative timeout means "no deadline", and with nothing to watch that is
+    // a wait nothing could ever end. Answering at once is the only safe
+    // reading; blocking would turn a caller's bug into a hung browser.
+    const auto started = std::chrono::steady_clock::now();
+    Expect(!platform::WaitOnDescriptors({}, -1), "nothing to watch, nothing ready");
+    Expect(std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::steady_clock::now() - started)
+                   .count() < 1000,
+           "and it must return rather than block forever");
   });
 
   AddTest(tests, "EventDrainBudget/YieldsOnlyWithAPendingRepaint", [] {

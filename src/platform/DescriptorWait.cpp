@@ -9,9 +9,6 @@ namespace microbrowser::platform {
 
 bool WaitOnDescriptors(std::span<const util::WaitDescriptor> descriptors,
                        std::int32_t timeout_ms) {
-  if (descriptors.empty()) {
-    return false;
-  }
   std::vector<pollfd> polled;
   polled.reserve(descriptors.size());
   for (const util::WaitDescriptor& descriptor : descriptors) {
@@ -25,6 +22,26 @@ bool WaitOnDescriptors(std::span<const util::WaitDescriptor> descriptors,
     polled.push_back(entry);
   }
   if (polled.empty()) {
+    // **Nothing to watch is still a deadline to keep.** The contract above is
+    // "blocks until one of `descriptors` is ready, or `timeout_ms` elapses",
+    // and returning here made the second half a lie: a caller with no sockets
+    // open and a timer pending -- a page that has finished loading and is
+    // waiting for a `setTimeout` -- got an instant answer and span.
+    //
+    // Measured 2026-08-17, `uievents/click/auxclick_event.html` under the WPT
+    // runner: **16.6 million turns of the pump loop in ten seconds**, one core
+    // at 100%, for a page doing nothing whatever. Roughly 7,000 of the suite's
+    // 23,146 tests are expected to time out, and every window-variant one of
+    // them burned a full core for its entire deadline. `poll` with no
+    // descriptors is the portable sleep, and it is the one this file already
+    // depends on.
+    //
+    // A *negative* timeout means "no deadline", and with nothing to watch that
+    // is a wait nothing can ever end. Answering immediately is the only safe
+    // reading; blocking forever would turn a caller's bug into a hang.
+    if (timeout_ms > 0) {
+      ::poll(nullptr, 0, timeout_ms);
+    }
     return false;
   }
   const int ready = ::poll(polled.data(), polled.size(), timeout_ms);
