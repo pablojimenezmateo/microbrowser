@@ -230,11 +230,23 @@ bool SummaryAccumulator::Write(const std::string& path, const std::string& revis
   // `/tmp` and had been left behind by a session that measured a handful of
   // areas. Counting the rows already there is the cheapest possible guard, and
   // it turns a silent truncation into a refusal that says what to do.
+  //
+  // It counts the rows of the **`## Per area` section only**, because the
+  // document it is guarding has been hand-annotated: three sessions merged a
+  // four-row "re-measured today, trust these" table into the preamble, and a
+  // count of every `| \`` in the file therefore read 301 where the table had
+  // 297 rows. A complete run would have been refused by four rows it wrote
+  // itself. The guard has to count the thing it produces.
   if (std::ifstream existing(path); existing) {
     std::size_t rows = 0;
     std::string line;
+    bool in_per_area = false;
     while (std::getline(existing, line)) {
-      if (line.rfind("| `", 0) == 0) {
+      if (line.rfind("## ", 0) == 0) {
+        in_per_area = line.rfind("## Per area", 0) == 0;
+        continue;
+      }
+      if (in_per_area && line.rfind("| `", 0) == 0) {
         ++rows;
       }
     }

@@ -716,6 +716,7 @@ add_executable(microbrowser_tests
   tests/WptExpectationsTests.cpp
   tests/WptHandlerTests.cpp
   tests/WptReftestTests.cpp
+  tests/WptSummaryTests.cpp
   tools/wpt/Expectations.cpp
   # The fuzzy-tolerance transcription and the image comparison behind every
   # reftest verdict, for the same reason Handlers.cpp is here: a rule this
@@ -726,6 +727,10 @@ add_executable(microbrowser_tests
   # this costs no dependency -- and until it was here the only way to exercise a transcription was to
   # run the whole suite, which is the better part of a day.
   tools/wpt/Handlers.cpp
+  # The summary state file, which is the memory of a sharded baseline: every
+  # number docs/wpt-baseline.md gives for an area a run did not touch comes from
+  # it. Checking that by taking a baseline costs hours.
+  tools/wpt/Summary.cpp
   tests/architecture/ModuleManifest.cpp
   tests/architecture/SourceScan.cpp
   tests/BlitterTests.cpp

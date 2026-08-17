@@ -998,7 +998,16 @@ int main(int argc, char** argv) {
               ? status + " (no message)"
               : message->second);
     }
-    if (!options.summary_path.empty()) {
+    // **Either flag accumulates.** `--summary-state` without `--summary` is the
+    // shape a sharded baseline is taken in -- measure an area, hand its counts
+    // to the next invocation, write the table only when the state covers
+    // everything -- and this condition used to name `--summary` alone. So a run
+    // given only the state path ran the whole area, printed "summary state
+    // written to ...", and wrote back exactly what it had loaded: the counters
+    // were never fed. The same bug was found once before, one line lower down,
+    // where the *save* sat inside the `--summary` branch; fixing the save while
+    // leaving the feed is why it read as fixed for three days.
+    if (!options.summary_path.empty() || !options.summary_state_path.empty()) {
       summary.Add(summary_result);
     }
     if (report.harness == "CRASH") {
