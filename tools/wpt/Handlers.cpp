@@ -73,8 +73,13 @@ int ToInt(std::string_view text, int fallback) {
   if (text.empty()) {
     return fallback;
   }
+  // Named, not `std::string(text).c_str()`: that temporary dies at the end of
+  // the full expression and `*end` then reads its freed buffer. Small enough to
+  // live in the string's inline storage, so it is a stack-use-after-scope --
+  // silent under a normal build and the only thing red in `run-checks.sh asan`.
+  const std::string owned(text);
   char* end = nullptr;
-  const long value = std::strtol(std::string(text).c_str(), &end, 10);
+  const long value = std::strtol(owned.c_str(), &end, 10);
   if (end == nullptr || *end != '\0') {
     return fallback;
   }
