@@ -6973,3 +6973,108 @@ layout). And `firefox_gap.files` in the ledger **now means both halves** —
 `harness_files` and `reftest_files` are beside it — because the plan ranks by
 that field and a ranking that cannot see 48% of the suite is what gate 0 exists
 to end.
+
+## B6 — the baseline's memory moves into the repository (partly) · 2026-08-17
+
+**Status:** in_progress. The state file is committed and covers **134 of the 297
+areas**; finishing it is machine time and nothing else.
+
+**Check** (`docs/wpt-tasks.json`: "tests/wpt/summary-state.tsv is committed,
+describes every area in tests/wpt/areas.txt, and `--summary --summary-state`
+regenerates the document with every row intact"): **not met, and it printed the
+refusal that says so** —
+
+```
+docs/wpt-baseline.md already describes 297 areas and this run has 134; pass
+--summary-state pointing at a state file that covers the rest, or re-measure
+everything. Writing would delete the areas this run did not touch.
+```
+
+That is the guard working rather than a failure of it: the document is still the
+one the last full baseline wrote, and nothing was deleted. 20 of 93 shards ran —
+4,650 tests, 1,252,795 subtests, 1,223,991 passing, 1,064 timeouts, 4 crashes.
+
+**Landed:** *A run given only --summary-state measured everything and saved none
+of it* · *Make a full baseline a resumable script rather than a five-hour bet* ·
+*Commit the state file the baseline document is written from*
+
+**Left:** 73 shards, listed by `tools/wpt/baseline.sh` and skipped automatically
+once done. Then one `--summary` run of any single area regenerates
+`docs/wpt-baseline.md` from the complete state — and that regeneration will
+**delete the ~138 lines of hand-merged preamble** at the top of that document,
+which is the point of the task and not a loss: every lesson in it is also in this
+log, `docs/tech-debt.md` or `CLAUDE.md` (checked, one by one, before writing
+this).
+
+**Found:**
+
+**Two bugs in the exact mechanism this task depends on, and the second one had
+already been "fixed".** `summary.Add` was gated on `--summary` alone, so
+`microbrowser_wpt --summary-state FILE console/` ran its 19 tests, printed
+`summary state written to FILE`, and wrote a file containing three comment lines.
+Verified against the pre-fix binary before touching it. The identical bug had
+been found once before *one line lower down* — where the **save** sat inside the
+`--summary` branch — and the fix moved the save out and left the feed behind, so
+for three days the flag reported success and recorded nothing. **When a fix is
+"the flag was ignored unless another flag was given", check every place the pair
+is tested, not the one the bug report names.**
+
+And the write guard counted every `| ` row in `docs/wpt-baseline.md`, not the
+rows of its `## Per area` table. Three sessions had merged a four-row
+"re-measured today, trust these" table into the preamble — the honest thing to do
+with no state file — so the guard read **301 rows against a 297-row table** and
+would have refused a run that covered *every* area, on four rows it wrote itself.
+A guard that counts something other than what it produces fails exactly when it
+is finally needed.
+
+`tests/WptSummaryTests.cpp` is the first test of any of this: the state round
+trip field by field, an area *replaced* rather than added to by a re-run, the
+refusal, and the hand-merged preamble. The alternative way to check the state
+file is to take a baseline, which is hours.
+
+**The run is five to six hours and the cost is entirely timeouts.** 6,934 of the
+23,146 testharness files are expected to TIMEOUT and **2,807 carry a
+`timeout=long` meta, which is a 65-second budget each**; measured at the default
+`--jobs` on 24 cores it is ~2.75s of wall clock per expected timeout.
+`content-security-policy/` is 1,637s on its own (869 tests, 278 of them long) —
+40% of everything this session spent, for 3.7% of the files. Everything else is
+quick: `dom/` 692 tests in 214s, `encoding/` 1,293 in 272s, `cors/` 27 in 10s.
+So the old "better part of a day" was pessimistic and the honest figure is a long
+evening — but **unlike F9's projection, this one is not a bug waiting to be
+fixed**: the browser is being given 65 seconds because upstream says so, and the
+tests are not reporting. Do not close the gap with `--jobs`;
+`tools/wpt/main.cpp` carries the measurement showing that oversubscription
+deletes subtests from CPU-bound areas and makes the pass rate *rise* as the run
+gets worse.
+
+**A driver that reads the tail of a merged stream loses exactly the shards worth
+reading.** The first pass logged `2>&1 | tail -4` per shard and came back with
+counts for four shards of ten. stdout is block-buffered off a terminal, so a
+shard with failures flushes its whole failure report *after* the stderr trailer —
+the shards that lost their numbers were the ones that had something to say.
+`tools/wpt/baseline.sh` gives each shard its own file. The state file was
+unaffected, so the pass was restarted rather than redone: 88 areas were already
+durable, which is the argument for sharding in one line.
+
+**Four segfaults, reproducible in 3.2 seconds, and they are not this task's.**
+`content-security-policy/inheritance/inheritance-from-initiator.sub.html` crashes
+in **all three** of its variants (`?scheme=javascript`, `?scheme=blob`,
+`?scheme=data`) and `content-security-policy/reporting/report-uri-from-child-frame.html`
+crashes too:
+
+```
+./build/microbrowser-perf/microbrowser/microbrowser_wpt --retries 0 \
+    content-security-policy/inheritance/inheritance-from-initiator.sub.html
+3 tests in 3222 ms: 0 subtests, 0 passed, 3 crashes
+  harness: expected OK, got CRASH (killed by signal Segmentation fault)
+```
+
+All three are **expected OK**, so they either regressed or were never run — and an
+expectation file cannot tell those apart, which is the same blind spot F9 closed
+for reftests. Both files are frame-shaped, which is where ADR 0042 §5's
+use-after-free lived. Whoever takes H6 (CSP) should start here: a crash is worth
+more than a pass rate.
+
+**And the state file's own header said it was "a run cache, not an artefact"**
+while the whole task was about putting it in the repository. It now says what it
+is: `docs/wpt-baseline.md`'s memory.

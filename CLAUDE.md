@@ -811,10 +811,17 @@ tools/wpt/fetch.sh                                       # once; ~600MB, pinned 
     --reftest-artifacts /tmp/refs css/CSS2/floats/
 
 # Re-measure an area into the baseline document. `--summary-state` is what makes a
-# sharded run add up: an area this run measured replaces what the file said about it.
+# sharded run add up: an area this run measured replaces what the file said about it,
+# and every other row comes from the state. **The state is committed** at
+# tests/wpt/summary-state.tsv -- 134 of the 297 areas as of 2026-08-17, and
+# `tools/wpt/baseline.sh` is the sharded, resumable run that fills the rest (task
+# B6, still open). Point at it and commit both files: a run without it rewrites the
+# document down to the areas it measured, which is what the writer's row-count
+# refusal is for. Until the state is complete the writer will refuse to regenerate
+# docs/wpt-baseline.md at all, which is the refusal doing its job.
 ./build/microbrowser-perf/microbrowser/microbrowser_wpt --update-expectations \
     --testharness-only \
-    --summary docs/wpt-baseline.md --summary-state /tmp/microbrowser-wpt-state.tsv dom/
+    --summary docs/wpt-baseline.md --summary-state tests/wpt/summary-state.tsv dom/
 
 # The URL half of it, against `src/url` directly and in about a second. Four vector sets, all
 # pinned in third_party/wpt: 891 parses, 278 setters, 87 toascii, 2,671 IdnaTestV2.

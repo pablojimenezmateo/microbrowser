@@ -616,6 +616,27 @@ not. `SummaryAccumulator::Write` refuses to write fewer rows than the document
 already has, which turns the silent truncation into a message; B6 is the one
 long machine run that makes the refusal unnecessary.
 
+**B6 is half done as of 2026-08-17: the state file is committed at
+`tests/wpt/summary-state.tsv` and covers 134 of the 297 areas.** Finish it with
+`tools/wpt/baseline.sh`, which shards the suite, skips what the state already
+covers — derived from the state file itself, so another session or another
+machine can pick it up — and stops rather than writing a state with a hole in it.
+**Two bugs in the mechanism had to be fixed first, and both were invisible from
+outside:** `--summary-state` without `--summary` fed the accumulator nothing, so
+a run using the flag exactly as this task intends measured everything and saved
+none of it; and the row-count guard counted the hand-merged rows in the
+document's preamble, so it read 301 against a 297-row table and would have
+refused a complete run. `tests/WptSummaryTests.cpp` covers both.
+
+**And the cost is measured now: five to six hours, all of it timeouts.** 6,934 of
+the 23,146 testharness files are expected to TIMEOUT and 2,807 carry a
+`timeout=long` meta, which is a 65-second budget each — ~2.75s of wall clock per
+expected timeout at the default `--jobs`. `content-security-policy/` is 1,637s by
+itself; `dom/` is 692 tests in 214s. Unlike §M-B's reftest projection this one is
+not a bug in disguise, so **do not close it with `--jobs`**: `tools/wpt/main.cpp`
+carries the measurement showing oversubscription deletes subtests from CPU-bound
+areas and makes the pass rate rise as the run gets worse.
+
 **Exit:** every area has a committed expectation file for its testharness tests
 and a line in the table; `ctest` is green against them.
 
