@@ -2503,48 +2503,12 @@ FAIL=Parsing of non-negative integers
 FAIL=Parsing of non-negative integers
 [html/canvas/element/canvas-host/2d.canvas.host.size.attributes.parse.whitespace.html]
 FAIL=Parsing of non-negative integers
-[html/canvas/element/canvas-host/2d.canvas.host.size.attributes.reflect.setcontent.html]
-FAIL=Setting content attributes updates IDL and content attributes
-[html/canvas/element/canvas-host/2d.canvas.host.size.attributes.removed.html]
-FAIL=Removing content attributes reverts to default size
 [html/canvas/element/canvas-host/2d.canvas.host.size.attributes.setAttribute.decimal.html]
-FAIL=Parsing of non-negative integers in setAttribute
-[html/canvas/element/canvas-host/2d.canvas.host.size.attributes.setAttribute.em.html]
-FAIL=Parsing of non-negative integers in setAttribute
-[html/canvas/element/canvas-host/2d.canvas.host.size.attributes.setAttribute.empty.html]
 FAIL=Parsing of non-negative integers in setAttribute
 [html/canvas/element/canvas-host/2d.canvas.host.size.attributes.setAttribute.exp.html]
 FAIL=Parsing of non-negative integers in setAttribute
-[html/canvas/element/canvas-host/2d.canvas.host.size.attributes.setAttribute.hex.html]
-FAIL=Parsing of non-negative integers in setAttribute
-[html/canvas/element/canvas-host/2d.canvas.host.size.attributes.setAttribute.junk.html]
-FAIL=Parsing of non-negative integers in setAttribute
-[html/canvas/element/canvas-host/2d.canvas.host.size.attributes.setAttribute.minus.html]
-FAIL=Parsing of non-negative integers in setAttribute
-[html/canvas/element/canvas-host/2d.canvas.host.size.attributes.setAttribute.octal.html]
-FAIL=Parsing of non-negative integers in setAttribute
-[html/canvas/element/canvas-host/2d.canvas.host.size.attributes.setAttribute.onlyspace.html]
-FAIL=Parsing of non-negative integers in setAttribute
-[html/canvas/element/canvas-host/2d.canvas.host.size.attributes.setAttribute.percent.html]
-FAIL=Parsing of non-negative integers in setAttribute
-[html/canvas/element/canvas-host/2d.canvas.host.size.attributes.setAttribute.plus.html]
-FAIL=Parsing of non-negative integers in setAttribute
-[html/canvas/element/canvas-host/2d.canvas.host.size.attributes.setAttribute.space.html]
-FAIL=Parsing of non-negative integers in setAttribute
-[html/canvas/element/canvas-host/2d.canvas.host.size.attributes.setAttribute.trailingjunk.html]
-FAIL=Parsing of non-negative integers in setAttribute
-[html/canvas/element/canvas-host/2d.canvas.host.size.attributes.setAttribute.whitespace.html]
-FAIL=Parsing of non-negative integers in setAttribute
-[html/canvas/element/canvas-host/2d.canvas.host.size.attributes.setAttribute.zero.html]
-FAIL=Parsing of non-negative integers in setAttribute
-[html/canvas/element/canvas-host/2d.canvas.host.size.invalid.attributes.idl.html]
-FAIL=Getting/setting width/height IDL attributes
-[html/canvas/element/canvas-host/2d.canvas.host.size.large.html]
-FAIL=Canvas test: 2d.canvas.host.size.large
 [html/canvas/element/canvas-host/2d.canvas.host.type.delete.html]
 FAIL=window.HTMLCanvasElement interface object is [[Configurable]]
-[html/canvas/element/canvas-host/2d.canvas.host.type.name.html]
-FAIL=HTMLCanvasElement type and toString
 [html/canvas/element/color-type/2d.color.type.u8p3.to.f16srgb.to.u8p3.html]
 FAIL=test srgb float16 canvas storing 8-bit display-p3 data accurately
 [html/canvas/element/color-type/2d.color.type.u8p3.to.u8srgb.to.u8p3.html]
@@ -2793,8 +2757,6 @@ FAIL=Canvas test: 2d.drawImage.nonexistent
 FAIL=drawImage() with Infinity/NaN is ignored
 [html/canvas/element/drawing-images-to-the-canvas/2d.drawImage.nowrap.html]
 FAIL=Stretched images do not get pixels wrapping around the edges
-[html/canvas/element/drawing-images-to-the-canvas/2d.drawImage.null.html]
-FAIL=Canvas test: 2d.drawImage.null
 [html/canvas/element/drawing-images-to-the-canvas/2d.drawImage.path.html]
 FAIL=Canvas test: 2d.drawImage.path
 [html/canvas/element/drawing-images-to-the-canvas/2d.drawImage.self.1.html]
@@ -2805,10 +2767,6 @@ FAIL=Canvas test: 2d.drawImage.self.2
 harness=TIMEOUT
 [html/canvas/element/drawing-images-to-the-canvas/2d.drawImage.transform.html]
 FAIL=Canvas test: 2d.drawImage.transform
-[html/canvas/element/drawing-images-to-the-canvas/2d.drawImage.wrongtype.html]
-FAIL=Incorrect image types in drawImage do not match any defined overloads, so WebIDL throws a TypeError
-[html/canvas/element/drawing-images-to-the-canvas/2d.drawImage.wrongtype.paragraph.html]
-FAIL=Incorrect image types in drawImage do not match any defined overloads, so WebIDL throws a TypeError
 [html/canvas/element/drawing-images-to-the-canvas/2d.drawImage.zerocanvas.html]
 FAIL=drawImage with zero-sized canvas as the source shoud throw exception
 [html/canvas/element/drawing-images-to-the-canvas/2d.drawImage.zerosource.html]
@@ -2843,8 +2801,6 @@ FAIL=Canvas test: 2d.fillStyle.get.semitransparent
 FAIL=Canvas test: 2d.fillStyle.get.solid
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.get.transparent.html]
 FAIL=Canvas test: 2d.fillStyle.get.transparent
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.css-color-4-hsl-1.html]
-FAIL=Canvas test: 2d.fillStyle.parse.css-color-4-hsl-1
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.css-color-4-hsl-2.html]
 FAIL=Canvas test: 2d.fillStyle.parse.css-color-4-hsl-2
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.css-color-4-hsl-3.html]
@@ -2853,16 +2809,6 @@ FAIL=Canvas test: 2d.fillStyle.parse.css-color-4-hsl-3
 FAIL=Canvas test: 2d.fillStyle.parse.css-color-4-hsl-4
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.css-color-4-hsl-5.html]
 FAIL=Canvas test: 2d.fillStyle.parse.css-color-4-hsl-5
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.css-color-4-hsl-6.html]
-FAIL=Canvas test: 2d.fillStyle.parse.css-color-4-hsl-6
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.css-color-4-hsl-7.html]
-FAIL=Canvas test: 2d.fillStyle.parse.css-color-4-hsl-7
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.css-color-4-hsl-8.html]
-FAIL=Canvas test: 2d.fillStyle.parse.css-color-4-hsl-8
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.css-color-4-hsl-9.html]
-FAIL=Canvas test: 2d.fillStyle.parse.css-color-4-hsl-9
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.css-color-4-hsla-1.html]
-FAIL=Canvas test: 2d.fillStyle.parse.css-color-4-hsla-1
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.css-color-4-hsla-2.html]
 FAIL=Canvas test: 2d.fillStyle.parse.css-color-4-hsla-2
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.css-color-4-hsla-3.html]
@@ -2871,14 +2817,6 @@ FAIL=Canvas test: 2d.fillStyle.parse.css-color-4-hsla-3
 FAIL=Canvas test: 2d.fillStyle.parse.css-color-4-hsla-4
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.css-color-4-hsla-5.html]
 FAIL=Canvas test: 2d.fillStyle.parse.css-color-4-hsla-5
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.css-color-4-hsla-6.html]
-FAIL=Canvas test: 2d.fillStyle.parse.css-color-4-hsla-6
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.css-color-4-hsla-7.html]
-FAIL=Canvas test: 2d.fillStyle.parse.css-color-4-hsla-7
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.css-color-4-hsla-8.html]
-FAIL=Canvas test: 2d.fillStyle.parse.css-color-4-hsla-8
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.css-color-4-hsla-9.html]
-FAIL=Canvas test: 2d.fillStyle.parse.css-color-4-hsla-9
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.css-color-4-rgb-2.html]
 FAIL=Canvas test: 2d.fillStyle.parse.css-color-4-rgb-2
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.css-color-4-rgb-3.html]
@@ -2901,50 +2839,12 @@ FAIL=currentColor is computed from the canvas element
 FAIL=currentColor is computed when the attribute is set, not when it is painted
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.current.removed.html]
 FAIL=currentColor is solid black when the canvas element is not in a document
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.hex4.html]
-FAIL=Canvas test: 2d.fillStyle.parse.hex4
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.hsl-1.html]
-FAIL=Canvas test: 2d.fillStyle.parse.hsl-1
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.hsl-2.html]
-FAIL=Canvas test: 2d.fillStyle.parse.hsl-2
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.hsl-3.html]
-FAIL=Canvas test: 2d.fillStyle.parse.hsl-3
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.hsl-4.html]
-FAIL=Canvas test: 2d.fillStyle.parse.hsl-4
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.hsl-5.html]
-FAIL=Canvas test: 2d.fillStyle.parse.hsl-5
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.hsl-6.html]
-FAIL=Canvas test: 2d.fillStyle.parse.hsl-6
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.hsl-clamp-negative-saturation.html]
-FAIL=Canvas test: 2d.fillStyle.parse.hsl-clamp-negative-saturation
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.hsla-1.html]
 FAIL=Canvas test: 2d.fillStyle.parse.hsla-1
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.hsla-2.html]
-FAIL=Canvas test: 2d.fillStyle.parse.hsla-2
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.hsla-clamp-alpha-1.html]
-FAIL=Canvas test: 2d.fillStyle.parse.hsla-clamp-alpha-1
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.hsla-clamp-alpha-2.html]
-FAIL=Canvas test: 2d.fillStyle.parse.hsla-clamp-alpha-2
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.hsla-clamp-negative-saturation.html]
-FAIL=Canvas test: 2d.fillStyle.parse.hsla-clamp-negative-saturation
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.invalid.css-color-4-rgb-2.html]
-FAIL=Canvas test: 2d.fillStyle.parse.invalid.css-color-4-rgb-2
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.invalid.css-color-4-rgb-3.html]
-FAIL=Canvas test: 2d.fillStyle.parse.invalid.css-color-4-rgb-3
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.invalid.css-color-4-rgba-2.html]
-FAIL=Canvas test: 2d.fillStyle.parse.invalid.css-color-4-rgba-2
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.invalid.css-color-4-rgba-3.html]
-FAIL=Canvas test: 2d.fillStyle.parse.invalid.css-color-4-rgba-3
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.invalid.rgb-1.html]
-FAIL=Canvas test: 2d.fillStyle.parse.invalid.rgb-1
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.invalid.rgb-2.html]
-FAIL=Canvas test: 2d.fillStyle.parse.invalid.rgb-2
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.invalid.rgba-1.html]
-FAIL=Canvas test: 2d.fillStyle.parse.invalid.rgba-1
+[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.invalid.hsl-5.html]
+FAIL=Canvas test: 2d.fillStyle.parse.invalid.hsl-5
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.invalid.rgba-3.html]
 FAIL=Canvas test: 2d.fillStyle.parse.invalid.rgba-3
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.invalid.rgba-5.html]
-FAIL=Canvas test: 2d.fillStyle.parse.invalid.rgba-5
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.rgb-clamp-5.html]
 FAIL=Canvas test: 2d.fillStyle.parse.rgb-clamp-5
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.rgb-eof.html]
@@ -2957,10 +2857,6 @@ FAIL=Canvas test: 2d.fillStyle.parse.rgba-num-1
 FAIL=Canvas test: 2d.fillStyle.parse.rgba-num-2
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.rgba-percent.html]
 FAIL=Canvas test: 2d.fillStyle.parse.rgba-percent
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.rgba-solid-3.html]
-FAIL=Canvas test: 2d.fillStyle.parse.rgba-solid-3
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.rgba-solid-4.html]
-FAIL=Canvas test: 2d.fillStyle.parse.rgba-solid-4
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.system.html]
 FAIL=Canvas test: 2d.fillStyle.parse.system
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.relativecolor.currentcolor.html]
@@ -3009,8 +2905,6 @@ FAIL=Canvas test: 2d.gradient.interpolate.zerosize.stroke
 FAIL=Canvas test: 2d.gradient.interpolate.zerosize.strokeRect
 [html/canvas/element/fill-and-stroke-styles/2d.gradient.interpolate.zerosize.strokeText.html]
 FAIL=Canvas test: 2d.gradient.interpolate.zerosize.strokeText
-[html/canvas/element/fill-and-stroke-styles/2d.gradient.linear.nonfinite.html]
-FAIL=createLinearGradient() throws TypeError if arguments are not finite
 [html/canvas/element/fill-and-stroke-styles/2d.gradient.linear.transform.1.html]
 FAIL=Linear gradient coordinates are relative to the coordinate space at the time of filling
 [html/canvas/element/fill-and-stroke-styles/2d.gradient.linear.transform.2.html]
@@ -3059,8 +2953,6 @@ FAIL=Canvas test: 2d.gradient.radial.inside2
 FAIL=Canvas test: 2d.gradient.radial.inside3
 [html/canvas/element/fill-and-stroke-styles/2d.gradient.radial.negative.html]
 FAIL=createRadialGradient() throws INDEX_SIZE_ERR if either radius is negative
-[html/canvas/element/fill-and-stroke-styles/2d.gradient.radial.nonfinite.html]
-FAIL=createRadialGradient() throws TypeError if arguments are not finite
 [html/canvas/element/fill-and-stroke-styles/2d.gradient.radial.outside1.html]
 FAIL=Canvas test: 2d.gradient.radial.outside1
 [html/canvas/element/fill-and-stroke-styles/2d.gradient.radial.outside2.html]
@@ -3113,12 +3005,6 @@ FAIL=Canvas test: 2d.pattern.image.nonexistent-but-loading
 FAIL=Canvas test: 2d.pattern.image.nonexistent
 [html/canvas/element/fill-and-stroke-styles/2d.pattern.image.nosrc.html]
 FAIL=Canvas test: 2d.pattern.image.nosrc
-[html/canvas/element/fill-and-stroke-styles/2d.pattern.image.null.html]
-FAIL=Canvas test: 2d.pattern.image.null
-[html/canvas/element/fill-and-stroke-styles/2d.pattern.image.string.html]
-FAIL=Canvas test: 2d.pattern.image.string
-[html/canvas/element/fill-and-stroke-styles/2d.pattern.image.undefined.html]
-FAIL=Canvas test: 2d.pattern.image.undefined
 [html/canvas/element/fill-and-stroke-styles/2d.pattern.image.zeroheight.html]
 FAIL=Canvas test: 2d.pattern.image.zeroheight
 [html/canvas/element/fill-and-stroke-styles/2d.pattern.image.zerowidth.html]
@@ -3231,8 +3117,6 @@ FAIL=Test CanvasFilter() object
 FAIL=Test exceptions on CanvasFilter() turbulence object
 [html/canvas/element/filters/2d.filter.drop-shadow-globalAlpha.html]
 harness=FAIL
-[html/canvas/element/filters/2d.filter.layers.blur.exceptions.tentative.html]
-FAIL=Test exceptions on gaussianBlur filter
 [html/canvas/element/filters/2d.filter.layers.colorMatrix.tentative.html]
 FAIL=Test the functionality of ColorMatrix filters
 [html/canvas/element/filters/2d.filter.layers.componentTransfer.discrete.tentative.html]
@@ -3518,13 +3402,13 @@ harness=FAIL
 harness=ERROR
 [html/canvas/element/manual/draw-element-image/global-alpha-basic.tentative.html]
 harness=FAIL
-[html/canvas/element/manual/draw-element-image/hit-test/elementsFromPoint-no-layoutsubtree.tentative.html]
-FAIL=Child elements should be excluded from elementsFromPoint
 [html/canvas/element/manual/draw-element-image/hit-test/elementsFromPoint.tentative.html]
 FAIL=CSS transform should be used for hit testing
 FAIL=Pointer-events: none and inert should be excluded from elementsFromPoint
 [html/canvas/element/manual/draw-element-image/hit-test/low-dpi-hit-test.tentative.html]
-harness=TIMEOUT
+FAIL=multiple targets, should only hit first
+FAIL=single target
+FAIL=single target and point
 [html/canvas/element/manual/draw-element-image/hit-test/selection.tentative.html]
 FAIL=Double-clicking on canvas should be able to modify selection.
 [html/canvas/element/manual/draw-element-image/hit-test/z-index.tentative.html]
@@ -3540,10 +3424,6 @@ harness=FAIL
 FAIL=Elements under canvas should report intersections, but not visibility
 [html/canvas/element/manual/draw-element-image/layout-canvas-children.tentative.html]
 FAIL=canvas children have layout
-[html/canvas/element/manual/draw-element-image/layoutsubtree-no-hit-test.tentative.html]
-FAIL=canvas click
-FAIL=canvas elementFromPoint
-FAIL=canvas mouseenter
 [html/canvas/element/manual/draw-element-image/moved-nested-layoutsubtree-canvas.tentative.html]
 FAIL=drawElementImage should succeed if a canvas is moved to be nested
 [html/canvas/element/manual/draw-element-image/nested-canvas-invalidation.tentative.html]
@@ -3575,10 +3455,14 @@ FAIL=Initial paint of all canvases across multiple branches and sibling inner ca
 FAIL=Repainting inner_b_1 fires paint events in reverse tree order (inner_b_1 before outer_b)
 FAIL=Repainting sibling inner canvases in outer_b fires in reverse tree order
 FAIL=Simultaneous repaints across disjoint branches fire in reverse tree order
-[html/canvas/element/manual/draw-element-image/onpaint-zindex.tentative.html]
-FAIL=The paint event should not fire after z-index changes
 [html/canvas/element/manual/draw-element-image/onpaint.tentative.html]
-harness=ERROR
+FAIL=onpaint should fire if a canvas child is added or removed
+FAIL=onpaint should fire once if a canvas child changes
+FAIL=onpaint should fire once if a canvas grandchild changes
+FAIL=onpaint should not fire after canvas child transform changes
+FAIL=onpaint should not fire after canvas drawing operations
+FAIL=onpaint should respect layoutsubtree attribute mutation
+FAIL=onpaint should work with addEventListener
 [html/canvas/element/manual/draw-element-image/opacity-animation.tentative.html]
 harness=FAIL
 [html/canvas/element/manual/draw-element-image/percent-sizing.tentative.html]
@@ -3772,7 +3656,7 @@ FAIL=Tainting check for cross origin image in canvas pattern
 [html/canvas/element/manual/fill-and-stroke-styles/pattern-from-img-cross-origin-taint.https.sub.html]
 FAIL=Tainting check for cross origin image in canvas pattern
 [html/canvas/element/manual/fill-and-stroke-styles/pattern-from-video-cross-origin-taint.https.sub.html]
-FAIL=Tainting check for cross origin video in canvas pattern
+harness=TIMEOUT
 [html/canvas/element/manual/filters/2d.filter.function-then-svg-reference.html]
 FAIL=brightness() chained before url() renders correctly
 FAIL=url() alone renders correctly
@@ -3889,7 +3773,19 @@ FAIL=createImageBitmap: from ImageData, unpremultiplied, drawn to canvas
 [html/canvas/element/manual/imagebitmap/createImageBitmap-resolves-in-task.any.html]
 harness=TIMEOUT
 [html/canvas/element/manual/imagebitmap/createImageBitmap-resolves-in-task.any.worker.html]
-harness=TIMEOUT
+FAIL=Invalid Blob source should reject async
+FAIL=createImageBitmap with a Blob source and invalid cropHeight should reject sync
+FAIL=createImageBitmap with a Blob source and invalid resizeHeight should reject sync
+FAIL=createImageBitmap with a Blob source should resolve async
+FAIL=createImageBitmap with an ImageBitmap source and invalid cropHeight should reject sync
+FAIL=createImageBitmap with an ImageBitmap source and invalid resizeHeight should reject sync
+FAIL=createImageBitmap with an ImageBitmap source should resolve async
+FAIL=createImageBitmap with an ImageData source and invalid cropHeight should reject sync
+FAIL=createImageBitmap with an ImageData source and invalid resizeHeight should reject sync
+FAIL=createImageBitmap with an ImageData source should resolve async
+FAIL=createImageBitmap with an OffscreenCanvas source and invalid cropHeight should reject sync
+FAIL=createImageBitmap with an OffscreenCanvas source and invalid resizeHeight should reject sync
+FAIL=createImageBitmap with an OffscreenCanvas source should resolve async
 [html/canvas/element/manual/imagebitmap/createImageBitmap-serializable.html]
 harness=TIMEOUT
 [html/canvas/element/manual/imagebitmap/createImageBitmap-sizeOverflow.html]
@@ -4531,8 +4427,6 @@ FAIL=createImageData() throws TypeError if arguments are not finite
 FAIL=createImageData(sw, sh) should throw when called with the wrong |this|
 [html/canvas/element/pixel-manipulation/2d.imageData.create2.type.html]
 FAIL=createImageData(sw, sh) returns an ImageData object containing a Uint8ClampedArray object
-[html/canvas/element/pixel-manipulation/2d.imageData.create2.zero.html]
-FAIL=createImageData(sw, sh) throws INDEX_SIZE_ERR if size is zero
 [html/canvas/element/pixel-manipulation/2d.imageData.createImageBitmap.p3.rgba.unorm8.html]
 FAIL=Verify round-trip of 8-bit P3 data ImageData through ImageBitmap
 [html/canvas/element/pixel-manipulation/2d.imageData.createImageBitmap.srgb.rgba.float16.html]
@@ -4553,8 +4447,6 @@ FAIL=getImageData() returns non-premultiplied colors
 FAIL=getImageData() works with negative width and height, and returns top-to-bottom left-to-right
 [html/canvas/element/pixel-manipulation/2d.imageData.get.type.html]
 FAIL=getImageData() returns an ImageData object containing a Uint8ClampedArray object
-[html/canvas/element/pixel-manipulation/2d.imageData.get.zero.html]
-FAIL=getImageData() throws INDEX_SIZE_ERR if size is zero
 [html/canvas/element/pixel-manipulation/2d.imageData.object.ctor.array.bounds.html]
 FAIL=ImageData has a usable constructor
 [html/canvas/element/pixel-manipulation/2d.imageData.object.ctor.array.html]
