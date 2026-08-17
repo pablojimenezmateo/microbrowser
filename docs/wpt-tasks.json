@@ -26,7 +26,7 @@
     "`refused:ADR-NNNN` when an ADR says this browser will not implement the area."
   ],
   "source": "docs/wpt-plan.md",
-  "updated": "2026-08-16",
+  "updated": "2026-08-17",
   "milestones": [
     {
       "id": "M-A",
@@ -96,6 +96,11 @@
     {
       "id": "M-N",
       "title": "the acceptance sites",
+      "status": "not_started"
+    },
+    {
+      "id": "M-O",
+      "title": "HTML's own elements",
       "status": "not_started"
     }
   ],
@@ -222,7 +227,14 @@
       "adr": "0012",
       "notes": "Done. The type is src/bindings/DomExceptions.cpp with WebIDL's error-names table; name/message/code are own non-enumerable data properties rather than prototype accessors, argued in the file -- js::ToString is a pure function and cannot call a getter, so accessors made every uncaught DOMException log as [object Object]. The audit found the real bug: fourteen sites threw a plain Error with the DOM name in the *message*, and two threw a TypeError with the right name only in a comment. All of them raise through one ThrowDom now. The DOM's ensure-pre-insertion-validity landed with it. The two subtests still failing in the check need frames[0].document (J1) and document.doctype as a node (C10). 'did not throw' -- 88 tests suite-wide -- is a missing check rather than a missing type and stays with C3/C4.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "99.8%"
+      "firefox_ceiling": "99.8%",
+      "firefox_gap": {
+        "files": 337,
+        "blocked": 86,
+        "feature": 251,
+        "we_pass": 230,
+        "reftests_firefox_passes": 4
+      }
     },
     {
       "id": "C2",
@@ -238,7 +250,14 @@
       "adr": "0008",
       "notes": "Done, and it was one line: assert_throws_js walks Object.getPrototypeOf up from the *constructor* looking for a function named Error, and the NativeError constructors inherited from Function.prototype rather than from Error (ECMA-262 20.5.6.1). 117 tests and 2,014 subtests suite-wide. Error instances' own properties are non-enumerable now and Error.prototype.toString reads this.name/this.message rather than the receiver's heap kind. src/js/ErrorBuiltins.cpp. The observed message was 'function TypeError() { [native code] } is not an Error subtype'.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "99.8%"
+      "firefox_ceiling": "99.8%",
+      "firefox_gap": {
+        "files": 337,
+        "blocked": 86,
+        "feature": 251,
+        "we_pass": 230,
+        "reftests_firefox_passes": 4
+      }
     },
     {
       "id": "C3",
@@ -257,7 +276,14 @@
       "adr": "0012",
       "notes": "Done, +20.6 points. The conversion layer is src/bindings/WebIdl.h/.cpp -- arity, DOMString through ToStringOf (which can run a page's own toString and therefore can throw), nullable DOMString, `unsigned long` with the Modulo/Enforce/Clamp rules applied in double before any cast, the DOM's name productions, and DOMString offsets in UTF-16 code units (js/StringUnits.h is public for that: a DOMString *is* code units, and a second copy of that indexing is a second answer to 'what is position 3'). **The layer was not where the subtests were.** Four things it made possible were: DOMTokenList as a real type (+885 in one file), CharacterData's five mutation operations, which did not exist at all (+112), document.createEvent over the legacy alias table (+159), and element/attribute name validation plus document.defaultView (+160). insertAdjacentElement and insertAdjacentText landed with them -- the second is the four-line method whose absence broke testharness.js's own reporting (ADR 0040). Deliberate deviations, recorded as expectations: createEvent throws NotSupportedError for BeforeUnloadEvent, CompositionEvent, DeviceMotionEvent, DeviceOrientationEvent, StorageEvent and TextEvent, because this browser has no interface behind any of them and a table row mapping them to Event is ADR 0012's stub -- and for the two sensor events it is an ADR 0029 fingerprinting surface opened by a table row. createElementNS validates the namespace and then stores the *qualified* name, which makes tagName right and localName wrong: dom::Element has one name field, so the choice is between those two, and getElementsByTagName('x:b') needs the qualified one. Elements carrying a namespace is C4.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "99.8%"
+      "firefox_ceiling": "99.8%",
+      "firefox_gap": {
+        "files": 337,
+        "blocked": 86,
+        "feature": 251,
+        "we_pass": 230,
+        "reftests_firefox_passes": 4
+      }
     },
     {
       "id": "C4",
@@ -275,7 +301,14 @@
       "adr": "",
       "notes": "**Third pass landed 2026-08-11: the mutation algorithms and the records they queue.** `dom/nodes` 62.2% -> **64.5%**, `dom/` 54.2% -> **56.1%**, 0 regressions.\n\n**The finding is a hang reachable from any page.** `el.append(el)` built a *cycle* in the tree, so every walk from the root looped forever -- three files in dom/nodes ran the runner to its wall-clock budget and reported no subtest at all, which is why ranking an area by failing subtests never showed them. `append`, `prepend`, `replaceChildren`, `before`, `after` and `replaceWith` inserted their arguments one at a time and validated nothing, while appendChild/insertBefore/replaceChild had been validated since C1. All six now begin with the DOM's \"converting nodes into a node\" (S4.2.6) and end in a pre-insertion, which is also what makes them atomic: `doc.append(a, b)` on a document that already has an element throws and changes nothing. src/bindings/NodeMixins.cpp (new) is the six of them, split out because TreeMutation.cpp went past the module's line cap and because they are one specification section rather than six methods; PreInsertionError moved to BindingSupport.h so both translation units can ask it.\n\n**MutationObserver was failing on a field it never wrote, and that hid six whole files.** Every MutationObserver test in dom/nodes runs through mutationobservers.js, which compares all eight record fields against a default of null; records carried no previousSibling, nextSibling or attributeNamespace, so each file failed on \"previousSibling didn't match\" before reaching its subject and then hung to the harness timeout waiting on an async_test that could no longer finish. 42 subtests in MutationObserver-attributes alone, 0 passing. The two siblings are computed inside RecordMutation rather than passed in, because every caller is already standing at the one moment they are true: an insertion records after the nodes are in, a removal before they leave. Landing with them: a replacement is now **one** record carrying addedNodes and removedNodes (the DOM's \"suppress observers\" flag, threaded as a bool parameter through the four insertion primitives, which is how the specification threads it); observe() does its four TypeErrors and the implied-option rules, on *presence* rather than truth, so {attributeOldValue: false} still watches attributes; removeAttribute of an absent attribute is no longer a mutation; inserting a fragment queues the record its own observers are owed for being emptied. Node.normalize() did not exist at all and now does -- iterative with an explicit stack, because the depth is a page's tree depth.\n\n**The ordering inside a replacement is observable, and WPT is where it was pinned down.** The incoming node leaves its old parent *before* the outgoing child is removed, and that removal keeps its own record. `parent.replaceChild(parent.lastChild, parent.firstChild)` must report the last child leaving while the first is still beside it, and `parent.replaceChild(x, x)` must report a removal and then an insertion rather than one record replacing x with itself; the spec's note \"the above can only be false if child is node\" only parses under that order.\n\n**The instrument grew: --verbose now prints the subtests behind a non-OK harness.** The expectation format still records one line for a timeout -- what is behind one is not yet a fact -- but a session diagnosing 85 of them could read \"23 of 38 passed\" in the summary and nothing about the fifteen. Every cause above came off that list. Same argument the harness-message line won a session ago.\n\n**What is left, measured.** (1) `Attr` as a real node -- and part of it landed straight after, which is what says what the rest costs. attributes.js's `attributes_are`, the helper a third of attributes.html runs through, checks `attr.textContent` and `attr.ownerElement` on every attribute, and the record this browser handed back had neither; twenty lines added `textContent` and made `ownerElement` an *accessor* that re-asks the element whether it still carries the attribute, which is **+24 subtests in dom/nodes** and a green Attr-prefix.html. What is left of it is the design rather than the addition: identity (`el.attributes[0] === el.getAttributeNode('x')` is false here and true everywhere else), a `value` that writes through, and setAttributeNode / removeAttributeNode / createAttribute with InUseAttributeError. All three want one thing -- a table of materialised Attrs on the element's wrapper plus a detach at every attribute removal and replacement -- and that table wants two or three new members on DomBindings, which has no header lines left. It is the first work the class split is blocking rather than merely embarrassing. (2) The Range mutation methods (insertNode, deleteContents, extractContents, surroundContents) are seven of the eleven remaining failures in MutationObserver-childList, and they are **C5**, not C4. (3) innerHTML/outerHTML still queue two records where the DOM queues one (MutationObserver-inner-outer.html names all three subtests); the fix is the same \"replace all\" this session built for replaceChildren and textContent, but InsertParsedHtml makes its fragment internally so the caller cannot see the added nodes, and DomBindings.h had no line left to widen it with -- it is a one-parameter change on the far side of the class split that header has now deferred five times.\n\n**The 85% target is not reachable without J1 and should be revised with that reason.** 390 of Document-createElementNS.html's 400 subtests, all 98 of Document-createElement.html's, the 654 across the two Document-characterSet-normalization files and roughly twenty-five .xhtml/.svg files run inside an <iframe> or in an XML document. processing-instruction-attributes.html's 136 are a WICG proposal and are not a gap in this browser either. What is left that C4 itself owns is (1) above.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "98.7%"
+      "firefox_ceiling": "98.7%",
+      "firefox_gap": {
+        "files": 186,
+        "blocked": 55,
+        "feature": 131,
+        "we_pass": 119,
+        "reftests_firefox_passes": 3
+      }
     },
     {
       "id": "J1",
@@ -304,7 +337,14 @@
       "notes": "",
       "ceiling_source": "firefox",
       "firefox_ceiling": "99.6%",
-      "target": "100%"
+      "target": "100%",
+      "firefox_gap": {
+        "files": 10,
+        "blocked": 5,
+        "feature": 5,
+        "we_pass": 27,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "C6",
@@ -319,7 +359,14 @@
       "notes": "",
       "ceiling_source": "firefox",
       "firefox_ceiling": "93.4%",
-      "target": "93%"
+      "target": "93%",
+      "firefox_gap": {
+        "files": 110,
+        "blocked": 24,
+        "feature": 86,
+        "we_pass": 65,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "C7",
@@ -337,7 +384,14 @@
       "adr": "0012",
       "notes": "AbortSignal.any follows DOM 3.3 including the flattening: a signal composed from a composed signal links to the original sources, so abort events fire source-first then in creation order however deep the composition goes. Chaining instead fires them depth-first, which is a different order for the same tree. AbortSignal.timeout needed TimerQueue::QueueDelayedTask -- a deadline the browser owns, deliberately not the page's setTimeout.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "100.0%"
+      "firefox_ceiling": "100.0%",
+      "firefox_gap": {
+        "files": 5,
+        "blocked": 2,
+        "feature": 3,
+        "we_pass": 5,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "C11",
@@ -355,7 +409,14 @@
       "adr": "0020",
       "notes": "Compiles lazily where RunListenersOn already asks for the on<type> property -- HTML's internal raw uncompiled handler -- so there is no parser hook. Two things a next session must not undo. (1) csp::Policy::AllowsInlineHandler is its own function, not AllowsInline with two empty strings: the nonce-cancels-unsafe-inline rule is about <script> ELEMENTS, which can carry a nonce, and an attribute cannot -- so `script-src 'unsafe-inline' 'nonce-abc'` permits a handler while refusing an un-nonced inline script. (2) The compile is CAPPED at 10,000 per document, because Interpreter::Run calls BeginHostTurn (resetting the step budget) and retains the AST: a loop that rewrites the attribute and dispatches would refresh the budget metering it, which is a hang a page can drive. The gate crosses into src/bindings as a flag and defaults to deny. An inline event handler is what CSP 'unsafe-inline' governs, and src/bindings cannot see src/csp -- its allow: line is a security boundary (ADR 0008) and DocumentPolicy::AllowsInline lives in src/engine. So the gate is a flag the engine sets on the binding layer, the same inversion GeometrySource and NetworkSource use, and it is one boolean per document: nonces and hashes do not apply to handlers, only 'unsafe-inline' does (script-src-attr falling back to script-src). Landing the compilation without that flag opens a script-execution path CSP does not see.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "93.4%"
+      "firefox_ceiling": "93.4%",
+      "firefox_gap": {
+        "files": 110,
+        "blocked": 24,
+        "feature": 86,
+        "we_pass": 65,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "C8",
@@ -374,7 +435,14 @@
       "adr": "0019",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "94.8%"
+      "firefox_ceiling": "94.8%",
+      "firefox_gap": {
+        "files": 141,
+        "blocked": 10,
+        "feature": 131,
+        "we_pass": 56,
+        "reftests_firefox_passes": 25
+      }
     },
     {
       "id": "C9",
@@ -389,7 +457,14 @@
       "notes": "insertAdjacentText and insertAdjacentElement landed with C3 (src/bindings/HtmlParsing.cpp). They are the DOM's 'insert adjacent', which is a different algorithm from insertAdjacentHTML's: a beforebegin/afterend insertion on a parentless element answers null rather than throwing NoModificationAllowedError. DOMParser and XMLSerializer are what is left.",
       "ceiling_source": "firefox",
       "firefox_ceiling": "94.3%",
-      "target": "94%"
+      "target": "94%",
+      "firefox_gap": {
+        "files": 13,
+        "blocked": 3,
+        "feature": 10,
+        "we_pass": 16,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "C10",
@@ -407,7 +482,14 @@
       "adr": "0012",
       "notes": "Done, +59.7 points. **The shape is the finding.** HTML states a dozen reflection *algorithms* and then applies them a few hundred times; this browser had ~50 hand-written accessor pairs, which is the shape that guarantees `td.colSpan` clamps and `col.span` does not from the same paragraph. Now: src/bindings/Reflection.h is the vocabulary, ReflectionTable.cpp is ~430 rows of data, ReflectedAttributes.cpp is each algorithm once. The integer and float parsers are transcriptions of HTML's own rules and deliberately NOT util::ParseInt -- that one rejects trailing garbage and these must stop at it, and a vertical tab is whitespace to C and is not to HTML. **Three things it uncovered that reflection-*.html does not test**: `<canvas>` width/height were a resize only `canvas.width =` reached (setAttribute did not resize, and `width=\"50px\"` was a zero-width canvas), so they are ordinary reflected unsigned longs now with the resize on the attribute write -- html/canvas/element/canvas-host/ 24.2% -> 50.0%; `<a href>` did not resolve, so `a.pathname` was not a path; and `nonce` reflects one way only, which is CSP nonce-hiding rather than a quirk. **ARIA reflection landed too**: every `aria-*` and `role` is a nullable DOMString on Element, which is three states rather than two -- `aria-checked` absent means \"not a checkbox\" and `aria-checked=\"\"` means \"a checkbox in no state\". **`aria-attribute-reflection-enumerated.tentative.html` (1160 subtests) is a deliberate refusal, measured rather than argued**: it is w3c/aria PR 2484, a proposal that contradicts the shipped spec -- with `aria-busy` absent it wants \"false\" where `aria-attribute-reflection.html` wants null. The proposal was implemented, both files measured, and reverted: DOMString? (ours) scores 41/41 and 562/1722; enumerated scores 28/41 and 1696/1722. So the trade is +1134 subtests there for -13 here, and it is still refused -- those 13 are the shipped behaviour of every browser, so taking the trade buys a pass rate by giving pages an answer no other engine gives. Correctness before pass rate; revisit when the proposal ships. **Not done**: img/video width/height return the attribute rather than the rendered size (the suite marks them customGetter and does not test the getter), ARIA *element* reflection (26 subtests, wants element references plus named access on window), and html/browsers/ was not re-measured -- 751 navigation tests, almost all 20-second timeouts, four hours to learn nothing about reflection. **html/dom/render-blocking/ is flaky by construction** -- two identical runs reported 0 unexpected and then 2 -- so a small unexpected count there is not a regression.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "97.1%"
+      "firefox_ceiling": "97.1%",
+      "firefox_gap": {
+        "files": 118,
+        "blocked": 15,
+        "feature": 103,
+        "we_pass": 65,
+        "reftests_firefox_passes": 127
+      }
     },
     {
       "id": "D1",
@@ -423,7 +505,14 @@
       "adr": "0014",
       "notes": "Eight of wikipedia's nine calc failures need max().",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "56.2%"
+      "firefox_ceiling": "56.2%",
+      "firefox_gap": {
+        "files": 157,
+        "blocked": 19,
+        "feature": 138,
+        "we_pass": 9,
+        "reftests_firefox_passes": 150
+      }
     },
     {
       "id": "D2",
@@ -441,7 +530,14 @@
       "adr": "0014",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "56.2%"
+      "firefox_ceiling": "56.2%",
+      "firefox_gap": {
+        "files": 157,
+        "blocked": 19,
+        "feature": 138,
+        "we_pass": 9,
+        "reftests_firefox_passes": 150
+      }
     },
     {
       "id": "D3",
@@ -457,9 +553,16 @@
       "status": "done",
       "agent": "wpt-d3",
       "adr": "",
-      "notes": "**Done 2026-08-16: css/cssom/ is 1523/2169 (70.2%)** against a Firefox ceiling of 97.4%. Remaining gap is D7 serialization, constructable-sheet TIMEOUTs, keyframes, and HTML/SVG/MathML interface objects idlharness does not find.\n\nWhat landed: CSSStyleSheet as a real StyleSheet subclass (distinct prototype, @@toStringTag), cssRules/insertRule/deleteRule/addRule/removeRule, the CSSRule hierarchy including CSSGroupingRule so style rules nest, MediaList, CSSStyleDeclaration methods on the prototype with brand checks, specified-style canonicalization (unknown properties dropped, all-caps JS names ignored, trailing `;`, trimmed values), and CSSPageRule.selectorText that no-ops an invalid page selector. Linked and constructable sheets share CSSStyleSheet.prototype. `replace` on a non-constructed sheet rejects with NotAllowedError; the async `@import` path stays NotSupportedError (ADR 0019 §4).",
+      "notes": "**Done 2026-08-16: css/cssom/ is 1523/2169 (70.2%)** against a Firefox ceiling of 97.4%. Remaining gap is D7 serialization, constructable-sheet TIMEOUTs, keyframes, and HTML/SVG/MathML interface objects idlharness does not find.\n\nWhat landed: CSSStyleSheet as a real StyleSheet subclass (distinct prototype, @@toStringTag), cssRules/insertRule/deleteRule/addRule/removeRule, the CSSRule hierarchy including CSSGroupingRule so style rules nest, MediaList, CSSStyleDeclaration methods on the prototype with brand checks, specified-style canonicalization (unknown properties dropped, all-caps JS names ignored, trailing `;`, trimmed values), and CSSPageRule.selectorText that no-ops an invalid page selector. Linked and constructable sheets share CSSStyleSheet.prototype. `replace` on a non-constructed sheet rejects with NotAllowedError; the async `@import` path stays NotSupportedError (ADR 0019 \u00a74).",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "97.4%"
+      "firefox_ceiling": "97.4%",
+      "firefox_gap": {
+        "files": 109,
+        "blocked": 20,
+        "feature": 89,
+        "we_pass": 63,
+        "reftests_firefox_passes": 9
+      }
     },
     {
       "id": "D4",
@@ -477,7 +580,14 @@
       "adr": "0018",
       "notes": "In progress 2026-08-16: css/cssom-view testharness is 797/2121 (37.6%) against a Firefox ceiling of 86.3% (was 365/1349, 27.1%). Check (>=70%) not yet met. What landed: DOMRect/DOMRectList, offsetParent on HTMLElement, clientTop/clientLeft, root client* = viewport, scroll/scrollTo Promise aliases with ScrollBehavior checks, elementsFromPoint, elementFromPoint arity/finite, scrollingElement, transform none-vs-not-none. Remaining: GeometryUtils, visualViewport/caret/checkVisibility (ADR 0012), smooth-scroll, scrollWidth/Height layout, idlharness Screen/MediaQueryListEvent, iframe UAF CRASH in scrolling-quirks-vs-nonquirks.html.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "86.3%"
+      "firefox_ceiling": "86.3%",
+      "firefox_gap": {
+        "files": 117,
+        "blocked": 15,
+        "feature": 102,
+        "we_pass": 62,
+        "reftests_firefox_passes": 11
+      }
     },
     {
       "id": "D5",
@@ -492,7 +602,14 @@
       "notes": "**Done 2026-08-16: css/selectors/ is 4408/5783 (76.2%)**, against a Firefox ceiling of 94.4% and a check of 55%. D3/D8 CSSOM work had already lifted the area from 24.7% to 73.4%; this session added `selector()` to `@supports` / `CSS.supports` so parsing tests ask the real selector parser instead of getting a hardcoded false. Remaining: `:lang()` i18n, `:has()` / `:first-child` invalidation, `:focus-visible`, popover/`showPopover`, `::part`.",
       "ceiling_source": "firefox",
       "firefox_ceiling": "94.4%",
-      "target": "94%"
+      "target": "94%",
+      "firefox_gap": {
+        "files": 143,
+        "blocked": 36,
+        "feature": 107,
+        "we_pass": 110,
+        "reftests_firefox_passes": 221
+      }
     },
     {
       "id": "D6",
@@ -508,7 +625,14 @@
       "adr": "0014",
       "notes": "Ledger session 49 left the design half done on purpose. Baseline 2026-08-10: already 88.2%, the best CSS area in the suite. The 184 harness ERRORs are container queries, which is what is left.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "97.3%"
+      "firefox_ceiling": "97.3%",
+      "firefox_gap": {
+        "files": 147,
+        "blocked": 122,
+        "feature": 25,
+        "we_pass": 1,
+        "reftests_firefox_passes": 159
+      }
     },
     {
       "id": "D7",
@@ -524,9 +648,16 @@
       "status": "done",
       "agent": "wpt-d7",
       "adr": "",
-      "notes": "**Done 2026-08-16: css/cssom/ is 1744/2169 (80.4%)**, +10.2 points from D3's 70.2% floor, against a Firefox ceiling of 97.4%. Specified-value serialization (`.1em` → `0.1em`, quoted `url()`, `rgba` alpha kept, font-family quoting, `CSS.escape` as serialize-an-identifier), overflow/margin/padding shorthand collapsing, and namespaced selector serialization (`*|e` kept when the sheet has a default `@namespace`; `ns|e` round-trips). Remaining: constructable-sheet TIMEOUTs, keyframes, border/flex/list-style/outline shorthand collapsing, computed font-family quoting, HTML/SVG/MathML interface objects.",
+      "notes": "**Done 2026-08-16: css/cssom/ is 1744/2169 (80.4%)**, +10.2 points from D3's 70.2% floor, against a Firefox ceiling of 97.4%. Specified-value serialization (`.1em` \u2192 `0.1em`, quoted `url()`, `rgba` alpha kept, font-family quoting, `CSS.escape` as serialize-an-identifier), overflow/margin/padding shorthand collapsing, and namespaced selector serialization (`*|e` kept when the sheet has a default `@namespace`; `ns|e` round-trips). Remaining: constructable-sheet TIMEOUTs, keyframes, border/flex/list-style/outline shorthand collapsing, computed font-family quoting, HTML/SVG/MathML interface objects.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "97.4%"
+      "firefox_ceiling": "97.4%",
+      "firefox_gap": {
+        "files": 109,
+        "blocked": 20,
+        "feature": 89,
+        "we_pass": 63,
+        "reftests_firefox_passes": 9
+      }
     },
     {
       "id": "D8",
@@ -542,7 +673,14 @@
       "adr": "",
       "notes": "**Done 2026-08-16: css/css-syntax/ is 387/429 (90.2%)**, against a Firefox ceiling of 76.7% (the task's 85% check sits above that ceiling; the ceiling is the bound). Tokenizer preprocess (NUL/CR/FF, escaped EOF), ReconstructTokens (CDO/CDC, consecutive-token comments, signed numbers so An+B `2n+1` round-trips), `<urange>` CSSOM, `u+a` as a selector in both CSSOM and the cascade, at-rules in declaration lists including `@page`, custom-property computed values, EOF-closed selector constructs, CSSFontFaceRule.style. Remaining: stylesheet charset, nested-rule/custom-property ambiguity, surrogate identifiers, a handful of url() serializations.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "76.7%"
+      "firefox_ceiling": "76.7%",
+      "firefox_gap": {
+        "files": 20,
+        "blocked": 0,
+        "feature": 20,
+        "we_pass": 15,
+        "reftests_firefox_passes": 1
+      }
     },
     {
       "id": "E1",
@@ -560,7 +698,14 @@
       "adr": "",
       "notes": "Largest reftest area in the suite.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "98.9%"
+      "firefox_ceiling": "98.9%",
+      "firefox_gap": {
+        "files": 40,
+        "blocked": 7,
+        "feature": 33,
+        "we_pass": 22,
+        "reftests_firefox_passes": 6083
+      }
     },
     {
       "id": "E2",
@@ -578,7 +723,14 @@
       "adr": "",
       "notes": "Baseline 2026-08-10: 15.1%, and 183 of 369 tests TIME OUT. Find out why before writing any flexbox code.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "97.2%"
+      "firefox_ceiling": "97.2%",
+      "firefox_gap": {
+        "files": 248,
+        "blocked": 172,
+        "feature": 76,
+        "we_pass": 95,
+        "reftests_firefox_passes": 931
+      }
     },
     {
       "id": "E3",
@@ -596,7 +748,14 @@
       "adr": "",
       "notes": "roadmap-sessions.json session 39 is in_progress.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "89.4%"
+      "firefox_ceiling": "89.4%",
+      "firefox_gap": {
+        "files": 511,
+        "blocked": 415,
+        "feature": 96,
+        "we_pass": 6,
+        "reftests_firefox_passes": 840
+      }
     },
     {
       "id": "E4",
@@ -612,7 +771,14 @@
       "adr": "",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "80.9%"
+      "firefox_ceiling": "80.9%",
+      "firefox_gap": {
+        "files": 87,
+        "blocked": 27,
+        "feature": 60,
+        "we_pass": 16,
+        "reftests_firefox_passes": 477
+      }
     },
     {
       "id": "E5",
@@ -630,7 +796,14 @@
       "adr": "",
       "notes": "old.reddit's #header-bottom-right landing 7px below its containing block is in this area.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "91.4%"
+      "firefox_ceiling": "91.4%",
+      "firefox_gap": {
+        "files": 68,
+        "blocked": 5,
+        "feature": 63,
+        "we_pass": 25,
+        "reftests_firefox_passes": 197
+      }
     },
     {
       "id": "E6",
@@ -648,7 +821,14 @@
       "adr": "0018",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "68.9%"
+      "firefox_ceiling": "68.9%",
+      "firefox_gap": {
+        "files": 88,
+        "blocked": 29,
+        "feature": 59,
+        "we_pass": 11,
+        "reftests_firefox_passes": 210
+      }
     },
     {
       "id": "E7",
@@ -666,7 +846,14 @@
       "adr": "",
       "notes": "old.reddit's flair sits on the baseline because of this.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "98.9%"
+      "firefox_ceiling": "98.9%",
+      "firefox_gap": {
+        "files": 40,
+        "blocked": 7,
+        "feature": 33,
+        "we_pass": 22,
+        "reftests_firefox_passes": 6083
+      }
     },
     {
       "id": "E8",
@@ -682,7 +869,14 @@
       "adr": "0025",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "90.3%"
+      "firefox_ceiling": "90.3%",
+      "firefox_gap": {
+        "files": 281,
+        "blocked": 102,
+        "feature": 179,
+        "we_pass": 43,
+        "reftests_firefox_passes": 1217
+      }
     },
     {
       "id": "E9",
@@ -700,7 +894,14 @@
       "adr": "",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "93.7%"
+      "firefox_ceiling": "93.7%",
+      "firefox_gap": {
+        "files": 60,
+        "blocked": 10,
+        "feature": 50,
+        "we_pass": 19,
+        "reftests_firefox_passes": 1112
+      }
     },
     {
       "id": "E10",
@@ -716,7 +917,14 @@
       "adr": "",
       "notes": "cellspacing is unmapped on Hacker News because there is no border-spacing.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "89.9%"
+      "firefox_ceiling": "89.9%",
+      "firefox_gap": {
+        "files": 83,
+        "blocked": 3,
+        "feature": 80,
+        "we_pass": 29,
+        "reftests_firefox_passes": 144
+      }
     },
     {
       "id": "E11",
@@ -732,7 +940,14 @@
       "adr": "",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "74.2%"
+      "firefox_ceiling": "74.2%",
+      "firefox_gap": {
+        "files": 15,
+        "blocked": 3,
+        "feature": 12,
+        "we_pass": 4,
+        "reftests_firefox_passes": 133
+      }
     },
     {
       "id": "F1",
@@ -748,7 +963,14 @@
       "adr": "",
       "notes": "A spoiler span on old.reddit is invisible text on white because of this.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "95.6%"
+      "firefox_ceiling": "95.6%",
+      "firefox_gap": {
+        "files": 97,
+        "blocked": 1,
+        "feature": 96,
+        "we_pass": 8,
+        "reftests_firefox_passes": 661
+      }
     },
     {
       "id": "F2",
@@ -778,7 +1000,14 @@
       "adr": "",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "95.4%"
+      "firefox_ceiling": "95.4%",
+      "firefox_gap": {
+        "files": 33,
+        "blocked": 1,
+        "feature": 32,
+        "we_pass": 15,
+        "reftests_firefox_passes": 298
+      }
     },
     {
       "id": "F4",
@@ -796,7 +1025,14 @@
       "adr": "",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "97.5%"
+      "firefox_ceiling": "97.5%",
+      "firefox_gap": {
+        "files": 27,
+        "blocked": 2,
+        "feature": 25,
+        "we_pass": 2,
+        "reftests_firefox_passes": 400
+      }
     },
     {
       "id": "F5",
@@ -814,7 +1050,14 @@
       "adr": "",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "99.2%"
+      "firefox_ceiling": "99.2%",
+      "firefox_gap": {
+        "files": 93,
+        "blocked": 1,
+        "feature": 92,
+        "we_pass": 7,
+        "reftests_firefox_passes": 779
+      }
     },
     {
       "id": "F6",
@@ -830,7 +1073,14 @@
       "adr": "0029",
       "notes": "Baseline 2026-08-10: 12.2%. OffscreenCanvas is not defined, which is 889 tests on its own.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "78.5%"
+      "firefox_ceiling": "78.5%",
+      "firefox_gap": {
+        "files": 2654,
+        "blocked": 976,
+        "feature": 1678,
+        "we_pass": 334,
+        "reftests_firefox_passes": 173
+      }
     },
     {
       "id": "F7",
@@ -846,7 +1096,14 @@
       "adr": "",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "97.5%"
+      "firefox_ceiling": "97.5%",
+      "firefox_gap": {
+        "files": 622,
+        "blocked": 242,
+        "feature": 380,
+        "we_pass": 15,
+        "reftests_firefox_passes": 437
+      }
     },
     {
       "id": "F8",
@@ -862,7 +1119,14 @@
       "adr": "0023",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "100.0%"
+      "firefox_ceiling": "100.0%",
+      "firefox_gap": {
+        "files": 3,
+        "blocked": 3,
+        "feature": 0,
+        "we_pass": 0,
+        "reftests_firefox_passes": 31
+      }
     },
     {
       "id": "G1",
@@ -878,7 +1142,14 @@
       "adr": "0011",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "91.8%"
+      "firefox_ceiling": "91.8%",
+      "firefox_gap": {
+        "files": 278,
+        "blocked": 120,
+        "feature": 158,
+        "we_pass": 32,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "G2",
@@ -910,7 +1181,14 @@
       "adr": "0020",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "100.0%"
+      "firefox_ceiling": "100.0%",
+      "firefox_gap": {
+        "files": 79,
+        "blocked": 7,
+        "feature": 72,
+        "we_pass": 0,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "G4",
@@ -926,7 +1204,14 @@
       "adr": "",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "73.0%"
+      "firefox_ceiling": "73.0%",
+      "firefox_gap": {
+        "files": 103,
+        "blocked": 11,
+        "feature": 92,
+        "we_pass": 3,
+        "reftests_firefox_passes": 18
+      }
     },
     {
       "id": "G5",
@@ -942,7 +1227,14 @@
       "adr": "0022",
       "notes": "Baseline 2026-08-10: 1.8%. importScripts is not defined; 200 of 284 tests time out on it, and it is 1,380 timeouts suite-wide.\n\n**2026-08-14: the cause was not importScripts, it was that a worker had no global scope at all.** `engine::Workers` had owned a thread and a heap since session 38 and every test of it passed; what a script in that heap could *see* was `postMessage`, `self`, `name` and `onmessage`. `src/engine/WorkerScope.{h,cpp}` is the surface. Four things had to be true before one worker test could report: `self instanceof DedicatedWorkerGlobalScope` (testharness.js decides its environment with exactly that expression and otherwise concludes it is in a *shell*, which has no channel to report on), `importScripts` blocking the worker thread on the main loop, timers on the worker's own thread, and `addEventListener` declared as a bare global as well as on `self`.\n\nTwo bugs found on the way. Every worker message was delivered **twice** -- `DeliverWorkerMessage` called the `onmessage` property and then `dispatchEvent`, which runs `on<type>` again as the specification's implicit listener. And both test tools drove the engine as `if (Advance() || HasRunnableWork()) continue;` with `RunDueWork()` only on the else, while `RunDueWork` is what drains a worker's outbox and `HasRunnableWork` is true precisely when there is something in it. The same shape had already been found once in tools/snapshot for timers.\n\nThe API surface cost almost nothing: `URL`, `URLSearchParams`, `TextEncoder`, `atob`, `crypto`, `Blob`, `fetch`, `Headers`, `Request`, `Response`, `FormData`, `AbortController` and `XMLHttpRequest` in a worker are the *page's* implementations, because `DomBindings::document_` was already a pointer and `bindings::NetworkSource` was already an interface. **`src/url` is safe to call from a second thread and `src/dom` is not** -- one is a pure parser over generated const tables, the other has a process-wide intern table. Check that property before reaching for any other module from a worker.\n\nWhat is left, in the order it blocks tests: `WebSocket` (20 of a 400-file sample's remaining harness errors; `websockets/` is 532 tests, and `bindings::SocketSource` is the same shape `NetworkSource` was), `IndexedDB` and `localStorage`, `OffscreenCanvas` (task F6, 889 tests). `SharedWorker` stays refused -- ADR 0022 \u00a71 names it as the one thing the model exists to avoid.\n\n**Worker results are load-sensitive** in a way the rest of the suite is not: a worker is a real second thread per test process. The same 400 files gave 4,215 passing subtests on an idle machine and 40 on the same binary while a build was running. Re-record at low concurrency and check the denominator.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "95.1%"
+      "firefox_ceiling": "95.1%",
+      "firefox_gap": {
+        "files": 181,
+        "blocked": 66,
+        "feature": 115,
+        "we_pass": 75,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "G6",
@@ -960,7 +1252,14 @@
       "adr": "",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "96.6%"
+      "firefox_ceiling": "96.6%",
+      "firefox_gap": {
+        "files": 136,
+        "blocked": 75,
+        "feature": 61,
+        "we_pass": 16,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "G7",
@@ -976,7 +1275,14 @@
       "adr": "",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "91.6%"
+      "firefox_ceiling": "91.6%",
+      "firefox_gap": {
+        "files": 28,
+        "blocked": 18,
+        "feature": 10,
+        "we_pass": 17,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "G8",
@@ -992,7 +1298,14 @@
       "adr": "",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "95.3%"
+      "firefox_ceiling": "95.3%",
+      "firefox_gap": {
+        "files": 0,
+        "blocked": 0,
+        "feature": 0,
+        "we_pass": 14,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "H1",
@@ -1008,7 +1321,14 @@
       "adr": "0040",
       "notes": "Blocks most of fetch/ and nearly all of cors/.\n\n**Decided and done 2026-08-14: implement the most-used natively, as transcriptions.** ADR 0040 \u00a72's refusal named the condition under which the trade changes -- 'until somebody measures that those specific tests are what is blocking' -- and the measurement is that one run of xhr/ asks for xhr/resources/content.py 117 times, status.py 110 and delay.py 74, and **ten files account for most of it**.\n\n`tools/wpt/Handlers.{h,cpp}` is a named, closed list keyed by repo-relative path; everything not on it still answers 501 and a test asserts that. Each handler is a transcription of one specific file with that file's source quoted above it -- three different `redirect.py` files exist with three different behaviours, which is why dispatch is on the whole path.\n\n`?pipe=` landed with it and is the larger half: hundreds of tests ask for a status or a header on an *ordinary static file*, and a server that ignored the query served the file as itself -- a wrong answer rather than a missing one. And the server now reads a request **body**, which it never did: it answered before reading one, so the bytes stayed in the buffer to be parsed as the next request line.\n\nA delay is *held* rather than slept on: this server is single-threaded by ADR 0040 \u00a74's own rule and six test processes talk to it at once.\n\nWhat is left here is the long tail, and it is a long tail: the next handlers are worth 3-12 requests each rather than 117. `common/security-features/subresource/*.py` is the exception -- referrer-policy/gen is 1,001 tests -- but those need iframes (ADR 0027), https and cross-origin contexts as well, so the handler is not what is blocking them.\n\n**Known gap, measured 2026-08-14 and deliberately not fixed the same day:** `?pipe=status(N)` with no second argument leaves the reason phrase as `OK`, where wptserve maps the code to its standard reason. A test that reads `statusText` after a piped status sees the wrong string. It is a small table and the reason it was not added on the spot is worth more than the fix: an expectation re-record was in flight, and changing behaviour under one is how a measurement comes out describing a binary that no longer exists.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "unmeasured"
+      "firefox_ceiling": "unmeasured",
+      "firefox_gap": {
+        "files": 320,
+        "blocked": 81,
+        "feature": 239,
+        "we_pass": 48,
+        "reftests_firefox_passes": 11
+      }
     },
     {
       "id": "H2",
@@ -1024,7 +1344,14 @@
       "adr": "",
       "notes": "Cheapest high-value area in the suite.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "89.9%"
+      "firefox_ceiling": "89.9%",
+      "firefox_gap": {
+        "files": 1,
+        "blocked": 1,
+        "feature": 0,
+        "we_pass": 45,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "H3",
@@ -1040,7 +1367,14 @@
       "adr": "",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "unmeasured"
+      "firefox_ceiling": "unmeasured",
+      "firefox_gap": {
+        "files": 4,
+        "blocked": 3,
+        "feature": 1,
+        "we_pass": 1,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "H4",
@@ -1058,7 +1392,14 @@
       "adr": "0020",
       "notes": "Baseline 2026-08-10: 7.4%. But fetch/corb is 86.8%, so the .py gap is not uniform and there is real code to write here.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "93.2%"
+      "firefox_ceiling": "93.2%",
+      "firefox_gap": {
+        "files": 152,
+        "blocked": 13,
+        "feature": 139,
+        "we_pass": 30,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "H5",
@@ -1076,7 +1417,14 @@
       "adr": "0020",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "98.3%"
+      "firefox_ceiling": "98.3%",
+      "firefox_gap": {
+        "files": 315,
+        "blocked": 31,
+        "feature": 284,
+        "we_pass": 95,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "H6",
@@ -1094,7 +1442,14 @@
       "adr": "0020",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "unmeasured"
+      "firefox_ceiling": "unmeasured",
+      "firefox_gap": {
+        "files": 620,
+        "blocked": 457,
+        "feature": 163,
+        "we_pass": 69,
+        "reftests_firefox_passes": 2
+      }
     },
     {
       "id": "H7",
@@ -1110,7 +1465,14 @@
       "adr": "0005",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "98.3%"
+      "firefox_ceiling": "98.3%",
+      "firefox_gap": {
+        "files": 51,
+        "blocked": 35,
+        "feature": 16,
+        "we_pass": 1,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "H8",
@@ -1126,7 +1488,14 @@
       "adr": "0033",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "unmeasured"
+      "firefox_ceiling": "unmeasured",
+      "firefox_gap": {
+        "files": 1330,
+        "blocked": 1083,
+        "feature": 247,
+        "we_pass": 0,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "H9",
@@ -1161,7 +1530,14 @@
       "adr": "0020",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "98.7%"
+      "firefox_ceiling": "98.7%",
+      "firefox_gap": {
+        "files": 378,
+        "blocked": 290,
+        "feature": 88,
+        "we_pass": 286,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "I1",
@@ -1177,7 +1553,14 @@
       "adr": "0021",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "99.4%"
+      "firefox_ceiling": "99.4%",
+      "firefox_gap": {
+        "files": 39,
+        "blocked": 25,
+        "feature": 14,
+        "we_pass": 10,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "I2",
@@ -1195,7 +1578,14 @@
       "adr": "0038",
       "notes": "Baseline 2026-08-10: 4.2%. 200,592 NOTRUN subtests sit behind a first failure, so the number moves in steps rather than smoothly.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "99.9%"
+      "firefox_ceiling": "99.9%",
+      "firefox_gap": {
+        "files": 251,
+        "blocked": 40,
+        "feature": 211,
+        "we_pass": 13,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "I3",
@@ -1213,7 +1603,14 @@
       "adr": "",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "98.1%"
+      "firefox_ceiling": "98.1%",
+      "firefox_gap": {
+        "files": 31,
+        "blocked": 16,
+        "feature": 15,
+        "we_pass": 65,
+        "reftests_firefox_passes": 1
+      }
     },
     {
       "id": "I4",
@@ -1231,7 +1628,14 @@
       "adr": "0021",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "88.6%"
+      "firefox_ceiling": "88.6%",
+      "firefox_gap": {
+        "files": 18,
+        "blocked": 1,
+        "feature": 17,
+        "we_pass": 0,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "J1b",
@@ -1248,7 +1652,14 @@
       "notes": "Blocks J2, J3, G6, and three acceptance sites. Renumbered from a duplicate `J1` that arrived in the 2026-08-12 five-worktree merge: two tasks answered to one id, which is how two agents come to claim one piece of work. This is the `html/browsers/` half; J1 is the `dom/` half and lands first.\n\n**2026-08-12**: the language-level realm it needs is done (ADR 0042). This task is now the host half only, and ADR 0042 \u00a75 is its plan in five ordered steps. The smallest end-to-end check is `dom/nodes/remove-from-shadow-host-and-adopt-into-iframe.html`, which is red on master while the expectation file claims it passes.",
       "note": "ADR 0042 \u00a75 steps 1-4 landed 2026-08-13: a same-origin child runs script in its own realm of the embedder's interpreter, `contentWindow` is that realm's global, `contentDocument` is its `document`, and `parent`/`top`/`window[i]`/`window.length` answer. url/ 97.9% -> 99.8%; custom-elements + shadow-dom + domparsing +141 subtests, 0 lost; dom/ 1 crash -> 0. Left: no engine services reach a child Page (fetch is undeclared), a child form fires `submit` and never navigates, `postMessage` and `frameElement` absent, and a wrapper made before an adoption keeps its old realm. See docs/session-log.md C12.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "80.1%"
+      "firefox_ceiling": "80.1%",
+      "firefox_gap": {
+        "files": 549,
+        "blocked": 298,
+        "feature": 251,
+        "we_pass": 58,
+        "reftests_firefox_passes": 4
+      }
     },
     {
       "id": "J2",
@@ -1267,7 +1678,14 @@
       "adr": "0027",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "80.1%"
+      "firefox_ceiling": "80.1%",
+      "firefox_gap": {
+        "files": 549,
+        "blocked": 298,
+        "feature": 251,
+        "we_pass": 58,
+        "reftests_firefox_passes": 4
+      }
     },
     {
       "id": "J3",
@@ -1299,7 +1717,14 @@
       "adr": "0026",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "unmeasured"
+      "firefox_ceiling": "unmeasured",
+      "firefox_gap": {
+        "files": 83,
+        "blocked": 33,
+        "feature": 50,
+        "we_pass": 35,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "J5",
@@ -1317,7 +1742,14 @@
       "adr": "0026",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "unmeasured"
+      "firefox_ceiling": "unmeasured",
+      "firefox_gap": {
+        "files": 245,
+        "blocked": 123,
+        "feature": 122,
+        "we_pass": 9,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "J6",
@@ -1335,7 +1767,14 @@
       "adr": "0027",
       "notes": "**2026-08-12**: `fetch/metadata/` is 87 tests and 1,664 subtests blocked on this -- every generated `element-*.sub.html` calls `window.open()` and builds its element in the returned window, so `win.document` throws today. Wants ADR 0042 \u00a75 underneath it.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "unmeasured"
+      "firefox_ceiling": "unmeasured",
+      "firefox_gap": {
+        "files": 46,
+        "blocked": 26,
+        "feature": 20,
+        "we_pass": 0,
+        "reftests_firefox_passes": 3
+      }
     },
     {
       "id": "K1",
@@ -1351,7 +1790,14 @@
       "adr": "0025",
       "notes": "Done, 99.6% against a 98.9% Firefox ceiling. The suite was not the decoders -- encconf was already green. It was the harness never reaching them: HTML <meta name=variant> was unexpanded so eucjp-decode ran 13k subtests in one process and TIMED OUT; <body onload> never became window.onload so testharness never started; form.submit() into a named iframe navigated the parent; two submit()s in one turn dropped the second worker iframe. overrideMimeType and TextDecoder decode() Web IDL order landed with it. Streams, workers, ArrayBuffer.transfer, and UTF-32-with-BOM via overrideMimeType remain.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "98.9%"
+      "firefox_ceiling": "98.9%",
+      "firefox_gap": {
+        "files": 47,
+        "blocked": 24,
+        "feature": 23,
+        "we_pass": 1239,
+        "reftests_firefox_passes": 4
+      }
     },
     {
       "id": "K2",
@@ -1369,7 +1815,14 @@
       "adr": "0025",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "98.9%"
+      "firefox_ceiling": "98.9%",
+      "firefox_gap": {
+        "files": 47,
+        "blocked": 24,
+        "feature": 23,
+        "we_pass": 1239,
+        "reftests_firefox_passes": 4
+      }
     },
     {
       "id": "K3",
@@ -1385,7 +1838,14 @@
       "adr": "0024",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "96.8%"
+      "firefox_ceiling": "96.8%",
+      "firefox_gap": {
+        "files": 123,
+        "blocked": 17,
+        "feature": 106,
+        "we_pass": 15,
+        "reftests_firefox_passes": 327
+      }
     },
     {
       "id": "K4",
@@ -1415,7 +1875,14 @@
       "adr": "0028",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "unmeasured"
+      "firefox_ceiling": "unmeasured",
+      "firefox_gap": {
+        "files": 257,
+        "blocked": 123,
+        "feature": 134,
+        "we_pass": 16,
+        "reftests_firefox_passes": 2
+      }
     },
     {
       "id": "L2",
@@ -1433,7 +1900,14 @@
       "adr": "0028",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "75.1%"
+      "firefox_ceiling": "75.1%",
+      "firefox_gap": {
+        "files": 57,
+        "blocked": 19,
+        "feature": 38,
+        "we_pass": 2,
+        "reftests_firefox_passes": 0
+      }
     },
     {
       "id": "L3",
@@ -1451,7 +1925,14 @@
       "adr": "0028",
       "notes": "",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "unmeasured"
+      "firefox_ceiling": "unmeasured",
+      "firefox_gap": {
+        "files": 257,
+        "blocked": 123,
+        "feature": 134,
+        "we_pass": 16,
+        "reftests_firefox_passes": 2
+      }
     },
     {
       "id": "L4",
@@ -1606,6 +2087,110 @@
       "agent": null,
       "adr": "0040",
       "notes": "The clearest single signal that the instrument has been replaced."
+    },
+    {
+      "id": "F9",
+      "milestone": "M-F",
+      "title": "reftests enter the measurement",
+      "area": "",
+      "scope": "Record reftest results in tests/wpt/expectations/ and include them in the baseline, so a reftest failure is a line in a file rather than a silence. Today the runner runs them (RunReftest in tools/wpt/main.cpp), the baseline is recorded --testharness-only, and the expectation format writes down only failures -- so a reftest nobody ran and a reftest that passed are the same absence.",
+      "check": "docs/wpt-firefox-gap.md reports a non-zero reftest pass count, and tests/wpt/expectations/ carries reftest lines. The number to beat first is zero.",
+      "depends": [
+        "F2"
+      ],
+      "target": "",
+      "status": "not_started",
+      "agent": "",
+      "adr": "0040",
+      "notes": "**Measured 2026-08-17 and it is the largest unmeasured surface in the project: 20,998 reftest files are in scope, 48% of the suite, and not one of them is in any number this project quotes.** Firefox passes 17,961. A 25-file random sample of ours passes 0, every one on pixel differences (line-height-095 by 304 pixels, run-in-contains-table-row-001 by 20,237). The runner reported each as `expected OK, got FAIL`, which is the expectation format saying it believed all 25 passed.\n\nDo F2 first: without <meta name=fuzzy> and a diff image beside each failure, a 304-pixel difference and a 20,237-pixel one are the same line in a file, and no session can tell an anti-aliasing tolerance from a missing feature. That is what F2 means by 'without it M-E's numbers are noise'.\n\nThis is not expected to produce a large pass count quickly -- it is expected to stop the project reporting a rate over half of its own test suite. Judge it by whether the reftest column in docs/wpt-firefox-gap.md is a measurement, not by what the measurement says."
+    },
+    {
+      "id": "O1",
+      "milestone": "M-O",
+      "title": "forms",
+      "area": "html/semantics/forms/",
+      "scope": "The form controls and their semantics: constraint validation, the value/checkedness/dirty-value machinery, form submission encodings, <input> type behaviours, <select>/<option>/<optgroup>, <label> activation, form-associated custom elements.",
+      "check": "html/semantics/forms/ re-measured; firefox_gap.files below 150.",
+      "depends": [],
+      "target": "60%",
+      "status": "not_started",
+      "agent": "",
+      "adr": "0012",
+      "notes": "**Had no task until 2026-08-17.** 314 test files Firefox passes and we fail, of which only 65 are blocked -- the highest ratio of ordinary specification work to plumbing in the top ten. `custom-elements/form-associated` is a further 103 files at 1/104, which is the same subject from the other side. CLAUDE.md's own list of Hacker News gaps says `<select>` is laid out and submitted but not clickable, which is one of these.",
+      "firefox_gap": {
+        "files": 314,
+        "blocked": 65,
+        "feature": 249,
+        "we_pass": 40,
+        "reftests_firefox_passes": 65
+      }
+    },
+    {
+      "id": "O2",
+      "milestone": "M-O",
+      "title": "the script element",
+      "area": "html/semantics/scripting-1/",
+      "scope": "<script> to the letter: the module loader, async/defer/module ordering, the classic-vs-module fetch paths, inline vs external, type= handling, and what document.write does when it is refused.",
+      "check": "html/semantics/scripting-1/ re-measured; firefox_gap.files below 180.",
+      "depends": [],
+      "target": "55%",
+      "status": "not_started",
+      "agent": "",
+      "adr": "0012",
+      "notes": "**Had no task until 2026-08-17.** 370 test files Firefox passes and we fail, 140 of them blocked. The module loader is the largest single cause -- 226 tests suite-wide by the 2026-08-12 count, and `Interpreter::SetModuleResolver` is synchronous, so wiring it means either a pre-pass that fetches the graph or a resolver that can answer later. Decide that before writing code; it is the same open question www.reddit.com's bundle stops at. document.write is refused (ADR 0011/0012/0026) and its failures get an expectation comment naming the ADR, not an implementation.",
+      "firefox_gap": {
+        "files": 370,
+        "blocked": 140,
+        "feature": 230,
+        "we_pass": 91,
+        "reftests_firefox_passes": 3
+      }
+    },
+    {
+      "id": "O3",
+      "milestone": "M-O",
+      "title": "embedded content",
+      "area": "html/semantics/embedded-content/",
+      "scope": "<img>, <iframe>, <object>, <embed>, <picture> and <canvas> as HTML elements rather than as painters: loading, decoding, the element's own state machine, dimension attributes, and what happens when the resource fails.",
+      "check": "html/semantics/embedded-content/ re-measured; firefox_gap.files below 300.",
+      "depends": [
+        "J1b"
+      ],
+      "target": "50%",
+      "status": "not_started",
+      "agent": "",
+      "adr": "0027",
+      "notes": "**Had no task until 2026-08-17.** 520 test files Firefox passes and we fail, 237 blocked -- the largest single directory under html/semantics/. Depends on J1b because a large part of it is <iframe> as an element. The media-elements subtree beneath it is L1/L3 and is not this task.",
+      "firefox_gap": {
+        "files": 520,
+        "blocked": 237,
+        "feature": 283,
+        "we_pass": 91,
+        "reftests_firefox_passes": 42
+      }
+    },
+    {
+      "id": "O4",
+      "milestone": "M-O",
+      "title": "the tokenizer and tree builder against the suite",
+      "area": "html/syntax/",
+      "scope": "html5lib-style tokenizer and tree-construction tests, character references, the parsing of foreign content, and the serializer.",
+      "check": "html/syntax/ re-measured; firefox_gap.files below 60.",
+      "depends": [],
+      "target": "80%",
+      "status": "not_started",
+      "agent": "",
+      "adr": "",
+      "notes": "**Had no task until 2026-08-17**, which is surprising for the oldest module in the tree: 172 test files Firefox passes and we fail, and **124 of them are blocked** -- the harness never reported. That ratio says the work here is mostly plumbing rather than parsing, which is worth confirming with one --verbose run before planning any tokenizer work. We already fully pass 170 files here, so the parser is not the problem it looks like.",
+      "firefox_gap": {
+        "files": 172,
+        "blocked": 124,
+        "feature": 48,
+        "we_pass": 170,
+        "reftests_firefox_passes": 22
+      }
     }
-  ]
+  ],
+  "gap_measured": "2026-08-16",
+  "gap_source": "firefox 156.0a1 via tools/wpt/firefox-gap.py"
 }

@@ -15,7 +15,7 @@ now the second-best one.
 
 ---
 
-## The target: Firefox's pass rate, per area
+## The target: the test files Firefox passes and we do not
 
 100% WPT compliance is not a meaningful target — no shipping browser achieves
 it. Firefox (the closest) runs ~96% aggregate; Chromium ~95%; Safari ~93%.
@@ -23,23 +23,122 @@ Each has areas where it fails deliberately, areas where the tests are written
 against another engine's behaviour, and areas where neither engine nor test is
 wrong but the specification is ambiguous.
 
-**The target for each WPT area is Firefox's pass rate on the same tests.**
-This is the *ceiling*: a gap between microbrowser and the ceiling is a bug;
-a test Firefox also fails is not our problem (yet); a test we refuse is a
-decision with a name.
+**The target is the set of test files Firefox passes and this browser does
+not.** A gap is a bug; a test Firefox also fails is not our problem (yet); a
+test we refuse is a decision with a name. That much has been the plan since it
+was written. What changed on **2026-08-17** is the *unit*, and the reason is
+worth reading before quoting any number in this document.
 
-`tools/wpt/firefox-ref.py` downloads Firefox's latest results from the
-wpt.fyi API, aggregates by our areas, and produces a comparison table:
+### Why the unit is a test file and not a percentage
+
+This document used to say "the target for each area is Firefox's pass rate on
+the same tests", and `tools/wpt/firefox-ref.py` produced a table with a `gap`
+column that subtracted our subtest percentage from Firefox's. **That subtraction
+is not a measurement.** Three separate reasons, each verified against the
+committed tables on 2026-08-17:
+
+1. **The two rates have different denominators.** Ours counts the subtests we
+   *reported*; Firefox's counts the subtests that *exist*. A test that dies
+   before `done()` contributes zero subtests to our denominator and its full
+   count to Firefox's — so the rate goes **up** as we fail worse, and it is
+   least trustworthy exactly where we are least correct. Measured: Firefox
+   reports **1,128,812 subtests that never enter our denominator at all**,
+   against the 481,764 that do. The worked example is `url/`, which reads
+   "us 97.9%, firefox 89.9%, ceiling **done**" — on 9,909 subtests where Firefox
+   has 15,420. We do not beat Firefox at URLs; we decline to report a third of
+   the question and then take the average of what is left.
+
+2. **The rate cannot be ranked.** `gap %` puts `FileAPI/FileReader` (2 subtests)
+   and `encoding/legacy-mb-japanese` (447,722) in joint first place, both at
+   `100.0`. A plan sorted by that column is sorted by nothing.
+
+3. **Subtest counts are not a measure of work either.** Ranking by *absolute*
+   subtests-behind-Firefox is no better: it puts the three
+   `encoding/legacy-mb-*` generated tables — 1.1M subtests across a handful of
+   files — above every layout, DOM and script area combined.
+
+A **test file** has none of those problems. It counts as passed only when every
+subtest in it passed, which is the same rule on both sides and cannot be
+inflated by a harness that stopped early. It is stricter than a subtest rate by
+construction, and that is the point.
 
 ```bash
-python3 tools/wpt/firefox-ref.py --cache /tmp/firefox-wpt-summary.json
-# -> docs/wpt-firefox-ceiling.md
+python3 tools/wpt/firefox-gap.py --cache /tmp/firefox-wpt-summary.json
+# -> docs/wpt-firefox-gap.md          the ranked gap, per area
+python3 tools/wpt/firefox-gap.py --list-gap css/selectors
+# -> the actual file names, each tagged `blocked` or `feature`
 ```
 
-Each task in `docs/wpt-tasks.json` carries a `firefox_ceiling` field from this
-tool and a `ceiling_source` of `"firefox"`. The existing `target` stays as a
-planning number — it may be lower than the ceiling when the full rate is not
-reachable in one session, or when a deliberate refusal caps the achievable rate.
+23,069 of our 23,146 in-scope testharness files are present in Firefox's run, so
+the join is all but complete. `docs/wpt-firefox-ceiling.md` stays, because a
+subtest rate is still the right way to watch *one* area move between two runs of
+*this* browser. It is not the right way to compare two browsers, and its `gap`
+column should not be read as one.
+
+### Where that leaves us — 2026-08-17, against Firefox 156.0a1
+
+| | testharness | reftest | total |
+|---|--:|--:|--:|
+| in our scope | 23,146 | 20,998 | 44,144 |
+| Firefox passes | 19,204 | 17,961 | 37,165 |
+| **we pass** | **4,293** | **0** | **4,293** |
+| **Firefox passes, we fail** | **14,911** | **17,961** | **32,872** |
+| both fail | 3,498 | 3,020 | 6,518 |
+| we pass, Firefox fails | 367 | 0 | 367 |
+
+**11.6% of what Firefox passes**, where the baseline's aggregate subtest rate
+reads 22.3% and individual areas read 76.1%, 90.2% and 99.8%. Both numbers are
+arithmetically correct. Only one of them is a comparison.
+
+Three things the rate was hiding, all of them actionable:
+
+- **6,153 of the 14,911 are files where our harness never reported at all** —
+  TIMEOUT, ERROR or CRASH before `done()`. Not one of their subtests is in any
+  denominator anywhere, in either direction. The `blocked` column of
+  `docs/wpt-firefox-gap.md` is this, per area, and it is the column to read
+  first: a blocked file is plumbing, and plumbing is cheaper than a
+  specification.
+- **The 20,998 reftests are not measured.** The runner runs them
+  (`RunReftest` in `tools/wpt/main.cpp`), the baseline is recorded
+  `--testharness-only`, and the expectation format writes down only failures —
+  so its silence about a reftest reads as a pass. A 25-file sample passes **0**,
+  every one on pixel differences. Firefox passes 17,961 of them. This is the
+  single largest unmeasured surface in the project and it is 48% of the suite.
+- **367 files are recorded as passing that Firefox fails.** An expectation file
+  cannot tell "passes" from "never run", so each of these is either a real
+  divergence worth a comment or a test nobody has run. `html/editing` has 90.
+
+### The ranking that follows from it
+
+The top of `docs/wpt-firefox-gap.md`, by files Firefox passes and we do not:
+
+| area | gap | blocked | feature | note |
+|---|--:|--:|--:|---|
+| `html/canvas` | 2,654 | 976 | 1,678 | task F6, `not_started`, target "35%" |
+| `html/semantics` | 1,517 | 512 | 1,005 | no task of its own |
+| `referrer-policy/gen` | 951 | 865 | 86 | task H8 is "record the deviations" |
+| `html/browsers` | 549 | 298 | 251 | tasks J2/J4/J5 |
+| `css/css-grid` | 511 | 415 | 96 | task E3 |
+| `websockets` | 364 | 285 | 79 | task H10, target "99%" |
+| `xhr` | 296 | 29 | 267 | task H5 |
+| `css/css-text` | 281 | 102 | 179 | task E8 |
+| `html/webappapis` | 278 | 120 | 158 | task G1 |
+| `svg/animations` | 267 | 37 | 230 | task F7 |
+
+Against that, the five areas the last five sessions worked — `css/selectors`
+(143), `css/cssom-view` (117), `css/cssom` (109), `css/css-syntax` (20),
+`encoding` (20) — total **409 files**, which is 15% of `html/canvas` alone. Those
+sessions were not wasted; every one of them fixed real bugs, and the commit
+messages are honest about what moved. But they were **chosen by a column that
+cannot rank**, and the ranking they were chosen by is the one this section
+replaces.
+
+Each task in `docs/wpt-tasks.json` now carries `firefox_gap` — `files`,
+`blocked` and `feature` from this measurement — alongside the older
+`firefox_ceiling`. **Rank by `firefox_gap.files`.** The `target` percentage
+stays as a within-area planning number and is no longer a goal in itself: a task
+is finished when its files move, and a session that raised a rate without moving
+files has to say which files it moved and why the rate is the better story.
 
 ### Refusal policy
 
@@ -298,6 +397,13 @@ Not started or in flight: grid (in progress), same-origin and cross-origin
 iframes, the process split and sandbox, incremental parsing and first paint,
 `vertical-align`, `min()`/`max()`/`clamp()`, viewport units, `:has()`.
 
+**Read that list against the file-level measurement before trusting it.** Half
+of those entries are "complete or near-complete" on the strength of a subtest
+rate, and a subtest rate is not a claim about correctness — `css/css-flexbox` is
+listed as complete and passes 95 of the 343 test files Firefox passes; canvas 2D
+is listed as complete and passes 334 of 2,988. The list is true about what has
+been *built*; it is not evidence about what works, and it has been read as both.
+
 That is a large browser with no idea how correct it is. The point of what
 follows is to find out and then to move the number.
 
@@ -313,6 +419,14 @@ Percentages are *subtests passing* over *subtests run* in that WPT path, as
 `microbrowser_wpt` reports them. They are targets for planning, not contracts:
 an area that turns out to be 40% specification-refusals gets its target revised
 in this document, with the reason.
+
+**And they are not comparable to another browser, or to each other** — the
+denominator is subtests this browser *reported*, so it shrinks when a test dies
+early. Read a percentage as "did this area move between two runs of this
+binary", never as "how far behind Firefox is this area". For the second question
+the unit is a test file and the document is `docs/wpt-firefox-gap.md`; see §The
+target above for why. Milestone ordering below still reflects the older ranking
+and is being revised area by area as tasks are picked up.
 
 ---
 
@@ -647,6 +761,26 @@ in these areas failing for a *harness* reason.
 | F6 | `html/canvas/` — the 2D context against the suite rather than against hand-written tests | — | 35% (§0.5) |
 | F7 | `svg/` — triage first: this browser renders SVG as an image, and the suite tests it as a document. Decide the scope in an ADR before writing code | — | ADR + a number |
 | F8 | Image formats — WebP and AVIF decoders (ADR 0023 counted them); `png/` and the image parts of `css-images` | — | fuzzers + 80% of `png/` |
+| F9 | **Harness:** reftests enter the measurement at all — record them in `tests/wpt/expectations/`, count them in the baseline | F2 | a non-zero reftest number |
+
+**F9 is the largest unmeasured surface in the project and it was found on
+2026-08-17, not built.** 20,998 reftest files are in scope — **48% of the
+suite** — and not one of them appears in any number this project quotes.
+`RunReftest` in `tools/wpt/main.cpp` runs them; the baseline is recorded
+`--testharness-only`; the expectation format writes down only failures. So a
+reftest that nobody ran and a reftest that passed are the same silence, and the
+runner duly reports `expected OK, got FAIL` for every one. A 25-file random
+sample passes **0**, all on pixel differences (304 pixels on
+`css/CSS2/linebox/line-height-095.xht`, 20,237 on
+`css/css-display/run-in/run-in-contains-table-row-001.xht`). Firefox passes
+17,961 of them.
+
+F2 comes first and the ordering is not negotiable: without `<meta name=fuzzy>`
+and a diff image beside each failure, a 304-pixel difference and a
+20,237-pixel one are the same line in a file, and no session can tell an
+anti-aliasing tolerance from a missing feature. F9 is not expected to produce a
+large pass count. It is expected to stop this project quoting a rate over half
+of its own suite.
 
 **Exit:** `css-backgrounds` ≥ 70%, `css-transforms` ≥ 60%, fuzzy reftests
 supported.
@@ -813,6 +947,48 @@ milestone, and what it finds becomes tasks in the *next* milestone.
 discusses the fingerprinting surface and stops short) and service workers (ADR
 0022 refuses background work — maps and linkedin will both want one). Each needs
 an ADR before it needs code, and the ADR may well be a refusal with a fallback.
+
+---
+
+### M-O — HTML's own elements · **added 2026-08-17**
+
+`html/semantics/`, `html/syntax/`. **This milestone exists because the ranking
+by test file found 1,689 files with no task anywhere in this plan**, which is
+more than the whole of `css/` below `html/canvas`. Every other area in the tree
+had an owner; HTML's elements had `html/dom/` (C10, done), `html/canvas/` (F6),
+`html/browsers/` (M-J) and the media-element subtree (M-L), and nothing for the
+elements themselves.
+
+| id | task | depends on | gap · blocked/feature | target |
+|---|---|---|---|---|
+| O3 | `html/semantics/embedded-content/` — `<img>`, `<iframe>`, `<object>`, `<embed>`, `<picture>`, `<canvas>` as elements rather than as painters: loading, decoding, the state machine, what happens when the resource fails | J1b | 520 · 237/283 | 50% |
+| O2 | `html/semantics/scripting-1/` — `<script>` to the letter: the module loader, `async`/`defer`/`module` ordering, classic-vs-module fetch paths | — | 370 · 140/230 | 55% |
+| O1 | `html/semantics/forms/` — constraint validation, the value/checkedness/dirty-value machinery, submission encodings, `<input>` types, `<select>`/`<option>`, `<label>` activation | — | 314 · 65/249 | 60% |
+| O4 | `html/syntax/` — the tokenizer and tree builder against the suite: html5lib tests, character references, foreign content, the serializer | — | 172 · **124**/48 | 80% |
+
+Two of these carry a finding worth more than the task. **O4's ratio is 124
+blocked to 48 feature**, on the oldest module in the tree, and we already fully
+pass 170 files there — so the work is almost certainly plumbing rather than
+parsing, and one `--verbose` run should confirm that before anyone opens the
+tokenizer. **O2's largest single cause is the module loader**, which is 226
+tests suite-wide and the same open question `www.reddit.com`'s bundle stops at:
+`Interpreter::SetModuleResolver` is synchronous, so wiring it means either a
+pre-pass that fetches the graph or a resolver that can answer later. Decide
+that before writing code.
+
+**The four tasks name 1,376 of the milestone's 1,689 files.** The other 313 are
+a real tail and are deliberately not a task yet, because none of them is an
+agent-session on its own: `interactive-elements` 84, `document-metadata` 71,
+`popovers` 71, `tabular-data` 27, `selectors` 24, `the-button-element` 14,
+`links` 9, and five directories in single figures. Re-rank them once O1–O4 have
+landed; several will turn out to be the same cause as one of the four.
+
+`document.write` is refused (ADR 0011/0012/0026) and appears throughout these
+areas. Its failures get an expectation comment naming the ADR, not an
+implementation — rule 1 of §0.
+
+**Exit:** `firefox_gap.files` under 700 across the four, and no cause in the
+ranked table that is a harness reason.
 
 ---
 

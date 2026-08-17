@@ -358,6 +358,52 @@ def write_document(records, refusals, run_info, output_path):
     return per_area
 
 
+def annotate_tasks(records, path, run_info):
+    """Write `firefox_gap` into every task in the ledger that names an area.
+
+    A task's area is its own prefix (`html/browsers/history/`), not the
+    two-deep bucket the document ranks by, so the count is recomputed per task
+    rather than looked up.
+    """
+    with open(path) as f:
+        ledger = json.load(f)
+
+    harness = [r for r in records if r["kind"] == "testharness"]
+    reftests = [r for r in records if r["kind"] == "reftest"]
+
+    annotated = 0
+    for task in ledger.get("tasks", []):
+        area = (task.get("area") or "").strip("/")
+        if not area:
+            task.pop("firefox_gap", None)
+            continue
+        prefix = area + "/"
+        gap = [r for r in harness
+               if r["path"].startswith(prefix) and r["ff_pass"] and not r["us_pass"]]
+        ours = sum(1 for r in harness
+                   if r["path"].startswith(prefix) and r["ff_pass"] and r["us_pass"])
+        ref = sum(1 for r in reftests if r["path"].startswith(prefix) and r["ff_pass"])
+        task["firefox_gap"] = {
+            "files": len(gap),
+            "blocked": sum(1 for r in gap if r["why"] == "blocked"),
+            "feature": sum(1 for r in gap if r["why"] != "blocked"),
+            "we_pass": ours,
+            "reftests_firefox_passes": ref,
+        }
+        annotated += 1
+
+    ledger["gap_measured"] = run_info.get("time_start", "")[:10]
+    ledger["gap_source"] = (f"firefox {run_info.get('browser_version', '?')} via "
+                            f"tools/wpt/firefox-gap.py")
+    with open(path, "w") as f:
+        # ensure_ascii matches how the file is already written; turning it off
+        # would rewrite every `§` in every note into `§` and bury the
+        # annotation in a diff nobody reads.
+        json.dump(ledger, f, indent=2)
+        f.write("\n")
+    print(f"annotated {annotated} tasks in {path}", file=sys.stderr)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -378,6 +424,9 @@ def main():
                         help="Write per-area counts as JSON (for docs/wpt-tasks.json)")
     parser.add_argument("--list-gap", default=None, metavar="AREA",
                         help="Print the test files Firefox passes and we fail, and stop")
+    parser.add_argument("--annotate-tasks", nargs="?", const=os.path.join(
+                            REPO_ROOT, "docs/wpt-tasks.json"), default=None,
+                        help="Write a firefox_gap field into each task with an area")
     args = parser.parse_args()
 
     print("fetching Firefox's latest WPT run from wpt.fyi...", file=sys.stderr)
@@ -399,6 +448,9 @@ def main():
                     and r["path"].startswith(prefix)):
                 print(f"{r['why']:<8}{r['path']}")
         return
+
+    if args.annotate_tasks:
+        annotate_tasks(records, args.annotate_tasks, run_info)
 
     per_area = write_document(records, load_refusals(args.refusals), run_info,
                               args.output)
