@@ -331,3 +331,75 @@ which is the correct outcome for a browser with no incremental parse (ADR 0030).
 **And the server now reads a request body.** It answered before reading one, so
 the bytes stayed in the buffer to be parsed as the next request line. That was
 invisible while every request was a GET.
+
+---
+
+## Amendment, 2026-08-18 — §6's "no https origin" row is closed, and the trust is scoped by construction
+
+§6's table deferred 1,219 `.https.` tests to plan task H9 with the note "they
+run, over http". They do not any more: the harness has a real TLS origin, and
+the count in scope is **1,268** files rather than 1,219 — `html/` 514,
+`content-security-policy/` 226, `upgrade-insecure-requests/` 197, `fetch/` 177,
+and sixteen areas below those.
+
+**What changed in the server.** `tools/wpt/Certificate.cpp` generates a P-256
+certificate authority and one leaf per run. `Server::Bind` binds two more ports
+and `Server::StartTls` builds one `SSL_CTX` for them; a connection accepted on a
+secure listener carries an `SSL*` and everything above the record layer —
+framing, `.headers` sidecars, `?pipe=`, the handler table, substitution — is one
+copy shared with a plaintext connection. `{{ports[https][N]}}` answers with a
+real port instead of the literal `1`, and `{{location[scheme]}}` and
+`{{location[server]}}` answer with the scheme the request arrived over, because a
+page served over TLS that built a same-origin URL out of `http://` would be
+issuing a cross-origin request wearing a same-origin name.
+
+OpenSSL is named in two files of `tools/wpt/` and nowhere else in the tool,
+which is the seam ADR 0001 draws in `src/net` applied here: the record layer is
+theirs, everything above it is ours. ALPN selects `http/1.1` explicitly rather
+than leaving the extension out — the browser offers `h2` first and there is no
+HTTP/2 server here, and a server that stayed silent would work today and break
+the moment the client's fallback got stricter.
+
+**Why this does not put a trust anchor anywhere near the product.** §3 refused
+WebDriver because it would build "a security surface with no user behind it".
+A private certificate authority is the same kind of question, and the answer is
+the same shape: the mechanism is the tool's, and `src/` cannot reach it.
+
+1. The key pair is generated **in memory, per run**, valid for a day from an
+   hour ago. There is no key file in the repository for something else to find
+   and trust later, and no certificate that outlives the process that made it.
+2. **The CA's private key never touches the disk.** The server is `fork`ed from
+   the runner and inherits both PEMs as memory. Only the CA *certificate* — a
+   public object — is written to a file, because
+   `net::SocketTransportFactory::Options::ca_bundle_path` takes a path, and it
+   is removed when the run ends (and swept by the next run when a signal killed
+   this one).
+3. Trust is installed **by the tool, in the tool's own transport**, through the
+   `Loader::SetTransport` seam that already existed for scripted bytes. `src/`
+   gained no option, no environment variable and no new code path. `microbrowser`
+   and `microbrowser_snapshot` never set `ca_bundle_path`, so the product still
+   verifies against the system store, unchanged.
+4. Because `SharedContext` calls `SSL_CTX_load_verify_locations` *instead of*
+   `SSL_CTX_set_default_verify_paths`, a test process trusts this one CA **and
+   nothing else — not even a real public root**. That is stricter than the
+   product's default rather than looser.
+5. The leaf is `CA:FALSE`, so what the server presents can authenticate the
+   loopback names and sign nothing.
+6. **Verification itself is not weakened anywhere.** `SSL_VERIFY_PEER` and
+   `SSL_set1_host` both still apply to every connection a test process makes.
+   That is why the leaf carries the substitution table's own name list —
+   `{{domains[X]}}` is `X.localhost` and the labels the checkout actually uses
+   are eight, counted rather than guessed — and deliberately not
+   `nonexistent.localhost`, which exists so that a test can fail to resolve.
+
+There is no "skip verification" switch, in the runner or anywhere else, for the
+reason `SocketTransportFactory::Options` already gives: a flag that disables
+certificate checking is a flag somebody eventually ships enabled.
+
+**What it did not buy.** `upgrade-insecure-requests/` is 197 tests and 1,000
+subtests and is unchanged at zero passing — those tests were
+reachable-but-wrong before and are reachable-and-honest now, because the
+directive is a `src/csp` feature nobody has written. Read the 1,268 as tests
+that can now ask their question, not as tests about to pass. `{{ports[ws]}}` and
+`{{ports[wss]}}` still answer with a port nothing listens on (task H10), and a
+`.h2.` test still fails, because ALPN answers `http/1.1`.
