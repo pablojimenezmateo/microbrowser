@@ -6869,3 +6869,107 @@ builtin changed was the wrong instinct; the right one was the grep that showed
 no test in the checkout asserts on a bound function's name. What was genuinely
 broken was not the granularity, it was that a third of the suite burned a core
 doing nothing.
+
+## F9 — the reftest half of the suite enters the measurement · 2026-08-17
+
+**Status:** done. Gate 0's second task; F2 landed the same day.
+
+**Check** (`docs/wpt-tasks.json`: "docs/wpt-firefox-gap.md reports a non-zero
+reftest pass count, and tests/wpt/expectations/ carries reftest lines. The
+number to beat first is zero"):
+
+- `microbrowser_wpt --update-expectations --reftests-only` — **20,998 tests in
+  105,180 ms**, then `20998 reftests: 7394 passed (35.2%), 757 of those with
+  both pages blank`.
+- `tests/wpt/expectations/` gained **13,604 entries**, all `harness=FAIL` bar
+  four timeouts.
+- `docs/wpt-firefox-gap.md` reftest column: **6,605 files Firefox passes and we
+  pass**, against the literal `0` it printed the day before. Aggregate against
+  Firefox **11.6% → 29.3%**.
+- `microbrowser_wpt --reftests-only` (the verification run, twice): **8
+  unexpected** both times, out of 20,998.
+- `ctest --test-dir build -E microbrowser_wpt -j24`: 24/24, 27.7s.
+
+**Landed:** *Record every reftest, and rank the plan by a suite it can see* ·
+*A reftest that compared two blank pages says so* · *Rank the milestones from
+the measurement rather than by hand*
+
+**Found:**
+
+**F9 was one machine run and a reading of it. Nothing had to be built.**
+`RunReftest` and `--update-expectations` were both already there and already
+correct; F2 had already made the comparison honest. The only thing between this
+project and a number covering 48% of its own test suite was somebody typing
+`--reftests-only`.
+
+**And the reason nobody had was a projection that was wrong by two orders of
+magnitude.** `docs/wpt-plan.md` §M-B said recording reftests "costs about six
+hours of the run… the full suite projected at nine hours". It is **105
+seconds**. The projection was written before `platform::WaitOnDescriptors` was
+found to ignore its own timeout when it had nothing to watch (2026-08-17, the
+entry above), and a finished page waiting on a timer is most of what a reftest
+does — so the estimate was measuring a bug. **A projection deferred half the
+suite for a week and no one re-measured it after the thing it measured was
+fixed.** Worth a look at the other deferred-on-cost decisions in the plan.
+
+**The ranking it produced reorders the plan, exactly as §2 said it might.**
+M-E (layout) was 3rd of 11 at 1,481 files; it is **1st at 9,285, nearly double
+M-F**, and 7,802 of those are reftests. `css/CSS2/` (task E1) was **40 files**
+and is **3,907** — the largest single task in the tree, twice the next one, and
+it had been sitting behind a `depends: F2` that was already satisfied. Six
+milestones moved. §2 had written down that "it is entirely possible that layout
+is first", which is the value of saying so in advance: the measurement was a
+test of a stated prediction rather than a surprise to be rationalised.
+
+**7,394 reftests pass and 757 of them are two blank pages agreeing.** A
+reference that fails to load renders white, and white matches any test that also
+drew nothing — so this is the one number in the project that can rise because
+the browser got *worse*. `wpt::IsBlank` counts them and the run prints the
+figure; the verdict is deliberately **not** changed, because wptrunner compares
+screenshots without asking what is on them and a rule of our own would make the
+two sides incomparable, which is the whole premise of
+`docs/wpt-firefox-gap.md`. Some of them are also legitimate: a reftest whose
+point is that an element is not visible passes blank in every engine. **Do not
+"fix" this by deducting them.** Auditing them is real work and it belongs to
+whoever works `css/CSS2/`.
+
+**Eight of 20,998 are intermittent, and seven are one cause with a familiar
+shape.** Every test in `css/css-text/text-spacing-trim/` is an `@font-face`
+against a CJK subset this browser never loads, so both sides fall back to a
+system font and agree or disagree depending on what else the machine is doing.
+Measured on that directory at three concurrencies:
+
+| jobs | passes of 80 | unexpected |
+|--:|--:|--:|
+| 1 | 42 | 3 |
+| 12 | 41 | 2 |
+| 64 | **49** | 10 |
+
+**The pass count rises with oversubscription** — the `--jobs` lesson of
+2026-08-16 reappearing in the pixel half, by a different mechanism (there it was
+testharness's ten-second wall clock; here it is two renders that both come out
+incomplete and match). Note that *none* of these is a blank pair, so `IsBlank`
+does not catch it. Run alone with `--retries 0`,
+`text-spacing-trim-001.html?class=chws,vrl` fails five times out of five and
+agrees with what is recorded; it only flips under load. That is task **F10**,
+and it is why `ctest` still passes `--testharness-only` — a gate that is a coin
+toss eight times is worse than one that does not run. Cost is no longer the
+reason and the CMakeLists comment now says so; it is the third distinct reason
+that line has carried in three days.
+
+**`docs/wpt-baseline.md` deliberately still has no reftests in it, and that is
+not the same as F9 being incomplete.** A reftest has no subtests, so a row in a
+table whose columns are "subtests reported" and "subtests passed" would be 0/0.
+The question a reftest answers is a file-level one and `docs/wpt-firefox-gap.md`
+is the file-level document. The plan's M-B section now says this in place of the
+old cost argument.
+
+**Two smaller things.** `milestones[].order` in `docs/wpt-tasks.json` was
+hand-maintained, which is one of the two places the old ordering came from; it
+is written by `firefox-gap.py --annotate-tasks` now, from the same records as
+everything else, with each milestone's areas de-duplicated by prefix (counting
+`fetch/api/` inside `fetch/` twice is enough on its own to put M-H above
+layout). And `firefox_gap.files` in the ledger **now means both halves** —
+`harness_files` and `reftest_files` are beside it — because the plan ranks by
+that field and a ranking that cannot see 48% of the suite is what gate 0 exists
+to end.

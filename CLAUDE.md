@@ -161,12 +161,18 @@ days without either seeing the other, so several things were built twice. What s
 
 **Superseded 2026-08-17 — the table below was ranked by tests-blocked, which was the best signal
 available then and is not the ranking now.** The current one is `docs/wpt-firefox-gap.md` and the
-plan's §2 "The order", ranked by test files Firefox passes and we do not. It reorders the
-milestones almost end for end (M-F and M-H first at 3,527 and 2,851 files; M-C and M-D, which four
-of the last five sessions worked, seventh and eighth), and **gate 0 comes before all of it**: F2
-then F9, because 20,998 reftest files — 48% of the suite — are in no number this project quotes.
-**F2 landed 2026-08-17, so F9 is the top of gate 0 now**; see the reftest paragraph in the
-web-platform-tests section below for what the tolerance turned out to be worth.
+plan's §2 "The order", ranked by test files Firefox passes and we do not.
+
+**Gate 0 (F2, then F9) landed the same day and it changed that ranking too — read the plan's §2
+before trusting any milestone order you remember.** All 20,998 reftest files — 48% of the suite —
+are recorded now, and with them in the number **M-E (layout) is first at 9,285 files, nearly double
+M-F**, where the ranking-without-reftests had it third. `css/CSS2/` alone (task E1) went from 40
+files to **3,907**, the largest single task in the tree. The aggregate went 11.6% → **29.3% of what
+Firefox passes**, which is not a change in the browser: it is half the suite entering the
+measurement. **E1, F6, O1, O2 and O4 depend on nothing** and are 5,574 files between them.
+
+What is left of gate 0 is B6 (a committed summary state) and the new F10 (reftests in the `ctest`
+gate — eight of the 20,998 are intermittent, so the gate would be a coin toss).
 Two of the four rows below have since landed. Keep the table for the caveats under it, which still
 hold.
 
@@ -750,18 +756,31 @@ we fail worse. Firefox reports 1,128,812 subtests that never enter our denominat
 the 481,764 that do. `url/` reads "us 97.9%, firefox 89.9%, **done**" on 9,909 subtests where
 Firefox has 15,420. Do not read `docs/wpt-firefox-ceiling.md`'s `gap` column as a distance.
 
-Where this browser is, per test file, 2026-08-17: **4,293 of the 37,165 files Firefox passes —
-11.6%.** 14,911 testharness files are ones Firefox passes and we fail, **6,153 of them because our
-harness never reported at all**, and 17,961 are reftests that no number in this repository
-mentions (task F9). Then `docs/adr/0040-web-platform-tests.md` before touching `tools/wpt/`, and
+Where this browser is, per test file, 2026-08-17, **both halves of the suite in the number**:
+**10,900 of the 37,171 files Firefox passes — 29.3%.** 14,915 testharness files are ones Firefox
+passes and we fail, **6,152 of them because our harness never reported at all**, and 11,356 are
+reftests. Then `docs/adr/0040-web-platform-tests.md` before touching `tools/wpt/`, and
 `docs/wpt-plan.md` before deciding what to work on — it is ranked by `firefox_gap.files` now, and
 so is `docs/wpt-tasks.json`.
+
+**That 29.3% was 11.6% the day before and the browser did not change: task F9 recorded the reftest
+half.** All 20,998 of them, in **105 seconds** — the plan had projected six hours, from before the
+`WaitOnDescriptors` spin fix, and that projection kept 48% of the suite out of every number for a
+week. **7,394 pass, and 757 of those are two blank pages agreeing** — a reference that fails to
+load renders white and matches any test that also drew nothing. The runner counts them rather than
+deducting them (wptrunner compares screenshots without asking what is on them, and an invented rule
+would make the two sides incomparable), and `microbrowser_wpt --reftests-only` closes with the
+figure. **Eight of the 20,998 are intermittent**, which is why reftests are still not in the
+`ctest` gate (task F10) — seven are `@font-face` tests whose font this browser never loads, and
+under `--jobs 64` that directory *passes more* than under `--jobs 1`, which is the oversubscription
+lesson in the pixel half.
 
 **A reftest has a tolerance and can leave a picture (task F2, 2026-08-17), and the picture is the
 half that matters.** `<meta name=fuzzy>` is read at enumeration time and applied by a transcription
 of wptrunner's own rule — not an invented one, because the whole point of the gap document is that
 our numbers are comparable with Firefox's. 686 enumerated reftests carry an annotation and **six**
-pass on it, which is the size of the effect and the reason not to read F9 as a source of passes.
+pass on it, which is the size of the effect: the tolerance was never what was failing these tests,
+and F9's full run confirmed it.
 What it bought is `--reftest-artifacts DIR`, which writes `<stem>.{test,ref,diff}.ppm` for each
 failure — the reference washed out with every differing pixel painted yellow at one level and red
 at 255. **Use it before writing layout code for a reftest area.** The first three images it ever
@@ -778,11 +797,18 @@ python3 tools/wpt/firefox-gap.py --list-gap css/selectors               # the ac
 
 ```bash
 tools/wpt/fetch.sh                                       # once; ~600MB, pinned and sparse
-./build/microbrowser-perf/microbrowser/microbrowser_wpt --list | wc -l   # 42,185 in scope
+./build/microbrowser-perf/microbrowser/microbrowser_wpt --list | wc -l   # 44,144 in scope: 23,146 testharness, 20,998 reftest
 ./build/microbrowser-perf/microbrowser/microbrowser_wpt dom/             # check an area
 ./build/microbrowser-perf/microbrowser/microbrowser_wpt --verbose dom/nodes/Node-appendChild.html
 ./build/microbrowser-perf/microbrowser/microbrowser_wpt --update-expectations dom/
 ./build/microbrowser-perf/microbrowser/microbrowser_wpt --serve --port 8010  # browse by hand
+
+# The pixel half. All 20,998 in under two minutes, so there is no reason to sample it --
+# and `--reftest-artifacts` before writing layout code, because a pixel count cannot
+# tell an antialiasing difference from a missing feature and three images can.
+./build/microbrowser-perf/microbrowser/microbrowser_wpt --reftests-only css/CSS2/
+./build/microbrowser-perf/microbrowser/microbrowser_wpt --reftests-only \
+    --reftest-artifacts /tmp/refs css/CSS2/floats/
 
 # Re-measure an area into the baseline document. `--summary-state` is what makes a
 # sharded run add up: an area this run measured replaces what the file said about it.

@@ -191,9 +191,15 @@ def measure(scope, summary, failures):
         result = summary.get("/" + path)
         ff = firefox_passes(result)
         recorded = failures.get(path)
-        # A reftest is never written to an expectation file today, so "absent"
-        # cannot be read as "passing" for one. Reftests are reported separately
-        # and never counted as ours.
+        # Absence means PASS, for a reftest exactly as for a testharness test.
+        #
+        # That reading is only sound because the whole reftest suite was
+        # recorded in one run -- 20,998 files in 105 seconds, not the six hours
+        # docs/wpt-plan.md projected (task F9, 2026-08-17). Before that run this
+        # function counted every reftest as a failure, which was the honest
+        # thing to do while nothing had ever written one down: a format that
+        # records only failures cannot tell "passed" from "never run", and for
+        # the reftest half nothing had run.
         us = recorded is None
         records.append({
             "kind": kind,
@@ -218,9 +224,20 @@ def write_document(records, refusals, run_info, output_path):
 
     ref_known = [r for r in reftests if r["ff_pass"] is not None]
     ref_ff = [r for r in ref_known if r["ff_pass"]]
+    ref_gap = [r for r in ref_known if r["ff_pass"] and not r["us_pass"]]
+    ref_ours = [r for r in ref_known if r["ff_pass"] and r["us_pass"]]
+    ref_both = [r for r in ref_known if not r["ff_pass"] and not r["us_pass"]]
+    ref_audit = [r for r in ref_known if not r["ff_pass"] and r["us_pass"]]
 
+    # One row per area, counting both kinds. `reftest` is a third column beside
+    # `blocked` and `feature` rather than being folded into them: a reftest has
+    # no subtests and no harness status of its own, so "the harness never
+    # reported" is not a distinction that exists for one, and merging it into
+    # `feature` would put 13,000 pixel comparisons into a column that has meant
+    # "subtests ran and failed" since the document was written.
     per_area = collections.defaultdict(
-        lambda: {"scope": 0, "ff": 0, "us": 0, "blocked": 0, "feature": 0})
+        lambda: {"scope": 0, "ff": 0, "us": 0, "blocked": 0, "feature": 0,
+                 "reftest": 0, "ref_scope": 0, "ref_ff": 0, "ref_us": 0})
     for r in known:
         a = per_area[r["area"]]
         a["scope"] += 1
@@ -230,6 +247,15 @@ def write_document(records, refusals, run_info, output_path):
                 a["us"] += 1
             else:
                 a[r["why"] or "feature"] += 1
+    for r in ref_known:
+        a = per_area[r["area"]]
+        a["ref_scope"] += 1
+        if r["ff_pass"]:
+            a["ref_ff"] += 1
+            if r["us_pass"]:
+                a["ref_us"] += 1
+            else:
+                a["reftest"] += 1
 
     lines = []
     out = lines.append
@@ -260,19 +286,23 @@ def write_document(records, refusals, run_info, output_path):
     out(f"| in our scope | {len(harness)} | {len(reftests)} | {len(records)} |")
     out(f"| Firefox passes | {len(gap) + len(ours)} | {len(ref_ff)} | "
         f"{len(gap) + len(ours) + len(ref_ff)} |")
-    out(f"| **we pass** | **{len(ours)}** | **0** | **{len(ours)}** |")
-    out(f"| **Firefox passes, we fail** | **{len(gap)}** | **{len(ref_ff)}** | "
-        f"**{len(gap) + len(ref_ff)}** |")
-    out(f"| both fail | {len(both)} | {len(ref_known) - len(ref_ff)} | "
-        f"{len(both) + len(ref_known) - len(ref_ff)} |")
-    out(f"| we pass, Firefox fails (audit) | {len(audit)} | 0 | {len(audit)} |")
+    out(f"| **we pass** | **{len(ours)}** | **{len(ref_ours)}** | "
+        f"**{len(ours) + len(ref_ours)}** |")
+    out(f"| **Firefox passes, we fail** | **{len(gap)}** | **{len(ref_gap)}** | "
+        f"**{len(gap) + len(ref_gap)}** |")
+    out(f"| both fail | {len(both)} | {len(ref_both)} | {len(both) + len(ref_both)} |")
+    out(f"| we pass, Firefox fails (audit) | {len(audit)} | {len(ref_audit)} | "
+        f"{len(audit) + len(ref_audit)} |")
     out("")
     denominator = len(gap) + len(ours) + len(ref_ff)
     if denominator:
-        out(f"**{100.0 * len(ours) / denominator:.1f}% of what Firefox passes.** "
-            f"Every reftest is counted as a failure, which is what a sample of")
-        out("them measures: reftests are run by the runner and recorded by")
-        out("nothing, so an expectation file's silence about one is not a pass.")
+        out(f"**{100.0 * (len(ours) + len(ref_ours)) / denominator:.1f}% of what "
+            f"Firefox passes.** Both halves of the suite are in that number as of")
+        out("task F9 (2026-08-17). Before it, every reftest counted as a failure --")
+        out("which was the honest reading while nothing had ever recorded one, "
+            "because")
+        out("a format that writes down only failures cannot tell a pass from a test")
+        out("nobody ran.")
     out("")
     out("### Why the testharness gap fails")
     out("")
@@ -285,18 +315,40 @@ def write_document(records, refusals, run_info, output_path):
     out("A blocked file is worth more than its count: none of its subtests are")
     out("in any denominator anywhere, so it is invisible in every rate.")
     out("")
+    out("### How to read the reftest column")
+    out("")
+    out("A reftest renders two pages and compares the pixels, so it has no")
+    out("subtests, no harness status and no `blocked`/`feature` distinction: it")
+    out("agrees with its reference or it does not. Two things about the number:")
+    out("")
+    out("- **Two blank pages agree exactly.** A reference that failed to load")
+    out("  therefore passes against any test at all, and the run counts those")
+    out("  separately -- `microbrowser_wpt --reftests-only` closes with")
+    out("  `N reftests: M passed, K of those with both pages blank`. K was 757 of")
+    out("  7,394 when this was first measured. They are not deducted, because")
+    out("  wptrunner compares screenshots without asking what is on them and a")
+    out("  rule of our own would make the two sides incomparable; some of them")
+    out("  are real, since a reftest whose point is that nothing is visible")
+    out("  passes blank in every engine.")
+    out("- **About eight of 20,998 are intermittent**, measured over two full")
+    out("  runs of the same binary. Seven of the eight are `@font-face` tests")
+    out("  whose font this browser never loads and one is an animation; the")
+    out("  runner's `--retries` smooths a disagreement but not a recording run.")
+    out("")
     out("## Ranked: test files Firefox passes and we do not")
     out("")
-    out("`blocked` is where the harness never reported; `feature` is where it")
-    out("reported and subtests failed. A refused area is a decision with a name")
+    out("`gap` is the whole of it. `blocked` is where the harness never reported")
+    out("and `feature` is where it reported and subtests failed -- both of those")
+    out("are testharness columns. `reftest` is the pixel half, which has neither")
+    out("distinction. A refused area is a decision with a name")
     out("(`docs/wpt-refusals.tsv`) and its row is marked.")
     out("")
-    out("| area | gap | blocked | feature | we pass | firefox passes | in scope | refusal |")
-    out("|---|--:|--:|--:|--:|--:|--:|---|")
+    out("| area | gap | blocked | feature | reftest | we pass | firefox passes | in scope | refusal |")
+    out("|---|--:|--:|--:|--:|--:|--:|--:|---|")
     ranked = sorted(per_area.items(),
-                    key=lambda kv: -(kv[1]["blocked"] + kv[1]["feature"]))
+                    key=lambda kv: -(kv[1]["blocked"] + kv[1]["feature"] + kv[1]["reftest"]))
     for area, a in ranked:
-        total_gap = a["blocked"] + a["feature"]
+        total_gap = a["blocked"] + a["feature"] + a["reftest"]
         if total_gap == 0:
             continue
         # Exact matches only. A refusal on `html` is about `document.write`;
@@ -305,7 +357,8 @@ def write_document(records, refusals, run_info, output_path):
         # The area-wide rows are listed in full below the table instead.
         refusal = refusals.get(area, "")
         out(f"| `{area}` | {total_gap} | {a['blocked']} | {a['feature']} | "
-            f"{a['us']} | {a['ff']} | {a['scope']} | {refusal} |")
+            f"{a['reftest']} | {a['us'] + a['ref_us']} | {a['ff'] + a['ref_ff']} | "
+            f"{a['scope'] + a['ref_scope']} | {refusal} |")
     out("")
     out("### Refusals that apply across these rows")
     out("")
@@ -323,12 +376,12 @@ def write_document(records, refusals, run_info, output_path):
     out("## Areas with no gap left")
     out("")
     clean = [(area, a) for area, a in per_area.items()
-             if a["blocked"] + a["feature"] == 0 and a["ff"] > 0]
+             if a["blocked"] + a["feature"] + a["reftest"] == 0 and a["ff"] + a["ref_ff"] > 0]
     if clean:
         out("| area | we pass | firefox passes |")
         out("|---|--:|--:|")
         for area, a in sorted(clean):
-            out(f"| `{area}` | {a['us']} | {a['ff']} |")
+            out(f"| `{area}` | {a['us'] + a['ref_us']} | {a['ff'] + a['ref_ff']} |")
     else:
         out("None.")
     out("")
@@ -339,7 +392,7 @@ def write_document(records, refusals, run_info, output_path):
     out("real divergence worth a comment or a test nobody has run; there is no")
     out("third possibility, and telling them apart needs one run.")
     out("")
-    audit_by_area = collections.Counter(r["area"] for r in audit)
+    audit_by_area = collections.Counter(r["area"] for r in audit + ref_audit)
     if audit_by_area:
         out("| area | files |")
         out("|---|--:|")
@@ -356,6 +409,59 @@ def write_document(records, refusals, run_info, output_path):
         print(f"wrote {output_path}", file=sys.stderr)
 
     return per_area
+
+
+def annotate_milestones(records, ledger):
+    """`firefox_gap` and `order` on each milestone that owns an area.
+
+    Hand-maintained until task F9, and that is why it had to be recomputed by
+    hand every time an area moved -- which is one of the two places
+    docs/wpt-plan.md §2's ordering came from. A milestone's areas are its tasks'
+    areas with the redundant ones dropped: `fetch/api/` inside `fetch/` and
+    `html/browsers/history/` inside `html/browsers/` are the same files twice,
+    and counting them twice is how M-H would outrank layout.
+
+    Milestones with no area at all (the instrument, the baseline, the
+    performance and acceptance milestones) keep whatever `order` they were
+    given: they are not ranked by files and never were.
+    """
+    areas = collections.defaultdict(set)
+    for task in ledger.get("tasks", []):
+        area = (task.get("area") or "").strip("/")
+        if area:
+            areas[task["milestone"]].add(area + "/")
+    ranked = []
+    for milestone, prefixes in areas.items():
+        outer = {a for a in prefixes
+                 if not any(a != b and a.startswith(b) for b in prefixes)}
+        gap = blocked = feature = reftest = 0
+        for r in records:
+            if not any(r["path"].startswith(a) for a in outer):
+                continue
+            if not (r["ff_pass"] and not r["us_pass"]):
+                continue
+            gap += 1
+            if r["kind"] == "reftest":
+                reftest += 1
+            elif r["why"] == "blocked":
+                blocked += 1
+            else:
+                feature += 1
+        ranked.append((gap, milestone, blocked, feature, reftest))
+    ranked.sort(reverse=True)
+
+    by_id = {m["id"]: m for m in ledger.get("milestones", [])}
+    for rank, (gap, milestone, blocked, feature, reftest) in enumerate(ranked, start=1):
+        entry = by_id.get(milestone)
+        if entry is None:
+            continue
+        entry["order"] = rank
+        entry["firefox_gap"] = {
+            "files": gap,
+            "blocked": blocked,
+            "feature": feature,
+            "reftest": reftest,
+        }
 
 
 def annotate_tasks(records, path, run_info):
@@ -380,17 +486,30 @@ def annotate_tasks(records, path, run_info):
         prefix = area + "/"
         gap = [r for r in harness
                if r["path"].startswith(prefix) and r["ff_pass"] and not r["us_pass"]]
-        ours = sum(1 for r in harness
+        ref_gap = [r for r in reftests
+                   if r["path"].startswith(prefix) and r["ff_pass"] and not r["us_pass"]]
+        ours = sum(1 for r in records
                    if r["path"].startswith(prefix) and r["ff_pass"] and r["us_pass"])
         ref = sum(1 for r in reftests if r["path"].startswith(prefix) and r["ff_pass"])
+        # **`files` is both halves as of task F9 (2026-08-17), and it was the
+        # testharness half alone before.** The plan ranks by this number, and
+        # ranking the whole tree by a column that could not see 48% of the suite
+        # is what gate 0 exists to end -- docs/wpt-plan.md §2 says so and says
+        # the ordering it produced was a floor rather than a measurement. The
+        # breakdown is kept beside it so a session can still ask which half its
+        # area is.
         task["firefox_gap"] = {
-            "files": len(gap),
+            "files": len(gap) + len(ref_gap),
+            "harness_files": len(gap),
             "blocked": sum(1 for r in gap if r["why"] == "blocked"),
             "feature": sum(1 for r in gap if r["why"] != "blocked"),
+            "reftest_files": len(ref_gap),
             "we_pass": ours,
             "reftests_firefox_passes": ref,
         }
         annotated += 1
+
+    annotate_milestones(records, ledger)
 
     ledger["gap_measured"] = run_info.get("time_start", "")[:10]
     ledger["gap_source"] = (f"firefox {run_info.get('browser_version', '?')} via "
@@ -444,9 +563,12 @@ def main():
     if args.list_gap:
         prefix = args.list_gap.strip("/")
         for r in records:
-            if (r["kind"] == "testharness" and r["ff_pass"] and not r["us_pass"]
-                    and r["path"].startswith(prefix)):
-                print(f"{r['why']:<8}{r['path']}")
+            if r["ff_pass"] and not r["us_pass"] and r["path"].startswith(prefix):
+                # A reftest has no blocked/feature distinction, so it is tagged
+                # by kind. Listing them at all is task F9: before it, half the
+                # files an area owes were absent from the list a session picks
+                # its work from.
+                print(f"{r['why'] or r['kind']:<12}{r['path']}")
         return
 
     if args.annotate_tasks:

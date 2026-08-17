@@ -80,57 +80,80 @@ column should not be read as one.
 | | testharness | reftest | total |
 |---|--:|--:|--:|
 | in our scope | 23,146 | 20,998 | 44,144 |
-| Firefox passes | 19,204 | 17,961 | 37,165 |
-| **we pass** | **4,293** | **0** | **4,293** |
-| **Firefox passes, we fail** | **14,911** | **17,961** | **32,872** |
-| both fail | 3,498 | 3,020 | 6,518 |
-| we pass, Firefox fails | 367 | 0 | 367 |
+| Firefox passes | 19,210 | 17,961 | 37,171 |
+| **we pass** | **4,295** | **6,605** | **10,900** |
+| **Firefox passes, we fail** | **14,915** | **11,356** | **26,271** |
+| both fail | 3,494 | 2,236 | 5,730 |
+| we pass, Firefox fails | 365 | 784 | 1,149 |
 
-**11.6% of what Firefox passes**, where the baseline's aggregate subtest rate
+**29.3% of what Firefox passes**, where the baseline's aggregate subtest rate
 reads 22.3% and individual areas read 76.1%, 90.2% and 99.8%. Both numbers are
 arithmetically correct. Only one of them is a comparison.
 
+**The reftest column is a measurement as of task F9, 2026-08-17, and the day
+before it read zero.** The whole suite was recorded in one run of **105
+seconds** — §M-B below projected six hours, which was true before the
+`WaitOnDescriptors` spin fix of the same week and is quoted here so nobody
+re-projects from it. Nothing was built for it: F2 had made the comparison
+honest, `RunReftest` and `--update-expectations` were already there, and what
+remained was to run them and read the result. The 11.6% this section used to
+quote was the same browser with 48% of the suite counted as failing, which was
+the only honest reading available while nothing had ever written a reftest
+result down.
+
 Three things the rate was hiding, all of them actionable:
 
-- **6,153 of the 14,911 are files where our harness never reported at all** —
+- **6,152 of the 14,915 are files where our harness never reported at all** —
   TIMEOUT, ERROR or CRASH before `done()`. Not one of their subtests is in any
   denominator anywhere, in either direction. The `blocked` column of
   `docs/wpt-firefox-gap.md` is this, per area, and it is the column to read
   first: a blocked file is plumbing, and plumbing is cheaper than a
   specification.
-- **The 20,998 reftests are not measured.** The runner runs them
-  (`RunReftest` in `tools/wpt/main.cpp`), the baseline is recorded
-  `--testharness-only`, and the expectation format writes down only failures —
-  so its silence about a reftest reads as a pass. A 25-file sample passes **0**,
-  every one on pixel differences. Firefox passes 17,961 of them. This is the
-  single largest unmeasured surface in the project and it is 48% of the suite.
-- **367 files are recorded as passing that Firefox fails.** An expectation file
+- **7,394 of the 20,998 reftests pass, and 757 of those are two blank pages
+  agreeing.** A reference that fails to load renders white, so it matches any
+  test that also rendered nothing, and the comparison proves nothing. The runner
+  counts them beside the passes rather than deducting them — wptrunner compares
+  screenshots without asking what is on them, and a rule of our own would make
+  the two sides incomparable, which is the entire point of this document. Some
+  are real: a reftest whose point is that an element is not visible passes blank
+  in every engine. `microbrowser_wpt --reftests-only` closes with the number.
+- **1,149 files are recorded as passing that Firefox fails.** An expectation file
   cannot tell "passes" from "never run", so each of these is either a real
-  divergence worth a comment or a test nobody has run. `html/editing` has 90.
+  divergence worth a comment or a test nobody has run. `html/editing` has 90 —
+  and 784 of the 1,149 are reftests, where the blank-pair pass above is the
+  first thing to suspect.
 
 ### The ranking that follows from it
 
-The top of `docs/wpt-firefox-gap.md`, by files Firefox passes and we do not:
+The top of `docs/wpt-firefox-gap.md`, by files Firefox passes and we do not.
+`blocked` and `feature` are the testharness halves; `reftest` has neither
+distinction, because a reftest agrees with its reference or it does not:
 
-| area | gap | blocked | feature | note |
-|---|--:|--:|--:|---|
-| `html/canvas` | 2,654 | 976 | 1,678 | task F6, `not_started`, target "35%" |
-| `html/semantics` | 1,517 | 512 | 1,005 | no task of its own |
-| `referrer-policy/gen` | 951 | 865 | 86 | task H8 is "record the deviations" |
-| `html/browsers` | 549 | 298 | 251 | tasks J2/J4/J5 |
-| `css/css-grid` | 511 | 415 | 96 | task E3 |
-| `websockets` | 364 | 285 | 79 | task H10, target "99%" |
-| `xhr` | 296 | 29 | 267 | task H5 |
-| `css/css-text` | 281 | 102 | 179 | task E8 |
-| `html/webappapis` | 278 | 120 | 158 | task G1 |
-| `svg/animations` | 267 | 37 | 230 | task F7 |
+| area | gap | blocked | feature | reftest | note |
+|---|--:|--:|--:|--:|---|
+| `css/CSS2` | 3,907 | 7 | 33 | 3,867 | task E1, and it was **40 files** before F9 |
+| `html/canvas` | 2,715 | 976 | 1,678 | 61 | tasks F6 and F6b |
+| `html/semantics` | 1,638 | 510 | 1,006 | 122 | milestone M-O |
+| `css/css-grid` | 1,126 | 415 | 96 | 615 | task E3 |
+| `css/css-text` | 1,095 | 102 | 179 | 814 | task E8 |
+| `css/css-writing-modes` | 1,039 | 10 | 50 | 979 | task E9 |
+| `css/css-flexbox` | 952 | 172 | 78 | 702 | task E2 |
+| `referrer-policy/gen` | 951 | 865 | 86 | 0 | task H8 is "record the deviations" |
+| `css/css-transforms` | 591 | 1 | 92 | 498 | task F5 |
+| `css/css-backgrounds` | 553 | 1 | 96 | 456 | task F1 |
+
+**Seven of the ten are layout, and six of the ten are more than half reftest.**
+That is what the gate was for. Before F9 this table's top ten were
+`html/canvas`, `html/semantics`, `referrer-policy/gen`, `html/browsers`,
+`css/css-grid`, `websockets`, `xhr`, `css/css-text`, `html/webappapis` and
+`svg/animations` — a list with one layout area in it.
 
 Against that, the five areas the last five sessions worked — `css/selectors`
-(143), `css/cssom-view` (117), `css/cssom` (109), `css/css-syntax` (20),
-`encoding` (20) — total **409 files**, which is 15% of `html/canvas` alone. Those
-sessions were not wasted; every one of them fixed real bugs, and the commit
-messages are honest about what moved. But they were **chosen by a column that
-cannot rank**, and the ranking they were chosen by is the one this section
+(242), `css/cssom-view`, `css/cssom`, `css/css-syntax`, `encoding` — are still
+a few hundred files between them, which is under a tenth of `css/CSS2` alone.
+Those sessions were not wasted; every one of them fixed real bugs, and the
+commit messages are honest about what moved. But they were **chosen by a column
+that cannot rank**, and the ranking they were chosen by is the one this section
 replaces.
 
 Each task in `docs/wpt-tasks.json` now carries `firefox_gap` — `files`,
@@ -452,49 +475,53 @@ binary", never as "how far behind Firefox is this area". For the second question
 the unit is a test file and the document is `docs/wpt-firefox-gap.md`; see §The
 target above for why.
 
-### The order · **re-ranked 2026-08-17**
+### The order · **re-ranked 2026-08-17, after gate 0**
 
 **The milestones below are lettered in the order they were written, not the
 order to do them in.** They used to be read as a sequence, which is how the last
-five sessions came to spend four on M-D and one on M-K — **the 8th and 11th**
+five sessions came to spend four on M-D and one on M-K — **the 5th and 9th**
 largest gaps in the tree — while the 1st and 2nd have had no session at all. The
-five together are 409 files; `html/canvas/element/` alone is 731, and nothing
-gates it. The letters stay, because
-they are referenced from the ledger, the session log and half the ADRs. The
-order is this table, and it is `milestones[].order` in `docs/wpt-tasks.json`.
+letters stay, because they are referenced from the ledger, the session log and
+half the ADRs. The order is this table, and it is `milestones[].order` in
+`docs/wpt-tasks.json`, **written by `firefox-gap.py --annotate-tasks` rather
+than by hand** as of F9 — it was hand-maintained before, which is one of the two
+places the previous ordering came from.
 
-| # | milestone | gap | blocked | reftests FF passes | why here |
-|--:|---|--:|--:|--:|---|
-| **0** | **the measurement gate** — F2, F9, B6 | — | — | 17,961 | not a milestone. See below |
-| 1 | M-F paint, colour and graphics | 3,527 | 1,226 | 2,779 | F6b alone is 1,921 |
-| 2 | M-H the network and the security around it | 2,851 | **1,913** | 2 | two thirds of it is plumbing |
-| 3 | M-E layout | 1,481 | 773 | **11,344** | rank not yet knowable — see gate 0 |
-| 4 | M-O HTML's own elements | 1,376 | 566 | 132 | added 2026-08-17 |
-| 5 | M-G script, the event loop, and timing | 805 | 297 | 18 | |
-| 6 | M-J navigation, browsing contexts, process split | 549 | 298 | 4 | gates M-O's largest task |
-| 7 | M-C the DOM and its bindings | 460 | 97 | 28 | C6 in progress |
-| 8 | M-D CSS: cascade, values, object model | 421 | 156 | 320 | four of the last five sessions |
-| 9 | M-I storage | 339 | 82 | 1 | |
-| 10 | M-L media | 314 | 142 | 2 | |
-| 11 | M-K text and internationalisation | 170 | 41 | 331 | `encoding/` is done; this is the tail |
-| 12 | M-M speed, memory, idle CPU | — | — | — | a milestone of measurements, not gaps |
-| 13 | M-N the acceptance sites | — | — | — | gates, not tasks |
+| # | milestone | gap | blocked | feature | reftest | why here |
+|--:|---|--:|--:|--:|--:|---|
+| 1 | M-E layout | **9,285** | 773 | 710 | **7,802** | E1 (`css/CSS2/`) alone is 3,907 |
+| 2 | M-F paint, colour and graphics | 5,281 | 1,226 | 2,301 | 1,754 | F6b alone is 1,939 |
+| 3 | M-H the network and the security around it | 3,023 | **1,981** | 1,038 | 4 | two thirds of it is plumbing |
+| 4 | M-O HTML's own elements | 1,433 | 564 | 811 | 58 | added 2026-08-17 |
+| 5 | M-D CSS: cascade, values, object model | 974 | 212 | 481 | 281 | four of the last five sessions |
+| 6 | M-G script, the event loop, and timing | 812 | 297 | 507 | 8 | |
+| 7 | M-C the DOM and its bindings | 711 | 114 | 496 | 101 | C6 in progress |
+| 8 | M-J navigation, browsing contexts, process split | 552 | 298 | 252 | 2 | gates M-O's largest task |
+| 9 | M-K text and internationalisation | 367 | 41 | 129 | 197 | `encoding/` is done; this is the tail |
+| 10 | M-I storage | 341 | 83 | 257 | 1 | |
+| 11 | M-L media | 316 | 142 | 173 | 1 | |
+| 12 | M-M speed, memory, idle CPU | — | — | — | — | a milestone of measurements, not gaps |
+| 13 | M-N the acceptance sites | — | — | — | — | gates, not tasks |
 
-**Gate 0 comes before the ranking means anything, and it is three tasks in two
-other milestones.** F2 (fuzzy reftests) then F9 (reftests recorded at all), plus
-B6 (a committed summary state). Until F9 lands, **11,344 of M-E's files and
-2,779 of M-F's are not in any number** — so M-E's rank of 3 is a floor, not a
-measurement, and it is entirely possible that layout is first. Ranking the rest
-of this table against a suite half of which is unmeasured is exactly the mistake
-this section replaces. Do gate 0 first.
+**Gate 0 is done except B6, and it changed the answer.** F2 (fuzzy reftests)
+landed on 2026-08-17 and F9 (reftests recorded at all) the same day. This table
+said, before them, that M-E's rank of 3 was "a floor, not a measurement, and it
+is entirely possible that layout is first". **Layout is first, by nearly a
+factor of two over M-F**, and it was ranked 3rd of 11 by a column that could not
+see 7,802 of its files. Six milestones moved. B6 (a committed summary state) is
+what is left of the gate and it is a machine run, not a ranking input.
 
-**Read the `blocked` column against the gap column before picking inside a
-milestone.** A blocked file is one whose harness never reported; it is plumbing,
-and plumbing is usually cheaper per file than a specification. The two extremes
-in the tree are one milestone apart: `html/canvas/element/` is 731 files with
-**19** blocked — pure feature work, nothing gating it — and `referrer-policy/` is
-1,330 files with **1,083** blocked, where writing feature code today would move
-nothing at all.
+**Read the `blocked` and `reftest` columns against the gap column before picking
+inside a milestone.** They are three different kinds of work. A blocked file is
+one whose harness never reported: plumbing, and usually cheaper per file than a
+specification. A reftest file is a picture that disagrees, and
+`--reftest-artifacts DIR` is how to read one — the first three images that flag
+ever produced named a paint bug in one second where the pixel count said only
+"different". The three extremes in the tree: `html/canvas/element/` is 774 files
+with **19** blocked, pure feature work with nothing gating it; `referrer-policy/`
+is 1,330 files with **1,083** blocked, where writing feature code today would
+move nothing at all; and `css/CSS2/` is 3,907 files of which **3,867 are
+reftests**, an area that until 2026-08-17 read as forty files of ordinary bugs.
 
 ### Three prerequisites that multiply, and were not written down as such
 
@@ -559,13 +586,26 @@ results in the first 150 tests, and the interesting quantity is not that number
 `did not throw`). Each is one fix worth dozens of tests. A ranked cause list is
 what turns 20,000 failures into 40 sessions.
 
-**Reftests are out of the baseline**, and that was decided while running it.
-Recording them costs about six hours of the run — a reftest renders two pages,
-and the full suite projected at nine hours against ninety minutes for the
-testharness half — and buys an expectation file that F2 rewrites in full,
-because an exact-pixel comparison against a reference rendered by the same
-rasterizer calls antialiasing noise a difference. `ctest` already excludes them.
-F2 is what brings the other 20,923 tests into the number.
+**Reftests are out of `docs/wpt-baseline.md` and are in the measurement**, and
+the two are no longer the same statement. F9 recorded all 20,998 into
+`tests/wpt/expectations/` on 2026-08-17 and `docs/wpt-firefox-gap.md` counts
+them; this document — the subtest table — still does not, and that is a
+decision rather than an omission. **A reftest has no subtests.** Putting one in
+a table whose columns are "subtests reported" and "subtests passed" adds a row
+of 0/0 and moves nothing, and the question a reftest answers is a file-level one,
+which is the other document's whole unit. `ctest` still excludes them too, for a
+reason that has also changed: not cost, but that eight of the 20,998 are
+intermittent (task F10).
+
+**And the cost estimate this paragraph used to carry was wrong by two orders of
+magnitude**, which is worth more than the decision it justified. It said "about
+six hours… the full suite projected at nine hours". The measured figure is
+**105 seconds** for all 20,998, in the perf build at the default `--jobs`. The
+projection was made before `platform::WaitOnDescriptors` was found to ignore its
+own timeout when it had nothing to watch — a page that has finished loading and
+is waiting on a timer span a core flat out, which is most of what a reftest
+does. **A projection is not a measurement**, and this one deferred 48% of the
+suite for a week.
 
 **Why B6 exists, and it is not tidiness.** `--summary` writes
 `docs/wpt-baseline.md` from `--summary-state` alone, and that state file has
@@ -790,7 +830,7 @@ that costs.
 
 ---
 
-### M-D — CSS: the cascade, values, and the object model · **#8 in the order**
+### M-D — CSS: the cascade, values, and the object model · **#5 in the order**
 
 `css/css-syntax/`, `css/css-values/`, `css/css-cascade/`, `css/css-variables/`,
 `css/css-conditional/`, `css/selectors/`, `css/cssom/`, `css/cssom-view/`.
@@ -814,14 +854,24 @@ reftests, which makes them cheap to run and unambiguous to read.
 
 ---
 
-### M-E — Layout · **#3 in the order**
+### M-E — Layout · **#1 in the order**
 
 The largest area by test count and the one where reftests dominate, which means
 it is also the milestone that will find bugs in the rasterizer by accident.
 
+**And it is now first in the order by nearly a factor of two — 9,285 files, of
+which 7,802 are reftests.** It was ranked 3rd of 11 until 2026-08-17, on a column
+that could not see the reftest half of the suite at all; gate 0 (F2, then F9) is
+what moved it, and this section's "reftests dominate" turned out to be the
+literal truth rather than a figure of speech. `css/CSS2/` alone (E1) went from
+40 files to 3,907. The caveat this paragraph used to carry — that reftest
+results are untrustworthy until fuzzy matching exists — is discharged: F2 landed,
+and F9 recorded all 20,998 in 105 seconds.
+
 Depends on nothing in M-C or M-D, so it can run fully in parallel from the
-start — with one caveat: reftest results are only trustworthy once the harness's
-fuzzy-matching story exists (task A-follow-up F2 below).
+start. **Start with `--reftest-artifacts DIR`**: a pixel count cannot tell a
+missing feature from an antialiasing difference and a picture can, in one
+second.
 
 | id | task | depends on | target |
 |---|---|---|---|
@@ -842,7 +892,7 @@ in these areas failing for a *harness* reason.
 
 ---
 
-### M-F — Paint, colour and graphics · **#1 in the order**
+### M-F — Paint, colour and graphics · **#2 in the order**
 
 `css/css-backgrounds/`, `css/css-images/`, `css/css-color/`,
 `css/css-transforms/`, `css/css-ui/`, `svg/`, `html/canvas/`.
@@ -858,7 +908,8 @@ in these areas failing for a *harness* reason.
 | F6b | `html/canvas/offscreen/` — `OffscreenCanvas`, `transferControlToOffscreen`, and a 2D context on a worker thread | G5 | 40% · **1,921 files, 957 blocked** |
 | F7 | `svg/` — triage first: this browser renders SVG as an image, and the suite tests it as a document. Decide the scope in an ADR before writing code | — | ADR + a number |
 | F8 | Image formats — WebP and AVIF decoders (ADR 0023 counted them); `png/` and the image parts of `css-images` | — | fuzzers + 80% of `png/` |
-| F9 | **Harness:** reftests enter the measurement at all — record them in `tests/wpt/expectations/`, count them in the baseline | F2 | a non-zero reftest number |
+| F9 | **Harness:** reftests enter the measurement at all — record them in `tests/wpt/expectations/`, count them in the baseline | F2 | **done 2026-08-17** |
+| F10 | **Harness:** the reftest *gate* — name the eight intermittents, then drop `--testharness-only` from the `ctest` registration | F9 | two clean `--reftests-only` runs |
 
 **F6 was one task over two features until 2026-08-17, and the split is worth
 more than either half.** `html/canvas/` is 2,654 gap files; **1,921 of them are
@@ -870,53 +921,41 @@ than twice that. It is now F6b and depends on G5. What is left in F6 is
 ordinary specification work in the top ten of the whole tree. Nothing gates it.
 The 2D context exists, the tests reach it, and they disagree with it 731 times.
 
-**F9 is the largest unmeasured surface in the project and it was found on
-2026-08-17, not built.** 20,998 reftest files are in scope — **48% of the
-suite** — and not one of them appears in any number this project quotes.
-`RunReftest` in `tools/wpt/main.cpp` runs them; the baseline is recorded
-`--testharness-only`; the expectation format writes down only failures. So a
-reftest that nobody ran and a reftest that passed are the same silence, and the
-runner duly reports `expected OK, got FAIL` for every one. A 25-file random
-sample passes **0**, all on pixel differences (304 pixels on
-`css/CSS2/linebox/line-height-095.xht`, 20,237 on
-`css/css-display/run-in/run-in-contains-table-row-001.xht`). Firefox passes
-17,961 of them.
+**F2 and F9 both landed on 2026-08-17, and between them they moved 48% of the
+suite out of silence and into the ranking.** F2 is the tolerance and the picture;
+F9 is the recording. The four things worth carrying forward:
 
-F2 comes first and the ordering is not negotiable: without `<meta name=fuzzy>`
-and a diff image beside each failure, a 304-pixel difference and a
-20,237-pixel one are the same line in a file, and no session can tell an
-anti-aliasing tolerance from a missing feature. F9 is not expected to produce a
-large pass count. It is expected to stop this project quoting a rate over half
-of its own suite.
-
-**F2 landed 2026-08-17. F9 is startable and is the top of gate 0 now.** The
-tolerance is `tools/wpt/Reftest.cpp`, transcribed from wptrunner rather than
-invented; 686 enumerated reftests carry a `<meta name=fuzzy>` and six pass on
-it. Three things the next session should take from it before recording anything:
-
-- **The tolerance is not what is failing these tests.** Running all 686
+- **The tolerance was never what was failing these tests.** Running all 686
   fuzzy-annotated reftests: 199 OK, 485 unexpected, and only **six** of the 199
   needed the tolerance at all. Fuzzy matching was a precondition for the
-  measurement being honest, not a source of passes, exactly as this section
-  said. Do not expect F9 to find more.
+  measurement being honest, not a source of passes — and F9's full run confirms
+  it, since 7,394 of 20,998 pass and almost none of them needed a tolerance.
+  `tools/wpt/Reftest.cpp` is transcribed from wptrunner rather than invented,
+  because a tolerance of our own would make the two sides incomparable.
 - **`--reftest-artifacts DIR` is how to read a reftest failure**, and it is
   worth using before writing any layout code. The first three images this ever
   produced (`css/CSS2/backgrounds/background-003.xht`) showed the reference's
   green stripe missing from the test in one second — a paint bug, not a
   tolerance. It is opt-in and bounded (`--reftest-artifacts-limit`, default 64)
-  because a full reftest run at three 1.4MB PPMs each is 90GB.
-- **A passing reftest now says how much room it had left**, in its harness
-  message under `--verbose`: `35 pixels differ, worst channel 2; within
-  0-5;0-150`. A reftest passing by one pixel of its tolerance and one passing
-  exactly are different facts about the renderer, and only one of them survives
-  the next change to it.
+  because a full reftest run at three 1.4MB PPMs each is 90GB. With 11,356
+  reftest files now on the board, this is the first command of an M-E session.
+- **A passing reftest says how much room it had left**, in its harness message
+  under `--verbose`: `35 pixels differ, worst channel 2; within 0-5;0-150`. A
+  reftest passing by one pixel of its tolerance and one passing exactly are
+  different facts about the renderer, and only one of them survives the next
+  change to it. It also says `both pages blank` when there was nothing to
+  compare — 757 of the 7,394 passes are two white canvases agreeing, which is
+  the one way this number can rise while the browser gets worse.
+- **The run is 105 seconds, not six hours.** §M-B's projection was made against
+  a runner that span a core per finished page, and it kept the reftest half out
+  of the measurement for a week. Re-measure before deferring anything on cost.
 
 **Exit:** `css-backgrounds` ≥ 70%, `css-transforms` ≥ 60%, fuzzy reftests
 supported.
 
 ---
 
-### M-G — Script, the event loop, and timing · **#5 in the order**
+### M-G — Script, the event loop, and timing · **#6 in the order**
 
 `html/webappapis/`, `hr-time/`, `user-timing/`, `performance-timeline/`,
 `web-animations/`, `workers/`, `streams/`, `webmessaging/`, `console/`.
@@ -937,7 +976,7 @@ closed.
 
 ---
 
-### M-H — The network, and the security around it · **#2 in the order**
+### M-H — The network, and the security around it · **#3 in the order**
 
 `fetch/`, `xhr/`, `cors/`, `url/`, `mimesniff/`,
 `content-security-policy/`, `subresource-integrity/`, `referrer-policy/`,
@@ -964,7 +1003,7 @@ approximate. Task H1 decides what replaces them.
 
 ---
 
-### M-I — Storage · **#9 in the order**
+### M-I — Storage · **#10 in the order**
 
 `webstorage/`, `IndexedDB/`, `storage/`, `FileAPI/`.
 
@@ -979,7 +1018,7 @@ approximate. Task H1 decides what replaces them.
 
 ---
 
-### M-J — Navigation, browsing contexts, and the process split · **#6 in the order**
+### M-J — Navigation, browsing contexts, and the process split · **#8 in the order**
 
 `html/browsers/`, plus the parts of `html/semantics/` about `<iframe>`.
 
@@ -1001,7 +1040,7 @@ something that does not exist.
 
 ---
 
-### M-K — Text and internationalisation · **#11 in the order**
+### M-K — Text and internationalisation · **#9 in the order**
 
 `encoding/`, and the text halves of `css/css-text/`, `css/css-fonts/`,
 `css/css-writing-modes/`.
@@ -1017,7 +1056,7 @@ something that does not exist.
 
 ---
 
-### M-L — Media · **#10 in the order**
+### M-L — Media · **#11 in the order**
 
 `media-source/`, `html/semantics/embedded-content/media-elements/`.
 
@@ -1149,24 +1188,22 @@ Four to six agents, sustainably. The graph is now the ranked order of §2, not
 the milestone letters:
 
 ```
-  gate 0   F2 ──▶ F9            B6
-           (fuzzy)  (reftests    (summary state)
-                     measured)
-              │  half the suite enters the measurement here
+  gate 0   F2 ─▶ F9 ─▶ F10          B6
+          (fuzzy) (recorded) (gated)  (summary state)
+            done     done      open        open
+              │  half the suite entered the measurement here, and layout is #1
    ┌──────────┼──────────┬─────────────┬──────────────┬────────────┐
    ▼          ▼          ▼             ▼              ▼            ▼
-  F6        H9         J1b*          A2*            G5*          O1,O2,O4
- canvas    https      iframes      handlers       workers       forms,script,
- element   origin                                                 syntax
-  731       ~2,000      gates O3,     gates H8's      gates F6b
-  files     files       H8, J2, G6    generated half
-             │           │              │             │
-             └───────────┴──────┬───────┘             ▼
-                                ▼                    F6b  OffscreenCanvas
-                          H8  referrer-policy         1,921 files
-                              1,330 files
-                                                     ▼
-                        (after gate 0)  M-E layout — 11,344 reftests
+  E1        F6         H9            J1b*           A2*          G5*
+ css/CSS2  canvas     https        iframes        handlers      workers
+  3,907     element   origin
+  files      774       ~2,000        gates O3,      gates H8's    gates F6b
+  (3,867     files     files         H8, J2, G6     generated half
+  reftests)   │          │              │             │
+              │          └───────┬──────┘             ▼
+              ▼                  ▼                   F6b  OffscreenCanvas
+        O1,O2,O4            H8  referrer-policy       1,939 files
+    forms, script, syntax       1,330 files
 ```
 
 `*` = already in progress.
@@ -1174,11 +1211,12 @@ the milestone letters:
 The dependency edges that actually matter, and are the only ones worth
 serialising on:
 
-- **F2 before F9, and F9 before ranking anything in M-E.** 20,998 reftest files
-  — 48% of the suite — are in no number this project quotes, and without a
-  fuzzy tolerance and a diff image a 304-pixel difference and a 20,237-pixel one
-  are the same line in a file. This is the one edge that gates the *plan* rather
-  than a task.
+- **F2 before F9, and F9 before ranking anything in M-E.** ~~Pending.~~ **Both
+  landed 2026-08-17**, and this was the one edge that gated the *plan* rather
+  than a task: M-E went from 3rd of 11 to 1st by a factor of two, and `css/CSS2/`
+  from 40 files to 3,907. The edge that replaces it is **F9 before F10** — the
+  reftest results are recorded, the `ctest` gate does not yet compare them, and
+  eight of the 20,998 are intermittent.
 - **H9 (an https origin) before H8, and before anything with `.https.` in its
   name.** ~2,000 gap files, and it had no target and no rank until 2026-08-17.
 - **J1b (same-origin iframes) before O3, H8, J2 and G6.**
@@ -1188,8 +1226,10 @@ serialising on:
   identity is load-bearing for `assert_throws_*`, which is most of the suite's
   negative tests. (Both done.)
 
-**F6, O1, O2 and O4 depend on nothing** and are 1,587 files between them. If an
-agent is free and gate 0 is claimed, those are the four to take.
+**E1, F6, O1, O2 and O4 depend on nothing that is not already done** and are
+5,574 files between them — E1's dependency was F2, which landed. If an agent is
+free, those are the five to take, and **E1 is the largest single task in the
+tree** now that its reftests are counted.
 
 Everything else is independent. Two agents in the same `src/` module at the same
 time is the real collision risk, so the table above is also a rough map of which
