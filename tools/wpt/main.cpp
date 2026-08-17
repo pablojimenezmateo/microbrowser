@@ -546,12 +546,21 @@ std::string RunReftest(microbrowser::platform::SystemFontProvider& fonts,
     // A pass says how much room it had left, because "passed" and "passed by
     // one pixel of a 1,500-pixel tolerance" are different facts about the
     // renderer and only one of them survives the next change to it.
+    //
+    // And it says when it had nothing to compare. Two pages that both drew
+    // nothing agree exactly, so a reference that failed to load passes against
+    // any test at all -- which is the one way a reftest number can be inflated
+    // by the browser getting *worse*. The verdict is unchanged (wptrunner's is
+    // too, and inventing one here would make the number incomparable); it is
+    // the report that has to say so, and the run counts them.
+    const bool vacuous = microbrowser::wpt::IsBlank(actual) && microbrowser::wpt::IsBlank(expected);
+    const std::string blank = vacuous ? "; both pages blank" : "";
     if (difference.pixels_different == 0) {
-      return "H\tOK\t";
+      return "H\tOK\t" + (vacuous ? std::string("both pages blank") : std::string());
     }
     return "H\tOK\t" + std::to_string(difference.pixels_different) +
            " pixels differ, worst channel " + std::to_string(difference.max_per_channel) +
-           "; within " + microbrowser::wpt::SerializeFuzzy(test.fuzzy);
+           "; within " + microbrowser::wpt::SerializeFuzzy(test.fuzzy) + blank;
   }
 
   std::string message;
@@ -912,6 +921,12 @@ int main(int argc, char** argv) {
   std::size_t timeouts = 0;
   std::size_t subtests_passed = 0;
   std::size_t subtests_total = 0;
+  // A reftest has no subtests, so before task F9 the run's closing line said
+  // "0 subtests, 0 passed (0.0%)" about 20,998 of them and a recording run
+  // reported nothing at all about how it went. These three are that line.
+  std::size_t reftests_run = 0;
+  std::size_t reftests_passed = 0;
+  std::size_t reftests_blank = 0;
   int artifacts_written = 0;
   std::vector<RunningTest> running;
   std::vector<std::string> failure_report;
@@ -950,6 +965,17 @@ int main(int argc, char** argv) {
         --retries_left[index];
         retry_queue.push_back(index);
         return;
+      }
+    }
+    if (test.kind == TestKind::Reftest) {
+      ++reftests_run;
+      if (report.harness == "OK") {
+        ++reftests_passed;
+        // The message is the only place the pair's blankness is recorded, and
+        // it is deliberately not a status: see wpt/Reftest.h on IsBlank.
+        if (report.harness_message.find("both pages blank") != std::string::npos) {
+          ++reftests_blank;
+        }
       }
     }
     microbrowser::wpt::SummaryResult summary_result;
@@ -1317,6 +1343,17 @@ int main(int argc, char** argv) {
                                    : 100.0 * static_cast<double>(subtests_passed) /
                                          static_cast<double>(subtests_total),
                crashes, timeouts, disabled);
+  if (reftests_run != 0) {
+    // Separate line, separate denominator. A reftest passes or it does not --
+    // there is no subtest rate to average it into, which is why the reftest half
+    // of the suite was invisible in every number this project quoted until
+    // task F9. `blank` is the audit column, not a failure count: see
+    // wpt/Reftest.h.
+    std::fprintf(stderr, "%zu reftests: %zu passed (%.1f%%), %zu of those with both pages blank\n",
+                 reftests_run, reftests_passed,
+                 100.0 * static_cast<double>(reftests_passed) / static_cast<double>(reftests_run),
+                 reftests_blank);
+  }
   if (options.update_expectations) {
     return 0;
   }

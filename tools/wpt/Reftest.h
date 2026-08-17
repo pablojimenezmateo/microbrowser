@@ -95,6 +95,22 @@ struct ImageDifference {
 // size is a real failure, and comparing the overlap would hide it.
 ImageDifference CompareCanvases(const gfx::Canvas& actual, const gfx::Canvas& expected);
 
+// Nothing was drawn on it: every pixel is still the opaque white both canvases
+// are cleared to before the display list runs.
+//
+// **This is not a verdict and must never become one.** wptrunner compares two
+// screenshots and does not ask what is on them, so a rule of our own would make
+// our reftest number incomparable with Firefox's, which is the whole reason
+// docs/wpt-firefox-gap.md exists. What it is for is that two blank pages compare
+// *equal*, so a reference that failed to load and a test that rendered nothing
+// agree perfectly and the comparison proves nothing. Recording how many of a
+// run's passes are that pair is the difference between a measurement and a
+// number on the half of an operation that cannot fail -- the shape this project
+// has now been bitten by four times (`font.lookup_hits`, `0 unexpected`,
+// `--long-timeout`, `--jobs`). Some of them are real: a reftest whose point is
+// that an element must not be visible passes blank in every engine.
+bool IsBlank(const gfx::Canvas& canvas);
+
 // wptrunner's rule, transcribed. Note the two escape hatches in the middle: a
 // pair that matched *exactly* passes an annotation whose lower bound is zero,
 // even though a range like `1-5` would otherwise require at least one differing

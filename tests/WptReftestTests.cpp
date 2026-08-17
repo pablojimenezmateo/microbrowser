@@ -188,6 +188,22 @@ void RegisterWptReftestTests(std::vector<TestCase>& tests) {
            "and an agreeing pixel keeps the reference, washed out");
   });
 
+  AddTest(tests, "WptReftest/KnowsWhenThereWasNothingToCompare", [] {
+    // Two blank pages agree exactly, so a reference that failed to load passes
+    // against any test at all. That is the one way the reftest number task F9
+    // brought into the measurement can be inflated by the browser getting
+    // *worse*, and the run counts it beside the passes rather than deducting it
+    // -- wptrunner compares screenshots and does not ask what is on them, and a
+    // rule of our own would make the number incomparable with Firefox's.
+    Expect(wpt::IsBlank(Filled(0xFFFFFFFFu)), "the colour both canvases are cleared to");
+    Expect(wpt::IsBlank(Filled(0x00FFFFFFu)),
+           "and alpha is not part of it: the comparison does not look at alpha either");
+    gfx::Canvas one_pixel = Filled(0xFFFFFFFFu);
+    one_pixel.Row(3)[3] = 0xFFFFFFFEu;
+    Expect(!wpt::IsBlank(one_pixel), "one level on one channel in one corner is something drawn");
+    Expect(wpt::IsBlank(gfx::Canvas{}), "a page that produced no surface produced no picture");
+  });
+
   AddTest(tests, "WptReftest/WritesAPpmThatNamesItsSize", [] {
     TemporaryDirectory directory;
     const std::string path = (directory.Path() / "diff.ppm").string();

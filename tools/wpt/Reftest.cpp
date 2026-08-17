@@ -235,6 +235,24 @@ ImageDifference CompareCanvases(const gfx::Canvas& actual, const gfx::Canvas& ex
   return difference;
 }
 
+bool IsBlank(const gfx::Canvas& canvas) {
+  if (canvas.IsEmpty()) {
+    return true;
+  }
+  for (int y = 0; y < canvas.Height(); ++y) {
+    const std::uint32_t* row = canvas.Row(y);
+    if (row == nullptr) {
+      continue;
+    }
+    for (int x = 0; x < canvas.Width(); ++x) {
+      if ((row[x] & 0x00FFFFFFu) != 0x00FFFFFFu) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 bool FuzzyAllows(const ImageDifference& difference, const FuzzyAllowance& allowance) {
   if (allowance.IsExact()) {
     return difference.pixels_different == 0;
