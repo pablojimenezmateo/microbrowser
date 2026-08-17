@@ -596,6 +596,13 @@ class Page : private layout::ImageProvider,
   void WriteCanvasPixels(dom::Element& element, int x, int y, int width, int height,
                          const std::vector<std::uint8_t>& rgba) override;
   double MeasureCanvasText(const dom::Element& element, const std::string& text) const override;
+  std::string CanvasStateText(const dom::Element& element,
+                              bindings::CanvasOp::Kind which) const override;
+  double CanvasStateNumber(const dom::Element& element,
+                           bindings::CanvasOp::Kind which) const override;
+  std::vector<double> CanvasTransform(const dom::Element& element) const override;
+  bool CanvasHitTest(const dom::Element& element, double x, double y, bool stroke,
+                     bool even_odd) const override;
 
   // --- `bindings::WorkerHost` (ADR 0022 §1), in PageWorkers.cpp ----------------
   //

@@ -623,8 +623,21 @@ class DomBindings {
  private:
   void InstallCanvas(const js::Value& target);
   void InstallImageElement(const js::Value& target);
+  // `CanvasRenderingContext2D.prototype`, built once per realm: every method lives there rather than
+  // on each context, so a page can add, replace or delete one.
+  js::Value CanvasContextPrototype();
+  void InstallCanvasProperties(const js::Value& prototype);
+  void InstallCanvasTransforms(const js::Value& prototype);
+  void InstallCanvasPaths(const js::Value& prototype);
+  void InstallCanvasText(const js::Value& prototype);
+  static bool ReadCornerRadii(js::NativeCall& call, const js::Value& given, double width,
+                              double height, std::vector<double>& out, js::Value& thrown);
   js::Value MakeCanvasContext(const js::Value& canvas);
-  void InstallImageData(const js::Value& context);
+  void InstallImageData(const js::Value& prototype);
+  // `ImageData.prototype` and a *real* constructor rather than `MakeInterface`'s "Illegal
+  // constructor" throw: `new ImageData(w, h)` needs no canvas.
+  js::Value ImageDataPrototype();
+  js::Value AdoptImageData(int width, int height, const js::Value& array);
   js::Value MakeImageData(int width, int height, const std::vector<std::uint8_t>& rgba);
 
   void InstallMediaSource();

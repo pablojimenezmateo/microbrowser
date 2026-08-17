@@ -80,4 +80,22 @@ double Page::MeasureCanvasText(const dom::Element& element, const std::string& t
   return canvases_.MeasureText(element, text);
 }
 
+std::string Page::CanvasStateText(const dom::Element& element,
+                                  bindings::CanvasOp::Kind which) const {
+  return canvases_.StateText(element, which);
+}
+
+double Page::CanvasStateNumber(const dom::Element& element, bindings::CanvasOp::Kind which) const {
+  return canvases_.StateNumber(element, which);
+}
+
+std::vector<double> Page::CanvasTransform(const dom::Element& element) const {
+  return canvases_.Transform(element);
+}
+
+bool Page::CanvasHitTest(const dom::Element& element, double x, double y, bool stroke,
+                         bool even_odd) const {
+  return canvases_.HitTest(element, x, y, stroke, even_odd);
+}
+
 }  // namespace microbrowser::engine

@@ -78,7 +78,13 @@ class CanvasSurfaces {
     enum class Baseline : std::uint8_t { Alphabetic, Top, Middle, Bottom, Hanging, Ideographic };
     Align align = Align::Start;
     Baseline baseline = Baseline::Alphabetic;
+    // The pen, in *user* space. The path holds device-space points, and `arcTo` and `roundRect` are
+    // defined in terms of where the pen is before them -- so recovering it would mean inverting the
+    // transform, whose determinant a page can make zero with one `scale(0, 0)`.
+    double pen_x = 0.0;
+    double pen_y = 0.0;
   };
+
 
   explicit CanvasSurfaces(gfx::TextRenderer& text) : text_(&text) {}
 
@@ -98,6 +104,18 @@ class CanvasSurfaces {
 
   Surface* For(const dom::Element& element);
   const Surface* Find(const dom::Element& element) const;
+
+  // The whole state back to its defaults, plus the path and the save stack. `reset()` and a
+  // `canvas.width = w` write are the same algorithm in the specification, which is why they are one
+  // function here rather than two that drift.
+  void ResetState(Surface& surface);
+
+  // The state, read back for a getter. See `bindings::CanvasSurface`: there is no second copy of it
+  // in the binding layer, so `ctx.lineWidth` comes from here and cannot disagree with the next stroke.
+  std::string StateText(const dom::Element& element, bindings::CanvasOp::Kind which) const;
+  double StateNumber(const dom::Element& element, bindings::CanvasOp::Kind which) const;
+  std::vector<double> Transform(const dom::Element& element) const;
+  bool HitTest(const dom::Element& element, double x, double y, bool stroke, bool even_odd) const;
 
   void SetSize(dom::Element& element, int width, int height);
   void Execute(dom::Element& element, const bindings::CanvasOp& op);

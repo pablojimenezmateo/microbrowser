@@ -41,6 +41,18 @@ struct CanvasOp {
     SetFont,
     SetTextAlign,
     SetTextBaseline,
+    SetLineDash,
+    SetLineDashOffset,
+    SetGlobalCompositeOperation,
+    SetShadowColor,
+    SetShadowBlur,
+    SetShadowOffsetX,
+    SetShadowOffsetY,
+    SetImageSmoothing,
+    SetDirection,
+    // The whole state at once, back to its defaults, plus the path and the save stack. The
+    // specification's `reset()`, and the same algorithm a `canvas.width = w` write runs.
+    Reset,
     // Transforms
     Transform,      // a..f: the matrix, multiplied into the current one
     SetTransform,   // a..f: replaces it
@@ -54,6 +66,7 @@ struct CanvasOp {
     Arc,
     ArcTo,
     Rect,
+    RoundRect,
     ClosePath,
     Fill,
     Stroke,
@@ -63,6 +76,18 @@ struct CanvasOp {
     FillRect,
     StrokeRect,
     ClearRect,
+    // Paint sources. A gradient or a pattern is an *object* a page holds and assigns to `fillStyle`
+    // later, so it cannot be a colour string: the binding layer mints a handle, these commands tell
+    // the far side what it names, and `SetFillPaint` selects one. The handle is chosen on this side
+    // deliberately -- a command that had to return a value would make every other command's return
+    // type a question, and the seam stays "send data, get nothing back".
+    CreateLinearGradient,
+    CreateRadialGradient,
+    CreateConicGradient,
+    AddColorStop,
+    CreatePattern,
+    SetFillPaint,
+    SetStrokePaint,
     // Text and images
     FillText,
     StrokeText,
@@ -86,6 +111,17 @@ struct CanvasOp {
   // what `rgb(300, -1, 50%)` means.
   std::string text;
   bool flag = false;
+  // The variable-length arguments: `setLineDash`'s array and `roundRect`'s radii. A vector rather
+  // than more scalars because both are page-chosen in length, and a fixed eight would be a silent
+  // truncation of exactly the input a page controls.
+  std::vector<double> numbers;
+  // A paint source, named rather than held: `src/bindings` cannot hold a `gfx::Color` let alone a
+  // gradient, so what crosses is the number the binding layer minted for it. Zero is "none".
+  std::uint32_t handle = 0;
+  // The source of a `drawImage` or a `createPattern` -- an `<img>`, a `<canvas>` or a `<video>`.
+  // An element rather than pixels, because the pixels live on the far side already and copying them
+  // through this seam would make every draw a bitmap copy.
+  const dom::Element* source = nullptr;
 };
 
 // The canvases a document owns, and the one thing a page can do with them that is a security decision.
@@ -122,6 +158,30 @@ class CanvasSurface {
 
   // `measureText`'s width, which needs the shaper and therefore the far side.
   virtual double MeasureCanvasText(const dom::Element& element, const std::string& text) const = 0;
+
+  // The graphics state, read back.
+  //
+  // **There is no shadow copy on this side, and that is the whole point.** The state lives with the
+  // painter (see `ExecuteCanvasOp`), so `ctx.fillStyle` has to ask it -- otherwise `save()`,
+  // `restore()` and `reset()` would each have to remember to update a second copy, and the one that
+  // forgot would be a getter that disagrees with what the next `fill()` draws. `Kind` is the key
+  // because the setter already names it: `SetFillColor` reads back what `SetFillColor` wrote.
+  //
+  // Text-valued state comes back *serialized* -- `#ff0000` rather than the `#f00` the page wrote --
+  // because the specification says the getter returns the value's canonical form, which means the
+  // one colour parser has to have seen it.
+  virtual std::string CanvasStateText(const dom::Element& element, CanvasOp::Kind which) const = 0;
+  virtual double CanvasStateNumber(const dom::Element& element, CanvasOp::Kind which) const = 0;
+
+  // The current transformation matrix, as `a, b, c, d, e, f`. Six numbers rather than a matrix type
+  // because there is no matrix type this module may name.
+  virtual std::vector<double> CanvasTransform(const dom::Element& element) const = 0;
+
+  // `isPointInPath` and `isPointInStroke`, which are questions rather than commands: the answer
+  // depends on the path the far side is holding, and a copy of it on this side would be a second
+  // path to keep in step.
+  virtual bool CanvasHitTest(const dom::Element& element, double x, double y, bool stroke,
+                             bool even_odd) const = 0;
 };
 
 }  // namespace microbrowser::bindings

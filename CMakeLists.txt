@@ -436,6 +436,7 @@ microbrowser_module(engine
     src/engine/PageHitTest.cpp
     src/engine/PageEditing.cpp
     src/engine/Animations.cpp
+    src/engine/CanvasGeometry.cpp
     src/engine/CanvasSurfaces.cpp
     src/engine/Workers.cpp
     src/engine/WorkerScope.cpp
@@ -475,6 +476,7 @@ microbrowser_module(platform
 microbrowser_module(bindings
   SOURCES
     src/bindings/CanvasBindings.cpp
+    src/bindings/CanvasImageData.cpp
     src/bindings/Fingerprint.cpp
     src/bindings/CryptoSubtle.cpp
     src/bindings/WorkerBindings.cpp

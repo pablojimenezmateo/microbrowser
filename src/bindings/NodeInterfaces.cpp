@@ -167,6 +167,11 @@ void DomBindings::EnsureInterfaces() {
   const Value event_target = MakeInterface("EventTarget", Value::Undefined());
   InstallEventMethods(event_target);
 
+  // `ImageData` is a Window *and* a WorkerGlobalScope name, and it is here rather than behind the
+  // first `getContext` because a page may construct one without ever touching a canvas -- and because
+  // `window.ImageData` is what a page feature-detects.
+  ImageDataPrototype();
+
   // **No document: this is a worker's global, and the rest of the DOM is absent.**
   // The table itself still exists, because things that are not tree types --
   // `URLSearchParams`, `AbortSignal`, EventTarget -- hang a prototype on it.
