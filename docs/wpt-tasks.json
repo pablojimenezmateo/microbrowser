@@ -1074,14 +1074,15 @@
       "check": "A reftest with a fuzzy annotation passes within its tolerance and a failing one leaves three files.",
       "depends": [],
       "target": "",
-      "status": "not_started",
-      "agent": null,
+      "status": "in_progress",
+      "agent": "wpt-f2",
       "adr": "0040",
       "notes": "Blocks every reftest-heavy layout task -- without it M-E's numbers are noise.",
       "firefox_gap_unblocks": {
         "files": 17961,
         "why": "the same 17,961, because F9 without a fuzzy tolerance and a diff image records noise rather than a measurement"
-      }
+      },
+      "claimed": "2026-08-17"
     },
     {
       "id": "F3",
