@@ -301,14 +301,15 @@
         "B1"
       ],
       "target": "",
-      "status": "not_started",
-      "agent": null,
+      "status": "in_progress",
+      "agent": "wpt-b6",
       "adr": "0040",
       "notes": "Found by C4, the third session in a row to trip over it. --summary writes the document from the state alone, the state file lived in /tmp, and the one left there covered 38 areas -- so regenerating after a seven-area run produced a complete-looking document with 61 rows instead of 297. SummaryAccumulator::Write now refuses to write fewer rows than the document already has, which turns the silent truncation into a message; this task is what makes the refusal unnecessary. It is one long machine run, not a design.",
       "firefox_gap_unblocks": {
         "files": 0,
         "why": "no files directly; it is what stops a per-area re-record being hand-merged into docs/wpt-baseline.md, which three sessions in a row have tripped over"
-      }
+      },
+      "claimed": "2026-08-17"
     },
     {
       "id": "C1",
