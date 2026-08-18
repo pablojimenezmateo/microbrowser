@@ -481,7 +481,13 @@ struct ComputedStyle {
 
   Edges margin;
   Edges padding;
-  Edges border_width;
+  // `medium`, on every side, which is `border-width`'s initial value and is 3px in every engine.
+  // Zero was the old default and it was invisible while a border needed `has_border` to draw at
+  // all; now that a style lights a side up on its own, `border-left-style: solid` with no width is
+  // a three-pixel line rather than nothing -- and so is every declaration that names an invalid
+  // width, because a dropped declaration leaves the initial value behind.
+  Edges border_width{Length::Pixels(3.0f), Length::Pixels(3.0f), Length::Pixels(3.0f),
+                     Length::Pixels(3.0f)};
   BorderSides border_style;
   BorderColors border_color;
 

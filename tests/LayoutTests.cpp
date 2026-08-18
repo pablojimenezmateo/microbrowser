@@ -1355,7 +1355,9 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     Expect(!texts.empty(), "there is text");
     Expect(texts.at(0)->Style().background_color.Alpha() == 0,
            "background-color does not inherit");
-    Expect(texts.at(0)->Style().border_width.left.Resolve(0.0f) == 0.0f, "and neither does a border");
+    Expect(texts.at(0)->Style().UsedBorderWidths().left.Resolve(0.0f) == 0.0f,
+           "and neither does a border -- the *used* width, because `border-width`'s initial value "
+           "is medium and it is `border-style` that decides whether a side draws");
 
     gfx::DisplayList list;
     layout::BuildDisplayList(*result.root, list);
