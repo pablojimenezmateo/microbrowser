@@ -3284,6 +3284,10 @@ FAIL=Web Animations: property <color-interpolation> from [initial] to [auto] at 
 FAIL=Web Animations: property <color-interpolation> from [initial] to [auto] at (0.6) should be [auto]
 FAIL=Web Animations: property <color-interpolation> from [initial] to [auto] at (1) should be [auto]
 FAIL=Web Animations: property <color-interpolation> from [initial] to [auto] at (1.5) should be [auto]
+[svg/painting/color-mix-currentcolor-fill-stroke-repaint.html]
+harness=FAIL
+[svg/painting/currentcolor-fill-stroke-repaint.html]
+harness=FAIL
 [svg/painting/fill-rule-no-interpolation.html]
 FAIL=CSS Animations: property <fill-rule> from [initial] to [evenodd] at (-0.3) should be [initial]
 FAIL=CSS Animations: property <fill-rule> from [initial] to [evenodd] at (0) should be [initial]
@@ -3496,8 +3500,6 @@ harness=FAIL
 [svg/painting/reftests/non-scaling-stroke-non-uniform-scale.html]
 harness=FAIL
 [svg/painting/reftests/non-scaling-stroke-with-none-preserve-aspect-ratio.html]
-harness=FAIL
-[svg/painting/reftests/paint-context-001.svg]
 harness=FAIL
 [svg/painting/reftests/paint-context-002.svg]
 harness=FAIL
@@ -3836,6 +3838,8 @@ FAIL=radialGradient fx and fy do not follow cx and cy changes
 FAIL=radialGradient fx and fy fall back to 50% with invalid values
 FAIL=radialGradient fx and fy remain 50% when cx and cy are set to different values
 FAIL=radialGradient fx and fy return to 50% when explicitly set then removed
+[svg/pservers/reftests/css-color-visited-currentcolor-svg-fill.html]
+harness=FAIL
 [svg/pservers/reftests/pattern-text-01.svg]
 harness=FAIL
 [svg/pservers/reftests/pattern-transform-01.svg]
@@ -3915,8 +3919,6 @@ harness=FAIL
 harness=FAIL
 [svg/shapes/reftests/pathlength-002.svg]
 harness=FAIL
-[svg/shapes/reftests/pathlength-004b.svg]
-harness=FAIL
 [svg/shapes/reftests/pathlength-005.html]
 harness=FAIL
 [svg/shapes/reftests/polygon-with-filtered-marker.html]
@@ -3950,8 +3952,6 @@ harness=FAIL
 [svg/struct/reftests/outer-svg-transform.svg]
 harness=FAIL
 [svg/struct/reftests/svg-getIntersectionList-001.svg]
-harness=FAIL
-[svg/struct/reftests/use-adopted-with-external-resource.tentative.svg]
 harness=FAIL
 [svg/struct/reftests/use-data-url-setAttribute.tentative.html]
 harness=FAIL
