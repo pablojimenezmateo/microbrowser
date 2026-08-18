@@ -321,57 +321,6 @@ bool ApplyEdges(std::string_view value, Edges& edges, bool allow_negative, bool 
   }
 }
 
-bool IsBorderStyleKeyword(std::string_view value) {
-  return value == "none" || value == "hidden" || value == "dotted" || value == "dashed" ||
-         value == "solid" || value == "double" || value == "groove" || value == "ridge" ||
-         value == "inset" || value == "outset";
-}
-
-bool ApplyBorder(std::string_view value, ComputedStyle& style, const MediaContext& context) {
-  const float root_font_size = style.root_font_size;
-  const std::vector<std::string_view> parts = SplitWords(value);
-  if (parts.empty()) {
-    return false;
-  }
-
-  std::optional<Edges> width;
-  std::optional<gfx::Color> color;
-  bool saw_style = false;
-  bool style_disables_border = false;
-  for (const std::string_view part : parts) {
-    if (const auto length = ParseLength(part, context, root_font_size)) {
-      if (width.has_value() || !EdgeLengthAllowed(*length, false, false, false)) {
-        return false;
-      }
-      width = Edges{*length, *length, *length, *length};
-    } else if (const auto parsed_color = ParseColor(part)) {
-      if (color.has_value()) {
-        return false;
-      }
-      color = *parsed_color;
-    } else {
-      const std::string lowered = Lowered(part);
-      if (!IsBorderStyleKeyword(lowered)) {
-        return false;
-      }
-      if (saw_style) {
-        return false;
-      }
-      saw_style = true;
-      style_disables_border = lowered == "none" || lowered == "hidden";
-    }
-  }
-
-  if (width.has_value()) {
-    style.border_width = *width;
-  }
-  if (color.has_value()) {
-    style.border_color = *color;
-  }
-  style.has_border = !style_disables_border;
-  return true;
-}
-
 }  // namespace
 
 bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
@@ -804,26 +753,6 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     (property == "width" ? style.width : style.height) = *length;
     return true;
   }
-  if (property == "border-color") {
-    const auto color = ParseColor(raw_value);
-    if (!color.has_value()) {
-      return false;
-    }
-    style.border_color = *color;
-    style.has_border = true;
-    return true;
-  }
-  if (property == "border-width") {
-    if (!ApplyEdges(raw_value, style.border_width, false, false, false, context, style.root_font_size)) {
-      return false;
-    }
-    style.has_border = true;
-    return true;
-  }
-  if (property == "border") {
-    return ApplyBorder(raw_value, style, context);
-  }
-
   // Individual edge properties. Written as a loop rather than sixteen branches.
   static constexpr std::array<std::string_view, 4> kSides = {"top", "right", "bottom", "left"};
   for (std::size_t i = 0; i < kSides.size(); ++i) {

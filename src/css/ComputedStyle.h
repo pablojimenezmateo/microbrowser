@@ -218,6 +218,49 @@ struct Edges {
   friend bool operator==(const Edges&, const Edges&) = default;
 };
 
+// `border-style`, per side. `None` and `Hidden` are different values with the same paint -- they
+// differ only in border conflict resolution on a collapsed table -- and every other value here is
+// painted, so a side with a width and no style is a side that draws nothing. That is the rule the
+// initial value encodes: `border: 1in` sets a width, leaves the style at `none`, and paints
+// nothing until something says `solid`.
+enum class BorderStyle : std::uint8_t {
+  None,
+  Hidden,
+  Dotted,
+  Dashed,
+  Solid,
+  Double,
+  Groove,
+  Ridge,
+  Inset,
+  Outset,
+};
+
+// The style and colour of the four sides, in the `top right bottom left` order `Edges` uses -- so
+// `(&sides.top)[i]` indexes both the same way, which is what the shorthand parsers rely on.
+//
+// The colour is optional because the *initial* value of `border-color` is `currentColor`, and a
+// computed style cannot fold that at parse time: `<div style="color:red;border:1px solid">` has a
+// red border and the declaration never mentions red. Empty means "ask `color` at paint time",
+// which is one branch in the painter and no second copy of the cascade.
+struct BorderSides {
+  BorderStyle top = BorderStyle::None;
+  BorderStyle right = BorderStyle::None;
+  BorderStyle bottom = BorderStyle::None;
+  BorderStyle left = BorderStyle::None;
+
+  friend bool operator==(const BorderSides&, const BorderSides&) = default;
+};
+
+struct BorderColors {
+  std::optional<gfx::Color> top;
+  std::optional<gfx::Color> right;
+  std::optional<gfx::Color> bottom;
+  std::optional<gfx::Color> left;
+
+  friend bool operator==(const BorderColors&, const BorderColors&) = default;
+};
+
 // Everything `background-image` needs beyond the pixels.
 //
 // One value rather than five fields on ComputedStyle because they are one
@@ -439,8 +482,8 @@ struct ComputedStyle {
   Edges margin;
   Edges padding;
   Edges border_width;
-  gfx::Color border_color = gfx::Color::Rgb(0, 0, 0);
-  bool has_border = false;
+  BorderSides border_style;
+  BorderColors border_color;
 
   Length width = Length::Auto();
   Length height = Length::Auto();
@@ -479,6 +522,30 @@ struct ComputedStyle {
   // way and it is observable when they contradict each other. A `min-width`
   // larger than a `max-width` wins, and a page that writes both means the
   // minimum.
+  // The border widths layout must reserve space for: a side's declared width when its style paints
+  // something, and zero otherwise.
+  //
+  // Asked here rather than at the eleven call sites that used to read `has_border ? border_width :
+  // Edges{}`, because "does this side draw?" is now four questions rather than one and eleven
+  // copies of a four-way test is eleven chances to get one wrong.
+  Edges UsedBorderWidths() const {
+    Edges used;
+    for (int i = 0; i < 4; ++i) {
+      const BorderStyle side = (&border_style.top)[i];
+      if (side != BorderStyle::None && side != BorderStyle::Hidden) {
+        (&used.top)[i] = (&border_width.top)[i];
+      }
+    }
+    return used;
+  }
+
+  // This side's used colour. `border-color`'s initial value is `currentColor`, which is not a
+  // colour until the element has one -- so an unset side answers with the element's `color`.
+  gfx::Color BorderColorFor(int side) const {
+    const std::optional<gfx::Color>& declared = (&border_color.top)[side];
+    return declared.has_value() ? *declared : color;
+  }
+
   float ClampWidth(float used, float container, float padding_border = 0.0f) const {
     return ClampContent(used, min_width, max_width, container, padding_border);
   }

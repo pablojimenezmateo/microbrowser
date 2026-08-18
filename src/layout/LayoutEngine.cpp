@@ -175,7 +175,7 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   const css::ComputedStyle& style = box.Style();
   BoxGeometry& geometry = box.Geometry();
   geometry.margin = style.margin;
-  geometry.border = style.has_border ? style.border_width : css::Edges{};
+  geometry.border = style.UsedBorderWidths();
 
   // Not const: an auto margin is resolved below, once the used width is known.
   float margin_left = style.margin.left.Resolve(style.font_size);
@@ -486,9 +486,8 @@ std::optional<float> DeclaredContentWidth(const Box& box) {
                       style.margin.right.Resolve(style.font_size) +
                       style.padding.left.Resolve(style.font_size) +
                       style.padding.right.Resolve(style.font_size) +
-                      (style.has_border ? style.border_width.left.Resolve(style.font_size) +
-                                              style.border_width.right.Resolve(style.font_size)
-                                        : 0.0f);
+                      style.UsedBorderWidths().left.Resolve(style.font_size) +
+                      style.UsedBorderWidths().right.Resolve(style.font_size);
   return std::max(0.0f, style.width.Resolve(style.font_size)) + edges;
 }
 
@@ -539,9 +538,8 @@ float LayoutEngine::MeasureMaxContentWidth(const Box& box) const {
                       style.margin.right.Resolve(style.font_size) +
                       style.padding.left.Resolve(style.font_size) +
                       style.padding.right.Resolve(style.font_size) +
-                      (style.has_border ? style.border_width.left.Resolve(style.font_size) +
-                                              style.border_width.right.Resolve(style.font_size)
-                                        : 0.0f);
+                      style.UsedBorderWidths().left.Resolve(style.font_size) +
+                      style.UsedBorderWidths().right.Resolve(style.font_size);
   return widest + edges;
 }
 
@@ -606,9 +604,8 @@ float LayoutEngine::MeasureMinContentWidth(const Box& box) const {
                       style.margin.right.Resolve(style.font_size) +
                       style.padding.left.Resolve(style.font_size) +
                       style.padding.right.Resolve(style.font_size) +
-                      (style.has_border ? style.border_width.left.Resolve(style.font_size) +
-                                              style.border_width.right.Resolve(style.font_size)
-                                        : 0.0f);
+                      style.UsedBorderWidths().left.Resolve(style.font_size) +
+                      style.UsedBorderWidths().right.Resolve(style.font_size);
   return widest + edges;
 }
 

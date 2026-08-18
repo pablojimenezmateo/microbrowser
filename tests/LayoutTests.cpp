@@ -198,7 +198,8 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
 
   AddTest(tests, "Layout/TheBoxModelEdgesNest", [] {
     const LaidOut result = Run(
-        "<div>x</div>", "body { margin: 0 } div { margin: 10px; padding: 5px; border: 2px red }",
+        "<div>x</div>",
+        "body { margin: 0 } div { margin: 10px; padding: 5px; border: 2px solid red }",
         400.0f);
     const Box* div = FindBox(*result.root, "div");
     const gfx::FloatRect content = div->Geometry().content;
@@ -612,14 +613,18 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
             400.0f);
     gfx::DisplayList list;
     layout::BuildDisplayList(*result.root, list);
+    // A border is four filled shapes rather than one stroked rectangle -- each side has its own
+    // width, style and colour, and the corner between two of them is a mitre -- so the border is
+    // found by its colour rather than by its command.
     bool saw_fill = false;
-    bool saw_stroke = false;
+    bool saw_border = false;
     for (const gfx::DisplayCommand& command : list.Commands()) {
-      saw_fill = saw_fill || std::holds_alternative<gfx::FillPathCommand>(command);
-      saw_stroke = saw_stroke || std::holds_alternative<gfx::StrokePathCommand>(command);
+      const auto* fill = std::get_if<gfx::FillPathCommand>(&command);
+      saw_fill = saw_fill || fill != nullptr;
+      saw_border = saw_border || (fill != nullptr && fill->color == gfx::Color::Rgb(0x80, 0x80, 0x80));
     }
     Expect(saw_fill, "the control background is painted");
-    Expect(saw_stroke, "and so is its border");
+    Expect(saw_border, "and so is its border");
   });
 
   AddTest(tests, "Layout/PaintsInputControlValues", [] {
@@ -1156,14 +1161,51 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     layout::BuildDisplayList(*result.root, list);
     Expect(!list.IsEmpty(), "something was painted");
 
-    bool saw_fill = false;
-    bool saw_stroke = false;
+    std::size_t backgrounds = 0;
+    std::size_t border_sides = 0;
     for (const gfx::DisplayCommand& command : list.Commands()) {
-      saw_fill = saw_fill || std::holds_alternative<gfx::FillPathCommand>(command);
-      saw_stroke = saw_stroke || std::holds_alternative<gfx::StrokePathCommand>(command);
+      const auto* fill = std::get_if<gfx::FillPathCommand>(&command);
+      if (fill == nullptr) {
+        continue;
+      }
+      backgrounds += fill->color == gfx::Color::Rgb(0xFF, 0, 0) ? 1u : 0u;
+      border_sides += fill->color == gfx::Color::Rgb(0, 0, 0xFF) ? 1u : 0u;
     }
-    Expect(saw_fill, "the background is a fill");
-    Expect(saw_stroke, "and the border is a stroke");
+    ExpectEqInt(static_cast<long long>(backgrounds), 1, "the background is one fill");
+    ExpectEqInt(static_cast<long long>(border_sides), 1,
+                "and a border whose sides agree is one ring, not four polygons meeting at a seam");
+  });
+
+  AddTest(tests, "Layout/EachBorderSideKeepsItsOwnWidthAndColour", [] {
+    // A stroked rectangle at `border-width.top` in one colour is what this used to be, and it
+    // cannot express any of this: a 10px red top meeting a 2px blue left is a mitre, and the two
+    // halves of that corner belong to different sides.
+    const LaidOut result =
+        Run("<div>x</div>",
+            "body { margin: 0 } div { border-style: solid; border-width: 10px 2px; "
+            "border-top-color: red; border-right-color: blue; border-bottom-color: red; "
+            "border-left-color: blue }",
+            400.0f);
+    const Box* div = FindBox(*result.root, "div");
+    Expect(div != nullptr, "the div has a box");
+    Expect(div->Geometry().border.top.Resolve(0.0f) == 10.0f &&
+               div->Geometry().border.right.Resolve(0.0f) == 2.0f,
+           "layout reserves each side's own width");
+
+    gfx::DisplayList list;
+    layout::BuildDisplayList(*result.root, list);
+    std::size_t red = 0;
+    std::size_t blue = 0;
+    for (const gfx::DisplayCommand& command : list.Commands()) {
+      const auto* fill = std::get_if<gfx::FillPathCommand>(&command);
+      if (fill == nullptr) {
+        continue;
+      }
+      red += fill->color == gfx::Color::Rgb(0xFF, 0, 0) ? 1u : 0u;
+      blue += fill->color == gfx::Color::Rgb(0, 0, 0xFF) ? 1u : 0u;
+    }
+    ExpectEqInt(static_cast<long long>(red), 2, "top and bottom are painted red");
+    ExpectEqInt(static_cast<long long>(blue), 2, "left and right are painted blue");
   });
 
   AddTest(tests, "Layout/TilesABackgroundImage", [] {
@@ -1317,11 +1359,13 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
 
     gfx::DisplayList list;
     layout::BuildDisplayList(*result.root, list);
-    std::size_t strokes = 0;
+    std::size_t border_sides = 0;
     for (const gfx::DisplayCommand& command : list.Commands()) {
-      strokes += std::holds_alternative<gfx::StrokePathCommand>(command) ? 1u : 0u;
+      const auto* fill = std::get_if<gfx::FillPathCommand>(&command);
+      border_sides += fill != nullptr && fill->color == gfx::Color::Rgb(0, 0, 0xFF) ? 1u : 0u;
     }
-    ExpectEqInt(static_cast<long long>(strokes), 1, "exactly one border is painted, not two");
+    ExpectEqInt(static_cast<long long>(border_sides), 1,
+                "exactly one border is painted, not two");
   });
 
   AddTest(tests, "Layout/AnInlineBoxPaintsItsBackgroundBehindEachLineFragment", [] {
