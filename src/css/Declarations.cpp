@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "css/Calc.h"
@@ -267,11 +268,6 @@ std::optional<Length> ParseLength(std::string_view text, const MediaContext& con
     // length becomes an absolute one. Carrying `Unit::Rem` into layout would mean layout had to
     // know the root's font size, and layout does not see the cascade.
     return Length::Pixels(static_cast<float>(value) * root_font_size);
-  }
-  if (unit == "pt") {
-    // 1pt is 4/3 px, which is the one absolute unit conversion a browser
-    // actually needs.
-    return Length::Pixels(static_cast<float>(value * 4.0 / 3.0));
   }
   if (const std::optional<float> absolute = AbsoluteLengthFromUnit(value, unit, context)) {
     return Length::Pixels(*absolute);
@@ -724,6 +720,30 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
       return false;
     }
     style.centers_block_children = false;
+    return true;
+  }
+  if (property == "vertical-align") {
+    // CSS 2.1 §10.8.1. The keywords first, then a length or percentage -- in that order, because
+    // `ParseLength` accepts a bare `0` and `sub` is not a length.
+    static constexpr std::pair<std::string_view, VerticalAlign> kKeywords[] = {
+        {"baseline", VerticalAlign::Baseline},   {"sub", VerticalAlign::Sub},
+        {"super", VerticalAlign::Super},         {"text-top", VerticalAlign::TextTop},
+        {"text-bottom", VerticalAlign::TextBottom}, {"middle", VerticalAlign::Middle},
+        {"top", VerticalAlign::Top},             {"bottom", VerticalAlign::Bottom},
+    };
+    for (const auto& [name, keyword] : kKeywords) {
+      if (value == name) {
+        style.vertical_align = keyword;
+        style.vertical_align_offset = Length{};
+        return true;
+      }
+    }
+    const auto length = ParseLength(raw_value, context, style.root_font_size);
+    if (!length.has_value() || length->IsAuto()) {
+      return false;
+    }
+    style.vertical_align = VerticalAlign::Offset;
+    style.vertical_align_offset = *length;
     return true;
   }
   if (property == "direction") {

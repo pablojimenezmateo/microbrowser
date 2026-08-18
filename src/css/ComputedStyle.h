@@ -129,6 +129,26 @@ enum class UnicodeBidi : std::uint8_t {
   Plaintext,
 };
 
+// `vertical-align` (CSS 2.1 §10.8.1). Two groups, and the split is what line layout needs rather
+// than a tidy transcription: `sub`, `super`, a length and a percentage are all a *shift of this
+// item's baseline* away from the line's, and can be folded into one number before the line box
+// exists; `top`, `bottom`, `middle`, `text-top` and `text-bottom` are stated against an edge that
+// is not known until every other item on the line has been placed.
+enum class VerticalAlign : std::uint8_t {
+  Baseline,
+  Sub,
+  Super,
+  TextTop,
+  TextBottom,
+  Middle,
+  Top,
+  Bottom,
+  // `<length>` or `<percentage>`, carried in `vertical_align_offset`. A percentage is of the used
+  // `line-height`, which is why it cannot be absolutized in the cascade: `line-height: normal`
+  // computes to zero here and means "ask the font", which only the measurer can do.
+  Offset,
+};
+
 enum class BackgroundRepeat : std::uint8_t { Repeat, RepeatX, RepeatY, NoRepeat };
 enum class WhiteSpace : std::uint8_t { Normal, Pre, NoWrap, PreWrap };
 
@@ -353,6 +373,13 @@ struct ComputedStyle {
   float line_height = 0.0f;
 
   TextAlign text_align = TextAlign::Start;
+  // **Not inherited**, which is the specification's rule and the one that matters here: a text box
+  // takes only the inherited properties (`TextStyleFrom`), so the value on a `<sup>` reaches its
+  // own text through line layout's walk rather than through the cascade. Applying it to a block
+  // box is a no-op -- CSS 2.1 §10.8 says it applies to inline-level and table-cell boxes.
+  VerticalAlign vertical_align = VerticalAlign::Baseline;
+  // Only read when `vertical_align` is `Offset`. A percentage here is of the used `line-height`.
+  Length vertical_align_offset;
   Direction direction = Direction::Ltr;
   UnicodeBidi unicode_bidi = UnicodeBidi::Normal;
   // Set by `text-align: -microbrowser-center`, which is what <center> means and
