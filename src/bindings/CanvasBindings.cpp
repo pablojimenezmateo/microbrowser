@@ -425,6 +425,13 @@ void DomBindings::InstallCanvasTransforms(const js::Value& prototype) {
           out.object->Set(kShort[i], Value::Number(matrix[i]));
           out.object->Set(kLong[i], Value::Number(matrix[i]));
         }
+        // The two derived answers a caller reads off a matrix. Computed rather than stored, so they
+        // cannot disagree with the six numbers beside them -- which is the only reason it is
+        // defensible to put them on an object that is not a `DOMMatrix`.
+        out.object->Set("is2D", Value::Bool(true));
+        out.object->Set("isIdentity",
+                        Value::Bool(matrix[0] == 1.0 && matrix[1] == 0.0 && matrix[2] == 0.0 &&
+                                    matrix[3] == 1.0 && matrix[4] == 0.0 && matrix[5] == 0.0));
         return out;
       });
   if (get_transform.IsObject()) {
