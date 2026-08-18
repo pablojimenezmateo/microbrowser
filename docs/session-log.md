@@ -7078,3 +7078,111 @@ more than a pass rate.
 **And the state file's own header said it was "a run cache, not an artefact"**
 while the whole task was about putting it in the repository. It now says what it
 is: `docs/wpt-baseline.md`'s memory.
+
+## E8 — css-text, and three bugs that were not css-text · 2026-08-18
+
+**Status:** in_progress — the check was not met.
+
+**Check:** `css/css-text/ >= 65%`. It prints **34.5%**, from 12.8%.
+
+```
+./build/microbrowser-perf/microbrowser/microbrowser_wpt --jobs 3 --testharness-only css/css-text/
+  before: 368 tests, 2927 subtests, 376 passed (12.8%), 104 timeouts
+  after:  368 tests, 2927 subtests, 1011 passed (34.5%), 104 timeouts, 0 unexpected results
+./build/microbrowser-perf/microbrowser/microbrowser_wpt --jobs 3 --reftests-only css/css-text/
+  before: 1547 reftests: 494 passed (31.9%)
+  after:  1547 reftests: 500 passed (32.3%), 3 unexpected (all intermittent, see below)
+tests/wpt/expectations/css.txt: 203 insertions, 1014 deletions, css/css-text/ sections only
+Firefox gap for the area: 1095 files -> 927. 184 closed, 16 newly opened.
+  closed: 100 i18n, 33 parsing, 19 white-space, 10 tab-size, 8 word-break, 6 text-transform, 8 other
+  opened: 5 hyphens, 4 word-break, 3 parsing, 4 other
+```
+
+The denominator did not move: 2,927 subtests before and after, so nothing was deleted from the
+measurement.
+
+**Landed:**
+- *A geometry query during load lays out at the viewport width, not at zero.*
+- *A hyphen in a property name is not a licence to store whatever was assigned.*
+- *A newline in preserved text is a line break, and `white-space` is two properties.*
+- *text-transform, word-break, overflow-wrap, text-indent and tab-size are real.*
+- *The newline after `<pre>` is not a blank first line, and `hanging` hangs.*
+
+**Found — and this is the part a diff does not say.**
+
+**Three of the five largest causes in this area are not in this area.** The task's own scope line
+names five CSS properties; ranking the failures first, as `/next-wpt-task` §3 says to, put three
+things above all of them that have nothing to do with CSS Text:
+
+1. `Page::SetDocument` did `layout_ = LayoutState{}`, and `LayoutState::width` is the field
+   `SetViewport` writes *specifically* so that a geometry query before the engine's first paint
+   runs at the width the document will be shown at — the comment on the member says so. Every
+   document therefore began at width zero, so an inline `<script>` reading `offsetHeight` during
+   parsing was answered about a page one column wide. That is 102 files in `i18n/` alone and it is
+   the single most common shape of WPT test there is. **`microbrowser_snapshot` shows it too**:
+   `console.log` from a page's own script reports `offsetWidth` 0 while `-eval` on the settled page
+   reports 784, and the difference between those two numbers is the bug. That is the cheapest way
+   to find the next one of these.
+2. `CssomKeepsUnknownDeclaration` returned true for any property name containing a hyphen. It reads
+   as "custom properties and vendor prefixes" and it means "nearly every CSS property", so
+   `el.style['word-break'] = 'auto'` stored the word and read it back. 35 `parsing/*-invalid.html`
+   files in this directory and every `*-invalid.html` in `css/` fail on that one line.
+3. HTML §13.2.6.4.7 drops the U+000A immediately after `<pre>`, `<listing>` and `<textarea>`. This
+   parser kept it. Invisible for as long as a preserved segment break rendered as nothing.
+
+**`<pre>` did not break at newlines.** Whitespace processing kept the character and inline layout
+never looked at one: `grep -n "\\\\n" src/layout/*.cpp` found only the whitespace predicates. So
+every `<pre>` on the web rendered as a single line. This is the kind of gap that a unit-test suite
+cannot report, because no test asserted the thing nobody had implemented.
+
+**`white-space` had to become two fields before any of it worked.** One enum of four values cannot
+say `pre-line`, cannot say `break-spaces`, and cannot say `preserve-breaks nowrap` — a pair the
+shorthand has no keyword for and which `parsing/white-space-shorthand.html` asks for by name. It
+also made `nowrap` a different *collapsing* mode from `normal`, which is why `white-space: nowrap`
+never dropped the collapsible whitespace between two block children.
+
+**A `*-valid.html` that passes while its `*-invalid.html` fails is a browser storing whatever it is
+given, and closing one opens the other.** Making CSSOM reject what it cannot parse turned ~25
+`parsing/*-valid.html` files from passing to failing in the same run that turned ~35
+`*-invalid.html` from failing to passing. That is honest — ADR 0012 says an absence beats a stub,
+and a browser cannot both keep `hanging-punctuation: first` and refuse
+`hanging-punctuation: nonsense`. It also means **the fix is only worth its file count once the
+property is actually implemented**, which is why this session implemented the five the task names
+rather than parsing the twenty it does not.
+
+**Implementing `ch` exposed six real bugs by making boxes narrow enough to wrap.** `ex` and `ch`
+now resolve at CSS Values 4's stated fallback of 0.5em (the cascade has a font size and no face).
+Six reftests regressed as a result — five in `hyphens/` and `text-align-justify-shy-001` — and all
+six were passing because `width: 6ch` was an invalid declaration and *nothing wrapped*. The real
+bug is that a soft hyphen at the **start** of a text box (`<span>high</span>&shy;way`) breaks in
+the right place but leaves the hyphen at the start of the second line instead of the end of the
+first. That needs the break to reach back into the previous inline box, which the line builder
+cannot do today. It is the top follow-up here.
+
+**What the 104 remaining timeouts are, and why closing them may lower the number.** 84 of them are
+`i18n/*/css-text-line-break-*`, and every one dies on `document.fonts.ready` with
+`setup({explicit_done: true})` — no FontFaceSet, no `done()`, twenty seconds. They are ~50 subtests
+each, so a FontFaceSet would add roughly 4,000 subtests to a 2,927-subtest denominator. Most would
+fail (the tests assert `line-break: loose|normal|strict` behaviour against a WOFF this browser
+cannot load), so **the pass rate would go down while the file count went up**. That is the
+percentage-versus-files argument in `docs/wpt-plan.md` §The target arriving as a concrete decision
+rather than a principle, and the next agent on E8 has to make it before starting.
+
+**`css/css-text/text-spacing-trim/`'s `?class=chws` variants are intermittent** — they pass under
+`--jobs 1` and fail under `--jobs 3`, in different combinations each run. Recorded at `--jobs 3` to
+match how they are verified, and three still flap. They belong on task F10's list of intermittent
+reftests, which CLAUDE.md currently puts at eight files.
+
+**Process note for the parallel worktrees.** `microbrowser_wpt --update-expectations` over the
+whole area is a ~12-minute run because a recording run ignores `--known-timeout-budget` and pays
+the full deadline for all 104 timeouts. Three attempts at it in a background shell were killed at
+100–350 tests with the machine at load 18. `--shard-count 4 --shard-index N` is the way: the store
+is loaded whole and `Set` replaces one test at a time, so sharded recording is safe, and so is
+recording the testharness and reftest halves separately.
+
+**Left:** the check, at 34.5% of 65%. In order of files: the soft-hyphen break (6 files, and it is
+a genuine layout bug), `letter-spacing`/`word-spacing` (13 files, wants the text measurer),
+`document.fonts.ready` (84 files, but read the paragraph above first), and the properties this
+session deliberately refused rather than stubbed — `hanging-punctuation`, `text-autospace`,
+`text-fit`, `text-group-align`, `text-spacing`, `text-align-last`/`-all`, `line-break`, `hyphens`,
+`hyphenate-*` — each of which needs behaviour before it earns a parser.
