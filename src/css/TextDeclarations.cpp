@@ -136,6 +136,19 @@ bool ApplyTextDeclaration(std::string_view property, std::string_view value,
     return true;
   }
 
+  if (property == "text-wrap") {
+    // A shorthand over `text-wrap-mode` and `text-wrap-style`. Only the mode half exists here, so
+    // `balance`, `pretty` and `stable` are refused rather than accepted and ignored -- a page that
+    // asks `CSS.supports('text-wrap', 'balance')` gets an honest no, and gets a polyfill instead
+    // of a wall (ADR 0012).
+    const std::optional<TextWrapMode> mode = ParseTextWrapMode(value);
+    if (!mode.has_value()) {
+      return false;
+    }
+    style.text_wrap_mode = *mode;
+    return true;
+  }
+
   if (property == "text-wrap-mode") {
     const std::optional<TextWrapMode> mode = ParseTextWrapMode(value);
     if (!mode.has_value()) {

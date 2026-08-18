@@ -733,15 +733,13 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
       // line but the last is the half it can honour, and that half is `justify`.
       style.text_align = TextAlign::Justify;
     } else if (value == "match-parent") {
-      // Computes to the parent's value, with `start`/`end` resolved against the *parent's*
-      // direction -- which is the whole point of the keyword: it is `inherit` for an element whose
-      // own direction differs.
-      const bool parent_rtl = parent.direction == Direction::Rtl;
-      style.text_align = parent.text_align == TextAlign::Start
-                             ? (parent_rtl ? TextAlign::Right : TextAlign::Left)
-                         : parent.text_align == TextAlign::End
-                             ? (parent_rtl ? TextAlign::Left : TextAlign::Right)
-                             : parent.text_align;
+      // The parent's computed value, kept as written. The specification also resolves
+      // `start`/`end` against the *parent's* direction here, and that half is not done: nothing at
+      // this point can tell a root element from one whose parent happens to have the initial
+      // style, and resolving in that case gets the root exactly wrong -- `<html dir=rtl>` with
+      // `text-align: match-parent` must align right, which is what leaving `start` alone does and
+      // what resolving it against the initial left-to-right direction does not.
+      style.text_align = parent.text_align;
     } else if (value == "-microbrowser-center") {
       // What <center> means, and what no standard value expresses. See the
       // note on ComputedStyle::centers_block_children.

@@ -81,4 +81,6 @@ budget: Tokenizer      header_lines=65 public_methods=13 members=18
 #
 # Header lines are one declaration per new algorithm plus the comment saying
 # which spec step each is, and the DeclarativeShadow struct.
-budget: TreeBuilder    header_lines=165 public_methods=11 members=18
+# +1 member for HTML 13.2.6.4.7's dropped newline after `<pre>`/`<listing>`/`<textarea>`. It is a
+# one-token flag rather than a lookahead, which is what the specification describes.
+budget: TreeBuilder    header_lines=168 public_methods=11 members=19

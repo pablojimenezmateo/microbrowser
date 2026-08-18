@@ -308,10 +308,12 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
     measure(box, measure);
   }
 
-  // `text-indent`: the first line starts this far in. A percentage is of the containing block's
-  // width, which is `content_width` here -- the one place it is known.
-  const float text_indent =
+  // `text-indent`: the first line starts this far in -- or, with `hanging`, every line *but* the
+  // first does, which is what the keyword means. A percentage is of the containing block's width,
+  // which is `content_width` here, the one place it is known.
+  const float declared_indent =
       box.Style().text_indent.length.Used(content_width, box.Style().font_size);
+  const bool hanging_indent = box.Style().text_indent.hanging;
   bool first_line = true;
 
   const auto refresh_band = [&] {
@@ -319,7 +321,7 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
         floats.BandAt(y, probe_height, content_left, content_left + content_width);
     line_left = band.left;
     line_right = band.right;
-    x = line_left + (first_line ? text_indent : 0.0f);
+    x = line_left + (first_line != hanging_indent ? declared_indent : 0.0f);
   };
   refresh_band();
 

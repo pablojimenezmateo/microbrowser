@@ -462,7 +462,7 @@ std::optional<std::string> ComputedValueOf(const css::ComputedStyle& style,
   if (property == "white-space-collapse") {
     return std::string(WhiteSpaceCollapseText(style.white_space_collapse));
   }
-  if (property == "text-wrap-mode") {
+  if (property == "text-wrap" || property == "text-wrap-mode") {
     return std::string(style.text_wrap_mode == css::TextWrapMode::Wrap ? "wrap" : "nowrap");
   }
   if (property == "white-space") {

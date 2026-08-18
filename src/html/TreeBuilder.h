@@ -203,6 +203,8 @@ class TreeBuilder {
   };
   std::vector<DeclarativeShadow> declarative_shadows_;
   bool frameset_ok_ = true;
+  // HTML 13.2.6.4.7: the one U+000A after `<pre>`/`<listing>`/`<textarea>` that is dropped.
+  bool ignore_next_line_feed_ = false;
   // Set while running the "anything else" clauses of the table modes, which
   // insert *before* the table rather than into it.
   bool foster_parenting_ = false;
