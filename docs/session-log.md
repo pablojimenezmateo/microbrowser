@@ -7188,3 +7188,29 @@ rather than leaving the extension out, so `.h2.` tests still fail as they did.
 And a delayed response on a TLS connection is held in the same one-per-connection
 slot as a plaintext one — `SSL_write` goes through the same output buffer, so
 `?pipe=trickle` and `slow.py` behave identically on both.
+
+**Left — two verifications this session started and did not finish, and why.** Six
+agents were on this machine and the load average was 75 on 24 cores, which is the
+condition under which every timing-sensitive measurement lies in the same
+direction.
+
+- **The harness was not run under AddressSanitizer.** ADR 0040 §4 asks for it by
+  name and its reason is specific: the only heap-buffer-overflow this project has
+  found in `tools/wpt/` was in `Server::Serve`'s `pollfd` handling, which is the
+  loop this task changed. The asan preset needs a full engine build and did not
+  finish. **Do this before trusting the TLS path under load**: the plaintext half
+  is unchanged, but `ReadFrom` now drives a handshake and the poll set now
+  includes `POLLOUT`, so the connection lifecycle is where a mistake would be.
+- **The 1,268 `.https.` files were not measured as a set.** A run of all of them
+  was started and abandoned: at load 75 its unexpected count would have been
+  dominated by timeouts, which is the failure mode `tools/wpt/main.cpp` documents
+  and which this session had already seen twice in miniature. The narrow
+  measurements that *were* made — `fetch/metadata/` 87 files, `upgrade-insecure-requests/`
+  197 files, `hr-time/` 15 files — are in the entries above and each was
+  re-checked at `--jobs 1`.
+
+**A note for whoever runs `ctest` next.** `microbrowser_wpt` is a 90-minute gate
+and 1,268 of its tests changed scheme in this branch without a re-record, so it
+may report unexpected results in the areas listed above. That is the expectation
+files being stale, not the browser regressing — re-record those areas, then read
+the gate.
