@@ -58,9 +58,11 @@
 #include "gfx/TextRenderer.h"
 #include "ipc/InProcessTransport.h"
 #include "ipc/Message.h"
+#include "net/SocketTransport.h"
 #include "platform/DescriptorWait.h"
 #include "platform/SystemFonts.h"
 #include "util/WaitDescriptor.h"
+#include "wpt/Certificate.h"
 #include "wpt/Expectations.h"
 #include "wpt/Reftest.h"
 #include "wpt/Server.h"
@@ -76,6 +78,40 @@ using microbrowser::wpt::ServerOptions;
 using microbrowser::wpt::TestExpectation;
 using microbrowser::wpt::TestKind;
 using microbrowser::wpt::WptTest;
+
+// The certificate authority this run generated, written to a file because
+// `net::SocketTransportFactory::Options` takes a path. Empty when the run has
+// no https origin, and read only by the two functions below -- which are the
+// **only** places in the tree that install a trust anchor. `microbrowser` and
+// `microbrowser_snapshot` never set `ca_bundle_path` at all, so the product
+// still verifies against the system store and this file changes nothing about
+// it. See tools/wpt/Certificate.h for the rest of the scoping argument.
+std::string g_ca_bundle_path;
+
+// Points one engine at that anchor. `SharedContext` in `src/net` calls
+// `SSL_CTX_load_verify_locations` *instead of* `SSL_CTX_set_default_verify_paths`
+// when a bundle is named, so a test process trusts this run's CA and nothing
+// else -- not the system roots either. Verification itself is untouched:
+// `SSL_VERIFY_PEER` and the `SSL_set1_host` name check both still apply, which
+// is why the certificate carries a real SAN list rather than a wildcard nobody
+// checked.
+void TrustTheRunnerCertificate(microbrowser::engine::Engine& engine,
+                               microbrowser::net::SocketTransportFactory& transport) {
+  if (g_ca_bundle_path.empty()) {
+    return;
+  }
+  engine.PageLoader().SetTransport(transport);
+}
+
+// True when a test must be loaded over TLS. Upstream's rule is a **filename**
+// flag: `foo.https.html`, `foo.https.any.html`. A directory named `top.http-rp`
+// is not one, which is why this looks at the last segment only.
+bool WantsSecureOrigin(const std::string& url_path) {
+  const std::size_t slash = url_path.rfind('/');
+  const std::string name =
+      slash == std::string::npos ? url_path : url_path.substr(slash + 1);
+  return name.find(".https.") != std::string::npos;
+}
 
 constexpr const char* kUsage =
     "usage: microbrowser_wpt [options] [path-prefix ...]\n"
@@ -489,7 +525,11 @@ struct RenderedPage {
 std::string RunTestharness(microbrowser::platform::SystemFontProvider& fonts,
                            const std::string& url, int timeout_ms) {
   microbrowser::ipc::InProcessChannel channel;
+  // Declared before the engine so it outlives it: the loader holds a pointer.
+  microbrowser::net::SocketTransportFactory transport{
+      microbrowser::net::SocketTransportFactory::Options{g_ca_bundle_path}};
   microbrowser::engine::Engine engine{channel.Engine(), fonts};
+  TrustTheRunnerCertificate(engine, transport);
   channel.Ui().Send(microbrowser::ipc::ResizeViewportMessage{
       microbrowser::gfx::IntSize{800, 600}, 1.0f});
   channel.Ui().Send(microbrowser::ipc::NavigateMessage{url});
@@ -527,7 +567,10 @@ std::string RunTestharness(microbrowser::platform::SystemFontProvider& fonts,
 RenderedPage RenderPage(microbrowser::platform::SystemFontProvider& fonts, const std::string& url,
                         int timeout_ms) {
   microbrowser::ipc::InProcessChannel channel;
+  microbrowser::net::SocketTransportFactory transport{
+      microbrowser::net::SocketTransportFactory::Options{g_ca_bundle_path}};
   microbrowser::engine::Engine engine{channel.Engine(), fonts};
+  TrustTheRunnerCertificate(engine, transport);
   channel.Ui().Send(microbrowser::ipc::ResizeViewportMessage{
       microbrowser::gfx::IntSize{800, 600}, 1.0f});
   channel.Ui().Send(microbrowser::ipc::NavigateMessage{url});
@@ -813,6 +856,71 @@ int main(int argc, char** argv) {
     return 2;
   }
 
+  // The run's certificate authority, generated here so that both halves of the
+  // fork below inherit it: the server child gets the key in memory and never
+  // writes it anywhere, and every test child gets the CA certificate's path.
+  // See tools/wpt/Certificate.h for why that is the whole of the trust scoping.
+  struct CaFile {
+    std::filesystem::path path;
+    ~CaFile() {
+      if (!path.empty()) {
+        std::error_code code;
+        std::filesystem::remove(path, code);
+      }
+    }
+  } ca_file;
+  const microbrowser::wpt::GeneratedCertificate certificate =
+      microbrowser::wpt::GenerateRunnerCertificate(
+          microbrowser::wpt::CertificateHostNames("localhost"));
+  if (!certificate.ok()) {
+    // Not fatal. Without an https origin the `.https.` half of the suite fails
+    // exactly as it did before task H9, which is an honest absence; a run that
+    // refused to start would be a worse answer than the one it replaced.
+    std::fprintf(stderr, "no https origin this run: %s\n", certificate.error.c_str());
+  } else {
+    // A run killed by a signal never reaches the destructor above, so sweep
+    // what earlier runs left before adding to it. The file is a public
+    // certificate and its authority is trusted by nothing once its run is over
+    // -- the reason to remove it is that /tmp otherwise accumulates one per
+    // interrupted run forever. Liveness is `kill(pid, 0)`, and EPERM counts as
+    // alive: another user's process is still a process.
+    {
+      std::error_code code;
+      for (const std::filesystem::directory_entry& entry :
+           std::filesystem::directory_iterator(std::filesystem::temp_directory_path(), code)) {
+        const std::string name = entry.path().filename().string();
+        constexpr std::string_view kPrefix = "microbrowser-wpt-ca-";
+        if (name.compare(0, kPrefix.size(), kPrefix) != 0 || entry.path().extension() != ".pem") {
+          continue;
+        }
+        const std::string digits =
+            name.substr(kPrefix.size(), name.size() - kPrefix.size() - 4);
+        char* end = nullptr;
+        const long owner = std::strtol(digits.c_str(), &end, 10);
+        if (end == nullptr || *end != '\0' || owner <= 0) {
+          continue;
+        }
+        if (::kill(static_cast<pid_t>(owner), 0) == 0 || errno == EPERM) {
+          continue;  // that run is still going, and it is not necessarily ours
+        }
+        std::error_code ignored;
+        std::filesystem::remove(entry.path(), ignored);
+      }
+    }
+    ca_file.path = std::filesystem::temp_directory_path() /
+                   ("microbrowser-wpt-ca-" + std::to_string(::getpid()) + ".pem");
+    std::ofstream stream(ca_file.path, std::ios::binary | std::ios::trunc);
+    stream << certificate.ca_certificate_pem;
+    stream.close();
+    if (!stream) {
+      std::fprintf(stderr, "could not write %s; running without an https origin\n",
+                   ca_file.path.c_str());
+      ca_file.path.clear();
+    } else {
+      g_ca_bundle_path = ca_file.path.string();
+    }
+  }
+
   ServerOptions server_options;
   server_options.wpt_root = std::filesystem::absolute(options.wpt_root).string();
   server_options.harness_overrides_dir =
@@ -821,16 +929,33 @@ int main(int argc, char** argv) {
   server_options.timeout_multiplier = options.timeout_multiplier;
   server_options.ports = {options.port,
                           static_cast<std::uint16_t>(options.port == 0 ? 0 : options.port + 1)};
+  if (!g_ca_bundle_path.empty()) {
+    server_options.certificate_pem = certificate.certificate_pem;
+    server_options.private_key_pem = certificate.private_key_pem;
+    // Two, because `{{ports[https][1]}}` is a second secure origin and a test
+    // that asks for one and gets the first would be testing nothing.
+    server_options.https_ports = {
+        options.port,
+        static_cast<std::uint16_t>(options.port == 0 ? 0 : options.port + 3)};
+    if (options.port != 0) {
+      server_options.https_ports[0] = static_cast<std::uint16_t>(options.port + 2);
+    }
+  }
   Server server{server_options};
   if (!server.Bind()) {
     std::fprintf(stderr, "could not start the test server: %s\n", server.Error().c_str());
     return 2;
   }
   const std::string origin = server.Origin(0);
+  const std::string secure_origin = server.SecureOrigin(0);
 
   if (options.serve_only) {
     std::fprintf(stderr, "serving %s at %s (and %s)\n", server_options.wpt_root.c_str(),
                  origin.c_str(), server.Origin(1).c_str());
+    if (!secure_origin.empty()) {
+      std::fprintf(stderr, "  https at %s (and %s) -- self-signed, trusted only by this runner\n",
+                   secure_origin.c_str(), server.SecureOrigin(1).c_str());
+    }
     server.Serve();
     return 0;
   }
@@ -1222,10 +1347,16 @@ int main(int argc, char** argv) {
       const pid_t pid = ::fork();
       if (pid == 0) {
         ::close(pipes[0]);
-        const std::string url = origin + "/" + test.url_path;
+        // A `.https.` test is loaded from the secure origin, and so is its
+        // reference: upstream resolves a reftest's reference relative to the
+        // test, so a reference fetched over `http:` would be a second origin
+        // and every such reftest would compare two different documents.
+        const std::string& test_origin =
+            (!secure_origin.empty() && WantsSecureOrigin(test.url_path)) ? secure_origin : origin;
+        const std::string url = test_origin + "/" + test.url_path;
         std::string report;
         if (test.kind == TestKind::Reftest) {
-          report = RunReftest(fonts, text, test, url, origin + "/" + test.reference,
+          report = RunReftest(fonts, text, test, url, test_origin + "/" + test.reference,
                               may_write_artifacts ? options.reftest_artifacts_dir : std::string(),
                               budget_ms);
         } else {

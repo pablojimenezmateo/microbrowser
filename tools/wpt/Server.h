@@ -36,6 +36,13 @@ namespace microbrowser::wpt {
 // is a transcription of a specific file with that file quoted beside it, not a
 // guess at what a name suggests. The ADR's own amendment says what changed.
 //
+// It also terminates TLS, which is the fourth thing and was the last to arrive
+// (task H9): 1,268 of the files in scope have `.https.` in their name, and a
+// secure origin is not something a static file server can fake. The certificate
+// is generated per run by `tools/wpt/Certificate.h` and is trusted by this
+// run's test processes and by nothing else -- read that header before touching
+// any of it, because the scoping is the whole design.
+//
 // **Origins without root.** WPT's own hostnames (`web-platform.test`) need an
 // /etc/hosts entry. `*.localhost` does not: glibc resolves every label under it
 // to loopback, and `url::Host::IsLoopbackOrLocalhost` already treats the whole
@@ -60,6 +67,16 @@ struct ServerOptions {
   // Ports to listen on, in the order `{{ports[http][N]}}` indexes them. Zero
   // means "pick a free one", and `Bind` writes the chosen number back.
   std::vector<std::uint16_t> ports{0, 0};
+  // The same, for `{{ports[https][N]}}`. Bound only when a certificate is
+  // supplied: a port that answered plaintext to a TLS handshake would fail
+  // every `.https.` test somewhere far away from the reason.
+  std::vector<std::uint16_t> https_ports{0, 0};
+  // The server's own certificate and its key, in PEM. Generated per run by
+  // `tools/wpt/Certificate.h` and inherited across the `fork` that starts this
+  // loop, so the key is never a file. Empty means no https origin at all,
+  // which is what every caller had before task H9.
+  std::string certificate_pem;
+  std::string private_key_pem;
   // Primary host name. Alternates are derived from it (`www.` and friends), so
   // this must be a name whose subdomains resolve -- `localhost` is the one that
   // does with no configuration.
@@ -96,6 +113,7 @@ class Server {
 
   // The ports actually bound, in the order `ports` requested them.
   const std::vector<std::uint16_t>& Ports() const { return bound_ports_; }
+  const std::vector<std::uint16_t>& SecurePorts() const { return bound_https_ports_; }
 
   // Serves until `stop_after_idle_ms` passes with no connection at all, or
   // forever when it is negative. Returns when it stops.
@@ -105,11 +123,29 @@ class Server {
 
   // The origin a test URL is built against: "http://<host>:<port>".
   std::string Origin(std::size_t port_index = 0) const;
+  // The same over TLS, or empty when no certificate was supplied. A `.https.`
+  // test is loaded from here and from nowhere else.
+  std::string SecureOrigin(std::size_t port_index = 0) const;
 
  private:
   struct Connection;
 
-  bool Accept(int listener, std::uint16_t port);
+  bool Accept(int listener, std::uint16_t port, bool secure);
+  // Binds one list of ports, IPv4 then IPv6, recording which listener is which.
+  bool BindPorts(const std::vector<std::uint16_t>& requested, bool secure,
+                 std::vector<std::uint16_t>& bound);
+  // Builds the server-side TLS context from the PEMs in `options_`. Called once
+  // by `Bind`; leaves `error_` set and answers false on a bad certificate.
+  bool StartTls();
+  // Carries a TLS handshake forward one step. False means the connection is
+  // finished; true with `handshake_done` still false means "poll again".
+  bool AdvanceHandshake(Connection& connection);
+  // recv/send, or SSL_read/SSL_write. Returns the byte count, 0 for a clean
+  // close, -1 for "would block, poll again" and -2 for a fatal error. The
+  // callers below cannot tell TLS from plaintext, which is the point: every
+  // rule about request framing, handlers and substitution is one copy.
+  long ReceiveSome(Connection& connection, char* buffer, std::size_t capacity);
+  long SendSome(Connection& connection, const char* buffer, std::size_t length);
   // Returns false when the connection should be closed.
   bool ReadFrom(Connection& connection);
   bool WriteTo(Connection& connection);
@@ -126,7 +162,14 @@ class Server {
   Stash stash_;
   std::vector<int> listeners_;
   std::vector<std::uint16_t> listener_ports_;
+  // Parallel to `listeners_`: whether a connection accepted here speaks TLS.
+  std::vector<char> listener_secure_;
   std::vector<std::uint16_t> bound_ports_;
+  std::vector<std::uint16_t> bound_https_ports_;
+  // `SSL_CTX*`, held as void so this header does not put OpenSSL on the include
+  // path of everything that serves a file. ADR 0001 keeps the library behind a
+  // seam in `src/net`; the same discipline is worth keeping here.
+  void* tls_context_ = nullptr;
   std::vector<std::unique_ptr<Connection>> connections_;
   std::string error_;
 
@@ -140,6 +183,13 @@ class Server {
 struct Substitutions {
   std::string host;
   std::vector<std::uint16_t> http_ports;
+  std::vector<std::uint16_t> https_ports;
+  // The scheme the request arrived over, which `{{location[scheme]}}` and
+  // `{{location[server]}}` must answer with. A page served over TLS that built
+  // a same-origin URL out of `http://` would be a cross-origin request wearing
+  // a same-origin name, and every test that did it would fail for a reason
+  // nowhere near the code that caused it.
+  std::string scheme = "http";
   // The port a request arrived on, which `{{location[port]}}` must answer with.
   std::uint16_t request_port = 0;
   std::string query;

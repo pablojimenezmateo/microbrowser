@@ -7078,3 +7078,139 @@ more than a pass rate.
 **And the state file's own header said it was "a run cache, not an artefact"**
 while the whole task was about putting it in the repository. It now says what it
 is: `docs/wpt-baseline.md`'s memory.
+
+## WPT task H9 — an https origin in the harness · 2026-08-18
+
+**Status:** done
+
+**Check:** "A `.https.html` test runs and reports." It does, over TLS, against a
+certificate the runner made ninety milliseconds earlier:
+
+```
+$ ./build/microbrowser-perf/microbrowser/microbrowser_wpt --jobs 3 \
+      FileAPI/historical.https.html
+[wptserve] 200 /FileAPI/historical.https.html
+[wptserve] 200 /resources/testharness.js
+...
+1 tests in 107 ms: 11 subtests, 11 passed (100.0%), 0 crashes, 0 timeouts, 0 disabled
+```
+
+**Landed:** "The harness has an https origin, and only this run's processes trust it."
+`tools/wpt/Certificate.{h,cpp}` (new), `tools/wpt/Server.{h,cpp}`,
+`tools/wpt/main.cpp`, `tests/WptCertificateTests.cpp` (new).
+
+**The size of the prize is 1,268 files, not 612.** `--list | grep -c '\.https\.'`
+against the 44,144 in scope: `html/` 514, `content-security-policy/` 226,
+`upgrade-insecure-requests/` 197, `fetch/` 177, `cookies/` 45, `storage/` 38,
+and twelve areas below that. The plan's 612 is the count of `.https.` files
+*in the Firefox gap*, which is the right number for ranking the task and the
+wrong number for describing what changed.
+
+**How the trust is scoped, since that is the part with a downside.** The
+mechanism already existed and needed no new hole: `SocketTransportFactory::Options`
+has a `ca_bundle_path`, put there for exactly this ("a caller who needs a private
+CA supplies its path instead"), and `Loader::SetTransport` is the seam the
+scripted-bytes tests already use. So:
+
+- The key pair is generated in memory, per run, valid for a day from an hour ago.
+  There is no key file in the repository for something else to find later.
+- **The CA's private key never touches the disk.** The server is `fork`ed from
+  the runner and inherits both PEMs as memory. Only the CA *certificate* — a
+  public object — is written to a temp file, and it is removed when the run ends.
+- `SharedContext` in `src/net` calls `SSL_CTX_load_verify_locations` *instead of*
+  `SSL_CTX_set_default_verify_paths` when a bundle is named, so a test process
+  trusts this one CA **and nothing else, not even a real public root**. That is
+  stronger than the product's default, not weaker.
+- `src/` gained nothing: no option, no environment variable, no code path a
+  shipped binary can reach. `microbrowser` and `microbrowser_snapshot` never set
+  `ca_bundle_path`.
+- The leaf is `CA:FALSE`, and `SSL_VERIFY_PEER` and `SSL_set1_host` are untouched
+  — which is why the leaf carries the substitution table's own name list rather
+  than a wildcard. `{{domains[X]}}` is `X.localhost`, the labels the checkout
+  actually uses are eight (`www`, `www1`, `www2`, two two-label forms and two IDN
+  ones, counted with one `grep -o | sort | uniq -c`), and `nonexistent` is
+  deliberately **not** among them: that label exists so a test can fail to
+  resolve.
+
+**Found: OpenSSL's `valid_star` means a wildcard was never going to be the
+answer.** `*.localhost` has one dot, and OpenSSL requires at least two after the
+star, so a certificate carrying only `DNS:*.localhost` would have failed
+hostname verification for every name — silently, as a TLS error 1,268 times.
+`tests/WptCertificateTests.cpp` asserts each of the thirteen names individually
+against `X509_check_host` for that reason; it runs in milliseconds and a suite
+run to find the same thing is the better part of a day.
+
+**Found: two of the three `.py`-handler-era beliefs about `fetch/metadata/` were
+half wrong, and the third is now measurable.** A2's triage named three gates on
+that directory: `window.open()`, an https origin, and `Sec-Fetch-*`. With gate 2
+gone, `fetch/metadata/` moves by three tests — and **two of the three are not
+`.https.` tests at all**. `generated/element-script.sub.html` went TIMEOUT → OK
+because `helper.sub.js` builds *all* of its origins from `{{ports[https][0]}}`,
+so a plain-http test was hanging on a port nothing had ever listened on. A
+missing origin does not only cost the tests named after it.
+
+**One test went the other way and it is real.**
+`fetch/metadata/generated/window-location.https.sub.html` was expected OK and now
+TIMEOUTs: it reports 84 subtests in 302 ms and never calls `done()`. Its plain
+twin reports 72 in 674 ms and finishes. The twelve extra are the user-activated
+cases, which need `test_driver.bless`, and they are reached now that the origin
+they navigate to exists. It belongs to the `window.open()` family (task J6)
+rather than to TLS, and it is one test against three in the same directory.
+
+**Two other apparent regressions in the same run were the machine, not the
+change.** `unload.https.sub.html` and `script-module-import-dynamic.https.sub.html`
+reported OK → TIMEOUT at `--jobs 3` with five other agents building, and both
+report OK at `--jobs 1`. This is the oversubscription lesson in `tools/wpt/main.cpp`
+in its smallest form: **re-check every timeout at `--jobs 1` before believing it.**
+
+**Left — the expectation files.** Nothing was re-recorded, deliberately: five
+other agents were re-recording areas from the same base, and a re-record measures
+the binary it started with. **A follow-up session should re-record, in this
+order:** `fetch/`, `html/`, `content-security-policy/`, `upgrade-insecure-requests/`,
+`cookies/`, `storage/`, `resource-timing/`, `workers/`, `svg/`,
+`subresource-integrity/`, `FileAPI/`, `navigation-timing/`, `css/`,
+`webmessaging/`, `hr-time/`, `websockets/`, `IndexedDB/`, `dom/`, `webstorage/`,
+`streams/`. That list is `--list | grep '\.https\.'` cut to its first path
+segment, and it is the exhaustive set of areas this change can have touched.
+
+**Left — what an https origin does *not* buy.** `upgrade-insecure-requests/` is
+197 tests and 1,000 subtests and is **unchanged at zero passing**. Those tests
+were reachable-but-wrong before and are reachable-and-honest now: the directive
+is not implemented, which is a `src/csp` feature and a different task. Do not
+read this task's 1,268 files as 1,268 tests about to pass; it is 1,268 tests that
+can now ask their question.
+
+**Left — three things this deliberately did not do.** `{{ports[ws]}}` and
+`{{ports[wss]}}` still answer with a port nothing listens on (task H10 owns the
+WebSocket server, and `wss` is now one `SSL_CTX` away rather than a protocol
+away). There is no HTTP/2 on the https port: ALPN selects `http/1.1` explicitly
+rather than leaving the extension out, so `.h2.` tests still fail as they did.
+And a delayed response on a TLS connection is held in the same one-per-connection
+slot as a plaintext one — `SSL_write` goes through the same output buffer, so
+`?pipe=trickle` and `slow.py` behave identically on both.
+
+**Left — two verifications this session started and did not finish, and why.** Six
+agents were on this machine and the load average was 75 on 24 cores, which is the
+condition under which every timing-sensitive measurement lies in the same
+direction.
+
+- **The harness was not run under AddressSanitizer.** ADR 0040 §4 asks for it by
+  name and its reason is specific: the only heap-buffer-overflow this project has
+  found in `tools/wpt/` was in `Server::Serve`'s `pollfd` handling, which is the
+  loop this task changed. The asan preset needs a full engine build and did not
+  finish. **Do this before trusting the TLS path under load**: the plaintext half
+  is unchanged, but `ReadFrom` now drives a handshake and the poll set now
+  includes `POLLOUT`, so the connection lifecycle is where a mistake would be.
+- **The 1,268 `.https.` files were not measured as a set.** A run of all of them
+  was started and abandoned: at load 75 its unexpected count would have been
+  dominated by timeouts, which is the failure mode `tools/wpt/main.cpp` documents
+  and which this session had already seen twice in miniature. The narrow
+  measurements that *were* made — `fetch/metadata/` 87 files, `upgrade-insecure-requests/`
+  197 files, `hr-time/` 15 files — are in the entries above and each was
+  re-checked at `--jobs 1`.
+
+**A note for whoever runs `ctest` next.** `microbrowser_wpt` is a 90-minute gate
+and 1,268 of its tests changed scheme in this branch without a re-record, so it
+may report unexpected results in the areas listed above. That is the expectation
+files being stale, not the browser regressing — re-record those areas, then read
+the gate.

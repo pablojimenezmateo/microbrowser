@@ -527,13 +527,26 @@ reftests**, an area that until 2026-08-17 read as forty files of ordinary bugs.
 
 Ranking by files made these visible; each gates far more than its own task.
 
-- **H9, an https origin in the harness.** 612 gap files carry `.https.` in the
-  name and cannot run at all without one; all 99 of `upgrade-insecure-requests/`
-  are among them; `fetch/metadata/` adds 66 (A2's triage named it as gate 2 of
-  3). **644 files behind one self-signed certificate**, before counting H8's
-  1,330, which it also gates. It was filed as a harness chore with no target —
-  and, having no `area`, it carries no `firefox_gap` and would sort as *zero* in
-  a ranking by files. That is what `firefox_gap_unblocks` is for.
+- **H9, an https origin in the harness. ~~612 gap files.~~ Done 2026-08-18**,
+  and the file count was low: **1,268 files in scope** carry `.https.` in the
+  name, not 612 — that figure counted only the Firefox gap, which is the right
+  number for ranking a task and the wrong one for describing what it unblocks.
+  It was filed as a harness chore with no target and, having no `area`, carried
+  no `firefox_gap` and sorted as *zero* in a ranking by files. That is what
+  `firefox_gap_unblocks` is for, and this task is the case that justifies it.
+
+  **Two findings worth carrying into the next prerequisite.** A missing origin
+  does not only cost the tests named after it: two of the three tests
+  `fetch/metadata/` gained are plain-http files, because `helper.sub.js` builds
+  *every* origin it uses from `{{ports[https][0]}}`. And a reachable origin is
+  not a passing test — `upgrade-insecure-requests/` is 197 files and 1,000
+  subtests and is unchanged at **zero** passing, because those tests were
+  reachable-but-wrong before and are reachable-and-honest now.
+
+  **The expectations are not re-recorded.** Twenty areas can have moved; they
+  are listed in `docs/session-log.md`'s H9 entry, headed by `html/` (514
+  `.https.` files), `content-security-policy/` (226),
+  `upgrade-insecure-requests/` (197) and `fetch/` (177).
 - **J1b, same-origin iframes** (in progress). Gates O3 (520 files, the largest
   task in M-O), H8's generated tests, J2 and G6.
 - **A2, the remaining `.py` handlers** (in progress). Gates the
@@ -1017,7 +1030,7 @@ approximate. Task H1 decides what replaces them.
 | H6 | `content-security-policy/` + `subresource-integrity/` — the enforcement points exist; the suite will find the ones that are enforced in the wrong place | H1 | 60% |
 | H7 | `cookies/` — the attribute parsing, `SameSite`, and the partitioning this browser does by default | — | 70% |
 | H8 | `referrer-policy/` + `upgrade-insecure-requests/` — where this browser deliberately deviates (privacy defaults, ADR 0033), record the deviation as an expectation with the ADR named | — | recorded |
-| H9 | TLS in the harness: an https origin, so the `.https.html` half of the suite runs at all. Self-signed, trusted only by the runner | H1 | `.https.` tests runnable |
+| H9 | ~~TLS in the harness: an https origin, so the `.https.html` half of the suite runs at all. Self-signed, trusted only by the runner~~ **done 2026-08-18** — 1,268 files, and ADR 0040's amendment of that date is how the trust is scoped | H1 | `.https.` tests runnable |
 | H10 | `websockets/` + `eventsource/` — both need server support beyond static files | H1, H9 | scoped |
 
 **Exit:** `url/` ≥ 95%, `mimesniff/` ≥ 80%, and a written decision on `.py`.
@@ -1238,8 +1251,10 @@ serialising on:
   from 40 files to 3,907. The edge that replaces it is **F9 before F10** — the
   reftest results are recorded, the `ctest` gate does not yet compare them, and
   eight of the 20,998 are intermittent.
-- **H9 (an https origin) before H8, and before anything with `.https.` in its
-  name.** ~2,000 gap files, and it had no target and no rank until 2026-08-17.
+- ~~**H9 (an https origin) before H8, and before anything with `.https.` in its
+  name.**~~ **Landed 2026-08-18.** 1,268 files in scope rather than the ~2,000
+  gap files estimated, and the edge is discharged: H8 and every `.https.` test
+  can be worked now. What remains behind it is a re-record of twenty areas.
 - **J1b (same-origin iframes) before O3, H8, J2 and G6.**
 - **A2 (the `.py` handlers) before H8 and any `fetch/`-adjacent task.**
 - **G5 (workers) before F6b.** OffscreenCanvas is a worker feature.

@@ -2,6 +2,16 @@
 
 #include "wpt/Handlers.h"
 
+// The only place in this tool that names OpenSSL besides Certificate.cpp, and
+// for the same reason `src/net` names it: TLS's record layer is the canonical
+// example of what not to write yourself (ADR 0001). What is ours here is
+// everything above it -- the framing, the handlers, the substitution -- exactly
+// as it is on the browser's side.
+#include <openssl/err.h>
+#include <openssl/pem.h>
+#include <openssl/ssl.h>
+#include <openssl/x509.h>
+
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -16,6 +26,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -183,9 +194,10 @@ std::string ApplySubstitutions(std::string_view body, const Substitutions& table
     }
     return std::string(name) + ".alt." + table.host;
   };
-  const auto port_at = [&](std::size_t index) -> std::string {
-    if (index < table.http_ports.size()) {
-      return std::to_string(table.http_ports[index]);
+  const auto port_at = [&](const std::vector<std::uint16_t>& ports,
+                           std::size_t index) -> std::string {
+    if (index < ports.size()) {
+      return std::to_string(ports[index]);
     }
     return "0";
   };
@@ -254,12 +266,16 @@ std::string ApplySubstitutions(std::string_view body, const Substitutions& table
         }
       }
       if (first == "http" || first == "http-private" || first == "http-public") {
-        replacement = port_at(index);
+        replacement = port_at(table.http_ports, index);
+      } else if ((first == "https" || first == "https-private" || first == "https-public") &&
+                 !table.https_ports.empty()) {
+        replacement = port_at(table.https_ports, index);
       } else {
-        // No TLS and no WebSocket server here. A port nothing listens on makes
-        // the test fail to connect, which is the honest answer; a port that
-        // answered plain HTTP to an `https:` fetch would make it fail somewhere
-        // far away from the reason.
+        // No WebSocket server here, and no https either when this run has no
+        // certificate. A port nothing listens on makes the test fail to
+        // connect, which is the honest answer; a port that answered plain HTTP
+        // to an `https:` fetch would make it fail somewhere far away from the
+        // reason.
         replacement = std::to_string(1 + index);
       }
     } else if (bracketed("location", &first, nullptr)) {
@@ -270,9 +286,9 @@ std::string ApplySubstitutions(std::string_view body, const Substitutions& table
       } else if (first == "port") {
         replacement = std::to_string(table.request_port);
       } else if (first == "scheme") {
-        replacement = "http";
+        replacement = table.scheme;
       } else if (first == "server") {
-        replacement = "http://" + table.host + ":" + std::to_string(table.request_port);
+        replacement = table.scheme + "://" + table.host + ":" + std::to_string(table.request_port);
       } else {
         replaced = false;
       }
@@ -468,6 +484,17 @@ std::string GenerateGeneratedTest(std::string_view url_path, std::string_view so
 struct Server::Connection {
   int descriptor = -1;
   std::uint16_t port = 0;
+  // TLS, when the listener this arrived on was one of the https ports. `ssl`
+  // owns the record layer; everything above it is shared with a plaintext
+  // connection byte for byte.
+  bool secure = false;
+  SSL* ssl = nullptr;
+  bool handshake_done = false;
+  // Set when the last SSL operation asked to *write* before it could make
+  // progress -- including a read that needs to send a record first. Without it
+  // the poll loop would wait for readability on a connection that is waiting
+  // for writability, which is a hang rather than a slow test.
+  bool want_write = false;
   std::string input;
   std::string output;
   std::size_t written = 0;
@@ -506,6 +533,9 @@ Server::~Server() {
   }
 
   for (const auto& connection : connections_) {
+    if (connection->ssl != nullptr) {
+      SSL_free(connection->ssl);
+    }
     if (connection->descriptor >= 0) {
       ::close(connection->descriptor);
     }
@@ -513,11 +543,121 @@ Server::~Server() {
   for (const int listener : listeners_) {
     ::close(listener);
   }
+  if (tls_context_ != nullptr) {
+    SSL_CTX_free(static_cast<SSL_CTX*>(tls_context_));
+  }
 }
 
 bool Server::Bind() {
   bound_ports_.clear();
-  for (std::uint16_t requested : options_.ports) {
+  bound_https_ports_.clear();
+  if (!BindPorts(options_.ports, false, bound_ports_)) {
+    return false;
+  }
+  if (options_.certificate_pem.empty() || options_.private_key_pem.empty()) {
+    // No certificate, no https origin. Every caller that had neither before
+    // task H9 keeps exactly the server it had.
+    return true;
+  }
+  if (!StartTls()) {
+    return false;
+  }
+  return BindPorts(options_.https_ports, true, bound_https_ports_);
+}
+
+// The server half of the TLS story. The client half is `src/net`'s and is
+// untouched: `SSL_VERIFY_PEER` and `SSL_set1_host` still both apply to every
+// connection a test process makes, and the *only* thing this run changes is
+// which certificate authority that verification is done against.
+bool Server::StartTls() {
+  SSL_CTX* context = SSL_CTX_new(TLS_server_method());
+  if (context == nullptr) {
+    error_ = "SSL_CTX_new failed";
+    return false;
+  }
+  tls_context_ = context;
+  SSL_CTX_set_min_proto_version(context, TLS1_2_VERSION);
+  SSL_CTX_set_options(context, SSL_OP_NO_COMPRESSION | SSL_OP_NO_RENEGOTIATION);
+  // A session ticket is state that survives a process; the browser refuses to
+  // accept them (ADR 0005) and there is no reason for the test server to offer
+  // one it will never see used.
+  SSL_CTX_set_options(context, SSL_OP_NO_TICKET);
+  SSL_CTX_set_session_cache_mode(context, SSL_SESS_CACHE_OFF);
+
+  BIO* certificate_bio =
+      BIO_new_mem_buf(options_.certificate_pem.data(),
+                      static_cast<int>(options_.certificate_pem.size()));
+  X509* certificate =
+      certificate_bio == nullptr
+          ? nullptr
+          : PEM_read_bio_X509(certificate_bio, nullptr, nullptr, nullptr);
+  if (certificate_bio != nullptr) {
+    BIO_free(certificate_bio);
+  }
+  if (certificate == nullptr) {
+    error_ = "the server certificate could not be parsed";
+    return false;
+  }
+  const int used_certificate = SSL_CTX_use_certificate(context, certificate);
+  X509_free(certificate);
+  if (used_certificate != 1) {
+    error_ = "the server certificate was rejected";
+    return false;
+  }
+
+  BIO* key_bio = BIO_new_mem_buf(options_.private_key_pem.data(),
+                                 static_cast<int>(options_.private_key_pem.size()));
+  EVP_PKEY* key =
+      key_bio == nullptr ? nullptr : PEM_read_bio_PrivateKey(key_bio, nullptr, nullptr, nullptr);
+  if (key_bio != nullptr) {
+    BIO_free(key_bio);
+  }
+  if (key == nullptr) {
+    error_ = "the server private key could not be parsed";
+    return false;
+  }
+  const int used_key = SSL_CTX_use_PrivateKey(context, key);
+  EVP_PKEY_free(key);
+  if (used_key != 1 || SSL_CTX_check_private_key(context) != 1) {
+    error_ = "the server private key does not match its certificate";
+    return false;
+  }
+
+  // ALPN. The browser offers `h2` first and there is no HTTP/2 server here, so
+  // this picks `http/1.1` explicitly rather than leaving the extension out and
+  // relying on the client to guess. A server that stayed silent would work
+  // today and break the moment somebody made the client's fallback stricter.
+  SSL_CTX_set_alpn_select_cb(
+      context,
+      [](SSL*, const unsigned char** out, unsigned char* out_length, const unsigned char* in,
+         unsigned int in_length, void*) -> int {
+        static constexpr char kHttp11[] = "http/1.1";
+        constexpr unsigned int kHttp11Length = 8;
+        for (unsigned int index = 0; index < in_length;) {
+          const unsigned int length = in[index];
+          if (index + 1 + length > in_length) {
+            break;
+          }
+          if (length == kHttp11Length &&
+              std::memcmp(in + index + 1, kHttp11, kHttp11Length) == 0) {
+            *out = in + index + 1;
+            *out_length = static_cast<unsigned char>(kHttp11Length);
+            return SSL_TLSEXT_ERR_OK;
+          }
+          index += 1 + length;
+        }
+        // No overlap: answer without the extension rather than with an alert,
+        // so a client that offered only `h2` gets a readable HTTP/1.1 failure
+        // instead of a handshake error.
+        return SSL_TLSEXT_ERR_NOACK;
+      },
+      nullptr);
+  return true;
+}
+
+bool Server::BindPorts(const std::vector<std::uint16_t>& requested_ports, bool secure,
+                       std::vector<std::uint16_t>& bound) {
+  for (std::uint16_t requested : requested_ports) {
     std::uint16_t chosen = requested;
     // IPv4 first: it is the one that can be asked to choose a free port and
     // then told to the IPv6 socket, so the pair always agrees.
@@ -565,8 +705,9 @@ bool Server::Bind() {
       SetNonBlocking(listener);
       listeners_.push_back(listener);
       listener_ports_.push_back(chosen);
+      listener_secure_.push_back(secure ? 1 : 0);
     }
-    bound_ports_.push_back(chosen);
+    bound.push_back(chosen);
   }
   return true;
 }
@@ -578,7 +719,14 @@ std::string Server::Origin(std::size_t port_index) const {
   return "http://" + options_.host + ":" + std::to_string(bound_ports_[port_index]);
 }
 
-bool Server::Accept(int listener, std::uint16_t port) {
+std::string Server::SecureOrigin(std::size_t port_index) const {
+  if (port_index >= bound_https_ports_.size()) {
+    return {};
+  }
+  return "https://" + options_.host + ":" + std::to_string(bound_https_ports_[port_index]);
+}
+
+bool Server::Accept(int listener, std::uint16_t port, bool secure) {
   const int descriptor = ::accept4(listener, nullptr, nullptr, SOCK_CLOEXEC | SOCK_NONBLOCK);
   if (descriptor < 0) {
     return false;
@@ -592,14 +740,117 @@ bool Server::Accept(int listener, std::uint16_t port) {
   auto connection = std::make_unique<Connection>();
   connection->descriptor = descriptor;
   connection->port = port;
+  connection->secure = secure;
+  if (secure) {
+    SSL* ssl = SSL_new(static_cast<SSL_CTX*>(tls_context_));
+    if (ssl == nullptr || SSL_set_fd(ssl, descriptor) != 1) {
+      if (ssl != nullptr) {
+        SSL_free(ssl);
+      }
+      ::close(descriptor);
+      return true;
+    }
+    SSL_set_accept_state(ssl);
+    connection->ssl = ssl;
+  }
   connections_.push_back(std::move(connection));
   return true;
 }
 
+bool Server::AdvanceHandshake(Connection& connection) {
+  const int result = SSL_accept(connection.ssl);
+  if (result == 1) {
+    connection.handshake_done = true;
+    connection.want_write = false;
+    return true;
+  }
+  const int error = SSL_get_error(connection.ssl, result);
+  if (error == SSL_ERROR_WANT_READ) {
+    connection.want_write = false;
+    return true;
+  }
+  if (error == SSL_ERROR_WANT_WRITE) {
+    connection.want_write = true;
+    return true;
+  }
+  // A failed handshake is one connection, not one run: the suite is full of
+  // tests that open a socket and drop it. Clear the error queue so the next
+  // connection is not diagnosed with this one's failure.
+  ERR_clear_error();
+  return false;
+}
+
+long Server::ReceiveSome(Connection& connection, char* buffer, std::size_t capacity) {
+  if (!connection.secure) {
+    const ssize_t count = ::recv(connection.descriptor, buffer, capacity, 0);
+    if (count > 0) {
+      return static_cast<long>(count);
+    }
+    if (count == 0) {
+      return 0;
+    }
+    return (errno == EAGAIN || errno == EWOULDBLOCK) ? -1 : -2;
+  }
+  const int count = SSL_read(connection.ssl, buffer, static_cast<int>(capacity));
+  if (count > 0) {
+    connection.want_write = false;
+    return count;
+  }
+  const int error = SSL_get_error(connection.ssl, count);
+  if (error == SSL_ERROR_WANT_READ) {
+    connection.want_write = false;
+    return -1;
+  }
+  if (error == SSL_ERROR_WANT_WRITE) {
+    connection.want_write = true;
+    return -1;
+  }
+  ERR_clear_error();
+  return error == SSL_ERROR_ZERO_RETURN ? 0 : -2;
+}
+
+long Server::SendSome(Connection& connection, const char* buffer, std::size_t length) {
+  if (!connection.secure) {
+    const ssize_t count =
+        ::send(connection.descriptor, buffer, length, MSG_NOSIGNAL);
+    if (count > 0) {
+      return static_cast<long>(count);
+    }
+    return (count < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) ? -1 : -2;
+  }
+  const int count = SSL_write(connection.ssl, buffer, static_cast<int>(length));
+  if (count > 0) {
+    connection.want_write = false;
+    return count;
+  }
+  const int error = SSL_get_error(connection.ssl, count);
+  if (error == SSL_ERROR_WANT_READ) {
+    connection.want_write = false;
+    return -1;
+  }
+  if (error == SSL_ERROR_WANT_WRITE) {
+    connection.want_write = true;
+    return -1;
+  }
+  ERR_clear_error();
+  return -2;
+}
+
 bool Server::ReadFrom(Connection& connection) {
+  // The handshake is part of reading: a TLS connection has nothing to say until
+  // it is done, and the loop below would otherwise call `SSL_read` on a socket
+  // whose records are still key exchange.
+  if (connection.secure && !connection.handshake_done) {
+    if (!AdvanceHandshake(connection)) {
+      return false;
+    }
+    if (!connection.handshake_done) {
+      return true;
+    }
+  }
   char buffer[16384];
   while (true) {
-    const ssize_t count = ::recv(connection.descriptor, buffer, sizeof(buffer), 0);
+    const long count = ReceiveSome(connection, buffer, sizeof(buffer));
     if (count > 0) {
       if (connection.input.size() + static_cast<std::size_t>(count) > kMaxRequestBytes) {
         return false;
@@ -607,13 +858,10 @@ bool Server::ReadFrom(Connection& connection) {
       connection.input.append(buffer, static_cast<std::size_t>(count));
       continue;
     }
-    if (count == 0) {
-      return false;  // peer closed
+    if (count == -1) {
+      break;  // would block; poll again
     }
-    if (errno == EAGAIN || errno == EWOULDBLOCK) {
-      break;
-    }
-    return false;
+    return false;  // clean close or a fatal error, and neither has a next request
   }
   // One request per pass: a pipelined second request stays in the buffer and is
   // answered on the next turn.
@@ -659,15 +907,23 @@ bool Server::ReadFrom(Connection& connection) {
 }
 
 bool Server::WriteTo(Connection& connection) {
+  if (connection.secure && !connection.handshake_done) {
+    if (!AdvanceHandshake(connection)) {
+      return false;
+    }
+    if (!connection.handshake_done) {
+      return true;
+    }
+  }
   while (connection.written < connection.output.size()) {
-    const ssize_t count = ::send(connection.descriptor, connection.output.data() + connection.written,
-                                 connection.output.size() - connection.written, MSG_NOSIGNAL);
+    const long count = SendSome(connection, connection.output.data() + connection.written,
+                                connection.output.size() - connection.written);
     if (count > 0) {
       connection.written += static_cast<std::size_t>(count);
       continue;
     }
-    if (count < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-      return true;
+    if (count == -1) {
+      return true;  // would block; poll again
     }
     return false;
   }
@@ -747,8 +1003,8 @@ void Server::Respond(Connection& connection, std::string_view request,
     handler_request.query = query;
     handler_request.body = std::string(request_body);
     handler_request.headers = request_headers;
-    handler_request.origin =
-        "http://" + options_.host + ":" + std::to_string(connection.port);
+    handler_request.origin = std::string(connection.secure ? "https://" : "http://") +
+                             options_.host + ":" + std::to_string(connection.port);
     HandlerResponse answer = RunHandler(handler_request, stash_);
     if (!answer.handled) {
       // Still the ADR's answer for everything not on the closed list: a test that needs an
@@ -867,6 +1123,8 @@ void Server::Respond(Connection& connection, std::string_view request,
         Substitutions table;
         table.host = options_.host;
         table.http_ports = bound_ports_;
+        table.https_ports = bound_https_ports_;
+        table.scheme = connection.secure ? "https" : "http";
         table.request_port = connection.port;
         table.query = query;
         body = ApplySubstitutions(body, table);
@@ -982,7 +1240,10 @@ void Server::Serve(int stop_after_idle_ms) {
     }
     for (const auto& connection : connections_) {
       short events = POLLIN;
-      if (connection->written < connection->output.size()) {
+      // `want_write` is a TLS connection saying it cannot make progress until
+      // it has sent a record -- during the handshake, or a read that triggered
+      // one. Polling only for readability there is a hang.
+      if (connection->written < connection->output.size() || connection->want_write) {
         events |= POLLOUT;
       }
       descriptors.push_back(pollfd{connection->descriptor, events, 0});
@@ -1028,7 +1289,7 @@ void Server::Serve(int stop_after_idle_ms) {
     std::size_t polled_connections = descriptors.size() - listeners_.size();
     for (std::size_t index = 0; index < listeners_.size(); ++index) {
       if ((descriptors[index].revents & POLLIN) != 0) {
-        while (Accept(listeners_[index], listener_ports_[index])) {
+        while (Accept(listeners_[index], listener_ports_[index], listener_secure_[index] != 0)) {
         }
       }
     }
@@ -1036,13 +1297,25 @@ void Server::Serve(int stop_after_idle_ms) {
       Connection& connection = *connections_[index];
       const pollfd& state = descriptors[listeners_.size() + index];
       bool alive = true;
-      if ((state.revents & (POLLIN | POLLHUP | POLLERR)) != 0) {
+      // POLLOUT is in the set because a TLS handshake can be blocked on a
+      // write, and the handshake is driven from `ReadFrom`.
+      if ((state.revents & (POLLIN | POLLOUT | POLLHUP | POLLERR)) != 0) {
         alive = ReadFrom(connection);
       }
       if (alive && connection.written < connection.output.size()) {
         alive = WriteTo(connection);
       }
       if (!alive && connection.written >= connection.output.size()) {
+        if (connection.ssl != nullptr) {
+          // Best effort: a `close_notify` tells the client this is the end of
+          // the stream rather than a truncation. Every response here is
+          // Content-Length delimited, so a client that misses it still reads a
+          // complete message -- but a truncation warning in a log is a false
+          // lead somebody eventually chases.
+          SSL_shutdown(connection.ssl);
+          SSL_free(connection.ssl);
+          connection.ssl = nullptr;
+        }
         ::close(connection.descriptor);
         connections_.erase(connections_.begin() + static_cast<std::ptrdiff_t>(index));
         // The erase shifts every later connection down, and their descriptor
