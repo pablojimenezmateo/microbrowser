@@ -12,7 +12,9 @@
 #include "bindings/Canvas.h"
 #include "dom/Node.h"
 #include "css/ComputedStyle.h"
+#include "gfx/ColorText.h"
 #include "url/Url.h"
+#include "util/StringUtil.h"
 #include "engine/Page.h"
 #include "util/Parse.h"
 
@@ -57,6 +59,28 @@ int Page::CanvasHeight(const dom::Element& element) const {
 }
 
 void Page::ExecuteCanvasOp(dom::Element& element, const bindings::CanvasOp& op) {
+  // `currentColor` is resolved *here*, against the canvas element's computed `color`, and it is
+  // resolved when the attribute is **set** rather than when it is painted -- which the specification
+  // says and which `2d.fillStyle.parse.current.changed` measures: a page that sets `fillStyle` and
+  // then changes the element's colour keeps the colour it set.
+  //
+  // The substitution is in this file because it is the only side that can resolve a cascade, and it
+  // is a substitution rather than a flag so that the far side never has to know the keyword exists.
+  if (!op.text.empty() && util::AsciiLowerCase(op.text) == "currentcolor" &&
+      (op.kind == bindings::CanvasOp::Kind::SetFillColor ||
+       op.kind == bindings::CanvasOp::Kind::SetStrokeColor ||
+       op.kind == bindings::CanvasOp::Kind::SetShadowColor ||
+       op.kind == bindings::CanvasOp::Kind::AddColorStop)) {
+    bindings::CanvasOp resolved = op;
+    // Opaque black when the canvas is not in a document: there is no cascade to ask, and the
+    // specification names that case explicitly rather than leaving it to the initial value.
+    resolved.text = element.ConnectedDocument() != nullptr
+                        ? gfx::SerializeColorText(StyleWithoutBox(element).color)
+                        : std::string("#000000");
+    canvases_.Execute(element, resolved);
+    InvalidateLayout();
+    return;
+  }
   // The two commands that need pixels are resolved here, because this is the object that knows what
   // an `<img>` fetched and what origin it came from. Everything else is state or geometry and goes
   // straight through.
