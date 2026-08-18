@@ -4,6 +4,7 @@
 #include "text/LineBreak.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -15,6 +16,34 @@
 #include "util/StringUtil.h"
 
 namespace microbrowser::layout {
+
+namespace {
+
+// The last UTF-8 character boundary in `text` whose prefix still fits in `available`.
+//
+// This is what `word-break: break-all` and `overflow-wrap: break-word`/`anywhere` need and what
+// UAX #14 deliberately does not offer: a break between two letters of one word. Zero means "not
+// even one character fits", and the caller must then place at least one anyway -- a piece that
+// never shrinks is how a line-breaking loop spins forever.
+std::size_t LastCharacterBoundaryThatFits(std::string_view text, const TextMeasurer& measurer,
+                                          const css::ComputedStyle& style, float available) {
+  std::size_t fits = 0;
+  std::size_t at = 0;
+  while (at < text.size()) {
+    ++at;
+    while (at < text.size() && (static_cast<unsigned char>(text[at]) & 0xC0) == 0x80) {
+      ++at;
+    }
+    if (measurer.MeasureWidth(text.substr(0, at), style) > available) {
+      break;
+    }
+    fits = at;
+  }
+  return fits;
+}
+
+}  // namespace
+
 
 // Line layout: turning a block's inline children into lines.
 //
@@ -279,12 +308,18 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
     measure(box, measure);
   }
 
+  // `text-indent`: the first line starts this far in. A percentage is of the containing block's
+  // width, which is `content_width` here -- the one place it is known.
+  const float text_indent =
+      box.Style().text_indent.length.Used(content_width, box.Style().font_size);
+  bool first_line = true;
+
   const auto refresh_band = [&] {
     const FloatContext::Band band =
         floats.BandAt(y, probe_height, content_left, content_left + content_width);
     line_left = band.left;
     line_right = band.right;
-    x = line_left;
+    x = line_left + (first_line ? text_indent : 0.0f);
   };
   refresh_band();
 
@@ -379,6 +414,7 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
 
     y += height;
     line.clear();
+    first_line = false;
     refresh_band();
   };
 
@@ -543,14 +579,55 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
         offset = segment_end + 1;
         continue;
       }
-      const std::string_view remaining(text.data() + offset,
-                                       (segment_end == std::string::npos ? text.size()
-                                                                         : segment_end) -
-                                           offset);
+      // A preserved tab advances to the next tab stop rather than drawing a glyph, so it is its
+      // own fragment with a width the font never had an opinion about. `tab-size` is the distance
+      // between stops -- a length, or a multiple of the space advance -- measured from the line's
+      // start edge, which is the only place a stop can be counted from.
+      const std::size_t tab_at = preserve_spaces ? text.find('\t', offset) : std::string::npos;
+      if (tab_at == offset) {
+        const css::TabSize tab = style.tab_size;
+        const float stride = tab.is_length ? tab.value
+                                           : tab.value * measurer_->MeasureWidth(" ", style);
+        float advance_to = x;
+        if (stride > 0.0f) {
+          const float from_start = x - line_left;
+          advance_to = line_left + (std::floor(from_start / stride) + 1.0f) * stride;
+        }
+        const float tab_width = std::max(0.0f, advance_to - x);
+        if (may_wrap && advance_to > line_right && !line.empty()) {
+          finish_line();
+          continue;
+        }
+        const float tab_ascent = measurer_->Ascent(style);
+        const float tab_descent = std::max(0.0f, measurer_->LineHeight(style) - tab_ascent);
+        line.push_back(LineItem{.box = text_box,
+                                .is_text = true,
+                                .begin = static_cast<std::uint32_t>(offset),
+                                .length = 1,
+                                .x = x,
+                                .width = tab_width,
+                                .above = tab_ascent,
+                                .below = tab_descent});
+        x += tab_width;
+        ++offset;
+        continue;
+      }
+      // The run this line may take at once ends at the next preserved break or the next tab,
+      // whichever comes first.
+      const std::size_t chunk_end = std::min(segment_end, tab_at);
+      const std::string_view remaining(
+          text.data() + offset,
+          (chunk_end == std::string::npos ? text.size() : chunk_end) - offset);
       const float available = line_right - x;
       const float full_width = measurer_->MeasureWidth(remaining, style);
 
-      if (may_wrap && full_width > available && !line.empty()) {
+      // `word-break: break-all` and `overflow-wrap: anywhere` may break between any two
+      // characters, so a word that does not fit is *cut* on this line rather than moved to the
+      // next. `overflow-wrap: break-word` is the other rule and the difference matters: it moves
+      // the word first and only cuts it if it still does not fit, which is why it is not here.
+      const bool cuts_on_this_line = style.word_break == css::WordBreak::BreakAll ||
+                                     style.overflow_wrap == css::OverflowWrap::Anywhere;
+      if (may_wrap && full_width > available && !line.empty() && !cuts_on_this_line) {
         // Does not fit and the line already has something on it: wrap and retry
         // against a full-width line.
         finish_line();
@@ -573,6 +650,12 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
           if (opportunity.offset == 0 || opportunity.offset >= remaining.size()) {
             continue;
           }
+          // `word-break: keep-all` forbids the implicit opportunities between typographic letter
+          // units -- which for CJK is nearly all of them -- and leaves the ones a space provides.
+          if (style.word_break == css::WordBreak::KeepAll &&
+              remaining[opportunity.offset - 1] != ' ') {
+            continue;
+          }
           // Measured *without* the trailing space, which is what the space-only version did by
           // construction and what has to be explicit now: a break after a space puts the space at the
           // end of the line, where it takes no visible width.
@@ -586,8 +669,29 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
             break;
           }
         }
-        if (best != std::string_view::npos && best > 0) {
-          piece = remaining.substr(0, best);
+        const std::size_t from_opportunity =
+            best != std::string_view::npos && best > 0 ? best : 0;
+        // `word-break: break-all` may break between any two characters, and `overflow-wrap` may
+        // when nothing else worked -- which is exactly the case UAX #14 leaves overflowing. The
+        // difference between the two is *when*: break-all competes with the opportunity search,
+        // overflow-wrap only rescues it.
+        const bool break_between_characters =
+            cuts_on_this_line || (style.overflow_wrap == css::OverflowWrap::BreakWord &&
+                                  from_opportunity == 0);
+        std::size_t cut = from_opportunity;
+        if (break_between_characters) {
+          const std::size_t chars =
+              LastCharacterBoundaryThatFits(remaining, *measurer_, style, available);
+          if (chars == 0 && !line.empty()) {
+            // Not one character fits beside what is already on the line. The line is finished and
+            // the same text is retried against a full-width one, where at least one will.
+            finish_line();
+            continue;
+          }
+          cut = std::max(cut, chars);
+        }
+        if (cut > 0 && cut < remaining.size()) {
+          piece = remaining.substr(0, cut);
         }
       }
 
@@ -602,6 +706,7 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
                               .below = descent});
       x += advance;
 
+      const bool cut_for_width = piece.size() < remaining.size();
       offset += piece.size();
       // A space at a break stays on the line it ended, where it takes no width. A preserved one is
       // content and is not skipped.
@@ -613,7 +718,9 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
         offset = segment_end + 1;
         continue;
       }
-      if (offset < text.size()) {
+      // Only a run that was cut *because it did not fit* ends the line. A run that ended at a tab
+      // continues on the same one, which is the whole point of a tab.
+      if (cut_for_width && offset < text.size()) {
         finish_line();
       }
     }

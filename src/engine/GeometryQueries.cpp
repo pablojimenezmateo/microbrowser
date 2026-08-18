@@ -403,6 +403,62 @@ std::optional<std::string> ComputedValueOf(const css::ComputedStyle& style,
       case css::TextAlign::Justify: return std::string("justify");
     }
   }
+  if (property == "text-transform") {
+    const css::TextTransform& transform = style.text_transform;
+    if (transform.IsNone()) {
+      return std::string("none");
+    }
+    std::string out;
+    switch (transform.letter_case) {
+      case css::TextCase::None: break;
+      case css::TextCase::Capitalize: out = "capitalize"; break;
+      case css::TextCase::Uppercase: out = "uppercase"; break;
+      case css::TextCase::Lowercase: out = "lowercase"; break;
+    }
+    if (transform.full_width) {
+      out += out.empty() ? "full-width" : " full-width";
+    }
+    if (transform.full_size_kana) {
+      out += out.empty() ? "full-size-kana" : " full-size-kana";
+    }
+    return out;
+  }
+  if (property == "word-break") {
+    switch (style.word_break) {
+      case css::WordBreak::Normal: return std::string("normal");
+      case css::WordBreak::BreakAll: return std::string("break-all");
+      case css::WordBreak::KeepAll: return std::string("keep-all");
+      case css::WordBreak::BreakWord: return std::string("break-word");
+    }
+  }
+  if (property == "overflow-wrap" || property == "word-wrap") {
+    switch (style.overflow_wrap) {
+      case css::OverflowWrap::Normal: return std::string("normal");
+      case css::OverflowWrap::BreakWord: return std::string("break-word");
+      case css::OverflowWrap::Anywhere: return std::string("anywhere");
+    }
+  }
+  if (property == "text-indent") {
+    // The used length rather than the specified one: a percentage computes to itself, but this
+    // engine resolves a percentage against the containing block at layout time and the computed
+    // style here has no containing block. Reported in pixels when it has one, as a percentage
+    // when it does not.
+    const css::TextIndent& indent = style.text_indent;
+    std::string out = indent.length.IsPercent()
+                          ? Number(indent.length.value) + "%"
+                          : Pixels(indent.length.Resolve(font_size, 0.0f));
+    if (indent.hanging) {
+      out += " hanging";
+    }
+    if (indent.each_line) {
+      out += " each-line";
+    }
+    return out;
+  }
+  if (property == "tab-size") {
+    return style.tab_size.is_length ? Pixels(style.tab_size.value)
+                                    : Number(style.tab_size.value);
+  }
   if (property == "white-space-collapse") {
     return std::string(WhiteSpaceCollapseText(style.white_space_collapse));
   }

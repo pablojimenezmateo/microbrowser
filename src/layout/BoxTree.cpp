@@ -4,6 +4,7 @@
 #include <string_view>
 
 #include "dom/FlatTree.h"
+#include "text/Normalize.h"
 #include "html/FormControl.h"
 #include "layout/LayoutEngine.h"
 #include "layout/ReplacedBoxes.h"
@@ -36,6 +37,77 @@ bool IsAllWhitespace(std::string_view text) {
 // A text box that is nothing but collapsible whitespace. Between two blocks it generates nothing --
 // keeping it would put a blank line between every pair of paragraphs -- but between two inlines it
 // is the space between two words, and dropping it renders "boldand italic".
+// `text-transform`, applied to the text a box will hold.
+//
+// **The case mapping is ASCII and Latin-1 only, and that is a deliberate stop rather than an
+// oversight.** A correct one is Unicode's SpecialCasing plus the Turkish and Lithuanian tailorings
+// -- one-to-many mappings and a language the cascade does not carry -- and `src/text` has no case
+// table today. What is here is the mapping that is *unambiguous*: a wrong uppercase is worse than
+// an untouched one, so anything outside these two blocks is left alone.
+std::uint32_t TransformedCodePoint(std::uint32_t c, bool upper) {
+  if (c < 0x80) {
+    if (upper && c >= 'a' && c <= 'z') return c - 32;
+    if (!upper && c >= 'A' && c <= 'Z') return c + 32;
+    return c;
+  }
+  // Latin-1 supplement: the two case ranges, minus the three code points that are not a pair --
+  // U+00D7 MULTIPLICATION SIGN, U+00F7 DIVISION SIGN and U+00DF SHARP S, whose uppercase is "SS".
+  if (upper && c >= 0x00E0 && c <= 0x00FE && c != 0x00F7) return c - 0x20;
+  if (!upper && c >= 0x00C0 && c <= 0x00DE && c != 0x00D7) return c + 0x20;
+  return c;
+}
+
+// The fullwidth forms: ASCII punctuation and letters map into U+FF01..U+FF5E, and the space to the
+// ideographic space. A one-to-one mapping over one contiguous block, so it is a rule rather than a
+// table.
+std::uint32_t FullWidthCodePoint(std::uint32_t c) {
+  if (c >= 0x21 && c <= 0x7E) return c + 0xFEE0;
+  if (c == 0x20) return 0x3000;
+  return c;
+}
+
+bool IsWordSeparator(std::uint32_t c) {
+  return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == 0x00A0;
+}
+
+std::string ApplyTextTransform(std::string_view text, const css::TextTransform& transform) {
+  if (transform.IsNone() || text.empty()) {
+    return std::string(text);
+  }
+  const text::CodePoints input = text::DecodeUtf8(text);
+  std::string out;
+  out.reserve(text.size());
+  bool at_word_start = true;
+  for (const std::uint32_t original : input) {
+    std::uint32_t c = original;
+    switch (transform.letter_case) {
+      case css::TextCase::None:
+        break;
+      case css::TextCase::Uppercase:
+        c = TransformedCodePoint(c, true);
+        break;
+      case css::TextCase::Lowercase:
+        c = TransformedCodePoint(c, false);
+        break;
+      case css::TextCase::Capitalize:
+        // The first *typographic letter unit* of each word. Word boundaries are decided within
+        // this text node, which is where this browser can see them: `<span>a</span>b` is one word
+        // to the specification and two text boxes here, and the second would be capitalized. The
+        // alternative is a pass over the finished line, which is a different design.
+        if (at_word_start) {
+          c = TransformedCodePoint(c, true);
+        }
+        break;
+    }
+    if (transform.full_width) {
+      c = FullWidthCodePoint(c);
+    }
+    at_word_start = IsWordSeparator(original);
+    text::AppendUtf8(out, c);
+  }
+  return out;
+}
+
 bool IsCollapsibleSpace(const Box& box) {
   return box.GetKind() == Box::Kind::Text &&
          box.Style().white_space_collapse == css::WhiteSpaceCollapse::Collapse &&
@@ -58,6 +130,10 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
                        : css::PreservesNewlines(collapse)
                            ? CollapseWhitespaceKeepingBreaks(text_node.Data())
                            : CollapseWhitespace(text_node.Data());
+    // After whitespace processing, because `text-transform: full-width` turns a space into an
+    // ideographic space -- which is not collapsible, and would be collapsed if the order were the
+    // other way round.
+    text = ApplyTextTransform(text, parent_style.text_transform);
     if (text.empty()) {
       return nullptr;
     }

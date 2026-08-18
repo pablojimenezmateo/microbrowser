@@ -41,6 +41,11 @@ void InheritInto(const ComputedStyle& parent, ComputedStyle& child, bool with_cu
   child.unicode_bidi = parent.unicode_bidi;
   child.white_space_collapse = parent.white_space_collapse;
   child.text_wrap_mode = parent.text_wrap_mode;
+  child.text_transform = parent.text_transform;
+  child.word_break = parent.word_break;
+  child.overflow_wrap = parent.overflow_wrap;
+  child.text_indent = parent.text_indent;
+  child.tab_size = parent.tab_size;
   child.visibility = parent.visibility;
   child.pointer_events = parent.pointer_events;
   if (with_custom_properties) {
@@ -262,6 +267,14 @@ std::optional<Length> ParseLength(std::string_view text, const MediaContext& con
   }
   if (unit == "em") {
     return Length{static_cast<float>(value), Length::Unit::Em};
+  }
+  // `ex` and `ch` are font-relative and this cascade has a font *size* but no font *metrics* --
+  // the face is chosen in `src/gfx` at paint time and the cascade cannot see it. CSS Values 4 says
+  // what to do about exactly that: when the x-height (or the advance of `0`) cannot be determined,
+  // assume 0.5em. That is a specified fallback rather than a guess, and it is the difference
+  // between `width: 50ch` being half a wrong width and being no width at all.
+  if (unit == "ex" || unit == "ch") {
+    return Length{static_cast<float>(value * 0.5), Length::Unit::Em};
   }
   if (unit == "rem") {
     // Absolutized here, at computed-value time, which is where CSS Values says a font-relative
@@ -715,6 +728,20 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
       style.text_align = TextAlign::Start;
     } else if (value == "end") {
       style.text_align = TextAlign::End;
+    } else if (value == "justify-all") {
+      // `justify` plus `text-align-all`, which this engine does not have. The alignment of every
+      // line but the last is the half it can honour, and that half is `justify`.
+      style.text_align = TextAlign::Justify;
+    } else if (value == "match-parent") {
+      // Computes to the parent's value, with `start`/`end` resolved against the *parent's*
+      // direction -- which is the whole point of the keyword: it is `inherit` for an element whose
+      // own direction differs.
+      const bool parent_rtl = parent.direction == Direction::Rtl;
+      style.text_align = parent.text_align == TextAlign::Start
+                             ? (parent_rtl ? TextAlign::Right : TextAlign::Left)
+                         : parent.text_align == TextAlign::End
+                             ? (parent_rtl ? TextAlign::Left : TextAlign::Right)
+                             : parent.text_align;
     } else if (value == "-microbrowser-center") {
       // What <center> means, and what no standard value expresses. See the
       // note on ComputedStyle::centers_block_children.

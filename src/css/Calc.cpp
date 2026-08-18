@@ -411,11 +411,15 @@ class CalcParser {
       sum.px = magnitude * static_cast<double>(root_font_size_);
     } else if (unit == "em") {
       sum.em = magnitude;
+    } else if (unit == "ex" || unit == "ch") {
+      // 0.5em, the fallback CSS Values 4 names for a font whose metrics are unavailable. See
+      // ParseLength: the cascade has a font size and not a face.
+      sum.em = magnitude * 0.5;
     } else if (const std::optional<float> absolute =
                    AbsoluteLengthFromUnit(magnitude, unit, context_)) {
       sum.px = static_cast<double>(*absolute);
     } else {
-      // `ch`, `ex` and the rest, or a viewport unit before the viewport is known.
+      // A unit this engine does not have, or a viewport unit before the viewport is known.
       return std::nullopt;
     }
     return Finite(sum) ? std::optional<Sum>(sum) : std::nullopt;

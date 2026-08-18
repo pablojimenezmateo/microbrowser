@@ -145,6 +145,47 @@ enum class WhiteSpaceCollapse : std::uint8_t {
 };
 enum class TextWrapMode : std::uint8_t { Wrap, NoWrap };
 
+// `text-transform`. The case keyword and the two width keywords are independent -- `capitalize
+// full-width` is one value with two parts -- so this is a small struct rather than an enum.
+enum class TextCase : std::uint8_t { None, Capitalize, Uppercase, Lowercase };
+struct TextTransform {
+  TextCase letter_case = TextCase::None;
+  bool full_width = false;
+  bool full_size_kana = false;
+
+  bool IsNone() const {
+    return letter_case == TextCase::None && !full_width && !full_size_kana;
+  }
+  friend bool operator==(const TextTransform&, const TextTransform&) = default;
+};
+
+// Where a line may break *inside* a word. Two properties rather than one because they answer
+// different questions: `word-break` says what the writing system allows, `overflow-wrap` says what
+// to do when a word does not fit however it is broken. `break-word` is `word-break`'s legacy
+// spelling of `overflow-wrap: break-word` and computes to itself.
+enum class WordBreak : std::uint8_t { Normal, BreakAll, KeepAll, BreakWord };
+enum class OverflowWrap : std::uint8_t { Normal, BreakWord, Anywhere };
+
+// `text-indent`, and the two keywords that change what it indents. Only the length is used today:
+// `hanging` and `each-line` are stored so the computed value round-trips, and neither changes a
+// box until the first-line machinery grows past one line.
+struct TextIndent {
+  Length length = Length::Pixels(0.0f);
+  bool hanging = false;
+  bool each_line = false;
+
+  friend bool operator==(const TextIndent&, const TextIndent&) = default;
+};
+
+// `tab-size`: a multiple of the space advance, or a length. Both are one number and which one it
+// is changes what it means, so the flag travels with it.
+struct TabSize {
+  float value = 8.0f;
+  bool is_length = false;
+
+  friend bool operator==(const TabSize&, const TabSize&) = default;
+};
+
 // A segment break (a newline in the source) survives whitespace processing. Only `collapse` and
 // `preserve-spaces` turn one into a space; every other mode makes it a forced line break, which is
 // what `<pre>` has always meant and what this browser did not do -- `<pre>a\nb</pre>` rendered on
@@ -391,6 +432,12 @@ struct ComputedStyle {
   // The two halves of `white-space`. Inherited, both of them.
   WhiteSpaceCollapse white_space_collapse = WhiteSpaceCollapse::Collapse;
   TextWrapMode text_wrap_mode = TextWrapMode::Wrap;
+  // The rest of CSS Text that changes what a line looks like. All inherited.
+  TextTransform text_transform;
+  WordBreak word_break = WordBreak::Normal;
+  OverflowWrap overflow_wrap = OverflowWrap::Normal;
+  TextIndent text_indent;
+  TabSize tab_size;
   Float css_float = Float::None;
   Clear clear = Clear::None;
 

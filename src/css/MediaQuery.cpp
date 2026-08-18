@@ -485,6 +485,11 @@ std::optional<float> AbsoluteLengthFromUnit(double magnitude, std::string_view u
   } else if (util::EqualsAsciiCaseInsensitive(unit, "em") ||
              util::EqualsAsciiCaseInsensitive(unit, "rem")) {
     per_unit = static_cast<double>(kRootFontSize);
+  } else if (util::EqualsAsciiCaseInsensitive(unit, "ex") ||
+             util::EqualsAsciiCaseInsensitive(unit, "ch")) {
+    // Half an em: the fallback CSS Values 4 names when the font's x-height and `0` advance are
+    // unavailable, which here they always are -- the face is chosen at paint time.
+    per_unit = static_cast<double>(kRootFontSize) * 0.5;
   } else if (util::EqualsAsciiCaseInsensitive(unit, "pt")) {
     per_unit = 4.0 / 3.0;
   } else if (util::EqualsAsciiCaseInsensitive(unit, "vw")) {
