@@ -144,12 +144,24 @@ inline bool IsCssomSheetThis(const js::Value& self) {
 // `CanonicaliseDeclaration` returns `Unknown` both for `display` (no serializer
 // here) and for `unknown` (not a property). The cascade's SupportsDeclaration
 // is too strict the other way: `left` is a real property this engine has not
-// implemented, and specified style still has to keep it.
+// implemented, and specified style still has to keep it -- `kBare` below is
+// that escape hatch, one name at a time.
+//
+// **A hyphen in the name is not the escape hatch, and used to be.** The rule was
+// `property.find('-') != npos`, which reads as "custom properties and vendor
+// prefixes" and is not what it says: it kept *every* hyphenated name, so
+// `el.style['word-break'] = 'auto'` stored the word and read it back. CSSOM says
+// an assignment that does not parse does nothing, and web-platform-tests checks
+// exactly that for every property in css/css-text/parsing/*-invalid.html -- 35
+// files in that one directory, all failing on this line rather than on a
+// grammar. A custom property and a vendor prefix both *begin* with the hyphen,
+// so that is the test now, and a real property this engine has not implemented
+// is dropped the same way a bare one already was.
 inline bool CssomKeepsUnknownDeclaration(std::string_view property, std::string_view value) {
   if (value.empty()) {
     return true;
   }
-  if (property.find('-') != std::string_view::npos) {
+  if (!property.empty() && property.front() == '-') {
     return true;
   }
   if (css::SupportsDeclaration(property, value)) {
