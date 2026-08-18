@@ -244,6 +244,10 @@ double CanvasSurfaces::StateNumber(const dom::Element& element,
       return static_cast<double>(state.line.miter_limit);
     case Kind::SetGlobalAlpha:
       return static_cast<double>(state.alpha);
+    case Kind::SetFillPaint:
+      return static_cast<double>(state.fill_paint);
+    case Kind::SetStrokePaint:
+      return static_cast<double>(state.stroke_paint);
     default:
       break;
   }
@@ -287,6 +291,35 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
     return gfx::Color::Rgba(state.stroke.Red(), state.stroke.Green(), state.stroke.Blue(), scaled);
   };
   bool drew = false;
+  // The selected paint source, or null for a plain colour. Looked up once per command rather than at
+  // each of the five places that draw, and handed the transform in force *now* -- the specification
+  // says a gradient's coordinates are in the space at the time of filling, so a page that translates
+  // between `createLinearGradient` and `fill` gets the gradient where it drew, not where it built it.
+  const auto paint_for = [&](std::uint32_t handle) -> const gfx::Paint* {
+    if (handle == 0) {
+      return nullptr;
+    }
+    const auto found = surface->paints.find(handle);
+    if (found == surface->paints.end()) {
+      return nullptr;
+    }
+    found->second.SetTransform(state.transform);
+    return &found->second;
+  };
+  const auto fill_path = [&](const gfx::Path& path, gfx::FillRule rule) {
+    if (const gfx::Paint* paint = paint_for(state.fill_paint)) {
+      painter.FillPath(path, *paint, state.alpha, rule);
+    } else {
+      painter.FillPath(path, fill_color(), rule);
+    }
+  };
+  const auto stroke_path = [&](const gfx::Path& path) {
+    if (const gfx::Paint* paint = paint_for(state.stroke_paint)) {
+      painter.StrokePath(path, state.line, *paint, state.alpha);
+    } else {
+      painter.StrokePath(path, state.line, stroke_color());
+    }
+  };
 
   switch (op.kind) {
     case Kind::Save:
@@ -303,10 +336,17 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
       }
       break;
     case Kind::SetFillColor:
-      (void)ParseCanvasColor(op.text, state.fill);
+      // A colour that parses *deselects* the gradient. Both live in the state and only one of them
+      // is the fill, so leaving the handle set would make `ctx.fillStyle = 'red'` a no-op for any
+      // page that had ever assigned a gradient.
+      if (ParseCanvasColor(op.text, state.fill)) {
+        state.fill_paint = 0;
+      }
       break;
     case Kind::SetStrokeColor:
-      (void)ParseCanvasColor(op.text, state.stroke);
+      if (ParseCanvasColor(op.text, state.stroke)) {
+        state.stroke_paint = 0;
+      }
       break;
     case Kind::SetLineWidth:
       // Zero and negative are *ignored*, per the specification -- not clamped to a hairline. A page
@@ -482,12 +522,11 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
       }
       break;
     case Kind::Fill:
-      painter.FillPath(surface->path, fill_color(),
-                       op.flag ? gfx::FillRule::EvenOdd : gfx::FillRule::NonZero);
+      fill_path(surface->path, op.flag ? gfx::FillRule::EvenOdd : gfx::FillRule::NonZero);
       drew = true;
       break;
     case Kind::Stroke:
-      painter.StrokePath(surface->path, state.line, stroke_color());
+      stroke_path(surface->path);
       drew = true;
       break;
     case Kind::Clip: {
@@ -516,9 +555,9 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
       rect.LineTo(Apply(state.transform, op.a, op.b + op.d));
       rect.Close();
       if (op.kind == Kind::FillRect) {
-        painter.FillPath(rect, fill_color());
+        fill_path(rect, gfx::FillRule::NonZero);
       } else if (op.kind == Kind::StrokeRect) {
-        painter.StrokePath(rect, state.line, stroke_color());
+        stroke_path(rect);
       } else {
         // `clearRect` writes transparent black, which is a *replacement* and not a blend -- so it goes
         // through the canvas rather than the painter. A painter fill of transparent black would blend
@@ -604,18 +643,44 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
     case Kind::SetShadowOffsetY:
     case Kind::SetImageSmoothing:
     case Kind::SetDirection:
-    case Kind::CreateLinearGradient:
-    case Kind::CreateRadialGradient:
-    case Kind::CreateConicGradient:
-    case Kind::AddColorStop:
-    case Kind::CreatePattern:
-    case Kind::SetFillPaint:
-    case Kind::SetStrokePaint:
       // Reserved, and deliberately not stored. A dash array or a composite operator kept here and
       // ignored by the painter would make `ctx.getLineDash()` answer about a dash nothing draws --
       // which is the stub ADR 0012 forbids, wearing the shape of state rather than of a method. The
       // binding layer does not install these names, so a page feature-detects an absence.
       break;
+    case Kind::CreateLinearGradient:
+      surface->paints.insert_or_assign(
+          op.handle, gfx::Paint::Linear(static_cast<float>(op.a), static_cast<float>(op.b),
+                                        static_cast<float>(op.c), static_cast<float>(op.d)));
+      break;
+    case Kind::CreateRadialGradient:
+      surface->paints.insert_or_assign(
+          op.handle, gfx::Paint::Radial(static_cast<float>(op.a), static_cast<float>(op.b),
+                                        static_cast<float>(op.c), static_cast<float>(op.d),
+                                        static_cast<float>(op.e), static_cast<float>(op.f)));
+      break;
+    case Kind::CreateConicGradient:
+      surface->paints.insert_or_assign(
+          op.handle, gfx::Paint::Conic(static_cast<float>(op.a), static_cast<float>(op.b),
+                                       static_cast<float>(op.c)));
+      break;
+    case Kind::AddColorStop: {
+      const auto found = surface->paints.find(op.handle);
+      gfx::Color stop;
+      // An unparseable colour is a `SyntaxError` thrown by the caller, so reaching here with one
+      // means the caller let it through; refusing is better than adding black.
+      if (found != surface->paints.end() && ParseCanvasColor(op.text, stop)) {
+        found->second.AddStop(static_cast<float>(op.a), stop);
+      }
+      break;
+    }
+    case Kind::SetFillPaint:
+      state.fill_paint = op.handle;
+      break;
+    case Kind::SetStrokePaint:
+      state.stroke_paint = op.handle;
+      break;
+    case Kind::CreatePattern:
     case Kind::DrawImage:
       // The image itself arrives through `WritePixels`/the caller, because `src/bindings` cannot hold a
       // `gfx::Image`. What reaches here is the *taint decision* the caller made: `flag` set means the

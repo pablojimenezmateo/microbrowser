@@ -236,7 +236,9 @@ budget: Timer           header_lines=15 public_methods=0 members=4
 # +4 methods for the state read back and the hit test (task F6): the binding layer keeps no copy of
 # the graphics state, so every getter is a question asked here.
 budget: CanvasSurfaces header_lines=140 public_methods=18 members=2
-budget: State         header_lines=50 public_methods=4 members=10
+# +1 for the pen and +2 for the selected fill and stroke paints: which gradient is selected is part
+# of the state a `save()` copies, while the gradients themselves belong to the surface.
+budget: State         header_lines=70 public_methods=4 members=13
 budget: Surface       header_lines=30 public_methods=0 members=8
 budget: Animations    header_lines=145 public_methods=28 members=9
 budget: MediaElements header_lines=120 public_methods=25 members=9

@@ -37,6 +37,13 @@ using js::Value;
 
 constexpr const char* kContextSlot = "#canvas-context";
 constexpr const char* kContextCanvasSlot = "#context-canvas";
+// The gradients and patterns this context has handed out, by handle, so that reading `fillStyle`
+// back gives the *same object* the page assigned -- which the specification requires and which is
+// what a page comparing `ctx.fillStyle === myGradient` depends on. The handle is the far side's
+// state, so `save()`/`restore()` restores which one is selected for free.
+constexpr const char* kPaintRegistrySlot = "#canvas-paints";
+constexpr const char* kPaintCounterSlot = "#canvas-paint-counter";
+constexpr const char* kPaintHandleSlot = "#paint-handle";
 
 double Number(const std::vector<Value>& arguments, std::size_t index, double fallback = 0.0) {
   if (index >= arguments.size()) {
@@ -125,6 +132,28 @@ constexpr Property kProperties[] = {
     {"textAlign", CanvasOp::Kind::SetTextAlign, false},
     {"textBaseline", CanvasOp::Kind::SetTextBaseline, false},
 };
+
+// The handle a gradient object carries, or zero when the value is not one of ours.
+std::uint32_t PaintHandleOf(const Value& value) {
+  if (!value.IsObject()) {
+    return 0;
+  }
+  const Value* handle = value.object->GetOwn(kPaintHandleSlot);
+  if (handle == nullptr) {
+    return 0;
+  }
+  const double number = js::ToNumber(*handle);
+  return number > 0.0 ? static_cast<std::uint32_t>(number) : 0;
+}
+
+// The next handle for this context, and the registry it is recorded in.
+std::uint32_t MintPaintHandle(const Value& context) {
+  const Value* counter = context.object->GetOwn(kPaintCounterSlot);
+  const auto next =
+      static_cast<std::uint32_t>((counter == nullptr ? 0.0 : js::ToNumber(*counter)) + 1.0);
+  context.object->SetHidden(kPaintCounterSlot, Value::Number(static_cast<double>(next)));
+  return next;
+}
 
 }  // namespace
 
@@ -251,8 +280,153 @@ js::Value DomBindings::CanvasContextPrototype() {
   InstallCanvasPaths(prototype);
   InstallCanvasText(prototype);
   InstallCanvasProperties(prototype);
+  InstallCanvasPaintSources(prototype);
   InstallImageData(prototype);
   return prototype;
+}
+
+void DomBindings::InstallCanvasPaintSources(const js::Value& prototype) {
+  // Eagerly, not at the first `createLinearGradient`. `window.CanvasGradient.prototype` is what a
+  // page patches to extend every gradient it will ever make, and it patches it *before* making one.
+  InstallCanvasGradientInterface();
+  // `createLinearGradient`, `createRadialGradient` and `createConicGradient`. One native for the
+  // three, because they differ only in how many numbers they take and which command they send.
+  struct Maker {
+    const char* name;
+    CanvasOp::Kind kind;
+    std::size_t required;
+  };
+  static constexpr Maker kMakers[] = {
+      {"createLinearGradient", CanvasOp::Kind::CreateLinearGradient, 4},
+      {"createRadialGradient", CanvasOp::Kind::CreateRadialGradient, 6},
+      {"createConicGradient", CanvasOp::Kind::CreateConicGradient, 3},
+  };
+  for (const Maker& maker : kMakers) {
+    const Value native = interpreter_->NewNativeValue(maker.name, [](NativeCall& call) -> Value {
+      DomBindings* owner = OwnerOf(call);
+      dom::Element* element = CanvasOf(call.self);
+      const Value* tag = call.callee == nullptr ? nullptr : call.callee->GetOwn("#op");
+      const Value* arity = call.callee == nullptr ? nullptr : call.callee->GetOwn("#arity");
+      const Value* named = call.callee == nullptr ? nullptr : call.callee->GetOwn("#name");
+      if (tag == nullptr || arity == nullptr) {
+        return Value::Undefined();
+      }
+      Value thrown;
+      if (!Arity(call, static_cast<std::size_t>(js::ToNumber(*arity)),
+                 named == nullptr ? "this method" : js::ToString(*named).c_str(), thrown)) {
+        return thrown;
+      }
+      if (owner == nullptr || owner->canvas_ == nullptr || element == nullptr) {
+        return Value::Undefined();
+      }
+      CanvasOp op;
+      op.kind = static_cast<CanvasOp::Kind>(static_cast<int>(js::ToNumber(*tag)));
+      op.a = Number(call.arguments, 0);
+      op.b = Number(call.arguments, 1);
+      op.c = Number(call.arguments, 2);
+      op.d = Number(call.arguments, 3);
+      op.e = Number(call.arguments, 4);
+      op.f = Number(call.arguments, 5);
+      if (!std::isfinite(op.a) || !std::isfinite(op.b) || !std::isfinite(op.c) ||
+          !std::isfinite(op.d) || !std::isfinite(op.e) || !std::isfinite(op.f)) {
+        // A non-finite coordinate is *not* a silent no-op here, unlike a drawing command: the call
+        // has to return an object, and one built from a NaN would paint nothing for the rest of the
+        // page's life with no way to find out why.
+        return ThrowDom(call, "NotSupportedError", "a gradient coordinate is not finite");
+      }
+      if (op.kind == CanvasOp::Kind::CreateRadialGradient && (op.c < 0.0 || op.f < 0.0)) {
+        return ThrowDom(call, "IndexSizeError", "a gradient radius is negative");
+      }
+      return owner->MakeCanvasGradient(call.self, *element, op);
+    });
+    if (native.IsObject()) {
+      native.object->Set(kOwnerSlot, OwnerValue(this));
+      native.object->SetHidden("#op", Value::Number(static_cast<double>(maker.kind)));
+      native.object->SetHidden("#arity", Value::Number(static_cast<double>(maker.required)));
+      native.object->SetHidden("#name", Value::String(maker.name));
+      DefineNonEnumerable(prototype.object, maker.name, native);
+    }
+  }
+}
+
+js::Value DomBindings::InstallCanvasGradientInterface() {
+  const Value prototype = MakeInterface("CanvasGradient", Value::Undefined());
+  if (prototype.IsObject() && !prototype.object->HasOwn("addColorStop")) {
+    const Value add = interpreter_->NewNativeValue("addColorStop", [](NativeCall& call) -> Value {
+      DomBindings* owner = OwnerOf(call);
+      if (call.arguments.size() < 2) {
+        return call.Throw("TypeError", "addColorStop requires two arguments");
+      }
+      if (owner == nullptr || owner->canvas_ == nullptr || !call.self.IsObject()) {
+        return Value::Undefined();
+      }
+      const Value* context_value = call.self.object->GetOwn(kContextCanvasSlot);
+      dom::Node* node = context_value == nullptr ? nullptr : NodeOf(*context_value);
+      if (node == nullptr || !node->IsElement()) {
+        return Value::Undefined();
+      }
+      const double offset = js::ToNumber(call.arguments[0]);
+      // Two different failures and they are not the same throw. A non-finite offset fails Web IDL's
+      // `double` conversion, which is a `TypeError` before the method's own steps run; an offset
+      // outside [0, 1] passes that and fails the method, which is an `IndexSizeError`.
+      if (!std::isfinite(offset)) {
+        return call.Throw("TypeError", "the stop offset is not a finite number");
+      }
+      if (offset < 0.0 || offset > 1.0) {
+        return ThrowDom(call, "IndexSizeError", "the stop offset is outside [0, 1]");
+      }
+      const std::string color = js::ToString(call.arguments[1]);
+      if (!owner->canvas_->CanvasParsesColor(color)) {
+        // A `SyntaxError` rather than a dropped stop: a page that misspelled a colour has drawn a
+        // gradient it did not describe, and silence there is a bug it cannot see.
+        return ThrowDom(call, "SyntaxError", "the stop colour does not parse");
+      }
+      CanvasOp stop;
+      stop.kind = CanvasOp::Kind::AddColorStop;
+      stop.handle = PaintHandleOf(call.self);
+      stop.a = offset;
+      stop.text = color;
+      owner->canvas_->ExecuteCanvasOp(static_cast<dom::Element&>(*node), stop);
+      return Value::Undefined();
+    });
+    if (add.IsObject()) {
+      add.object->Set(kOwnerSlot, OwnerValue(this));
+      DefineNonEnumerable(prototype.object, "addColorStop", add);
+    }
+  }
+  return prototype;
+}
+
+js::Value DomBindings::MakeCanvasGradient(const js::Value& context, dom::Element& element,
+                                          CanvasOp op) {
+  const Value prototype = InstallCanvasGradientInterface();
+  const Value gradient = interpreter_->NewObjectValue();
+  if (!prototype.IsObject() || !gradient.IsObject() || !context.IsObject()) {
+    return Value::Undefined();
+  }
+  op.handle = MintPaintHandle(context);
+  canvas_->ExecuteCanvasOp(element, op);
+  gradient.object->SetPrototype(prototype.object);
+  gradient.object->SetHidden(kPaintHandleSlot, Value::Number(static_cast<double>(op.handle)));
+  // The canvas element, so `addColorStop` can reach the surface holding the gradient. The gradient
+  // object rather than the context, because a context is reachable from the canvas and not the
+  // other way round.
+  const Value* canvas = context.object->GetOwn(kContextCanvasSlot);
+  if (canvas != nullptr) {
+    gradient.object->SetHidden(kContextCanvasSlot, *canvas);
+  }
+  // Recorded so that reading `fillStyle` back returns this object rather than an equal one.
+  const Value* existing = context.object->GetOwn(kPaintRegistrySlot);
+  Value registry = existing == nullptr ? Value::Undefined() : *existing;
+  if (!registry.IsObject()) {
+    registry = interpreter_->NewObjectValue();
+    if (!registry.IsObject()) {
+      return gradient;
+    }
+    context.object->SetHidden(kPaintRegistrySlot, registry);
+  }
+  registry.object->SetHidden(std::to_string(op.handle), gradient);
+  return gradient;
 }
 
 void DomBindings::InstallCanvasProperties(const js::Value& prototype) {
@@ -265,9 +439,29 @@ void DomBindings::InstallCanvasProperties(const js::Value& prototype) {
             return Value::Undefined();
           }
           // **Asked, not remembered.** See this file's header comment: one copy of the state.
-          return property.numeric
-                     ? Value::Number(owner->canvas_->CanvasStateNumber(*element, property.kind))
-                     : Value::String(owner->canvas_->CanvasStateText(*element, property.kind));
+          if (property.numeric) {
+            return Value::Number(owner->canvas_->CanvasStateNumber(*element, property.kind));
+          }
+          if (property.kind == CanvasOp::Kind::SetFillColor ||
+              property.kind == CanvasOp::Kind::SetStrokeColor) {
+            // A gradient reads back as the object the page assigned, not as a colour. Which one is
+            // selected is the far side's state, so this is a lookup rather than a second copy.
+            const CanvasOp::Kind paint = property.kind == CanvasOp::Kind::SetFillColor
+                                             ? CanvasOp::Kind::SetFillPaint
+                                             : CanvasOp::Kind::SetStrokePaint;
+            const auto handle =
+                static_cast<std::uint32_t>(owner->canvas_->CanvasStateNumber(*element, paint));
+            if (handle != 0) {
+              if (const Value* registry = call.self.object->GetOwn(kPaintRegistrySlot)) {
+                if (registry->IsObject()) {
+                  if (const Value* found = registry->object->GetOwn(std::to_string(handle))) {
+                    return *found;
+                  }
+                }
+              }
+            }
+          }
+          return Value::String(owner->canvas_->CanvasStateText(*element, property.kind));
         });
     const Value set =
         interpreter_->NewNativeValue(property.name, [property](NativeCall& call) -> Value {
@@ -282,13 +476,24 @@ void DomBindings::InstallCanvasProperties(const js::Value& prototype) {
             op.a = js::ToNumber(Argument(call.arguments, 0));
           } else {
             const Value given = Argument(call.arguments, 0);
-            // A non-string `fillStyle` is a gradient or a pattern in a browser, and those are not
-            // built here yet -- so anything that is not a string is *ignored* rather than stringified.
-            // `ctx.fillStyle = someGradient` becoming the colour `[object Object]` would be a page
-            // silently drawing black where it asked for a gradient.
-            if (!given.IsString() && !(property.kind != CanvasOp::Kind::SetFillColor &&
-                                       property.kind != CanvasOp::Kind::SetStrokeColor)) {
-              return Value::Undefined();
+            const bool is_style = property.kind == CanvasOp::Kind::SetFillColor ||
+                                  property.kind == CanvasOp::Kind::SetStrokeColor;
+            if (is_style) {
+              if (const std::uint32_t handle = PaintHandleOf(given)) {
+                CanvasOp select;
+                select.kind = property.kind == CanvasOp::Kind::SetFillColor
+                                  ? CanvasOp::Kind::SetFillPaint
+                                  : CanvasOp::Kind::SetStrokePaint;
+                select.handle = handle;
+                owner->canvas_->ExecuteCanvasOp(*element, select);
+                return Value::Undefined();
+              }
+              // Not a string and not one of ours: *ignored*, per the specification. Stringifying it
+              // would make `ctx.fillStyle = {}` the colour `[object Object]`, which parses as
+              // nothing and would look identical to a page that had assigned a gradient we lost.
+              if (!given.IsString()) {
+                return Value::Undefined();
+              }
             }
             op.text = js::ToString(given);
           }

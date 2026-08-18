@@ -603,6 +603,7 @@ class Page : private layout::ImageProvider,
   std::vector<double> CanvasTransform(const dom::Element& element) const override;
   bool CanvasHitTest(const dom::Element& element, double x, double y, bool stroke,
                      bool even_odd) const override;
+  bool CanvasParsesColor(const std::string& text) const override;
 
   // --- `bindings::WorkerHost` (ADR 0022 §1), in PageWorkers.cpp ----------------
   //

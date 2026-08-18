@@ -630,6 +630,9 @@ class DomBindings {
   void InstallCanvasTransforms(const js::Value& prototype);
   void InstallCanvasPaths(const js::Value& prototype);
   void InstallCanvasText(const js::Value& prototype);
+  void InstallCanvasPaintSources(const js::Value& prototype);
+  js::Value InstallCanvasGradientInterface();
+  js::Value MakeCanvasGradient(const js::Value& context, dom::Element& element, CanvasOp op);
   static bool ReadCornerRadii(js::NativeCall& call, const js::Value& given, double width,
                               double height, std::vector<double>& out, js::Value& thrown);
   js::Value MakeCanvasContext(const js::Value& canvas);

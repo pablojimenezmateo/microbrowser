@@ -383,6 +383,7 @@ microbrowser_module(gfx
     src/gfx/FontCatalog.cpp
     src/gfx/TextRenderer.cpp
     src/gfx/Geometry.cpp
+    src/gfx/Gradient.cpp
     src/gfx/GlyphCache.cpp
     src/gfx/Image.cpp
     src/gfx/JpegDecoder.cpp

@@ -8,6 +8,7 @@
 
 #include "bindings/Canvas.h"
 #include "gfx/Canvas.h"
+#include "gfx/Gradient.h"
 #include "gfx/Image.h"
 #include "gfx/Painter.h"
 #include "gfx/Path.h"
@@ -78,6 +79,11 @@ class CanvasSurfaces {
     enum class Baseline : std::uint8_t { Alphabetic, Top, Middle, Bottom, Hanging, Ideographic };
     Align align = Align::Start;
     Baseline baseline = Baseline::Alphabetic;
+    // The gradient or pattern selected as the fill or the stroke, by the handle the binding layer
+    // minted for it. Zero is "a plain colour". Part of the *state* rather than of the surface,
+    // because `save()`/`restore()` restores which paint is selected and not the paints themselves.
+    std::uint32_t fill_paint = 0;
+    std::uint32_t stroke_paint = 0;
     // The pen, in *user* space. The path holds device-space points, and `arcTo` and `roundRect` are
     // defined in terms of where the pen is before them -- so recovering it would mean inverting the
     // transform, whose determinant a page can make zero with one `scale(0, 0)`.
@@ -100,6 +106,10 @@ class CanvasSurfaces {
     // draws into costs no image copy per frame, which matters: the bitmap crosses to paint.
     bool dirty = true;
     std::shared_ptr<const gfx::Image> snapshot;
+    // The gradients and patterns this context has made, by handle. On the surface rather than in the
+    // state because a gradient outlives the `save()` that was in force when it was created -- a page
+    // keeps the object and assigns it again later.
+    std::map<std::uint32_t, gfx::Paint> paints;
   };
 
   Surface* For(const dom::Element& element);

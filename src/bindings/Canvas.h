@@ -182,6 +182,15 @@ class CanvasSurface {
   // path to keep in step.
   virtual bool CanvasHitTest(const dom::Element& element, double x, double y, bool stroke,
                              bool even_odd) const = 0;
+
+  // Whether the one CSS colour parser accepts this text.
+  //
+  // Asked rather than answered here for the reason `CanvasOp::text` carries a colour unparsed: a
+  // second colour parser in this module would be a second answer about what `rgb(300, -1, 50%)`
+  // means. It exists because `addColorStop` has to *throw* on a colour it cannot parse, and that
+  // decision has to be made on this side of the seam -- a command that silently dropped the stop
+  // would leave a page believing it had drawn a gradient it never described.
+  virtual bool CanvasParsesColor(const std::string& text) const = 0;
 };
 
 }  // namespace microbrowser::bindings

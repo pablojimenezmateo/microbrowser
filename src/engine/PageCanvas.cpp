@@ -10,6 +10,7 @@
 
 #include "bindings/Canvas.h"
 #include "dom/Node.h"
+#include "css/ComputedStyle.h"
 #include "engine/Page.h"
 #include "util/Parse.h"
 
@@ -96,6 +97,10 @@ std::vector<double> Page::CanvasTransform(const dom::Element& element) const {
 bool Page::CanvasHitTest(const dom::Element& element, double x, double y, bool stroke,
                          bool even_odd) const {
   return canvases_.HitTest(element, x, y, stroke, even_odd);
+}
+
+bool Page::CanvasParsesColor(const std::string& text) const {
+  return css::ParseColor(text).has_value();
 }
 
 }  // namespace microbrowser::engine
