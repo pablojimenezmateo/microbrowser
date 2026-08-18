@@ -647,17 +647,18 @@ bool DomBindings::ReadCornerRadii(js::NativeCall& call, const js::Value& given, 
   };
   if (given.IsUndefined()) {
     corners.emplace_back(0.0, 0.0);
-  } else if (given.IsObject() && given.object->GetOwn("length") != nullptr &&
-             given.object->Get("x") == nullptr) {
-    const Value* length = given.object->Get("length");
-    const double count = length == nullptr ? 0.0 : js::ToNumber(*length);
-    if (count < 1.0 || count > 4.0) {
+  } else if (given.IsObject() && given.object->GetKind() == js::Object::Kind::Array) {
+    // An array's elements do not live in its property map, which is why this asks `ElementCount`
+    // rather than reading a `length` property -- the first version read `GetOwn("length")`, got null
+    // for every real array, and fell through to `ToNumber([0, 0, 0, 20])`, which is NaN. Every
+    // `roundRect` with an array of radii silently drew nothing.
+    const std::size_t count = given.object->ElementCount();
+    if (count < 1 || count > 4) {
       thrown = call.Throw("RangeError", "roundRect takes one to four radii");
       return false;
     }
-    for (std::size_t i = 0; i < static_cast<std::size_t>(count); ++i) {
-      const Value* entry = given.object->Get(std::to_string(i));
-      if (!read_one(entry == nullptr ? Value::Undefined() : *entry)) {
+    for (std::size_t i = 0; i < count; ++i) {
+      if (!read_one(given.object->GetElement(i))) {
         return false;
       }
     }

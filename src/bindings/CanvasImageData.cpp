@@ -145,9 +145,13 @@ void DomBindings::InstallImageData(const js::Value& prototype) {
         if (!data.IsObject()) {
           return call.Throw("TypeError", "putImageData expects an ImageData");
         }
-        const Value* width_value = data.object->Get("width");
-        const Value* height_value = data.object->Get("height");
-        const Value* array = data.object->Get("data");
+        // The hidden slots rather than the public names: `width`, `height` and `data` are readonly
+        // *accessors* on the prototype, and `Object::Get` on an accessor hands back the property
+        // record's empty value rather than calling the getter. Reading them by name here is what made
+        // every `putImageData` throw "expects an ImageData" at its own `getImageData` result.
+        const Value* width_value = data.object->GetOwn(kImageDataWidthSlot);
+        const Value* height_value = data.object->GetOwn(kImageDataHeightSlot);
+        const Value* array = data.object->GetOwn(kImageDataArraySlot);
         if (width_value == nullptr || height_value == nullptr || array == nullptr) {
           return call.Throw("TypeError", "putImageData expects an ImageData");
         }
@@ -194,8 +198,8 @@ void DomBindings::InstallImageData(const js::Value& prototype) {
           if (!source.IsObject()) {
             return call.Throw("TypeError", "createImageData expects an ImageData or two sizes");
           }
-          const Value* w = source.object->Get("width");
-          const Value* h = source.object->Get("height");
+          const Value* w = source.object->GetOwn(kImageDataWidthSlot);
+          const Value* h = source.object->GetOwn(kImageDataHeightSlot);
           if (w == nullptr || h == nullptr) {
             return call.Throw("TypeError", "createImageData expects an ImageData or two sizes");
           }
