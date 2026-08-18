@@ -118,7 +118,7 @@ void LayoutEngine::LayoutAbsoluteBox(Box& box, const gfx::FloatRect& containing_
   const auto resolve = [font_size](const css::Length& length, float extent) {
     return length.Used(extent, font_size);
   };
-  const css::Edges& border = style.has_border ? style.border_width : css::Edges{};
+  const css::Edges border = style.UsedBorderWidths();
   const float horizontal_extra =
       resolve(style.margin.left, 0.0f) + resolve(style.margin.right, 0.0f) +
       resolve(style.padding.left, 0.0f) + resolve(style.padding.right, 0.0f) +

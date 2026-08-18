@@ -537,8 +537,6 @@ harness=TIMEOUT
 harness=FAIL
 [shadow-dom/focus/focus-pseudo-on-shadow-host-2.html]
 harness=FAIL
-[shadow-dom/focus/focus-pseudo-on-shadow-host-3.html]
-harness=FAIL
 [shadow-dom/focus/focus-scroll-under-delegatesFocus.html]
 FAIL=delegatesFocus shouldn't cause extra focus steps
 [shadow-dom/focus/focus-selector-delegatesFocus.html]
@@ -656,8 +654,6 @@ FAIL=selection API should not leak nodes in Shadow DOM.
 [shadow-dom/leaktests/window-frames.html]
 FAIL=window.frames should not leak frames in Shadow DOM.
 [shadow-dom/manual-slot-assignment-no-wrong-unassign.html]
-harness=FAIL
-[shadow-dom/nested-hover-pseudo-class-removal.html]
 harness=FAIL
 [shadow-dom/offsetParent-across-shadow-boundaries.html]
 FAIL=offsetParent must find the first offset parent which is a shadow-including ancestor of the context object even some shadow tree of closed mode did not have any offset parent

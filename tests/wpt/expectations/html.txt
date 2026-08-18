@@ -19858,10 +19858,6 @@ FAIL=tr background attribute is correct
 harness=FAIL
 [html/rendering/non-replaced-elements/tables/table-border-1.html]
 harness=FAIL
-[html/rendering/non-replaced-elements/tables/table-border-3q.html]
-harness=FAIL
-[html/rendering/non-replaced-elements/tables/table-border-3s.html]
-harness=FAIL
 [html/rendering/non-replaced-elements/tables/table-border-attributes-computed-style.html]
 harness=TIMEOUT
 [html/rendering/non-replaced-elements/tables/table-border-color-not-inherited.html]
@@ -19877,6 +19873,12 @@ harness=FAIL
 [html/rendering/non-replaced-elements/tables/table-cell-width-s.html]
 harness=FAIL
 [html/rendering/non-replaced-elements/tables/table-cell-width.html]
+harness=FAIL
+[html/rendering/non-replaced-elements/tables/table-direction.html]
+harness=FAIL
+[html/rendering/non-replaced-elements/tables/table-row-direction.html]
+harness=FAIL
+[html/rendering/non-replaced-elements/tables/table-row-group-direction.html]
 harness=FAIL
 [html/rendering/non-replaced-elements/tables/table-row-height.html]
 harness=FAIL
@@ -19938,6 +19940,8 @@ harness=FAIL
 FAIL=The fieldset element: block formatting context
 [html/rendering/non-replaced-elements/the-fieldset-and-legend-elements/fieldset-block-size.html]
 FAIL=Test content's block-size
+[html/rendering/non-replaced-elements/the-fieldset-and-legend-elements/fieldset-border-gap-negative-margin.html]
+harness=FAIL
 [html/rendering/non-replaced-elements/the-fieldset-and-legend-elements/fieldset-border-gap-position-relative.html]
 harness=FAIL
 [html/rendering/non-replaced-elements/the-fieldset-and-legend-elements/fieldset-border-radius-hittest.html]
@@ -19976,6 +19980,8 @@ FAIL=Grid
 FAIL=Inline grid
 [html/rendering/non-replaced-elements/the-fieldset-and-legend-elements/fieldset-overflow-cssomview.html]
 FAIL=Test cssom-view API for FIELDSET
+[html/rendering/non-replaced-elements/the-fieldset-and-legend-elements/fieldset-overflow-hidden.html]
+harness=FAIL
 [html/rendering/non-replaced-elements/the-fieldset-and-legend-elements/fieldset-overflow.html]
 harness=FAIL
 [html/rendering/non-replaced-elements/the-fieldset-and-legend-elements/fieldset-painting-order.html]
@@ -20139,10 +20145,6 @@ FAIL=overflow
 [html/rendering/non-replaced-elements/the-hr-element-0/setting-overflow-visible.html]
 FAIL=control
 FAIL=overflow: visible
-[html/rendering/non-replaced-elements/the-hr-element-0/size-with-color-or-noshade.html]
-harness=FAIL
-[html/rendering/non-replaced-elements/the-hr-element-0/size.html]
-harness=FAIL
 [html/rendering/non-replaced-elements/the-hr-element-0/width.html]
 harness=FAIL
 [html/rendering/non-replaced-elements/the-page/body_text_00ffff.xhtml]
@@ -20248,10 +20250,6 @@ FAIL=Overflowing textarea placeholder should be scrollable
 FAIL=Textarea scrollHeight shouldn't collapse under a line height
 [html/rendering/replaced-elements/attributes-for-embedded-content-and-images/video-aspect-ratio.html]
 harness=TIMEOUT
-[html/rendering/replaced-elements/attributes-for-embedded-content-and-images/video-default-object-height-constrained-by-max-width.html]
-harness=FAIL
-[html/rendering/replaced-elements/attributes-for-embedded-content-and-images/video-default-object-width-constrained-by-max-height.html]
-harness=FAIL
 [html/rendering/replaced-elements/attributes-for-embedded-content-and-images/video-intrinsic-width-height.html]
 FAIL=both width/height attributes and style
 FAIL=both width/height attributes and style keeping aspect-ratio
@@ -21225,8 +21223,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [html/semantics/document-metadata/the-meta-element/pragma-directives/http-equiv-enumerated-ascii-case-insensitive.html]
 harness=TIMEOUT
-[html/semantics/document-metadata/the-style-element/html_style_in_comment.xhtml]
-harness=FAIL
 [html/semantics/document-metadata/the-style-element/mutations.window.html]
 FAIL=Mutating the style element: inserting a Comment node
 FAIL=Mutating the style element: mutating a Comment node
@@ -28398,8 +28394,6 @@ harness=FAIL
 FAIL=Using touch inputs should not deselect other options in a listbox <select multiple>.
 [html/semantics/forms/the-select-element/select-many-options.tentative.html]
 FAIL=The popover should be bottom left positioned
-[html/semantics/forms/the-select-element/select-marker-end-aligned.tentative.html]
-harness=FAIL
 [html/semantics/forms/the-select-element/select-multiple-resize-does-not-autoscroll.html]
 FAIL=Resizing <select multiple> should not autoscroll the listbox.
 [html/semantics/forms/the-select-element/select-multiple-size-4.html]

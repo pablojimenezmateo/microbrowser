@@ -48,9 +48,90 @@ struct LineItem {
   float width = 0.0f;
   float above = 0.0f;  // from the baseline up
   float below = 0.0f;  // from the baseline down
+  // `vertical-align`, as the one number line placement can use: how far *up* from the line's
+  // baseline this item's own baseline sits. Every value of the property that can be resolved before
+  // the line box exists is folded into this at push time (CSS 2.1 §10.8.1); `top` and `bottom`
+  // cannot be, so they arrive as `edge` and become a shift in `finish_line` once the line's height
+  // is known. Zero and `Baseline` is what every item on an ordinary line carries, and the placement
+  // code below is written so that pair reproduces exactly what it did before the property existed.
+  float shift = 0.0f;
+  css::VerticalAlign edge = css::VerticalAlign::Baseline;
+  // Which inline box asked for that edge. `top` and `bottom` align the box that carries them, not
+  // each thing inside it -- so every item descended from one `<span style="vertical-align: top">`
+  // is *one* thing to place, and `line`'s items are the pieces it was flattened into. Aligning them
+  // individually moves a short word up to the top of a line its own tall sibling defines, which is
+  // css/CSS2/linebox/anonymous-inline-inherit-001.html exactly.
+  const css::ComputedStyle* group = nullptr;
   // Set by the bidi reorder, and false for every item on a line that never needed it.
   bool right_to_left = false;
 };
+
+// One entry of the flattened inline run: the box, plus the `vertical-align` that applies to it.
+//
+// The second half is not on the box and cannot be. Line layout here walks *through* inline boxes to
+// reach the text inside them, so a `<sup>`'s own box is never an item on the line -- and a text box
+// carries only the inherited properties (`TextStyleFrom`), which `vertical-align` is not. So the
+// walk that flattens the run is the one place that still knows which inline box a text slice came
+// out of, and it records the answer here rather than losing it.
+struct RunItem {
+  Box* box = nullptr;
+  // The style whose `vertical-align` applies: the item's own, or -- for a text slice -- the inline
+  // box it came out of. Null when the item hangs directly off the block container, whose own
+  // `vertical-align` does not apply to it (CSS 2.1 §10.8: the property applies to inline-level and
+  // table-cell boxes).
+  const css::ComputedStyle* align = nullptr;
+  // The box this item sits inside. `text-top`, `text-bottom` and `middle` are stated against the
+  // *parent's* content area and x-height, so they need a second style, and it is never the item's
+  // own -- `vertical-align: text-top` on a big word inside a small paragraph aligns it to the small
+  // font's ascender, which is the whole visible effect of the value.
+  const css::ComputedStyle* parent = nullptr;
+  // How far up the *parent* box's baseline sits from the line's, from the inline boxes this item is
+  // nested in. `align`'s own contribution is added when the item is placed, not here.
+  float ancestor_shift = 0.0f;
+  // The nearest inline box on the chain that asked to be aligned to a line-box edge, and which
+  // edge. Inherited by everything inside it, because that box is what gets placed.
+  const css::ComputedStyle* group = nullptr;
+  css::VerticalAlign edge = css::VerticalAlign::Baseline;
+};
+
+// The part of `vertical-align` that is a shift of this box's baseline away from its parent's, up
+// positive -- and zero for the four values that are stated against an edge instead, which cannot be
+// answered without the box's own height.
+//
+// `sub` and `super` are fractions of the font size. CSS says only "the baseline of the parent's
+// subscript/superscript position", which is a font metric no engine reads the same way; a third of
+// the em up and a fifth down is what the shipping engines land within a pixel of at ordinary sizes,
+// and -- because a reftest's reference is rendered by this same code -- a self-consistent
+// approximation is worth more here than a differently-wrong exact one.
+float BaselineShiftOf(const css::ComputedStyle& style, const TextMeasurer& measurer) {
+  switch (style.vertical_align) {
+    case css::VerticalAlign::Sub:
+      return -style.font_size / 5.0f;
+    case css::VerticalAlign::Super:
+      return style.font_size / 3.0f;
+    case css::VerticalAlign::Offset:
+      // A percentage is of the used `line-height`, which is why the measurer is needed: `normal`
+      // computes to zero in the cascade and means "ask the font".
+      return style.vertical_align_offset.Used(measurer.LineHeight(style), style.font_size);
+    default:
+      return 0.0f;
+  }
+}
+
+// Has an earlier item on this line already been placed as part of `group`?
+//
+// The group loop below walks the line once and does the work at the *first* item of each group;
+// this is what makes the second and later items of one group skip it. A map would be a heap
+// allocation per line for a case almost no line has, and a line is short.
+bool SeenGroupBefore(const std::vector<LineItem>& line, std::size_t at,
+                     const css::ComputedStyle* group) {
+  for (std::size_t i = 0; i < at; ++i) {
+    if (line[i].group == group) {
+      return true;
+    }
+  }
+  return false;
+}
 
 // Rewrites `line` into visual order, and re-assigns every `x` from `left`.
 //
@@ -293,11 +374,53 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
       refresh_band();
       return;
     }
+    // --- `vertical-align`, CSS 2.1 §10.8.1 ---------------------------------
+    //
+    // Two passes, because the property has two kinds of value and only one of them can be answered
+    // before the line box exists. Every baseline-relative value has already been folded into
+    // `item.shift`; what is left is `top` and `bottom`, which are stated against edges that are a
+    // function of everything *else* on the line. So: size the line from the baseline-relative items
+    // first, let an edge-aligned item that does not fit grow it, and then turn each edge alignment
+    // into the shift that puts it where it asked to be. After that one loop places every item and
+    // `shift == 0` reproduces exactly what this code did before the property existed.
     float above = 0.0f;
     float below = 0.0f;
     for (const LineItem& item : line) {
-      above = std::max(above, item.above);
-      below = std::max(below, item.below);
+      if (item.group != nullptr) {
+        continue;
+      }
+      above = std::max(above, item.above + item.shift);
+      below = std::max(below, item.below - item.shift);
+    }
+    // Each edge-aligned group is measured as one box -- the extent of everything flattened out of
+    // it -- and then either fits in the line the rest of the items made or grows it away from the
+    // edge it is pinned to.
+    for (std::size_t i = 0; i < line.size(); ++i) {
+      const css::ComputedStyle* group = line[i].group;
+      if (group == nullptr || (i > 0 && SeenGroupBefore(line, i, group))) {
+        continue;
+      }
+      float group_above = 0.0f;
+      float group_below = 0.0f;
+      for (const LineItem& item : line) {
+        if (item.group != group) {
+          continue;
+        }
+        group_above = std::max(group_above, item.above + item.shift);
+        group_below = std::max(group_below, item.below - item.shift);
+      }
+      const bool to_top = line[i].edge == css::VerticalAlign::Top;
+      if (group_above + group_below > above + below) {
+        (to_top ? below : above) = group_above + group_below - (to_top ? above : below);
+      }
+      // Where the group's own baseline ends up, once the line's is known: its top flush with the
+      // line's top, or its bottom flush with the line's bottom.
+      const float delta = to_top ? above - group_above : group_below - below;
+      for (LineItem& item : line) {
+        if (item.group == group) {
+          item.shift += delta;
+        }
+      }
     }
     const float height = above + below;
     const float baseline = y + above;
@@ -347,8 +470,12 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
         TextFragment fragment;
         fragment.begin = item.begin;
         fragment.length = item.length;
-        fragment.rect = gfx::FloatRect{item.x + align_offset, y, item.width, height};
-        fragment.baseline = baseline;
+        // The whole line's height, translated by this item's shift. Not the item's own height:
+        // that is what this code has always described, and a fragment rectangle is what an inline
+        // box's background and `getBoundingClientRect` are answered from. `shift` is zero for every
+        // item on a line nobody aligned, so this is the same rectangle it always was.
+        fragment.rect = gfx::FloatRect{item.x + align_offset, y - item.shift, item.width, height};
+        fragment.baseline = baseline - item.shift;
         fragment.right_to_left = item.right_to_left;
         item.box->AddFragment(fragment);
         item.box->Geometry().content = item.box->Fragments().size() == 1
@@ -364,7 +491,7 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
         // what LayoutBlock adds its own margins to. `item.x` was advanced by
         // the margin box width for exactly this reason.
         const gfx::FloatRect margin_box = item.box->Geometry().MarginBox();
-        const float top = baseline - item.above;
+        const float top = baseline - item.above - item.shift;
         OffsetLaidOutSubtree(*item.box, item.x + align_offset - margin_box.x,
                              top - margin_box.y);
         util::AddPerformanceCounter(util::PerfCounterId::LayoutMeasureCacheHits);
@@ -372,8 +499,9 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
         // A replaced element's baseline is its bottom edge, per CSS 2.1
         // §10.8.1. That is why an image on a line of text sits *on* the text
         // rather than beside it.
-        item.box->Geometry().content = gfx::FloatRect{item.x + align_offset, baseline - item.above,
-                                                      item.width, item.above + item.below};
+        item.box->Geometry().content =
+            gfx::FloatRect{item.x + align_offset, baseline - item.above - item.shift, item.width,
+                           item.above + item.below};
       }
     }
 
@@ -384,22 +512,95 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
 
   // Flattened: an inline box's own children participate in the same line
   // sequence as its siblings, which is what makes `a <b>bold</b> c` one line.
-  std::vector<Box*> run;
-  const auto collect = [&run](Box& node, auto& self) -> void {
+  //
+  // The walk carries the `vertical-align` down with it. An item's own value applies to it, except
+  // for a text slice -- text has no `vertical-align` of its own (the property is not inherited and
+  // a text box carries only the inherited ones), so what applies to it is the inline box it came
+  // out of. Values nest by adding, which is what CSS 2.1 §10.8.1 means by "relative to the parent
+  // box's baseline"; `top` and `bottom` do not nest, and the innermost one wins.
+  std::vector<RunItem> run;
+  // `node_align` is the style whose `vertical-align` governs `node`'s direct content, and
+  // `ancestor_shift` is everything accumulated *above* it. Splitting them that way is what keeps
+  // the nesting from double-counting: the item resolution below adds `node_align`'s own shift, so
+  // this walk must not have added it already.
+  const auto is_edge = [](const css::ComputedStyle& style) {
+    return style.vertical_align == css::VerticalAlign::Top ||
+           style.vertical_align == css::VerticalAlign::Bottom;
+  };
+  const auto collect = [&](Box& node, const css::ComputedStyle* node_align, float ancestor_shift,
+                           const css::ComputedStyle* group, css::VerticalAlign edge,
+                           auto& self) -> void {
+    const float here = node_align == nullptr ? 0.0f : BaselineShiftOf(*node_align, *measurer_);
     for (const std::unique_ptr<Box>& child : node.Children()) {
       if (child->IsFloating()) {
         continue;  // out of flow; placed by the block pass
       }
       if (child->IsInlineLevel()) {
-        run.push_back(child.get());
+        // A text slice and a `<br>` have no `vertical-align` of their own -- the property is not
+        // inherited, so a text box does not carry it -- and take the inline box they came out of.
+        const bool takes_own =
+            child->GetKind() != Box::Kind::Text && child->GetKind() != Box::Kind::LineBreak;
+        run.push_back(RunItem{.box = child.get(),
+                              .align = takes_own ? &child->Style() : node_align,
+                              .parent = &node.Style(),
+                              .ancestor_shift = takes_own ? ancestor_shift + here : ancestor_shift,
+                              .group = group,
+                              .edge = edge});
+      } else if (is_edge(child->Style())) {
+        // An edge-aligned inline box starts a group, and the shift accumulated above it stops
+        // applying: what is inside it is positioned against *its* baseline, and where that baseline
+        // ends up is decided against the finished line box rather than against anything here.
+        self(*child, &child->Style(), 0.0f, &child->Style(), child->Style().vertical_align, self);
       } else {
-        self(*child, self);
+        self(*child, &child->Style(), ancestor_shift + here, group, edge, self);
       }
     }
   };
-  collect(box, collect);
+  collect(box, nullptr, 0.0f, nullptr, css::VerticalAlign::Baseline, collect);
 
-  for (Box* item : run) {
+  // Resolves `vertical-align` for one item, now that its extent above and below its own baseline is
+  // known -- which is what the three content-area values need, and is why this cannot happen in the
+  // walk above. Leaves `shift` at the ancestors' contribution and `edge` at `Baseline` when nothing
+  // on the chain asked for anything, which is every item on an ordinary page.
+  const auto align_line_item = [&](const RunItem& entry, LineItem& item) {
+    item.shift = entry.ancestor_shift;
+    item.group = entry.group;
+    item.edge = entry.edge;
+    if (entry.align == nullptr) {
+      return;
+    }
+    const css::ComputedStyle& style = *entry.align;
+    const css::ComputedStyle& parent = *entry.parent;
+    switch (style.vertical_align) {
+      case css::VerticalAlign::Top:
+      case css::VerticalAlign::Bottom:
+        // Its own edge alignment beats an ancestor's, and starts a group of one.
+        item.group = &style;
+        item.edge = style.vertical_align;
+        item.shift = 0.0f;
+        break;
+      case css::VerticalAlign::TextTop:
+        item.shift += measurer_->Ascent(parent) - item.above;
+        break;
+      case css::VerticalAlign::TextBottom:
+        item.shift +=
+            item.below - std::max(0.0f, measurer_->LineHeight(parent) - measurer_->Ascent(parent));
+        break;
+      case css::VerticalAlign::Middle:
+        // The item's midpoint, at half the parent's x-height above the parent's baseline. Nothing
+        // in the measurer reports an x-height, so it is half an em: within a pixel of every text
+        // font at ordinary sizes, and -- since a reftest's reference is drawn by this same code --
+        // self-consistent, which is worth more here than a differently-wrong exact figure.
+        item.shift += (item.below - item.above) * 0.5f + parent.font_size * 0.25f;
+        break;
+      default:
+        item.shift += BaselineShiftOf(style, *measurer_);
+        break;
+    }
+  };
+
+  for (const RunItem& entry : run) {
+    Box* item = entry.box;
     if (item->GetKind() == Box::Kind::LineBreak) {
       // A zero-width item first, so the line has this element's height even
       // when nothing else is on it -- which is what makes two `<br>`s in a row
@@ -408,7 +609,9 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
       const float ascent = measurer_->Ascent(break_style);
       const float descent = std::max(0.0f, measurer_->LineHeight(break_style) - ascent);
       item->Geometry().content = gfx::FloatRect{x, y, 0.0f, ascent + descent};
-      line.push_back(LineItem{.box = item, .x = x, .above = ascent, .below = descent});
+      LineItem line_item{.box = item, .x = x, .above = ascent, .below = descent};
+      align_line_item(entry, line_item);
+      line.push_back(line_item);
       finish_line();
       continue;
     }
@@ -435,7 +638,9 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
       if (!line.empty() && x + width > line_right) {
         finish_line();
       }
-      line.push_back(LineItem{.box = item, .x = x, .width = width, .above = height});
+      LineItem line_item{.box = item, .x = x, .width = width, .above = height};
+      align_line_item(entry, line_item);
+      line.push_back(line_item);
       x += width;
       continue;
     }
@@ -493,8 +698,10 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
       if (!line.empty() && x + width > line_right) {
         finish_line();
       }
-      line.push_back(LineItem{
-          .box = item, .is_atomic = true, .x = x, .width = width, .above = above, .below = below});
+      LineItem line_item{
+          .box = item, .is_atomic = true, .x = x, .width = width, .above = above, .below = below};
+      align_line_item(entry, line_item);
+      line.push_back(line_item);
       x += width;
       continue;
     }
@@ -566,14 +773,16 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
       }
 
       const float advance = measurer_->MeasureWidth(piece, style);
-      line.push_back(LineItem{.box = text_box,
-                              .is_text = true,
-                              .begin = static_cast<std::uint32_t>(offset),
-                              .length = static_cast<std::uint32_t>(piece.size()),
-                              .x = x,
-                              .width = advance,
-                              .above = ascent,
-                              .below = descent});
+      LineItem line_item{.box = text_box,
+                         .is_text = true,
+                         .begin = static_cast<std::uint32_t>(offset),
+                         .length = static_cast<std::uint32_t>(piece.size()),
+                         .x = x,
+                         .width = advance,
+                         .above = ascent,
+                         .below = descent};
+      align_line_item(entry, line_item);
+      line.push_back(line_item);
       x += advance;
 
       offset += piece.size();

@@ -86,15 +86,13 @@ bool LengthFromToken(const Token& token, const MediaContext& context, float& out
   // Pixels per unit. Everything below is one multiplication, which is what
   // makes the viewport units no more special than `pt`.
   double per_unit = 0.0;
-  if (util::EqualsAsciiCaseInsensitive(unit, "px")) {
-    per_unit = 1.0;
+  if (const std::optional<double> scale = AbsoluteUnitScale(unit)) {
+    per_unit = *scale;
   } else if (util::EqualsAsciiCaseInsensitive(unit, "em") ||
              util::EqualsAsciiCaseInsensitive(unit, "rem")) {
     // In a media query there is no element, so `em` is the initial font size --
     // which is what `rem` is everywhere else, and why the two are one branch.
     per_unit = static_cast<double>(kRootFontSize);
-  } else if (util::EqualsAsciiCaseInsensitive(unit, "pt")) {
-    per_unit = 4.0 / 3.0;
   } else if (util::EqualsAsciiCaseInsensitive(unit, "vw")) {
     per_unit = static_cast<double>(context.viewport_width) / 100.0;
   } else if (util::EqualsAsciiCaseInsensitive(unit, "vh")) {
@@ -477,16 +475,39 @@ bool MediaQueryListMatches(std::string_view text, const MediaContext& context) {
   return false;
 }
 
+std::optional<double> AbsoluteUnitScale(std::string_view unit) {
+  if (util::EqualsAsciiCaseInsensitive(unit, "px")) {
+    return 1.0;
+  }
+  if (util::EqualsAsciiCaseInsensitive(unit, "in")) {
+    return 96.0;
+  }
+  if (util::EqualsAsciiCaseInsensitive(unit, "pc")) {
+    return 16.0;  // a pica is twelve points
+  }
+  if (util::EqualsAsciiCaseInsensitive(unit, "pt")) {
+    return 4.0 / 3.0;
+  }
+  if (util::EqualsAsciiCaseInsensitive(unit, "cm")) {
+    return 96.0 / 2.54;
+  }
+  if (util::EqualsAsciiCaseInsensitive(unit, "mm")) {
+    return 96.0 / 25.4;
+  }
+  if (util::EqualsAsciiCaseInsensitive(unit, "q")) {
+    return 96.0 / 101.6;  // a quarter of a millimetre
+  }
+  return std::nullopt;
+}
+
 std::optional<float> AbsoluteLengthFromUnit(double magnitude, std::string_view unit,
                                             const MediaContext& context) {
   double per_unit = 0.0;
-  if (util::EqualsAsciiCaseInsensitive(unit, "px")) {
-    per_unit = 1.0;
+  if (const std::optional<double> scale = AbsoluteUnitScale(unit)) {
+    per_unit = *scale;
   } else if (util::EqualsAsciiCaseInsensitive(unit, "em") ||
              util::EqualsAsciiCaseInsensitive(unit, "rem")) {
     per_unit = static_cast<double>(kRootFontSize);
-  } else if (util::EqualsAsciiCaseInsensitive(unit, "pt")) {
-    per_unit = 4.0 / 3.0;
   } else if (util::EqualsAsciiCaseInsensitive(unit, "vw")) {
     if (context.viewport_width == 0.0f) {
       return std::nullopt;

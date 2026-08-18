@@ -587,6 +587,11 @@ namespace microbrowser::util {
   /* so the tree is rebuilt. iron-overlay's prepare refit depends on this —    */ \
   /* without it youtube's consent dialog centres as if it were still 0×0.      */ \
   X(BoxTreeInvalidatedByDisplayChange, "engine.box_tree_invalidated_by_display") \
+  /* An `application/xhtml+xml` document, parsed as XML rather than as HTML --  */ \
+  /* and how often that parse refused, which is the number that says whether    */ \
+  /* the fallback below is carrying real weight or is dead code.                */ \
+  X(DocumentParsedAsXml, "engine.document_parsed_as_xml")                        \
+  X(DocumentXmlFellBackToHtml, "engine.document_xml_fell_back_to_html")          \
   X(EnginePaintsSkipped, "engine.paints_skipped")                                \
   X(GfxImagesTransformed, "gfx.images_transformed")                               \
   X(GfxImagesScaled, "gfx.images_scaled")                                         \

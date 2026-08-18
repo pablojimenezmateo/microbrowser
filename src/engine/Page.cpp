@@ -12,6 +12,7 @@
 #include "html/FormControl.h"
 #include "html/Encoding.h"
 #include "html/TreeBuilder.h"
+#include "engine/DocumentParse.h"
 #include "util/Parse.h"
 #include "util/Env.h"
 #include "util/LoadTimeline.h"
@@ -22,6 +23,7 @@
 #include <cstdio>
 
 namespace microbrowser::engine {
+
 
 namespace {
 
@@ -238,10 +240,11 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
   const std::string decoded = html::DecodeToUtf8(html, encoding);
   {
     util::LoadTimeline::Mark("document.parse.start");
-    util::PerformanceTrace::ScopeLabel label("html::ParseDocument");
+    util::PerformanceTrace::ScopeLabel label(IsXmlContentType(content_type) ? "xml::ParseXml"
+                                                                           : "html::ParseDocument");
     label.Field("bytes", static_cast<long long>(decoded.size()));
     util::PerformanceTrace::Scope parse(label.View());
-    document_ = html::ParseDocument(decoded);
+    document_ = ParseDocumentFor(decoded, content_type);
   }
   InvalidateBoxTree();
   // A new document starts at the top, and the scroll offset goes with the

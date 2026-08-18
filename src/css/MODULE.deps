@@ -106,7 +106,11 @@ budget: CustomProperties header_lines=70 public_methods=8 members=1
 # +1 member for `opacity` (paint-only; youtube's yt-interaction .fill and
 # iron-overlay-backdrop are `background:black; opacity:0` / translucent — without
 # the property those layers paint solid black over the page).
-budget: ComputedStyle    header_lines=340 public_methods=25 members=40
+# Raised from 340 when the border became four sides rather than one: `BorderSides`,
+# `BorderColors`, and the two accessors that answer "does this side draw?" and "what colour is a
+# side that never said?" -- both of which exist so that the eleven call sites that used to read
+# `has_border ? border_width : Edges{}` cannot each get the four-way version wrong.
+budget: ComputedStyle    header_lines=365 public_methods=27 members=40
 budget: TransformOperation header_lines=50 public_methods=2 members=9
 budget: TransformList    header_lines=60 public_methods=4 members=1
 budget: Length           header_lines=40 public_methods=8 members=3

@@ -414,6 +414,7 @@ microbrowser_module(ipc
 
 microbrowser_module(engine
   SOURCES
+    src/engine/DocumentParse.cpp
     src/engine/DocumentPolicy.cpp
     src/engine/Engine.cpp
     src/engine/EnginePaint.cpp

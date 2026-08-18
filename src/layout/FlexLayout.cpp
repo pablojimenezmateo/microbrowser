@@ -257,7 +257,7 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
   FloatContext floats;  // a flex container establishes its own formatting context
   for (Item& item : items) {
     const css::ComputedStyle& item_style = item.box->Style();
-    const css::Edges& border = item_style.has_border ? item_style.border_width : css::Edges{};
+    const css::Edges border = item_style.UsedBorderWidths();
     const auto extra = [&](bool horizontal, int* auto_margins) {
       const css::Edges& margin = item_style.margin;
       const css::Edges& padding = item_style.padding;

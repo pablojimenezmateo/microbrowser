@@ -184,7 +184,14 @@ bool InterpolateProperty(AnimatableProperty property, const ComputedStyle& from,
       out.background_color = InterpolateColor(from.background_color, to.background_color, t);
       return true;
     case AnimatableProperty::BorderColor:
-      out.border_color = InterpolateColor(from.border_color, to.border_color, t);
+      // Four sides, and each of them may be `currentColor` -- which is not a colour to interpolate
+      // from but a deferred read of `color`. A side that is unset on either end is resolved against
+      // that end's own `color` first, so `border-color: currentColor` to `red` animates from the
+      // colour the text actually was.
+      for (int side = 0; side < 4; ++side) {
+        (&out.border_color.top)[side] =
+            InterpolateColor(from.BorderColorFor(side), to.BorderColorFor(side), t);
+      }
       return true;
     case AnimatableProperty::Width:
       out.width = InterpolateLength(from.width, to.width, t);

@@ -182,6 +182,140 @@ gfx::FloatRect BackgroundTile(const css::ComputedStyle& style, const gfx::Image&
                         height};
 }
 
+// One side of a border, as the four-cornered shape it actually is.
+//
+// A border is not a stroked rectangle -- it was one here, at `border-width.top`, in one colour --
+// and the difference is visible the moment two sides differ: the corner between a 10px red top and
+// a 2px blue left is a mitre, and each half of it belongs to a different side. `depth_from` and
+// `depth_to` are fractions of the side's thickness, which is what lets `double` be two calls with
+// the same mitre rather than a second geometry.
+gfx::Path BorderSideQuad(const gfx::FloatRect& box, const float (&width)[4], int side,
+                         float depth_from, float depth_to) {
+  // Outer and inner insets on each edge, at the two depths this band spans.
+  const auto inset = [&width](int edge, float depth) { return width[edge] * depth; };
+  const float left_from = inset(3, depth_from);
+  const float left_to = inset(3, depth_to);
+  const float right_from = inset(1, depth_from);
+  const float right_to = inset(1, depth_to);
+  const float top_from = inset(0, depth_from);
+  const float top_to = inset(0, depth_to);
+  const float bottom_from = inset(2, depth_from);
+  const float bottom_to = inset(2, depth_to);
+  const float x0 = box.x;
+  const float x1 = box.Right();
+  const float y0 = box.y;
+  const float y1 = box.Bottom();
+  const float near = width[side] * depth_from;
+  const float far = width[side] * depth_to;
+  gfx::Path path;
+  switch (side) {
+    case 0:  // top
+      path.MoveTo({x0 + left_from, y0 + near});
+      path.LineTo({x1 - right_from, y0 + near});
+      path.LineTo({x1 - right_to, y0 + far});
+      path.LineTo({x0 + left_to, y0 + far});
+      break;
+    case 1:  // right
+      path.MoveTo({x1 - near, y0 + top_from});
+      path.LineTo({x1 - near, y1 - bottom_from});
+      path.LineTo({x1 - far, y1 - bottom_to});
+      path.LineTo({x1 - far, y0 + top_to});
+      break;
+    case 2:  // bottom
+      path.MoveTo({x0 + left_from, y1 - near});
+      path.LineTo({x0 + left_to, y1 - far});
+      path.LineTo({x1 - right_to, y1 - far});
+      path.LineTo({x1 - right_from, y1 - near});
+      break;
+    default:  // left
+      path.MoveTo({x0 + near, y0 + top_from});
+      path.LineTo({x0 + far, y0 + top_to});
+      path.LineTo({x0 + far, y1 - bottom_to});
+      path.LineTo({x0 + near, y1 - bottom_from});
+      break;
+  }
+  path.Close();
+  return path;
+}
+
+// The four sides, each with its own width, style and colour (CSS 2.1 §8.5).
+//
+// `dotted` and `dashed` are painted solid: the rasterizer has no dash, and a side that vanished
+// would be further from the specification than one that is continuous. `groove`, `ridge`, `inset`
+// and `outset` are painted solid in the declared colour rather than in the two shades CSS derives,
+// for the same reason a reftest reference is drawn by this same code -- a self-consistent
+// approximation costs nothing where an absent border costs the whole box.
+void PaintBorders(const css::ComputedStyle& style, const gfx::FloatRect& border_box,
+                  float paint_opacity, gfx::DisplayList& out) {
+  const css::Edges used = style.UsedBorderWidths();
+  float width[4] = {
+      std::max(0.0f, used.top.Resolve(style.font_size)),
+      std::max(0.0f, used.right.Resolve(style.font_size)),
+      std::max(0.0f, used.bottom.Resolve(style.font_size)),
+      std::max(0.0f, used.left.Resolve(style.font_size)),
+  };
+  // Opposite sides that together exceed the box would cross over and paint each other's half.
+  // CSS has no rule for it because the used widths cannot exceed the border box; ours can, because
+  // a declared width is not clamped against a box whose size came from somewhere else.
+  const float horizontal = width[1] + width[3];
+  if (horizontal > border_box.width && horizontal > 0.0f) {
+    width[1] *= border_box.width / horizontal;
+    width[3] *= border_box.width / horizontal;
+  }
+  const float vertical = width[0] + width[2];
+  if (vertical > border_box.height && vertical > 0.0f) {
+    width[0] *= border_box.height / vertical;
+    width[2] *= border_box.height / vertical;
+  }
+  // A border whose four sides agree is *one* shape, and drawing it as four is not just wasteful:
+  // two antialiased polygons meeting along a mitre leave a visible seam down the diagonal at every
+  // corner, which is what the paint-pipeline golden caught. Nonzero winding turns an outer contour
+  // and a reversed inner one into a ring.
+  const bool uniform = width[0] > 0.0f && width[0] == width[1] && width[1] == width[2] &&
+                       width[2] == width[3] && style.border_style.top == style.border_style.right &&
+                       style.border_style.right == style.border_style.bottom &&
+                       style.border_style.bottom == style.border_style.left &&
+                       style.BorderColorFor(0) == style.BorderColorFor(1) &&
+                       style.BorderColorFor(1) == style.BorderColorFor(2) &&
+                       style.BorderColorFor(2) == style.BorderColorFor(3) &&
+                       style.border_style.top != css::BorderStyle::Double;
+  if (uniform) {
+    const gfx::Color color = WithPaintOpacity(style.BorderColorFor(0), paint_opacity);
+    if (color.IsFullyTransparent()) {
+      return;
+    }
+    const float inset = width[0];
+    gfx::Path ring;
+    ring.AddRect(border_box);
+    ring.MoveTo({border_box.x + inset, border_box.y + inset});
+    ring.LineTo({border_box.x + inset, border_box.Bottom() - inset});
+    ring.LineTo({border_box.Right() - inset, border_box.Bottom() - inset});
+    ring.LineTo({border_box.Right() - inset, border_box.y + inset});
+    ring.Close();
+    out.FillPath(ring, color);
+    return;
+  }
+  for (int side = 0; side < 4; ++side) {
+    if (width[side] <= 0.0f) {
+      continue;
+    }
+    const gfx::Color color = WithPaintOpacity(style.BorderColorFor(side), paint_opacity);
+    if (color.IsFullyTransparent()) {
+      continue;
+    }
+    if ((&style.border_style.top)[side] == css::BorderStyle::Double) {
+      // Three equal bands, the middle one left empty. A one- or two-pixel border has no room for
+      // that, so it stays solid rather than becoming a gap.
+      if (width[side] >= 3.0f) {
+        out.FillPath(BorderSideQuad(border_box, width, side, 0.0f, 1.0f / 3.0f), color);
+        out.FillPath(BorderSideQuad(border_box, width, side, 2.0f / 3.0f, 1.0f), color);
+        continue;
+      }
+    }
+    out.FillPath(BorderSideQuad(border_box, width, side, 0.0f, 1.0f), color);
+  }
+}
+
 void PaintBackgroundImage(const Box& box, const gfx::FloatRect& border_box, gfx::DisplayList& out) {
   const std::shared_ptr<const gfx::Image>& image = box.BackgroundImage();
   if (image == nullptr || !image->IsValid() || border_box.IsEmpty()) {
@@ -472,7 +606,6 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
     const bool paints_self =
         style.visibility == css::Visibility::Visible && box.Origin() != nullptr;
     const gfx::Color background = WithPaintOpacity(style.background_color, paint_opacity);
-    const gfx::Color border = WithPaintOpacity(style.border_color, paint_opacity);
     const gfx::Color ink = WithPaintOpacity(style.color, paint_opacity);
 
     if (paints_self && !background.IsFullyTransparent() && !border_box.IsEmpty()) {
@@ -486,19 +619,8 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
     if (paints_self) {
       PaintBackgroundImage(box, border_box, out);
     }
-    if (paints_self && style.has_border && !border_box.IsEmpty()) {
-      const float width = style.border_width.top.Resolve(style.font_size);
-      if (width > 0.0f) {
-        gfx::Path outline;
-        // Inset by half the stroke width so the border lands inside the border
-        // box rather than straddling its edge.
-        outline.AddRect(gfx::FloatRect{border_box.x + width * 0.5f, border_box.y + width * 0.5f,
-                                       std::max(0.0f, border_box.width - width),
-                                       std::max(0.0f, border_box.height - width)});
-        gfx::StrokeStyle stroke;
-        stroke.width = width;
-        out.StrokePath(outline, stroke, border);
-      }
+    if (paints_self && !border_box.IsEmpty()) {
+      PaintBorders(style, border_box, paint_opacity, out);
     }
 
     if (box.GetKind() == Box::Kind::Replaced) {

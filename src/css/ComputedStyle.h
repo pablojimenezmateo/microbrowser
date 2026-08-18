@@ -129,6 +129,26 @@ enum class UnicodeBidi : std::uint8_t {
   Plaintext,
 };
 
+// `vertical-align` (CSS 2.1 §10.8.1). Two groups, and the split is what line layout needs rather
+// than a tidy transcription: `sub`, `super`, a length and a percentage are all a *shift of this
+// item's baseline* away from the line's, and can be folded into one number before the line box
+// exists; `top`, `bottom`, `middle`, `text-top` and `text-bottom` are stated against an edge that
+// is not known until every other item on the line has been placed.
+enum class VerticalAlign : std::uint8_t {
+  Baseline,
+  Sub,
+  Super,
+  TextTop,
+  TextBottom,
+  Middle,
+  Top,
+  Bottom,
+  // `<length>` or `<percentage>`, carried in `vertical_align_offset`. A percentage is of the used
+  // `line-height`, which is why it cannot be absolutized in the cascade: `line-height: normal`
+  // computes to zero here and means "ask the font", which only the measurer can do.
+  Offset,
+};
+
 enum class BackgroundRepeat : std::uint8_t { Repeat, RepeatX, RepeatY, NoRepeat };
 enum class WhiteSpace : std::uint8_t { Normal, Pre, NoWrap, PreWrap };
 
@@ -196,6 +216,49 @@ struct Edges {
   Length left;
 
   friend bool operator==(const Edges&, const Edges&) = default;
+};
+
+// `border-style`, per side. `None` and `Hidden` are different values with the same paint -- they
+// differ only in border conflict resolution on a collapsed table -- and every other value here is
+// painted, so a side with a width and no style is a side that draws nothing. That is the rule the
+// initial value encodes: `border: 1in` sets a width, leaves the style at `none`, and paints
+// nothing until something says `solid`.
+enum class BorderStyle : std::uint8_t {
+  None,
+  Hidden,
+  Dotted,
+  Dashed,
+  Solid,
+  Double,
+  Groove,
+  Ridge,
+  Inset,
+  Outset,
+};
+
+// The style and colour of the four sides, in the `top right bottom left` order `Edges` uses -- so
+// `(&sides.top)[i]` indexes both the same way, which is what the shorthand parsers rely on.
+//
+// The colour is optional because the *initial* value of `border-color` is `currentColor`, and a
+// computed style cannot fold that at parse time: `<div style="color:red;border:1px solid">` has a
+// red border and the declaration never mentions red. Empty means "ask `color` at paint time",
+// which is one branch in the painter and no second copy of the cascade.
+struct BorderSides {
+  BorderStyle top = BorderStyle::None;
+  BorderStyle right = BorderStyle::None;
+  BorderStyle bottom = BorderStyle::None;
+  BorderStyle left = BorderStyle::None;
+
+  friend bool operator==(const BorderSides&, const BorderSides&) = default;
+};
+
+struct BorderColors {
+  std::optional<gfx::Color> top;
+  std::optional<gfx::Color> right;
+  std::optional<gfx::Color> bottom;
+  std::optional<gfx::Color> left;
+
+  friend bool operator==(const BorderColors&, const BorderColors&) = default;
 };
 
 // Everything `background-image` needs beyond the pixels.
@@ -353,6 +416,13 @@ struct ComputedStyle {
   float line_height = 0.0f;
 
   TextAlign text_align = TextAlign::Start;
+  // **Not inherited**, which is the specification's rule and the one that matters here: a text box
+  // takes only the inherited properties (`TextStyleFrom`), so the value on a `<sup>` reaches its
+  // own text through line layout's walk rather than through the cascade. Applying it to a block
+  // box is a no-op -- CSS 2.1 §10.8 says it applies to inline-level and table-cell boxes.
+  VerticalAlign vertical_align = VerticalAlign::Baseline;
+  // Only read when `vertical_align` is `Offset`. A percentage here is of the used `line-height`.
+  Length vertical_align_offset;
   Direction direction = Direction::Ltr;
   UnicodeBidi unicode_bidi = UnicodeBidi::Normal;
   // Set by `text-align: -microbrowser-center`, which is what <center> means and
@@ -411,9 +481,15 @@ struct ComputedStyle {
 
   Edges margin;
   Edges padding;
-  Edges border_width;
-  gfx::Color border_color = gfx::Color::Rgb(0, 0, 0);
-  bool has_border = false;
+  // `medium`, on every side, which is `border-width`'s initial value and is 3px in every engine.
+  // Zero was the old default and it was invisible while a border needed `has_border` to draw at
+  // all; now that a style lights a side up on its own, `border-left-style: solid` with no width is
+  // a three-pixel line rather than nothing -- and so is every declaration that names an invalid
+  // width, because a dropped declaration leaves the initial value behind.
+  Edges border_width{Length::Pixels(3.0f), Length::Pixels(3.0f), Length::Pixels(3.0f),
+                     Length::Pixels(3.0f)};
+  BorderSides border_style;
+  BorderColors border_color;
 
   Length width = Length::Auto();
   Length height = Length::Auto();
@@ -452,6 +528,30 @@ struct ComputedStyle {
   // way and it is observable when they contradict each other. A `min-width`
   // larger than a `max-width` wins, and a page that writes both means the
   // minimum.
+  // The border widths layout must reserve space for: a side's declared width when its style paints
+  // something, and zero otherwise.
+  //
+  // Asked here rather than at the eleven call sites that used to read `has_border ? border_width :
+  // Edges{}`, because "does this side draw?" is now four questions rather than one and eleven
+  // copies of a four-way test is eleven chances to get one wrong.
+  Edges UsedBorderWidths() const {
+    Edges used;
+    for (int i = 0; i < 4; ++i) {
+      const BorderStyle side = (&border_style.top)[i];
+      if (side != BorderStyle::None && side != BorderStyle::Hidden) {
+        (&used.top)[i] = (&border_width.top)[i];
+      }
+    }
+    return used;
+  }
+
+  // This side's used colour. `border-color`'s initial value is `currentColor`, which is not a
+  // colour until the element has one -- so an unset side answers with the element's `color`.
+  gfx::Color BorderColorFor(int side) const {
+    const std::optional<gfx::Color>& declared = (&border_color.top)[side];
+    return declared.has_value() ? *declared : color;
+  }
+
   float ClampWidth(float used, float container, float padding_border = 0.0f) const {
     return ClampContent(used, min_width, max_width, container, padding_border);
   }

@@ -87,9 +87,8 @@ float CellEdges(const Box& cell) {
   const css::ComputedStyle& style = cell.Style();
   return style.padding.left.Resolve(style.font_size) +
          style.padding.right.Resolve(style.font_size) +
-         (style.has_border ? style.border_width.left.Resolve(style.font_size) +
-                                 style.border_width.right.Resolve(style.font_size)
-                           : 0.0f);
+         style.UsedBorderWidths().left.Resolve(style.font_size) +
+         style.UsedBorderWidths().right.Resolve(style.font_size);
 }
 
 // A width the cell states outright, in pixels. Percentages are excluded on
@@ -281,7 +280,7 @@ float LayoutEngine::LayoutTableRowGroup(Box& group, float content_left, float co
   BoxGeometry& geometry = group.Geometry();
   geometry.margin = style.margin;
   geometry.padding = style.padding;
-  geometry.border = style.has_border ? style.border_width : css::Edges{};
+  geometry.border = style.UsedBorderWidths();
 
   const float margin_left = style.margin.left.Resolve(style.font_size);
   const float margin_right = style.margin.right.Resolve(style.font_size);
@@ -321,7 +320,7 @@ float LayoutEngine::LayoutTableRow(Box& row, float content_left, float content_w
   BoxGeometry& geometry = row.Geometry();
   geometry.margin = style.margin;
   geometry.padding = style.padding;
-  geometry.border = style.has_border ? style.border_width : css::Edges{};
+  geometry.border = style.UsedBorderWidths();
 
   const float margin_left = style.margin.left.Resolve(style.font_size);
   const float margin_right = style.margin.right.Resolve(style.font_size);

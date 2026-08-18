@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "css/Calc.h"
@@ -268,11 +269,6 @@ std::optional<Length> ParseLength(std::string_view text, const MediaContext& con
     // know the root's font size, and layout does not see the cascade.
     return Length::Pixels(static_cast<float>(value) * root_font_size);
   }
-  if (unit == "pt") {
-    // 1pt is 4/3 px, which is the one absolute unit conversion a browser
-    // actually needs.
-    return Length::Pixels(static_cast<float>(value * 4.0 / 3.0));
-  }
   if (const std::optional<float> absolute = AbsoluteLengthFromUnit(value, unit, context)) {
     return Length::Pixels(*absolute);
   }
@@ -323,57 +319,6 @@ bool ApplyEdges(std::string_view value, Edges& edges, bool allow_negative, bool 
     default:
       return false;
   }
-}
-
-bool IsBorderStyleKeyword(std::string_view value) {
-  return value == "none" || value == "hidden" || value == "dotted" || value == "dashed" ||
-         value == "solid" || value == "double" || value == "groove" || value == "ridge" ||
-         value == "inset" || value == "outset";
-}
-
-bool ApplyBorder(std::string_view value, ComputedStyle& style, const MediaContext& context) {
-  const float root_font_size = style.root_font_size;
-  const std::vector<std::string_view> parts = SplitWords(value);
-  if (parts.empty()) {
-    return false;
-  }
-
-  std::optional<Edges> width;
-  std::optional<gfx::Color> color;
-  bool saw_style = false;
-  bool style_disables_border = false;
-  for (const std::string_view part : parts) {
-    if (const auto length = ParseLength(part, context, root_font_size)) {
-      if (width.has_value() || !EdgeLengthAllowed(*length, false, false, false)) {
-        return false;
-      }
-      width = Edges{*length, *length, *length, *length};
-    } else if (const auto parsed_color = ParseColor(part)) {
-      if (color.has_value()) {
-        return false;
-      }
-      color = *parsed_color;
-    } else {
-      const std::string lowered = Lowered(part);
-      if (!IsBorderStyleKeyword(lowered)) {
-        return false;
-      }
-      if (saw_style) {
-        return false;
-      }
-      saw_style = true;
-      style_disables_border = lowered == "none" || lowered == "hidden";
-    }
-  }
-
-  if (width.has_value()) {
-    style.border_width = *width;
-  }
-  if (color.has_value()) {
-    style.border_color = *color;
-  }
-  style.has_border = !style_disables_border;
-  return true;
 }
 
 }  // namespace
@@ -726,6 +671,30 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     style.centers_block_children = false;
     return true;
   }
+  if (property == "vertical-align") {
+    // CSS 2.1 §10.8.1. The keywords first, then a length or percentage -- in that order, because
+    // `ParseLength` accepts a bare `0` and `sub` is not a length.
+    static constexpr std::pair<std::string_view, VerticalAlign> kKeywords[] = {
+        {"baseline", VerticalAlign::Baseline},   {"sub", VerticalAlign::Sub},
+        {"super", VerticalAlign::Super},         {"text-top", VerticalAlign::TextTop},
+        {"text-bottom", VerticalAlign::TextBottom}, {"middle", VerticalAlign::Middle},
+        {"top", VerticalAlign::Top},             {"bottom", VerticalAlign::Bottom},
+    };
+    for (const auto& [name, keyword] : kKeywords) {
+      if (value == name) {
+        style.vertical_align = keyword;
+        style.vertical_align_offset = Length{};
+        return true;
+      }
+    }
+    const auto length = ParseLength(raw_value, context, style.root_font_size);
+    if (!length.has_value() || length->IsAuto()) {
+      return false;
+    }
+    style.vertical_align = VerticalAlign::Offset;
+    style.vertical_align_offset = *length;
+    return true;
+  }
   if (property == "direction") {
     // ADR 0025 §3. Inherited, so setting it on <html> is what makes a whole document right-to-left --
     // which is how every real Arabic and Hebrew page does it.
@@ -784,26 +753,6 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     (property == "width" ? style.width : style.height) = *length;
     return true;
   }
-  if (property == "border-color") {
-    const auto color = ParseColor(raw_value);
-    if (!color.has_value()) {
-      return false;
-    }
-    style.border_color = *color;
-    style.has_border = true;
-    return true;
-  }
-  if (property == "border-width") {
-    if (!ApplyEdges(raw_value, style.border_width, false, false, false, context, style.root_font_size)) {
-      return false;
-    }
-    style.has_border = true;
-    return true;
-  }
-  if (property == "border") {
-    return ApplyBorder(raw_value, style, context);
-  }
-
   // Individual edge properties. Written as a loop rather than sixteen branches.
   static constexpr std::array<std::string_view, 4> kSides = {"top", "right", "bottom", "left"};
   for (std::size_t i = 0; i < kSides.size(); ++i) {

@@ -53,6 +53,19 @@ bool MediaQueryListMatches(std::string_view text, const MediaContext& context);
 // survive from the cascade to a layout that may happen at a different size.
 std::optional<float> ResolveAbsoluteLength(std::string_view text, const MediaContext& context);
 
+// Pixels per unit for the CSS units that need nothing but the unit -- the absolute ones.
+//
+// **One table, called from three places**, because there were three and they had drifted: the
+// cascade's `ParseLength`, `calc()`'s term reader and the media-query dimension reader each carried
+// their own `px`/`pt` pair, and none of them had `in`. CSS 2.1's own test suite is written in
+// inches -- 1,873 of its files use one -- so `width: 3in` was an invalid declaration and the box it
+// sized was 0x0, which renders as a blank page rather than as a wrong length.
+//
+// Every ratio here is fixed by CSS Values §5.2 against the reference pixel: `1in` is exactly 96px
+// by definition, and the rest are defined off the inch, not off a physical measurement of the
+// screen. Nothing here reads a DPI, and nothing should.
+std::optional<double> AbsoluteUnitScale(std::string_view unit);
+
 // One magnitude in one CSS unit, as absolute pixels. `em` and `rem` fold at
 // `kRootFontSize` because there is no element here. Viewport units need a
 // non-zero dimension on the axis they read; a zero viewport yields nullopt so

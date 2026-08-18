@@ -7214,3 +7214,91 @@ and 1,268 of its tests changed scheme in this branch without a re-record, so it
 may report unexpected results in the areas listed above. That is the expectation
 files being stale, not the browser regressing — re-record those areas, then read
 the gate.
+## WPT task E1 — CSS2 normative layout · 2026-08-18
+
+**Status:** in_progress — real ground taken, target not reached.
+**Check** (`docs/wpt-tasks.json`: "css/CSS2/ >= 60%"): **not met.**
+`microbrowser_wpt --reftests-only --jobs 3 css/CSS2/` printed
+
+```
+6219 reftests: 2601 passed (41.8%), 6 of those with both pages blank
+```
+
+from a baseline of `2230 passed (35.9%), 8 of those with both pages blank`. The whole reftest
+suite went **7,394 -> 7,893 of 20,998** on the same four changes, with `css/css-ui`,
+`css/css-sizing`, `css/css-writing-modes` and `css/css-grid` all moving without being named.
+`microbrowser_tests`: 2,238 run, 0 failed.
+
+**Landed:** *vertical-align is a property this browser has* · *`width: 3in` is a length, and there
+is one table that says so rather than three* · *An `application/xhtml+xml` document is parsed by
+the XML parser* · *A border has four sides* · *The initial border-width is medium* ·
+*getComputedStyle reports the used border width* · *Re-record the reftest half of the suite*
+
+**Left:** 3,618 recorded reftest failures in `css/CSS2/`. The next three causes, in the order the
+pictures show them: per-side **margins and their collapsing** (`margin-padding-clear`, 111 of the
+remaining regressions and a large share of the rest), `clip` (`visufx`, 44), and absolute
+positioning against the right containing block (`positioning`, 43). None is a parse gap; all three
+are geometry. **`border-collapse` and `border-spacing` do not exist at all** and `tables/` is 310
+files. Also unbuilt and named by the measurement: `text-indent` (103 files), `word-spacing` (75),
+`text-transform` (50), `quotes` (43), `counter-increment`/`counter-reset` (103), `empty-cells`,
+`caption-side`, `ex` and `ch` units (172 files between them, and both are font-relative rather
+than absolute so they do not belong in `AbsoluteUnitScale`).
+
+**Found:**
+
+**Four of the five things that moved this area were tables the code already had, with a row
+missing.** Not one was a feature nobody had thought of, which is the 2026-08-14 lesson again:
+
+- `ParseLength` knew `px`, `pt`, `em`, `rem` and nothing else, and its comment said 1pt "is the one
+  absolute unit conversion a browser actually needs". **1,873 files of `css/CSS2/` are written in
+  inches.** `width: 3in` was an invalid declaration, so the box was 0x0, so the page was blank.
+  There were *three* copies of that conversion -- the cascade's, `calc()`'s and the media query
+  reader's -- and none of them had `in`.
+- `border-width`'s initial value is `medium`; ours was zero. Invisible while a border needed a
+  `has_border` flag to draw at all.
+- The border was one colour, one `has_border` bool, and a paint that stroked one rectangle at
+  `border_width.top`. Twelve longhands and four shorthands were unknown properties.
+- `vertical-align` did not exist. It is the only one of the four that moved **nothing**, and that
+  is the finding worth keeping: a reftest's reference is rendered by this same engine, and the
+  CSS 2.1 references use the property as freely as the tests do, so both sides were wrong together.
+  **An area's most-mentioned missing property is not the same as its largest cause.** 621 files
+  mention `vertical-align` and 581 of them failed; implementing it changed the count by zero.
+
+**The largest single cause in this area was in `Page::Load`, not in `src/css` or `src/layout`.**
+Every document was parsed by the HTML tree builder whatever its `Content-Type` said, and the CSS 2.1
+suite is XHTML. XML has no RAWTEXT, so `<style><![CDATA[ ... ]]></style>` is a stylesheet in XHTML
+and, read by the HTML tokenizer, is a stylesheet whose first rule has `<![CDATA[` glued onto its
+selector -- the rule is dropped. **3,087 of the reference files write their stylesheet that way.**
+A complete, fuzzed `src/xml` had been sitting behind `DOMParser` since it was written.
+
+**Look at the pictures, and look at the *reference* in them.** `--reftest-artifacts` is what found
+that: three pairs where the left panel was right and the right panel was blank. A pixel count says
+"different" and a pass rate says nothing at all, because *both* pages being blank is a pass -- the
+suite counts those, and this branch took the figure from 757 to 710 across the checkout. The
+montage that made it obvious is eight test/reference pairs side by side in one image; a session
+that samples one test at a time will not see a shape that is in six of eight.
+
+**A number going down can be the measurement improving.** Landing XML parsing alone took
+`css/CSS2/` from 2,238 to **1,987**, and every one of those 789 "regressions" was a test that had
+been passing because its reference was as blank as it was. The per-side border work then took it to
+2,601. **Do not judge a reftest change by the pass count alone in an area where both sides are
+yours** -- read `both pages blank` beside it.
+
+**`css/css-values/` expectations are stale and it is not this branch's doing.** Its testharness run
+moves 279 subtests to PASS and 249 to FAIL with **90 recorded subtests missing entirely**, which is
+the denominator-shrank shape the process says to discard a run over. `attr-cycle.html` fails
+identically on `548620b`, the commit this branch started from -- verified by checking that commit's
+`src`/`tests` out, rebuilding, and running the one test. It is deliberately **not** re-recorded
+here, because absorbing it would hide it. Whoever takes that area should start by re-running it
+against the base rather than against this document.
+
+**Three `css/css-text/text-spacing-trim/` reftests differ between two runs of the same binary.**
+They belong to the family `CMakeLists.txt` already names as the reason reftests are not in the
+`ctest` gate (task F10); the count is eight there and three of them are these.
+
+**`CLAUDE.md` is now stale in three places and is deliberately not edited here** (five other agents
+are in sibling worktrees and it would conflict with all of them). It says `vertical-align` "does not
+exist at all", it says `cellspacing` is not mapped "because there is no `border-spacing`" -- still
+true, but the border model around it is no longer what that sentence assumes -- and its `src/layout`
+row says "line boxes with a shared baseline", which is now a shared baseline plus nine ways to leave
+it. Whoever merges these branches should fix all three in one pass.

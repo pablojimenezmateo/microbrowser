@@ -10,7 +10,11 @@ purpose: The engine side of the seam. Owns the page; produces display lists, nev
 # whether a request is allowed by *our* policy and csp whether it is allowed by
 # the *page's*. Both are decided here, at one seam, because the alternative is
 # each of the four resource paths deciding for itself. See ADR 0020 §3.
-allow: util gfx ipc url privacy csp net dom html css layout js bindings storage media
+# `xml` is on this line for one reason: a document served as `application/xhtml+xml` is parsed by
+# the XML parser rather than by the HTML tree builder, and `Page::Load` is where a content type
+# turns into a parser. It does not widen anything -- `src/xml` may see `util` and `dom` and nothing
+# else, so it can reach neither the network nor the cascade.
+allow: util gfx ipc url privacy csp net dom html css layout js bindings storage media xml
 
 public: DocumentPolicy.h Engine.h EngineDiagnostics.h ImageSelection.h Loader.h ModuleLoader.h Page.h PendingLoad.h SessionHistory.h Subresource.h
 

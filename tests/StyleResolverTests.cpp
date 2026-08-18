@@ -15,6 +15,7 @@
 
 namespace microbrowser::tests {
 
+using css::BorderStyle;
 using css::ComputedStyle;
 using css::Direction;
 using css::Display;
@@ -640,18 +641,64 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
 
   AddTest(tests, "StyleResolver/ParsesTheBorderShorthandInAnyOrder", [] {
     const ComputedStyle style = StyleOf("<p style='border: 2px solid blue'>x</p>", "", "p");
-    Expect(style.has_border, "a border was set");
+    Expect(style.border_style.top == BorderStyle::Solid, "a border was set");
     Expect(style.border_width.top == Length::Pixels(2.0f), "with its width");
-    Expect(style.border_color == gfx::Color::Rgb(0, 0, 0xFF), "and its colour");
+    Expect(style.BorderColorFor(0) == gfx::Color::Rgb(0, 0, 0xFF), "and its colour");
+    Expect(style.UsedBorderWidths().left == Length::Pixels(2.0f),
+           "and the shorthand set all four sides");
 
     const ComputedStyle reordered = StyleOf("<p style='border: red solid 3px'>x</p>", "", "p");
     Expect(reordered.border_width.top == Length::Pixels(3.0f) &&
-               reordered.border_color == gfx::Color::Rgb(0xFF, 0, 0),
+               reordered.BorderColorFor(0) == gfx::Color::Rgb(0xFF, 0, 0),
            "the components may come in any order, which is what the grammar says");
 
     const ComputedStyle none = StyleOf("<p style='border: 2px solid blue; border: none'>x</p>", "",
                                        "p");
-    Expect(!none.has_border, "border:none turns the border off");
+    Expect(none.border_style.top == BorderStyle::None && none.UsedBorderWidths().top.value == 0.0f,
+           "border:none turns the border off");
+  });
+
+  AddTest(tests, "StyleResolver/AWidthWithoutAStyleDrawsNothing", [] {
+    // CSS 2.1 §8.5.3: the initial `border-style` is `none`, and a shorthand resets what it does
+    // not mention. `border-bottom: 1in` is therefore a width and no border -- which is what
+    // css/CSS2/borders writes, immediately before the `border-bottom-style` that turns it on.
+    const ComputedStyle width_only = StyleOf("<p style='border-bottom: 1in'>x</p>", "", "p");
+    Expect(width_only.border_width.bottom == Length::Pixels(96.0f), "the width is taken");
+    Expect(width_only.UsedBorderWidths().bottom.value == 0.0f,
+           "and reserves no space, because no style says to draw it");
+
+    const ComputedStyle lit =
+        StyleOf("<p style='border-bottom: 1in; border-bottom-style: solid'>x</p>", "", "p");
+    Expect(lit.UsedBorderWidths().bottom == Length::Pixels(96.0f),
+           "a later border-bottom-style lights the same width up");
+    Expect(lit.UsedBorderWidths().top.value == 0.0f, "and touches no other side");
+  });
+
+  AddTest(tests, "StyleResolver/TheFourSidesAreFourValues", [] {
+    const ComputedStyle style =
+        StyleOf("<p style='border-style: solid; border-width: 1px 2px 3px 4px; "
+                "border-color: red green'>x</p>",
+                "", "p");
+    Expect(style.border_width.top == Length::Pixels(1.0f) &&
+               style.border_width.right == Length::Pixels(2.0f) &&
+               style.border_width.bottom == Length::Pixels(3.0f) &&
+               style.border_width.left == Length::Pixels(4.0f),
+           "four widths run clockwise from the top");
+    Expect(style.BorderColorFor(0) == gfx::Color::Rgb(0xFF, 0, 0) &&
+               style.BorderColorFor(1) == gfx::Color::Rgb(0, 0x80, 0) &&
+               style.BorderColorFor(2) == gfx::Color::Rgb(0xFF, 0, 0) &&
+               style.BorderColorFor(3) == gfx::Color::Rgb(0, 0x80, 0),
+           "two colours are top/bottom and right/left");
+
+    const ComputedStyle keywords = StyleOf("<p style='border: thick solid'>x</p>", "", "p");
+    Expect(keywords.border_width.top == Length::Pixels(5.0f), "thin/medium/thick are widths");
+
+    // The initial value of `border-color` is `currentColor`, so a border with no colour of its own
+    // is the colour of the text -- and it has to be read *after* the cascade, because `color` can
+    // be set by a later declaration in the same rule.
+    const ComputedStyle current = StyleOf("<p style='border: 1px solid; color: red'>x</p>", "", "p");
+    Expect(current.BorderColorFor(0) == gfx::Color::Rgb(0xFF, 0, 0),
+           "an unstated border colour is the element's own colour");
   });
 
   AddTest(tests, "StyleResolver/AnInvalidValueLeavesThePropertyAlone", [] {
@@ -695,10 +742,11 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
         StyleOf("<p style='border: 2px solid blue; border: wavy; "
                 "border: -1px solid red; border-width: nope; border-width: 50%'>x</p>",
                 "", "p");
-    Expect(border.has_border, "an invalid border shorthand does not turn a previous border off");
+    Expect(border.border_style.top == BorderStyle::Solid,
+           "an invalid border shorthand does not turn a previous border off");
     Expect(border.border_width.top == Length::Pixels(2.0f),
            "and an invalid border-width does not alter its previous width");
-    Expect(border.border_color == gfx::Color::Rgb(0, 0, 0xFF),
+    Expect(border.BorderColorFor(0) == gfx::Color::Rgb(0, 0, 0xFF),
            "or its previous colour");
 
     const ComputedStyle padding =
