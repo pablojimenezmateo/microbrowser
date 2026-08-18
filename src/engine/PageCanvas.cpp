@@ -4,6 +4,7 @@
 // function here is a lookup plus a call, and everything that decides anything -- the graphics state, the
 // bounds, the taint -- is in `engine::CanvasSurfaces`, where it can be tested without a document.
 
+#include <algorithm>
 #include <optional>
 #include <string>
 #include <vector>
@@ -35,8 +36,8 @@ int Page::CanvasWidth(const dom::Element& element) const {
   // before drawing expects, and what the specification says the property reflects. Falling back to the
   // default here rather than creating a surface keeps a read from allocating 300x150 of pixels.
   if (const std::string* attribute = element.GetAttribute("width")) {
-    if (const std::optional<float> parsed = util::ParseFloat(*attribute)) {
-      return static_cast<int>(*parsed);
+    if (const std::optional<std::int64_t> parsed = util::ParseHtmlNonNegativeInteger(*attribute)) {
+      return static_cast<int>(std::min<std::int64_t>(*parsed, CanvasSurfaces::kMaxCanvasPixels));
     }
   }
   return CanvasSurfaces::kDefaultWidth;
@@ -48,8 +49,8 @@ int Page::CanvasHeight(const dom::Element& element) const {
     return surface->canvas.Height();
   }
   if (const std::string* attribute = element.GetAttribute("height")) {
-    if (const std::optional<float> parsed = util::ParseFloat(*attribute)) {
-      return static_cast<int>(*parsed);
+    if (const std::optional<std::int64_t> parsed = util::ParseHtmlNonNegativeInteger(*attribute)) {
+      return static_cast<int>(std::min<std::int64_t>(*parsed, CanvasSurfaces::kMaxCanvasPixels));
     }
   }
   return CanvasSurfaces::kDefaultHeight;

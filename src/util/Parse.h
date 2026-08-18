@@ -19,4 +19,15 @@ std::optional<double> ParseDouble(std::string_view text);
 // : D` idiom used by the settings-backed integer knobs.
 int ParseIntOr(const std::optional<std::string>& text, int fallback);
 
+// HTML's "rules for parsing non-negative integers", which is a *different* function from
+// `ParseInt` and deliberately so: this one skips leading whitespace, accepts a leading `+`, and
+// **stops at the first non-digit** rather than rejecting the string. `width="100em"` is a hundred
+// in every browser and nothing to `ParseInt`.
+//
+// Here rather than in `src/bindings`, which owns the reflected-attribute algorithms, because the
+// *same* attribute is read twice more outside that module: `src/css` maps `<canvas width>` to a
+// presentational hint and `src/engine` sizes the backing store from it, and three transcriptions of
+// one paragraph is how `canvas.width` ends up reporting a number the canvas is not.
+std::optional<std::int64_t> ParseHtmlNonNegativeInteger(std::string_view text);
+
 }  // namespace microbrowser::util

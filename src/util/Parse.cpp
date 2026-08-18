@@ -100,4 +100,30 @@ int ParseIntOr(const std::optional<std::string>& text, int fallback) {
   return text.has_value() ? ParseInt(*text).value_or(fallback) : fallback;
 }
 
+std::optional<std::int64_t> ParseHtmlNonNegativeInteger(std::string_view text) {
+  std::size_t at = 0;
+  while (at < text.size() && (text[at] == ' ' || text[at] == '\t' || text[at] == '\n' ||
+                              text[at] == '\f' || text[at] == '\r')) {
+    ++at;
+  }
+  if (at < text.size() && text[at] == '+') {
+    ++at;
+  }
+  const std::size_t first_digit = at;
+  std::int64_t value = 0;
+  while (at < text.size() && text[at] >= '0' && text[at] <= '9') {
+    // Saturating rather than wrapping: the digits come from a page and `width="9".repeat(30)` is one
+    // attribute. The caller bounds the result anyway; what must not happen is a signed overflow on
+    // the way there.
+    if (value < 1000000000) {
+      value = value * 10 + (text[at] - '0');
+    }
+    ++at;
+  }
+  if (at == first_digit) {
+    return std::nullopt;
+  }
+  return value;
+}
+
 }  // namespace microbrowser::util

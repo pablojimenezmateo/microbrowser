@@ -105,9 +105,11 @@ CanvasSurfaces::Surface* CanvasSurfaces::For(const dom::Element& element) {
     if (value == nullptr) {
       return fallback;
     }
-    const std::optional<float> parsed = util::ParseFloat(*value);
-    if (!parsed.has_value() || *parsed < 0.0f ||
-        static_cast<std::int64_t>(*parsed) > kMaxCanvasPixels) {
+    // HTML's rule, the same one the reflected `canvas.width` and the presentational hint use. It was
+    // `util::ParseFloat`, which rejects `100em` -- so a canvas whose attribute any other browser
+    // reads as 100 got a 300-pixel backing store and a 100-pixel box.
+    const std::optional<std::int64_t> parsed = util::ParseHtmlNonNegativeInteger(*value);
+    if (!parsed.has_value() || *parsed > kMaxCanvasPixels) {
       return fallback;
     }
     return static_cast<int>(*parsed);

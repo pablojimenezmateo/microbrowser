@@ -8,6 +8,7 @@
 
 #include "css/CssText.h"
 #include "css/SelectorPredicates.h"
+#include "util/Parse.h"
 #include "util/StringUtil.h"
 #include "util/PerformanceCounters.h"
 
@@ -179,6 +180,23 @@ std::vector<Declaration> PresentationalDeclarations(const dom::Element& element)
   if (IsTablePart(tag) || tag == "img" || tag == "hr" || tag == "iframe") {
     add("width", PresentationalLengthValue(attribute("width")));
     add("height", PresentationalLengthValue(attribute("height")));
+  }
+  if (tag == "canvas") {
+    // A canvas maps its two attributes with HTML's *non-negative integer* rule rather than with the
+    // dimension rule above, and the difference is the whole reason it is a second branch:
+    // `width="100%"` on a canvas is a hundred pixels, not a percentage, and `width="0x100"` is
+    // zero. The backing store is sized from the same function (`util::ParseHtmlNonNegativeInteger`),
+    // so the box and the pixels cannot end up different sizes.
+    const auto dimension = [&](const char* name) -> std::string {
+      const std::string_view raw = attribute(name);
+      if (raw.empty()) {
+        return {};
+      }
+      const std::optional<std::int64_t> parsed = util::ParseHtmlNonNegativeInteger(raw);
+      return parsed.has_value() ? std::to_string(*parsed) + "px" : std::string();
+    };
+    add("width", dimension("width"));
+    add("height", dimension("height"));
   }
   add("text-align", PresentationalAlignValue(tag, attribute("align")));
   // `dir`, on any element. It is a presentational attribute rather than something the user-agent
