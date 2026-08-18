@@ -518,10 +518,14 @@ std::optional<std::string> ComputedValueOf(const css::ComputedStyle& style,
   if (property == "padding-right") return LengthText(style.padding.right, font_size);
   if (property == "padding-bottom") return LengthText(style.padding.bottom, font_size);
   if (property == "padding-left") return LengthText(style.padding.left, font_size);
-  if (property == "border-top-width") return LengthText(style.border_width.top, font_size);
-  if (property == "border-right-width") return LengthText(style.border_width.right, font_size);
-  if (property == "border-bottom-width") return LengthText(style.border_width.bottom, font_size);
-  if (property == "border-left-width") return LengthText(style.border_width.left, font_size);
+  // The *used* widths: CSSOM reports zero for a side whose `border-style` is `none` or `hidden`,
+  // whatever width the declaration named. `border-width`'s initial value is `medium`, so the
+  // declared number is 3px on an element with no border at all.
+  const css::Edges used_border = style.UsedBorderWidths();
+  if (property == "border-top-width") return LengthText(used_border.top, font_size);
+  if (property == "border-right-width") return LengthText(used_border.right, font_size);
+  if (property == "border-bottom-width") return LengthText(used_border.bottom, font_size);
+  if (property == "border-left-width") return LengthText(used_border.left, font_size);
   if (property == "background-image") {
     return style.background.image.empty() ? std::string("none")
                                           : "url(\"" + style.background.image + "\")";
