@@ -437,6 +437,7 @@ microbrowser_module(engine
     src/engine/PageHitTest.cpp
     src/engine/PageEditing.cpp
     src/engine/Animations.cpp
+    src/engine/CanvasComposite.cpp
     src/engine/CanvasGeometry.cpp
     src/engine/CanvasSurfaces.cpp
     src/engine/Workers.cpp

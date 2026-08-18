@@ -83,6 +83,7 @@ constexpr Property kProperties[] = {
     {"font", CanvasOp::Kind::SetFont, false},
     {"textAlign", CanvasOp::Kind::SetTextAlign, false},
     {"textBaseline", CanvasOp::Kind::SetTextBaseline, false},
+    {"globalCompositeOperation", CanvasOp::Kind::SetGlobalCompositeOperation, false},
 };
 
 }  // namespace

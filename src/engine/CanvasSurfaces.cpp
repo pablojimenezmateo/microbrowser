@@ -1,9 +1,12 @@
 #include "engine/CanvasSurfaces.h"
 
+#include "engine/CanvasComposite.h"
 #include "engine/CanvasGeometry.h"
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
+#include <optional>
 
 #include "css/ComputedStyle.h"
 #include "css/StyleResolver.h"
@@ -230,6 +233,8 @@ std::string CanvasSurfaces::StateText(const dom::Element& element,
                                                        : "miter";
     case Kind::SetFont:
       return state.font;
+    case Kind::SetGlobalCompositeOperation:
+      return std::string(CompositeOpName(state.composite));
     case Kind::SetTextAlign:
       switch (state.align) {
         case State::Align::End:
@@ -340,15 +345,49 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
     found->second.SetTransform(state.transform);
     return &found->second;
   };
+  // `source-over` is every page's operator and stays the span fill it was; the other eleven go
+  // through the compositor, which is a different loop -- it visits pixels the shape never covered,
+  // because six of them erase exactly those.
+  const auto composite_shape = [&](const gfx::Path& path, gfx::FillRule rule,
+                                   const gfx::Paint* paint, gfx::Color colour) {
+    const gfx::IntRect clip = state.clip.Intersected(surface->canvas.Bounds());
+    gfx::PathRasterizer rasterizer;
+    const std::vector<gfx::CoverageSpan> spans =
+        rasterizer.Rasterize(path, rule, clip, gfx::AffineTransform{});
+    const std::function<gfx::Color(int, int)> source =
+        paint == nullptr
+            ? std::function<gfx::Color(int, int)>([colour](int, int) { return colour; })
+            : std::function<gfx::Color(int, int)>([paint](int x, int y) {
+                return paint->At(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f);
+              });
+    CompositeShape(surface->canvas, clip, spans, source, state.alpha, state.composite);
+  };
   const auto fill_path = [&](const gfx::Path& path, gfx::FillRule rule) {
-    if (const gfx::Paint* paint = paint_for(state.fill_paint)) {
+    const gfx::Paint* paint = paint_for(state.fill_paint);
+    if (state.composite != CompositeOp::SourceOver) {
+      // The colour goes in without `globalAlpha` folded into it, because the compositor folds it in
+      // itself -- doing both would square it.
+      composite_shape(path, rule, paint, state.fill);
+      return;
+    }
+    if (paint != nullptr) {
       painter.FillPath(path, *paint, state.alpha, rule);
     } else {
       painter.FillPath(path, fill_color(), rule);
     }
   };
   const auto stroke_path = [&](const gfx::Path& path) {
-    if (const gfx::Paint* paint = paint_for(state.stroke_paint)) {
+    const gfx::Paint* paint = paint_for(state.stroke_paint);
+    if (state.composite != CompositeOp::SourceOver) {
+      // Stroked to an outline first, which is what `StrokePath` does anyway: the compositor takes a
+      // shape, and a stroke is a shape.
+      const float scale = std::max(state.transform.MaximumScale(), 1e-4f);
+      gfx::Path outline;
+      gfx::StrokeToPath(path, state.line, gfx::kFlattenTolerance / scale, outline);
+      composite_shape(outline, gfx::FillRule::NonZero, paint, state.stroke);
+      return;
+    }
+    if (paint != nullptr) {
       painter.StrokePath(path, state.line, *paint, state.alpha);
     } else {
       painter.StrokePath(path, state.line, stroke_color());
@@ -668,9 +707,13 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
       drew = true;
       break;
     }
+    case Kind::SetGlobalCompositeOperation:
+      if (const std::optional<CompositeOp> parsed = ParseCompositeOp(op.text)) {
+        state.composite = *parsed;
+      }
+      break;
     case Kind::SetLineDash:
     case Kind::SetLineDashOffset:
-    case Kind::SetGlobalCompositeOperation:
     case Kind::SetShadowColor:
     case Kind::SetShadowBlur:
     case Kind::SetShadowOffsetX:
@@ -780,7 +823,18 @@ void CanvasSurfaces::DrawImage(dom::Element& element, const bindings::CanvasOp& 
   rect.LineTo(Apply(state.transform, dx + dw, dy + dh));
   rect.LineTo(Apply(state.transform, dx, dy + dh));
   rect.Close();
-  painter.FillPath(rect, paint, state.alpha, gfx::FillRule::NonZero);
+  if (state.composite == CompositeOp::SourceOver) {
+    painter.FillPath(rect, paint, state.alpha, gfx::FillRule::NonZero);
+  } else {
+    const gfx::IntRect clip = state.clip.Intersected(surface->canvas.Bounds());
+    gfx::PathRasterizer rasterizer;
+    CompositeShape(surface->canvas, clip,
+                   rasterizer.Rasterize(rect, gfx::FillRule::NonZero, clip, gfx::AffineTransform{}),
+                   [&paint](int x, int y) {
+                     return paint.At(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f);
+                   },
+                   state.alpha, state.composite);
+  }
   surface->canvas.PopClip();
   surface->dirty = true;
   surface->snapshot.reset();

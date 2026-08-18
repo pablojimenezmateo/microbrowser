@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "bindings/Canvas.h"
+#include "engine/CanvasComposite.h"
 #include "gfx/Canvas.h"
 #include "gfx/Gradient.h"
 #include "gfx/Image.h"
@@ -84,6 +85,7 @@ class CanvasSurfaces {
     // because `save()`/`restore()` restores which paint is selected and not the paints themselves.
     std::uint32_t fill_paint = 0;
     std::uint32_t stroke_paint = 0;
+    CompositeOp composite = CompositeOp::SourceOver;
     // The pen, in *user* space. The path holds device-space points, and `arcTo` and `roundRect` are
     // defined in terms of where the pen is before them -- so recovering it would mean inverting the
     // transform, whose determinant a page can make zero with one `scale(0, 0)`.
