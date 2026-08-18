@@ -188,8 +188,8 @@ bool InterpolateProperty(AnimatableProperty property, const ComputedStyle& from,
       // from but a deferred read of `color`. A side that is unset on either end is resolved against
       // that end's own `color` first, so `border-color: currentColor` to `red` animates from the
       // colour the text actually was.
-      for (int side = 0; side < 4; ++side) {
-        (&out.border_color.top)[side] =
+      for (std::size_t side = 0; side < 4; ++side) {
+        out.border_color[side] =
             InterpolateColor(from.BorderColorFor(side), to.BorderColorFor(side), t);
       }
       return true;

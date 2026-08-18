@@ -189,7 +189,7 @@ gfx::FloatRect BackgroundTile(const css::ComputedStyle& style, const gfx::Image&
 // a 2px blue left is a mitre, and each half of it belongs to a different side. `depth_from` and
 // `depth_to` are fractions of the side's thickness, which is what lets `double` be two calls with
 // the same mitre rather than a second geometry.
-gfx::Path BorderSideQuad(const gfx::FloatRect& box, const float (&width)[4], int side,
+gfx::Path BorderSideQuad(const gfx::FloatRect& box, const float (&width)[4], std::size_t side,
                          float depth_from, float depth_to) {
   // Outer and inner insets on each edge, at the two depths this band spans.
   const auto inset = [&width](int edge, float depth) { return width[edge] * depth; };
@@ -295,7 +295,7 @@ void PaintBorders(const css::ComputedStyle& style, const gfx::FloatRect& border_
     out.FillPath(ring, color);
     return;
   }
-  for (int side = 0; side < 4; ++side) {
+  for (std::size_t side = 0; side < 4; ++side) {
     if (width[side] <= 0.0f) {
       continue;
     }
@@ -303,7 +303,7 @@ void PaintBorders(const css::ComputedStyle& style, const gfx::FloatRect& border_
     if (color.IsFullyTransparent()) {
       continue;
     }
-    if ((&style.border_style.top)[side] == css::BorderStyle::Double) {
+    if (style.border_style[side] == css::BorderStyle::Double) {
       // Three equal bands, the middle one left empty. A one- or two-pixel border has no room for
       // that, so it stays solid rather than becoming a gap.
       if (width[side] >= 3.0f) {

@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "css/Animation.h"
+#include "css/BoxEdges.h"
 #include "css/Length.h"
 #include "css/MediaQuery.h"
 #include "css/Transform.h"
@@ -278,57 +279,6 @@ enum class PointerEvents : std::uint8_t { Auto, None };
 inline constexpr float kRootFontSize = 16.0f;
 
 
-struct Edges {
-  Length top;
-  Length right;
-  Length bottom;
-  Length left;
-
-  friend bool operator==(const Edges&, const Edges&) = default;
-};
-
-// `border-style`, per side. `None` and `Hidden` are different values with the same paint -- they
-// differ only in border conflict resolution on a collapsed table -- and every other value here is
-// painted, so a side with a width and no style is a side that draws nothing. That is the rule the
-// initial value encodes: `border: 1in` sets a width, leaves the style at `none`, and paints
-// nothing until something says `solid`.
-enum class BorderStyle : std::uint8_t {
-  None,
-  Hidden,
-  Dotted,
-  Dashed,
-  Solid,
-  Double,
-  Groove,
-  Ridge,
-  Inset,
-  Outset,
-};
-
-// The style and colour of the four sides, in the `top right bottom left` order `Edges` uses -- so
-// `(&sides.top)[i]` indexes both the same way, which is what the shorthand parsers rely on.
-//
-// The colour is optional because the *initial* value of `border-color` is `currentColor`, and a
-// computed style cannot fold that at parse time: `<div style="color:red;border:1px solid">` has a
-// red border and the declaration never mentions red. Empty means "ask `color` at paint time",
-// which is one branch in the painter and no second copy of the cascade.
-struct BorderSides {
-  BorderStyle top = BorderStyle::None;
-  BorderStyle right = BorderStyle::None;
-  BorderStyle bottom = BorderStyle::None;
-  BorderStyle left = BorderStyle::None;
-
-  friend bool operator==(const BorderSides&, const BorderSides&) = default;
-};
-
-struct BorderColors {
-  std::optional<gfx::Color> top;
-  std::optional<gfx::Color> right;
-  std::optional<gfx::Color> bottom;
-  std::optional<gfx::Color> left;
-
-  friend bool operator==(const BorderColors&, const BorderColors&) = default;
-};
 
 // Everything `background-image` needs beyond the pixels.
 //
@@ -613,10 +563,10 @@ struct ComputedStyle {
   // copies of a four-way test is eleven chances to get one wrong.
   Edges UsedBorderWidths() const {
     Edges used;
-    for (int i = 0; i < 4; ++i) {
-      const BorderStyle side = (&border_style.top)[i];
+    for (std::size_t i = 0; i < 4; ++i) {
+      const BorderStyle side = border_style[i];
       if (side != BorderStyle::None && side != BorderStyle::Hidden) {
-        (&used.top)[i] = (&border_width.top)[i];
+        used[i] = border_width[i];
       }
     }
     return used;
@@ -624,8 +574,8 @@ struct ComputedStyle {
 
   // This side's used colour. `border-color`'s initial value is `currentColor`, which is not a
   // colour until the element has one -- so an unset side answers with the element's `color`.
-  gfx::Color BorderColorFor(int side) const {
-    const std::optional<gfx::Color>& declared = (&border_color.top)[side];
+  gfx::Color BorderColorFor(std::size_t side) const {
+    const std::optional<gfx::Color>& declared = border_color[side];
     return declared.has_value() ? *declared : color;
   }
 

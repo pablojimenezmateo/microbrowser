@@ -784,7 +784,7 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
         return false;
       }
       Edges& edges = is_margin ? style.margin : style.padding;
-      (&edges.top)[i] = *length;
+      edges[i] = *length;
       return true;
     }
   }

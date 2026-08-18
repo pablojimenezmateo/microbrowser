@@ -314,6 +314,7 @@ microbrowser_module(layout
     src/layout/FloatContext.cpp
     src/layout/FontTextMeasurer.cpp
     src/layout/InlineLayout.cpp
+    src/layout/LineBidi.cpp
     src/layout/LayoutDisplayList.cpp
     src/layout/BoxTree.cpp
     src/layout/LayoutEngine.cpp

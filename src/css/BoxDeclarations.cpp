@@ -123,7 +123,7 @@ std::optional<BorderStyle> ParseBorderStyle(std::string_view word) {
 // `border-bottom-style: solid`, and a shorthand that left the style alone would paint the first
 // one too.
 bool ApplyBorderShorthand(std::string_view value, ComputedStyle& style, const MediaContext& context,
-                          int first_side, int side_count) {
+                          std::size_t first_side, std::size_t side_count) {
   const std::vector<std::string_view> parts = SplitWords(value);
   if (parts.empty() || parts.size() > 3) {
     return false;
@@ -154,18 +154,19 @@ bool ApplyBorderShorthand(std::string_view value, ComputedStyle& style, const Me
       return false;  // one bad component invalidates the whole declaration
     }
   }
-  for (int i = first_side; i < first_side + side_count; ++i) {
-    (&style.border_width.top)[i] = width.value_or(Length::Pixels(3.0f));
-    (&style.border_style.top)[i] = line.value_or(BorderStyle::None);
-    (&style.border_color.top)[i] = color;
+  for (std::size_t i = first_side; i < first_side + side_count; ++i) {
+    style.border_width[i] = width.value_or(Length::Pixels(3.0f));
+    style.border_style[i] = line.value_or(BorderStyle::None);
+    style.border_color[i] = color;
   }
   return true;
 }
 
 // One of the three four-value shorthands: `border-width`, `border-style`, `border-color`. One to
 // four components in the CSS box order, and `parse` says which of the three this is.
-template <typename T, typename Parse>
-bool ApplyBorderSides(std::string_view value, T* sides, Parse parse) {
+template <typename Sides, typename Parse>
+bool ApplyBorderSides(std::string_view value, Sides& sides, Parse parse) {
+  using T = std::decay_t<decltype(sides[0])>;
   const std::vector<std::string_view> parts = SplitWords(value);
   if (parts.empty() || parts.size() > 4) {
     return false;
@@ -202,16 +203,16 @@ bool ApplyBorderDeclaration(std::string_view property, std::string_view value,
     return ApplyBorderShorthand(value, style, context, 0, 4);
   }
   if (property == "border-width") {
-    return ApplyBorderSides(value, &style.border_width.top,
+    return ApplyBorderSides(value, style.border_width,
                             [&](std::string_view word) {
                               return ParseBorderWidth(word, context, style.root_font_size);
                             });
   }
   if (property == "border-style") {
-    return ApplyBorderSides(value, &style.border_style.top, ParseBorderStyle);
+    return ApplyBorderSides(value, style.border_style, ParseBorderStyle);
   }
   if (property == "border-color") {
-    return ApplyBorderSides(value, &style.border_color.top,
+    return ApplyBorderSides(value, style.border_color,
                             [](std::string_view word) -> std::optional<std::optional<gfx::Color>> {
                               // `currentColor` is the initial value and stays unresolved: the
                               // element's `color` may be set by a later declaration in the same
@@ -225,7 +226,7 @@ bool ApplyBorderDeclaration(std::string_view property, std::string_view value,
                               return std::nullopt;
                             });
   }
-  for (int side = 0; side < 4; ++side) {
+  for (std::size_t side = 0; side < 4; ++side) {
     const std::string prefix = "border-" + std::string(kSideNames[side]);
     if (property == prefix) {
       return ApplyBorderShorthand(value, style, context, side, 1);
@@ -235,7 +236,7 @@ bool ApplyBorderDeclaration(std::string_view property, std::string_view value,
       if (!width.has_value()) {
         return false;
       }
-      (&style.border_width.top)[side] = *width;
+      style.border_width[side] = *width;
       return true;
     }
     if (property == prefix + "-style") {
@@ -243,19 +244,19 @@ bool ApplyBorderDeclaration(std::string_view property, std::string_view value,
       if (!line.has_value()) {
         return false;
       }
-      (&style.border_style.top)[side] = *line;
+      style.border_style[side] = *line;
       return true;
     }
     if (property == prefix + "-color") {
       if (value == "currentcolor") {
-        (&style.border_color.top)[side] = std::nullopt;
+        style.border_color[side] = std::nullopt;
         return true;
       }
       const std::optional<gfx::Color> color = ParseColor(value);
       if (!color.has_value()) {
         return false;
       }
-      (&style.border_color.top)[side] = *color;
+      style.border_color[side] = *color;
       return true;
     }
   }

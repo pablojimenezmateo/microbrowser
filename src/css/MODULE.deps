@@ -110,7 +110,11 @@ budget: CustomProperties header_lines=70 public_methods=8 members=1
 # `BorderColors`, and the two accessors that answer "does this side draw?" and "what colour is a
 # side that never said?" -- both of which exist so that the eleven call sites that used to read
 # `has_border ? border_width : Edges{}` cannot each get the four-way version wrong.
-budget: ComputedStyle    header_lines=365 public_methods=27 members=40
+# Two more members when `white-space` became two properties (`white-space-collapse` and
+# `text-wrap-mode`), which is what CSS Text 4 made it and what the suite tests: `pre-line` and
+# `break-spaces` are combinations of the two halves rather than values of one enum, so a single
+# field could not spell them.
+budget: ComputedStyle    header_lines=365 public_methods=27 members=42
 budget: TransformOperation header_lines=50 public_methods=2 members=9
 budget: TransformList    header_lines=60 public_methods=4 members=1
 budget: Length           header_lines=40 public_methods=8 members=3

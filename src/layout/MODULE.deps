@@ -79,3 +79,11 @@ budget: LayoutEngine    header_lines=100 public_methods=8  members=3
 # belongs to the context rather than to any box in it: a float shortens line
 # boxes that belong to boxes which know nothing about it.
 budget: FloatContext    header_lines=70 public_methods=14 members=1
+
+# One item on a line: a text slice or an atomic inline, as a rectangle hung from a baseline.
+# In a header of its own because the bidi reorder takes a whole line and lives in its own
+# translation unit, and a type local to one function cannot appear in another one's signature.
+# Fourteen members is what `vertical-align` costs: five of them exist only to say which inline
+# box asked for an alignment, because `top` and `bottom` place the box that carries them rather
+# than each piece it was flattened into.
+budget: LineItem        header_lines=35 public_methods=0 members=14
