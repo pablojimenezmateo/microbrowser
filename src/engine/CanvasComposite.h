@@ -67,6 +67,24 @@ bool CompositeAffectsUncovered(CompositeOp op);
 // `source` is asked for the colour at a device pixel and must return a *non*-premultiplied colour;
 // the canvas holds premultiplied pixels, which is the asymmetry every line of the formula turns on.
 // `alpha` is `globalAlpha`, folded in with the coverage.
+// The shadow of a rasterized shape: its coverage, moved by the offset, blurred, and painted in one
+// colour underneath it.
+//
+// The offset is in *canvas* space and is deliberately not transformed -- the specification says the
+// shadow offsets are unaffected by the current transformation matrix, which is what makes a rotated
+// shape's shadow fall in the same direction as every other shadow on the canvas.
+//
+// `sigma` is half the `shadowBlur`, per the specification. Zero means no blur and no buffer at all.
+//
+// **The shadow is composited before the shape and separately from it**, which is a stated
+// approximation: the specification composites the two as one group, so under an operator that erases
+// what it did not cover (`copy`, `source-in`) the shape's pass erases the shadow this one drew. Doing
+// it properly needs an off-screen layer, which is the same machinery `filter` and `globalAlpha` on a
+// group would want and is not built.
+void PaintShadow(gfx::Canvas& canvas, const gfx::IntRect& clip,
+                 const std::vector<gfx::CoverageSpan>& spans, double offset_x, double offset_y,
+                 float sigma, gfx::Color color, float alpha, CompositeOp op);
+
 void CompositeShape(gfx::Canvas& canvas, const gfx::IntRect& clip,
                     const std::vector<gfx::CoverageSpan>& spans,
                     const std::function<gfx::Color(int, int)>& source, float alpha, CompositeOp op);

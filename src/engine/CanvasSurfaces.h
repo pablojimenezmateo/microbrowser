@@ -86,6 +86,13 @@ class CanvasSurfaces {
     std::uint32_t fill_paint = 0;
     std::uint32_t stroke_paint = 0;
     CompositeOp composite = CompositeOp::SourceOver;
+    // The shadow. Transparent black is "no shadow", which is the specification's initial value and
+    // also its off switch -- there is no separate flag, and `shadowColor = 'transparent'` is how a
+    // page turns one off.
+    gfx::Color shadow_color = gfx::Color::Rgba(0, 0, 0, 0);
+    float shadow_blur = 0.0f;
+    double shadow_offset_x = 0.0;
+    double shadow_offset_y = 0.0;
     // The pen, in *user* space. The path holds device-space points, and `arcTo` and `roundRect` are
     // defined in terms of where the pen is before them -- so recovering it would mean inverting the
     // transform, whose determinant a page can make zero with one `scale(0, 0)`.

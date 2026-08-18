@@ -439,6 +439,7 @@ microbrowser_module(engine
     src/engine/Animations.cpp
     src/engine/CanvasComposite.cpp
     src/engine/CanvasGeometry.cpp
+    src/engine/CanvasImages.cpp
     src/engine/CanvasSurfaces.cpp
     src/engine/Workers.cpp
     src/engine/WorkerScope.cpp

@@ -84,6 +84,10 @@ constexpr Property kProperties[] = {
     {"textAlign", CanvasOp::Kind::SetTextAlign, false},
     {"textBaseline", CanvasOp::Kind::SetTextBaseline, false},
     {"globalCompositeOperation", CanvasOp::Kind::SetGlobalCompositeOperation, false},
+    {"shadowColor", CanvasOp::Kind::SetShadowColor, false},
+    {"shadowBlur", CanvasOp::Kind::SetShadowBlur, true},
+    {"shadowOffsetX", CanvasOp::Kind::SetShadowOffsetX, true},
+    {"shadowOffsetY", CanvasOp::Kind::SetShadowOffsetY, true},
 };
 
 }  // namespace

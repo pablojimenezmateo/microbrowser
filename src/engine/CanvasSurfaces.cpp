@@ -204,6 +204,8 @@ std::string CanvasSurfaces::StateText(const dom::Element& element,
       return state.font;
     case Kind::SetGlobalCompositeOperation:
       return std::string(CompositeOpName(state.composite));
+    case Kind::SetShadowColor:
+      return SerializeCanvasColor(state.shadow_color);
     case Kind::SetTextAlign:
       switch (state.align) {
         case State::Align::End:
@@ -256,6 +258,12 @@ double CanvasSurfaces::StateNumber(const dom::Element& element,
       return static_cast<double>(state.fill_paint);
     case Kind::SetStrokePaint:
       return static_cast<double>(state.stroke_paint);
+    case Kind::SetShadowBlur:
+      return static_cast<double>(state.shadow_blur);
+    case Kind::SetShadowOffsetX:
+      return state.shadow_offset_x;
+    case Kind::SetShadowOffsetY:
+      return state.shadow_offset_y;
     default:
       break;
   }
@@ -317,6 +325,32 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
   // `source-over` is every page's operator and stays the span fill it was; the other eleven go
   // through the compositor, which is a different loop -- it visits pixels the shape never covered,
   // because six of them erase exactly those.
+  // A shadow is drawn when its colour is not transparent *and* it is displaced or blurred -- the
+  // specification's own condition, and the reason there is no separate enable flag.
+  const auto shadow_wanted = [&state]() {
+    return state.shadow_color.Alpha() != 0 &&
+           (state.shadow_blur > 0.0f || state.shadow_offset_x != 0.0 || state.shadow_offset_y != 0.0);
+  };
+  const auto paint_shadow = [&](const gfx::Path& path, gfx::FillRule rule) {
+    if (!shadow_wanted()) {
+      return;
+    }
+    const gfx::IntRect clip = state.clip.Intersected(surface->canvas.Bounds());
+    // **The shape is rasterized where it *is*, not where the shadow lands.** The rasterizer clips,
+    // so rasterizing against the canvas would find nothing for a shape drawn above the top edge --
+    // and a shape drawn off-canvas whose shadow falls on it is exactly what half the shadow tests
+    // do. The source region is the clip walked back by the offset and grown by the blur's support.
+    const int blur = static_cast<int>(std::ceil(state.shadow_blur)) + 1;
+    const gfx::IntRect source_clip =
+        clip.Translated(-static_cast<int>(std::lround(state.shadow_offset_x)),
+                        -static_cast<int>(std::lround(state.shadow_offset_y)))
+            .Inflated(blur * 3);
+    gfx::PathRasterizer rasterizer;
+    PaintShadow(surface->canvas, clip,
+                rasterizer.Rasterize(path, rule, source_clip, gfx::AffineTransform{}),
+                state.shadow_offset_x, state.shadow_offset_y, state.shadow_blur * 0.5f,
+                state.shadow_color, state.alpha, state.composite);
+  };
   const auto composite_shape = [&](const gfx::Path& path, gfx::FillRule rule,
                                    const gfx::Paint* paint, gfx::Color colour) {
     const gfx::IntRect clip = state.clip.Intersected(surface->canvas.Bounds());
@@ -332,6 +366,7 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
     CompositeShape(surface->canvas, clip, spans, source, state.alpha, state.composite);
   };
   const auto fill_path = [&](const gfx::Path& path, gfx::FillRule rule) {
+    paint_shadow(path, rule);
     const gfx::Paint* paint = paint_for(state.fill_paint);
     if (state.composite != CompositeOp::SourceOver) {
       // The colour goes in without `globalAlpha` folded into it, because the compositor folds it in
@@ -361,6 +396,7 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
     gfx::StrokeToPath(Transformed(path, *inverse), state.line, gfx::kFlattenTolerance / scale,
                       outline);
     const gfx::Path device = Transformed(outline, state.transform);
+    paint_shadow(device, gfx::FillRule::NonZero);
     if (state.composite != CompositeOp::SourceOver) {
       composite_shape(device, gfx::FillRule::NonZero, paint, state.stroke);
       return;
@@ -692,18 +728,35 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
         state.composite = *parsed;
       }
       break;
+    case Kind::SetShadowColor:
+      // Unlike `fillStyle`, an unparseable value is *ignored* here too -- and unlike `fillStyle` the
+      // initial value is transparent, so the difference between "ignored" and "reset" is the
+      // difference between a shadow staying and a shadow vanishing.
+      (void)ParseCanvasColor(op.text, state.shadow_color);
+      break;
+    case Kind::SetShadowBlur:
+      if (op.a >= 0.0 && std::isfinite(op.a)) {
+        state.shadow_blur = static_cast<float>(op.a);
+      }
+      break;
+    case Kind::SetShadowOffsetX:
+      if (std::isfinite(op.a)) {
+        state.shadow_offset_x = op.a;
+      }
+      break;
+    case Kind::SetShadowOffsetY:
+      if (std::isfinite(op.a)) {
+        state.shadow_offset_y = op.a;
+      }
+      break;
     case Kind::SetLineDash:
     case Kind::SetLineDashOffset:
-    case Kind::SetShadowColor:
-    case Kind::SetShadowBlur:
-    case Kind::SetShadowOffsetX:
-    case Kind::SetShadowOffsetY:
     case Kind::SetImageSmoothing:
     case Kind::SetDirection:
-      // Reserved, and deliberately not stored. A dash array or a composite operator kept here and
-      // ignored by the painter would make `ctx.getLineDash()` answer about a dash nothing draws --
-      // which is the stub ADR 0012 forbids, wearing the shape of state rather than of a method. The
-      // binding layer does not install these names, so a page feature-detects an absence.
+      // Reserved, and deliberately not stored. A dash array kept here and ignored by the painter
+      // would make `ctx.getLineDash()` answer about a dash nothing draws -- which is the stub
+      // ADR 0012 forbids, wearing the shape of state rather than of a method. The binding layer does
+      // not install these names, so a page feature-detects an absence.
       break;
     case Kind::CreateLinearGradient:
       surface->paints.insert_or_assign(
@@ -751,91 +804,6 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
     surface->snapshot.reset();
     AddPerformanceCounter(PerfCounterId::CanvasDraws);
   }
-}
-
-void CanvasSurfaces::DrawImage(dom::Element& element, const bindings::CanvasOp& op,
-                               const std::shared_ptr<const gfx::Image>& image, bool taints) {
-  Surface* surface = For(element);
-  if (surface == nullptr || surface->canvas.IsEmpty() || image == nullptr || !image->IsValid()) {
-    return;
-  }
-  if (taints) {
-    // Set before the draw, so a refusal further down cannot leave a canvas readable that has seen
-    // cross-origin pixels.
-    surface->tainted = true;
-    AddPerformanceCounter(PerfCounterId::CanvasesTainted);
-  }
-  // `a`..`d` are the source rectangle and `e`..`h` the destination. The three-argument and
-  // five-argument forms arrive with the source rectangle as the whole image, filled in by the
-  // binding layer's own natural-size query rather than guessed here.
-  const double sx = op.a;
-  const double sy = op.b;
-  const double sw = op.c;
-  const double sh = op.d;
-  const double dx = op.e;
-  const double dy = op.f;
-  const double dw = op.g;
-  const double dh = op.h;
-  if (!Finite(sx, sy, sw, sh) || !Finite(dx, dy, dw, dh) || sw == 0.0 || sh == 0.0 ||
-      dw == 0.0 || dh == 0.0) {
-    return;
-  }
-  State& state = surface->state;
-  gfx::Painter painter(surface->canvas);
-  painter.SetTransform(gfx::AffineTransform{});
-  surface->canvas.PushClip(state.clip);
-  // The image is painted as a *pattern* clipped to the destination rectangle, which is how one
-  // machine covers every case: the pattern already knows how to sample through an inverse transform,
-  // so a rotated or scaled `drawImage` costs nothing extra and cannot disagree with `createPattern`.
-  gfx::Paint paint = gfx::Paint::Pattern(image, gfx::Paint::Repeat::None);
-  // The source rectangle becomes part of the pattern's transform: scale the destination onto the
-  // source and translate so that (sx, sy) lands on (dx, dy).
-  const auto scale_x = static_cast<float>(dw / sw);
-  const auto scale_y = static_cast<float>(dh / sh);
-  const gfx::AffineTransform placement =
-      gfx::AffineTransform(scale_x, 0.0f, 0.0f, scale_y,
-                           static_cast<float>(dx) - static_cast<float>(sx) * scale_x,
-                           static_cast<float>(dy) - static_cast<float>(sy) * scale_y);
-  paint.SetTransform(placement.Then(state.transform));
-  gfx::Path rect;
-  rect.MoveTo(Apply(state.transform, dx, dy));
-  rect.LineTo(Apply(state.transform, dx + dw, dy));
-  rect.LineTo(Apply(state.transform, dx + dw, dy + dh));
-  rect.LineTo(Apply(state.transform, dx, dy + dh));
-  rect.Close();
-  if (state.composite == CompositeOp::SourceOver) {
-    painter.FillPath(rect, paint, state.alpha, gfx::FillRule::NonZero);
-  } else {
-    const gfx::IntRect clip = state.clip.Intersected(surface->canvas.Bounds());
-    gfx::PathRasterizer rasterizer;
-    CompositeShape(surface->canvas, clip,
-                   rasterizer.Rasterize(rect, gfx::FillRule::NonZero, clip, gfx::AffineTransform{}),
-                   [&paint](int x, int y) {
-                     return paint.At(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f);
-                   },
-                   state.alpha, state.composite);
-  }
-  surface->canvas.PopClip();
-  surface->dirty = true;
-  surface->snapshot.reset();
-  AddPerformanceCounter(PerfCounterId::CanvasDraws);
-}
-
-void CanvasSurfaces::SetPattern(dom::Element& element, const bindings::CanvasOp& op,
-                                const std::shared_ptr<const gfx::Image>& image, bool taints) {
-  Surface* surface = For(element);
-  if (surface == nullptr || image == nullptr || !image->IsValid()) {
-    return;
-  }
-  if (taints) {
-    surface->tainted = true;
-    AddPerformanceCounter(PerfCounterId::CanvasesTainted);
-  }
-  const gfx::Paint::Repeat repeat = op.text == "repeat-x"  ? gfx::Paint::Repeat::X
-                                    : op.text == "repeat-y" ? gfx::Paint::Repeat::Y
-                                    : op.text == "no-repeat" ? gfx::Paint::Repeat::None
-                                                             : gfx::Paint::Repeat::Both;
-  surface->paints.insert_or_assign(op.handle, gfx::Paint::Pattern(image, repeat));
 }
 
 std::shared_ptr<const gfx::Image> CanvasSurfaces::Snapshot(const dom::Element& element) {

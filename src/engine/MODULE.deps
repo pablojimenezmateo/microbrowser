@@ -238,7 +238,8 @@ budget: Timer           header_lines=15 public_methods=0 members=4
 budget: CanvasSurfaces header_lines=140 public_methods=18 members=2
 # +1 for the pen and +2 for the selected fill and stroke paints: which gradient is selected is part
 # of the state a `save()` copies, while the gradients themselves belong to the surface.
-budget: State         header_lines=70 public_methods=4 members=13
+# +4 for the shadow: colour, blur and two offsets, all of which `save()` copies.
+budget: State         header_lines=90 public_methods=4 members=17
 budget: Surface       header_lines=30 public_methods=0 members=8
 budget: Animations    header_lines=145 public_methods=28 members=9
 budget: MediaElements header_lines=120 public_methods=25 members=9
