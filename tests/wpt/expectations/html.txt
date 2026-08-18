@@ -2473,8 +2473,6 @@ FAIL=Canvas test: 2d.composite.canvas.source-out
 FAIL=Canvas test: 2d.composite.canvas.source-over
 [html/canvas/element/compositing/2d.composite.canvas.xor.html]
 FAIL=Canvas test: 2d.composite.canvas.xor
-[html/canvas/element/compositing/2d.composite.full.mode.alpha.html]
-harness=FAIL
 [html/canvas/element/compositing/2d.composite.globalAlpha.image.html]
 FAIL=Canvas test: 2d.composite.globalAlpha.image
 [html/canvas/element/compositing/2d.composite.globalAlpha.imagepattern.html]
@@ -2808,6 +2806,10 @@ harness=FAIL
 harness=FAIL
 [html/canvas/element/layers/2d.layer.exceptions-are-no-op.tentative.html]
 FAIL=Checks that the context state is left unchanged if beginLayer throws.
+[html/canvas/element/layers/2d.layer.global-states.ctx-filter.no-transform.html]
+harness=FAIL
+[html/canvas/element/layers/2d.layer.global-states.ctx-filter.rotation.html]
+harness=FAIL
 [html/canvas/element/layers/2d.layer.global-states.filter.ctx-filter.no-transform.tentative.html]
 harness=FAIL
 [html/canvas/element/layers/2d.layer.global-states.filter.ctx-filter.rotation.tentative.html]
@@ -2815,6 +2817,12 @@ harness=FAIL
 [html/canvas/element/layers/2d.layer.global-states.filter.no-cxt-filter.no-transform.tentative.html]
 harness=FAIL
 [html/canvas/element/layers/2d.layer.global-states.filter.no-cxt-filter.rotation.tentative.html]
+harness=FAIL
+[html/canvas/element/layers/2d.layer.global-states.no-cxt-filter.no-transform.html]
+harness=FAIL
+[html/canvas/element/layers/2d.layer.global-states.no-cxt-filter.rotation.html]
+harness=FAIL
+[html/canvas/element/layers/2d.layer.globalCompositeOperation.html]
 harness=FAIL
 [html/canvas/element/layers/2d.layer.invalid-calls.beginLayer-reset-endLayer.html]
 FAIL=Raises exception on beginLayer() + reset() + endLayer().
@@ -2851,6 +2859,10 @@ harness=FAIL
 harness=FAIL
 [html/canvas/element/layers/2d.layer.reset.plain_layer.html]
 harness=FAIL
+[html/canvas/element/layers/2d.layer.restore-style.html]
+harness=FAIL
+[html/canvas/element/layers/2d.layer.several-complex.html]
+harness=FAIL
 [html/canvas/element/layers/2d.layer.shadow-from-outside-canvas.long-distance.ctx-filter.html]
 harness=FAIL
 [html/canvas/element/layers/2d.layer.shadow-from-outside-canvas.long-distance.layer-filter.tentative.html]
@@ -2872,8 +2884,6 @@ FAIL=Canvas test: 2d.line.defaults
 [html/canvas/element/line-styles/2d.line.join.invalid.html]
 FAIL=Setting lineJoin to invalid values is ignored
 [html/canvas/element/manual/building-paths/canvas_complexshapes_beziercurveto_001.htm]
-harness=FAIL
-[html/canvas/element/manual/compositing/canvas_compositing_globalcompositeoperation_001.htm]
 harness=FAIL
 [html/canvas/element/manual/compositing/colr-glyph-composition.html]
 harness=FAIL
@@ -3227,8 +3237,6 @@ harness=FAIL
 FAIL=Triple-nested layoutsubtree canvas fires onpaint on all canvases when innermost child changes
 [html/canvas/element/manual/draw-element-image/video.tentative.html]
 harness=TIMEOUT
-[html/canvas/element/manual/drawing-images-to-the-canvas/drawimage_canvas_self.html]
-harness=FAIL
 [html/canvas/element/manual/drawing-images-to-the-canvas/drawimage_crossorigin.sub.html]
 harness=TIMEOUT
 [html/canvas/element/manual/drawing-images-to-the-canvas/drawimage_html_image.html]
@@ -3304,8 +3312,6 @@ harness=FAIL
 harness=FAIL
 [html/canvas/element/manual/drawing-images-to-the-canvas/image-orientation/drawImage-from-element-orientation-none.tentative.html]
 harness=FAIL
-[html/canvas/element/manual/drawing-images-to-the-canvas/image-orientation/drawImage-from-element-swap-width-height-orientation-none.tentative.html]
-harness=FAIL
 [html/canvas/element/manual/drawing-images-to-the-canvas/image-orientation/drawImage-from-element-swap-width-height.tentative.html]
 harness=FAIL
 [html/canvas/element/manual/drawing-images-to-the-canvas/image-orientation/drawImage-from-element.tentative.html]
@@ -3324,6 +3330,10 @@ FAIL=drawFocusIfNeeded does draw a focus ring if the element is in focus.
 FAIL=drawFocusIfNeeded does draw a focus ring if the element is in focus and the user activated a particular focus ring.
 [html/canvas/element/manual/fill-and-stroke-styles/canvas_colorsandstyles_createlineargradient_001.htm]
 FAIL=linear gradient from point to self draws nothing
+[html/canvas/element/manual/fill-and-stroke-styles/conic-gradient-rotation.html]
+harness=FAIL
+[html/canvas/element/manual/fill-and-stroke-styles/conic-gradient.html]
+harness=FAIL
 [html/canvas/element/manual/fill-and-stroke-styles/pattern-from-canvas-cross-origin-taint.https.sub.html]
 FAIL=Tainting check for a tainted canvas in canvas pattern
 [html/canvas/element/manual/fill-and-stroke-styles/pattern-from-image-cross-origin-taint.https.sub.html]
@@ -3335,17 +3345,15 @@ harness=TIMEOUT
 [html/canvas/element/manual/filters/2d.filter.function-then-svg-reference.html]
 FAIL=brightness() chained before url() renders correctly
 FAIL=url() alone renders correctly
-[html/canvas/element/manual/filters/canvas-fillStyle-opacity.html]
-harness=FAIL
 [html/canvas/element/manual/filters/canvas-filter-opacity-alpha-and-fillStyle.html]
 harness=FAIL
 [html/canvas/element/manual/filters/canvas-filter-opacity.html]
 harness=FAIL
+[html/canvas/element/manual/filters/canvas-filter-shadow-and-properties-blur.html]
+harness=FAIL
 [html/canvas/element/manual/filters/canvas-filter-shadow-and-properties.html]
 harness=FAIL
 [html/canvas/element/manual/filters/canvas-filter-shadow.html]
-harness=FAIL
-[html/canvas/element/manual/filters/canvas-globalAlpha.html]
 harness=FAIL
 [html/canvas/element/manual/filters/canvas-opacity-blend-modes.html]
 harness=FAIL
@@ -3368,6 +3376,8 @@ FAIL=Tainting check for visited link in SVG flood filter
 [html/canvas/element/manual/filters/svg-specular-filter-visited-color-taints.html]
 FAIL=Tainting check for visited link in SVG specular lighting filter
 [html/canvas/element/manual/filters/tentative/canvas-filter-object-blur.html]
+harness=FAIL
+[html/canvas/element/manual/filters/tentative/canvas-filter-object-component-transfer.html]
 harness=FAIL
 [html/canvas/element/manual/filters/tentative/canvas-filter-object-convolve-matrix.html]
 harness=FAIL
@@ -3479,8 +3489,6 @@ harness=TIMEOUT
 [html/canvas/element/manual/line-styles/setLineDash.html]
 FAIL=Invalid arguments to setLineDash()
 FAIL=setLineDash
-[html/canvas/element/manual/shadows/canvas_shadows_002.htm]
-harness=FAIL
 [html/canvas/element/manual/shadows/shadowBlur_gaussian_tolerance.1.html]
 FAIL=shadowBlur Gaussian pixel values for large blur
 FAIL=shadowBlur Gaussian pixel values for small blur
@@ -3953,21 +3961,7 @@ FAIL=ImageData objects have the right properties
 FAIL=ImageData.data converts strings to numbers with ToNumber
 [html/canvas/element/pixel-manipulation/2d.imageData.put.basic.rgba.float16.html]
 FAIL=putImageData() puts 16-bit floating point image data from getImageData() onto the canvas
-[html/canvas/element/reset/2d.reset.after-rasterization.html]
-harness=FAIL
-[html/canvas/element/reset/2d.reset.render.drop_shadow.html]
-harness=FAIL
-[html/canvas/element/reset/2d.reset.render.global_composite_operation.html]
-harness=FAIL
 [html/canvas/element/reset/2d.reset.render.line.html]
-harness=FAIL
-[html/canvas/element/reset/2d.reset.render.misc.html]
-harness=FAIL
-[html/canvas/element/reset/2d.reset.render.miter_limit.html]
-harness=FAIL
-[html/canvas/element/reset/2d.reset.render.text.html]
-harness=FAIL
-[html/canvas/element/reset/2d.reset.state.clip.html]
 harness=FAIL
 [html/canvas/element/reset/2d.reset.state.direction.html]
 FAIL=check that the state is reset

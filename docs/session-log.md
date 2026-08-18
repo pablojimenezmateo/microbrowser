@@ -7409,3 +7409,98 @@ a genuine layout bug), `letter-spacing`/`word-spacing` (13 files, wants the text
 session deliberately refused rather than stubbed — `hanging-punctuation`, `text-autospace`,
 `text-fit`, `text-group-align`, `text-spacing`, `text-align-last`/`-all`, `line-break`, `hyphens`,
 `hyphenate-*` — each of which needs behaviour before it earns a parser.
+## WPT task F6 — the 2D context against the suite · 2026-08-18
+
+**Status:** done
+
+**Check:** `html/canvas/element/` re-measured; `firefox_gap.files` below 350.
+
+```
+$ python3 tools/wpt/firefox-gap.py --cache /tmp/firefox-wpt-summary.json --list-gap html/canvas/element | wc -l
+337
+$ ./build/microbrowser-perf/microbrowser/microbrowser_wpt --jobs 8 html/canvas/element/
+1519 tests in 33671 ms: 2074 subtests, 1059 passed (51.1%), 0 crashes, 43 timeouts, 0 disabled
+264 reftests: 101 passed (38.3%), 19 of those with both pages blank
+0 unexpected results
+```
+
+**774 gap files to 337.** Recorded subtests went 3,019 to 3,296 and passes 437 to 1,059; the
+denominator rose, so nothing was deleted from the measurement. `ctest -j8` is green and
+`ArchitectureInvariants` passes. The measuring run above was run twice, identically.
+
+**Landed**, in order:
+
+- *Re-record html/canvas/element/ against the tree that exists* — 63 gap files closed before a
+  line of code, because the expectations were stale in the pessimistic direction.
+- *The 2D context is a real interface whose state has one copy, and it can be reset*
+- *An array of roundRect radii is read from the array, and putImageData can read its own ImageData*
+- *Canvas gradients are real, and gfx grew the paint source they needed*
+- *drawImage and createPattern draw somebody else's pixels, and a cross-origin source taints*
+- *The canvas backing store is premultiplied, and getImageData says so*
+- *globalCompositeOperation is the Porter-Duff algebra, including the six operators that erase what
+  the shape never covered*
+- *A canvas sizes its box and its backing store from HTML's own integer rule, in one place*
+- *A stroke is widened in user space, and putImageData honours its dirty rectangle*
+- *Canvas shadows are drawn, and the shape is rasterized where it is rather than where its shadow
+  lands*
+- *currentColor on a canvas is the element's computed colour, resolved when the attribute is set*
+
+**Found — five things a diff does not say.**
+
+**1. The two biggest causes in the area were one-line consequences of decisions nobody had written
+down, not missing features.**
+
+*The backing store was premultiplied and nothing said so.* `gfx::BlendSrcOver` computes
+`out.rgb = src.rgb * src.a + dst.rgb * (1 - src.a)`, which is the premultiplied formula. Every
+destination a page paints onto is opaque, so premultiplied and not are the same number and the
+question never came up. A canvas starts *transparent*, and there it is the difference between
+`fillStyle = 'rgba(0,255,0,0.5)'` reading back as green at half alpha and reading back as a dark
+green. That one fix moved most of `2d.fillStyle.parse` — twenty-odd files that all looked like
+CSS colour-parser gaps and were not. **If a `gfx` operation is ever asked to work on a surface
+that is not opaque, check which of the two the formula assumes before reading the failure.**
+
+*A `js::Object` array keeps its elements outside the property map*, so `GetOwn("length")` was null
+for every real array and `ToNumber([0, 0, 0, 20])` is NaN — `roundRect` with an array of radii drew
+nothing at all, silently, in 45 files. The same shape appeared twice more in one session:
+`Object::Get` on an accessor hands back the property record's empty value rather than calling the
+getter, so `putImageData` rejected the very `ImageData` that `getImageData` had just made. **Reading
+a property by name is not the same as asking the object the question.**
+
+**2. `--testharness-only` on a re-record is a trap when the work changes rendering.** Five records
+in this session passed it, so the reftest half of `html/canvas/element/` still described the browser
+as it was before any of the work — and a measuring run without the flag printed **49 unexpected**,
+eleven of them reftests reading "expected OK". They were not regressions in any useful sense: they
+were passing because *neither* half rendered, and the test side starting to draw is what broke the
+agreement. That is `docs/wpt-plan.md`'s blank-pages-agreeing caveat arriving from the other
+direction, and it means **a session that changes what a canvas paints must record the reftests
+too**, even though the `ctest` gate excludes them. Recording the whole area took the count from
+49 unexpected to 0 and the gap *down* by twelve rather than up.
+
+**3. A `--jobs 3` recording run on a machine with six agents on it invents TIMEOUTs.** Seventeen
+entries in `compositing/` and `drawing-images-to-the-canvas/` were recorded `harness=TIMEOUT` for
+tests that run in 240 ms. Recording is the mode that gives every test its full deadline, so this is
+not the known-timeout shortcut — it is the oversubscription lesson in `tools/wpt/main.cpp` arriving
+as a *false positive* rather than as deleted subtests. On the idle machine the same area records
+identically at `--jobs 2` and `--jobs 8`.
+
+**4. Three of the biggest remaining buckets are blocked on features outside this area, and the
+ranking does not show it.** Of the 337 files left, **67 are `text/` and every one of them waits on
+`document.fonts` and `@font-face`** — they load a `CanvasTest` font and the first line of each is
+`await document.fonts.ready`, which is `undefined`. Another **24 are `composite.image` and
+`composite.canvas`, blocked on `createImageBitmap`**, and **15 `roundrect` variants want
+`DOMPoint`**. Roughly a third of what is left in `html/canvas/element/` is not canvas work.
+
+**5. Two deviations are deliberate and written where the code is.** A shadow is composited *before*
+the shape rather than grouped with it, so an operator that erases what it did not cover erases the
+shadow (`2d.shadow.composite.*`); and a `drawImage` shadow is the destination rectangle rather than
+the image's alpha channel. Both want the same off-screen layer, which is also what `filter` and a
+grouped `globalAlpha` would need — that layer is the single next thing worth building here.
+`getTransform` returns an object carrying the six numbers under both spellings plus `is2D` and
+`isIdentity`, and it is deliberately **not** called `DOMMatrix`, so a page that checks `instanceof`
+is told the truth.
+
+**Left:** `shadowBlur`'s three-pass box blur, `getLineDash`/`setLineDash`, `imageSmoothingEnabled`,
+`filter`, `direction`, `letterSpacing` and the `font*` longhands are all still absent rather than
+stubbed — `CanvasSurfaces::Execute` has a case listing them that refuses to store them, with the
+ADR 0012 reasoning next to it, and the binding layer does not install the names. `Path2D` is absent
+(8 files). `html/canvas/offscreen/` is F6b and was not touched.
