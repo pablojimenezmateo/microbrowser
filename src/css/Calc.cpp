@@ -405,8 +405,6 @@ class CalcParser {
       sum.percent = magnitude;
     } else if (unit == "px") {
       sum.px = magnitude;
-    } else if (unit == "pt") {
-      sum.px = magnitude * 4.0 / 3.0;
     } else if (unit == "rem") {
       sum.px = magnitude * static_cast<double>(root_font_size_);
     } else if (unit == "em") {
