@@ -2441,11 +2441,6 @@ FAIL='rgba(255, 0, 255, 1)' should serialize as '#ff00ff'
 FAIL='transparent' should serialize as 'rgba(0, 0, 0, 0)'
 [html/canvas/element/2d.conformance.requirements.delete.html]
 FAIL=window.CanvasRenderingContext2D is Configurable
-[html/canvas/element/canvas-host/2d.canvas.host.initial.reset.2dstate.html]
-FAIL=Resetting the canvas state resets shadowBlur
-FAIL=Resetting the canvas state resets shadowColor
-FAIL=Resetting the canvas state resets shadowOffsetX
-FAIL=Resetting the canvas state resets shadowOffsetY
 [html/canvas/element/canvas-host/2d.canvas.host.size.attributes.idl.html]
 FAIL=Getting/setting width/height IDL attributes
 [html/canvas/element/canvas-host/2d.canvas.host.type.delete.html]
@@ -2618,10 +2613,6 @@ FAIL=drawImage with zero-sized canvas as the source shoud throw exception
 FAIL=drawImage with zero-sized source rectangle draws nothing without exception
 [html/canvas/element/drawing-images-to-the-canvas/2d.drawImage.zerosource.image.html]
 harness=TIMEOUT
-[html/canvas/element/drawing-rectangles-to-the-canvas/2d.fillRect.shadow.html]
-FAIL=fillRect draws shadows
-[html/canvas/element/drawing-rectangles-to-the-canvas/2d.strokeRect.shadow.html]
-FAIL=strokeRect draws shadows
 [html/canvas/element/drawing-rectangles-to-the-canvas/2d.strokeRect.zero.2.html]
 FAIL=strokeRect of 0x0 pixels draws nothing, including caps and joins
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.CSSHSL.html]
@@ -2638,10 +2629,6 @@ FAIL=color-mix works as color input with currentcolor
 FAIL=color-mix works as color input
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.get.halftransparent.html]
 FAIL=Canvas test: 2d.fillStyle.get.halftransparent
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.current.basic.html]
-FAIL=currentColor is computed from the canvas element
-[html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.current.changed.html]
-FAIL=currentColor is computed when the attribute is set, not when it is painted
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.invalid.hsl-5.html]
 FAIL=Canvas test: 2d.fillStyle.parse.invalid.hsl-5
 [html/canvas/element/fill-and-stroke-styles/2d.fillStyle.parse.invalid.rgba-3.html]
@@ -2672,6 +2659,8 @@ FAIL=Canvas test: 2d.gradient.interpolate.zerosize.strokeText
 FAIL=createLinearGradient() throws TypeError if arguments are not finite
 [html/canvas/element/fill-and-stroke-styles/2d.gradient.object.crosscanvas.html]
 FAIL=Canvas test: 2d.gradient.object.crosscanvas
+[html/canvas/element/fill-and-stroke-styles/2d.gradient.object.current.html]
+FAIL=Canvas test: 2d.gradient.object.current
 [html/canvas/element/fill-and-stroke-styles/2d.gradient.radial.nonfinite.html]
 FAIL=createRadialGradient() throws TypeError if arguments are not finite
 [html/canvas/element/fill-and-stroke-styles/2d.gradient.relativecolor.html]
@@ -3333,8 +3322,6 @@ FAIL=drawFocusIfNeeded does not draw a focus ring if the element is not a descen
 FAIL=drawFocusIfNeeded does draw a focus ring if the element is in focus.
 [html/canvas/element/manual/drawing-paths-to-the-canvas/drawFocusIfNeeded_005.html]
 FAIL=drawFocusIfNeeded does draw a focus ring if the element is in focus and the user activated a particular focus ring.
-[html/canvas/element/manual/fill-and-stroke-styles/2d.fillStyle.parse.current.notrendered.html]
-FAIL=currentColor is computed from the canvas element even when element is not rendered
 [html/canvas/element/manual/fill-and-stroke-styles/canvas_colorsandstyles_createlineargradient_001.htm]
 FAIL=linear gradient from point to self draws nothing
 [html/canvas/element/manual/fill-and-stroke-styles/pattern-from-canvas-cross-origin-taint.https.sub.html]
@@ -3492,13 +3479,10 @@ harness=TIMEOUT
 [html/canvas/element/manual/line-styles/setLineDash.html]
 FAIL=Invalid arguments to setLineDash()
 FAIL=setLineDash
-[html/canvas/element/manual/shadows/canvas_shadows_001.htm]
-FAIL=linear gradient fillRect draws shadow (black rectange)
 [html/canvas/element/manual/shadows/canvas_shadows_002.htm]
 harness=FAIL
 [html/canvas/element/manual/shadows/shadowBlur_gaussian_tolerance.1.html]
 FAIL=shadowBlur Gaussian pixel values for large blur
-FAIL=shadowBlur Gaussian pixel values for no blur
 FAIL=shadowBlur Gaussian pixel values for small blur
 [html/canvas/element/manual/text/canvas.2d.disconnected.html]
 harness=FAIL
@@ -4005,106 +3989,34 @@ FAIL=check that the state is reset
 FAIL=check that the line dash is reset
 [html/canvas/element/reset/2d.reset.state.line_dash_offset.html]
 FAIL=check that the state is reset
-[html/canvas/element/reset/2d.reset.state.shadow_blur.html]
-FAIL=check that the state is reset
-[html/canvas/element/reset/2d.reset.state.shadow_color.html]
-FAIL=check that the state is reset
-[html/canvas/element/reset/2d.reset.state.shadow_offset_x.html]
-FAIL=check that the state is reset
-[html/canvas/element/reset/2d.reset.state.shadow_offset_y.html]
-FAIL=check that the state is reset
 [html/canvas/element/reset/2d.reset.state.text_rendering.html]
 FAIL=check that the state is reset
 [html/canvas/element/reset/2d.reset.state.word_spacing.html]
 FAIL=check that the state is reset
-[html/canvas/element/shadows/2d.shadow.alpha.2.html]
-FAIL=Shadow color alpha components are used
-[html/canvas/element/shadows/2d.shadow.alpha.3.html]
-FAIL=Shadows are affected by globalAlpha
-[html/canvas/element/shadows/2d.shadow.alpha.4.html]
-FAIL=Shadows with alpha components are correctly affected by globalAlpha
 [html/canvas/element/shadows/2d.shadow.alpha.5.html]
 FAIL=Shadows of shapes with alpha components are drawn correctly
-[html/canvas/element/shadows/2d.shadow.attributes.shadowBlur.initial.html]
-FAIL=Canvas test: 2d.shadow.attributes.shadowBlur.initial
-[html/canvas/element/shadows/2d.shadow.attributes.shadowBlur.invalid.html]
-FAIL=Canvas test: 2d.shadow.attributes.shadowBlur.invalid
-[html/canvas/element/shadows/2d.shadow.attributes.shadowColor.current.basic.html]
-FAIL=currentColor is computed from the canvas element
-[html/canvas/element/shadows/2d.shadow.attributes.shadowColor.current.changed.html]
-FAIL=currentColor is computed when the attribute is set, not when it is painted
-[html/canvas/element/shadows/2d.shadow.attributes.shadowColor.current.removed.html]
-FAIL=currentColor is solid black when the canvas element is not in a document
-[html/canvas/element/shadows/2d.shadow.attributes.shadowColor.initial.html]
-FAIL=Canvas test: 2d.shadow.attributes.shadowColor.initial
-[html/canvas/element/shadows/2d.shadow.attributes.shadowColor.invalid.html]
-FAIL=Canvas test: 2d.shadow.attributes.shadowColor.invalid
-[html/canvas/element/shadows/2d.shadow.attributes.shadowColor.valid.html]
-FAIL=Canvas test: 2d.shadow.attributes.shadowColor.valid
-[html/canvas/element/shadows/2d.shadow.attributes.shadowOffset.initial.html]
-FAIL=Canvas test: 2d.shadow.attributes.shadowOffset.initial
-[html/canvas/element/shadows/2d.shadow.attributes.shadowOffset.invalid.html]
-FAIL=Canvas test: 2d.shadow.attributes.shadowOffset.invalid
 [html/canvas/element/shadows/2d.shadow.canvas.alpha.html]
 FAIL=Shadows are drawn correctly for partially-transparent canvases
-[html/canvas/element/shadows/2d.shadow.canvas.basic.html]
-FAIL=Shadows are drawn for canvases
+[html/canvas/element/shadows/2d.shadow.canvas.transparent.1.html]
+FAIL=Shadows are not drawn for transparent canvases
 [html/canvas/element/shadows/2d.shadow.canvas.transparent.2.html]
 FAIL=Shadows are not drawn for transparent parts of canvases
-[html/canvas/element/shadows/2d.shadow.clip.1.html]
-FAIL=Shadows of clipped shapes are still drawn within the clipping region
-[html/canvas/element/shadows/2d.shadow.clip.3.html]
-FAIL=Shadows of clipped shapes are still drawn within the clipping region
-[html/canvas/element/shadows/2d.shadow.composite.1.html]
-FAIL=Shadows are drawn using globalCompositeOperation
-[html/canvas/element/shadows/2d.shadow.composite.2.html]
-FAIL=Shadows are drawn using globalCompositeOperation
-[html/canvas/element/shadows/2d.shadow.enable.blur.html]
-FAIL=Shadows are drawn if shadowBlur is set
-[html/canvas/element/shadows/2d.shadow.enable.x.html]
-FAIL=Shadows are drawn if shadowOffsetX is set
-[html/canvas/element/shadows/2d.shadow.enable.y.html]
-FAIL=Shadows are drawn if shadowOffsetY is set
 [html/canvas/element/shadows/2d.shadow.gradient.alpha.html]
 FAIL=Shadows are drawn correctly for partially-transparent gradient fills
-[html/canvas/element/shadows/2d.shadow.gradient.basic.html]
-FAIL=Shadows are drawn for gradient fills
-[html/canvas/element/shadows/2d.shadow.gradient.transparent.2.html]
-FAIL=Shadows are not drawn for transparent parts of gradient fills
+[html/canvas/element/shadows/2d.shadow.gradient.transparent.1.html]
+FAIL=Shadows are not drawn for transparent gradient fills
 [html/canvas/element/shadows/2d.shadow.image.alpha.html]
 FAIL=Shadows are drawn correctly for partially-transparent images
-[html/canvas/element/shadows/2d.shadow.image.basic.html]
-FAIL=Shadows are drawn for images
-[html/canvas/element/shadows/2d.shadow.image.scale.html]
-FAIL=Shadows are drawn correctly for scaled images
+[html/canvas/element/shadows/2d.shadow.image.section.html]
+FAIL=Shadows are not drawn for areas outside image source rectangles
+[html/canvas/element/shadows/2d.shadow.image.transparent.1.html]
+FAIL=Shadows are not drawn for transparent images
 [html/canvas/element/shadows/2d.shadow.image.transparent.2.html]
 FAIL=Shadows are not drawn for transparent parts of images
-[html/canvas/element/shadows/2d.shadow.offset.negativeX.html]
-FAIL=Shadows can be offset with negative x
-[html/canvas/element/shadows/2d.shadow.offset.negativeY.html]
-FAIL=Shadows can be offset with negative y
-[html/canvas/element/shadows/2d.shadow.offset.positiveX.html]
-FAIL=Shadows can be offset with positive x
-[html/canvas/element/shadows/2d.shadow.offset.positiveY.html]
-FAIL=Shadows can be offset with positive y
-[html/canvas/element/shadows/2d.shadow.outside.html]
-FAIL=Shadows of shapes outside the visible area can be offset onto the visible area
 [html/canvas/element/shadows/2d.shadow.pattern.alpha.html]
 FAIL=Shadows are drawn correctly for partially-transparent fill patterns
-[html/canvas/element/shadows/2d.shadow.pattern.basic.html]
-FAIL=Shadows are drawn for fill patterns
-[html/canvas/element/shadows/2d.shadow.pattern.transparent.2.html]
-FAIL=Shadows are not drawn for transparent parts of fill patterns
-[html/canvas/element/shadows/2d.shadow.stroke.basic.html]
-FAIL=Shadows are drawn for strokes
-[html/canvas/element/shadows/2d.shadow.stroke.cap.2.html]
-FAIL=Shadows are drawn for stroke caps
-[html/canvas/element/shadows/2d.shadow.stroke.join.2.html]
-FAIL=Shadows are drawn for stroke joins
-[html/canvas/element/shadows/2d.shadow.transform.1.html]
-FAIL=Shadows take account of transformations
-[html/canvas/element/shadows/2d.shadow.transform.2.html]
-FAIL=Shadow offsets are not affected by transformations
+[html/canvas/element/shadows/2d.shadow.pattern.transparent.1.html]
+FAIL=Shadows are not drawn for transparent fill patterns
 [html/canvas/element/text/2d.text.baseline.invalid.html]
 FAIL=Canvas test: 2d.text.baseline.invalid
 [html/canvas/element/text/2d.text.direction.default.html]
@@ -4389,18 +4301,6 @@ harness=FAIL
 [html/canvas/element/text/parent-style-relative-units.html]
 FAIL=Font-size based on canvas element font-size
 FAIL=Font-size based on canvas element line-height
-[html/canvas/element/the-canvas-state/2d.state.saverestore.shadowBlur.html]
-FAIL=save()/restore() restores shadowBlur, for a canvas of size (0, 0).
-FAIL=save()/restore() restores shadowBlur, for a canvas of size (300, 150).
-[html/canvas/element/the-canvas-state/2d.state.saverestore.shadowColor.html]
-FAIL=save()/restore() restores shadowColor, for a canvas of size (0, 0).
-FAIL=save()/restore() restores shadowColor, for a canvas of size (300, 150).
-[html/canvas/element/the-canvas-state/2d.state.saverestore.shadowOffsetX.html]
-FAIL=save()/restore() restores shadowOffsetX, for a canvas of size (0, 0).
-FAIL=save()/restore() restores shadowOffsetX, for a canvas of size (300, 150).
-[html/canvas/element/the-canvas-state/2d.state.saverestore.shadowOffsetY.html]
-FAIL=save()/restore() restores shadowOffsetY, for a canvas of size (0, 0).
-FAIL=save()/restore() restores shadowOffsetY, for a canvas of size (300, 150).
 [html/canvas/element/wide-gamut-canvas/2d.color.space.display-p3-linear.html]
 FAIL=test getImageData color conversion with a display-p3-linear uint8 canvas
 [html/canvas/element/wide-gamut-canvas/2d.color.space.p3.fillText.html]
