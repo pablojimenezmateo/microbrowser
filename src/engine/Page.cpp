@@ -250,6 +250,14 @@ void Page::Load(std::string_view html, std::string url, csp::PolicyList header_p
   // would be a use-after-free waiting for the next page to allocate an element
   // at the same address.
   layout_ = LayoutState{};
+  // Except the width. `SetViewport` stores it precisely so that a layout forced
+  // by a geometry query before the engine's first paint runs at the width the
+  // document will be shown at, and the viewport did not change just because the
+  // document did -- resetting it here laid every such query out at zero, which
+  // is a page one column wide. An inline `<script>` that reads `offsetHeight`
+  // during parsing is the common case and it was answering about a document
+  // nobody would ever see (102 files in css/css-text/i18n/ alone).
+  layout_.width = viewport_.viewport_width;
   scroll_ = ScrollState{};
   content_height_ = 0.0f;
   resources_ = DocumentResources{};
