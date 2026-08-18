@@ -258,6 +258,7 @@ void TreeBuilder::InsertComment(const std::string& data, dom::Node* parent) {
 
 void TreeBuilder::SwitchToRawText(const Token& token, TokenizerState state) {
   InsertElement(token);
+  ignore_next_line_feed_ = token.data == "textarea";
   tokenizer_.SetLastStartTag(token.data);
   tokenizer_.SwitchTo(state);
   original_mode_ = mode_;
@@ -334,6 +335,12 @@ void TreeBuilder::ProcessInBody(const Token& token) {
       // this, `<p>a<p>b` nests instead of producing two siblings.
       if (Contains(kClosesParagraph, token.data) && HasInScope("p")) {
         PopUntil("p");
+      }
+      if (token.data == "pre" || token.data == "listing") {
+        // The newline the author wrote for legibility is not content -- see Process. Invisible
+        // until a preserved segment break became a line break, and then a blank first line in
+        // every `<pre>` on the web.
+        ignore_next_line_feed_ = true;
       }
       if (token.data == "li" && HasInScope("li", Scope::ListItem)) {
         GenerateImpliedEndTags("li");
@@ -738,6 +745,21 @@ void TreeBuilder::ProcessInTemplate(const Token& token) {
 }
 
 void TreeBuilder::Process(const Token& token) {
+  // HTML 13.2.6.4.7: a U+000A immediately after `<pre>`, `<listing>` or `<textarea>` is ignored,
+  // and only the very next token can be it. Cleared here rather than in the character branch so
+  // that any other token clears it too.
+  const bool skip_line_feed = ignore_next_line_feed_;
+  ignore_next_line_feed_ = false;
+  if (skip_line_feed && token.kind == Token::Kind::Character && !token.data.empty() &&
+      token.data.front() == '\n') {
+    Token without_break = token;
+    without_break.data.erase(0, 1);
+    if (without_break.data.empty()) {
+      return;  // the token was the newline and nothing else
+    }
+    Process(without_break);
+    return;
+  }
   if (ProcessTemplateToken(token)) {
     return;
   }

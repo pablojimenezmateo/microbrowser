@@ -150,7 +150,76 @@ enum class VerticalAlign : std::uint8_t {
 };
 
 enum class BackgroundRepeat : std::uint8_t { Repeat, RepeatX, RepeatY, NoRepeat };
-enum class WhiteSpace : std::uint8_t { Normal, Pre, NoWrap, PreWrap };
+// CSS Text 4 makes `white-space` a *shorthand* over two orthogonal longhands, and the four values
+// this engine used to store were one enum standing in for both. Keeping one enum could not express
+// `preserve-breaks nowrap` -- a pair the shorthand has no keyword for and which
+// `css/css-text/parsing/white-space-shorthand.html` asks for by name -- and, worse, it made
+// `nowrap` a *different* collapsing mode from `normal` when the two collapse identically and differ
+// only in wrapping. Two fields say what the specification says.
+enum class WhiteSpaceCollapse : std::uint8_t {
+  Collapse,
+  Preserve,
+  PreserveBreaks,
+  PreserveSpaces,
+  BreakSpaces,
+};
+enum class TextWrapMode : std::uint8_t { Wrap, NoWrap };
+
+// `text-transform`. The case keyword and the two width keywords are independent -- `capitalize
+// full-width` is one value with two parts -- so this is a small struct rather than an enum.
+enum class TextCase : std::uint8_t { None, Capitalize, Uppercase, Lowercase };
+struct TextTransform {
+  TextCase letter_case = TextCase::None;
+  bool full_width = false;
+  bool full_size_kana = false;
+
+  bool IsNone() const {
+    return letter_case == TextCase::None && !full_width && !full_size_kana;
+  }
+  friend bool operator==(const TextTransform&, const TextTransform&) = default;
+};
+
+// Where a line may break *inside* a word. Two properties rather than one because they answer
+// different questions: `word-break` says what the writing system allows, `overflow-wrap` says what
+// to do when a word does not fit however it is broken. `break-word` is `word-break`'s legacy
+// spelling of `overflow-wrap: break-word` and computes to itself.
+enum class WordBreak : std::uint8_t { Normal, BreakAll, KeepAll, BreakWord };
+enum class OverflowWrap : std::uint8_t { Normal, BreakWord, Anywhere };
+
+// `text-indent`, and the two keywords that change what it indents. Only the length is used today:
+// `hanging` and `each-line` are stored so the computed value round-trips, and neither changes a
+// box until the first-line machinery grows past one line.
+struct TextIndent {
+  Length length = Length::Pixels(0.0f);
+  bool hanging = false;
+  bool each_line = false;
+
+  friend bool operator==(const TextIndent&, const TextIndent&) = default;
+};
+
+// `tab-size`: a multiple of the space advance, or a length. Both are one number and which one it
+// is changes what it means, so the flag travels with it.
+struct TabSize {
+  float value = 8.0f;
+  bool is_length = false;
+
+  friend bool operator==(const TabSize&, const TabSize&) = default;
+};
+
+// A segment break (a newline in the source) survives whitespace processing. Only `collapse` and
+// `preserve-spaces` turn one into a space; every other mode makes it a forced line break, which is
+// what `<pre>` has always meant and what this browser did not do -- `<pre>a\nb</pre>` rendered on
+// one line, because nothing in inline layout looked at a newline at all.
+constexpr bool PreservesNewlines(WhiteSpaceCollapse collapse) {
+  return collapse != WhiteSpaceCollapse::Collapse && collapse != WhiteSpaceCollapse::PreserveSpaces;
+}
+
+// A run of spaces and tabs survives as written rather than collapsing to one space.
+constexpr bool PreservesSpaces(WhiteSpaceCollapse collapse) {
+  return collapse == WhiteSpaceCollapse::Preserve ||
+         collapse == WhiteSpaceCollapse::PreserveSpaces ||
+         collapse == WhiteSpaceCollapse::BreakSpaces;
+}
 
 // Taken out of the normal flow and shifted to one side, with the following
 // line boxes shortened around it. Not a display value: a float is a
@@ -430,7 +499,15 @@ struct ComputedStyle {
   // (`-moz-center`, `-webkit-center`). Not inherited, unlike text_align: see
   // LayoutEngine::LayoutBlock's `center_in_container`.
   bool centers_block_children = false;
-  WhiteSpace white_space = WhiteSpace::Normal;
+  // The two halves of `white-space`. Inherited, both of them.
+  WhiteSpaceCollapse white_space_collapse = WhiteSpaceCollapse::Collapse;
+  TextWrapMode text_wrap_mode = TextWrapMode::Wrap;
+  // The rest of CSS Text that changes what a line looks like. All inherited.
+  TextTransform text_transform;
+  WordBreak word_break = WordBreak::Normal;
+  OverflowWrap overflow_wrap = OverflowWrap::Normal;
+  TextIndent text_indent;
+  TabSize tab_size;
   Float css_float = Float::None;
   Clear clear = Clear::None;
 
@@ -771,6 +848,13 @@ bool ApplyTransformDeclaration(std::string_view property, std::string_view value
 bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
                          const ComputedStyle& parent, ComputedStyle& style,
                          const MediaContext& context = {});
+
+// CSS Text: the `white-space` family. Its own entry point for the reason `transform`'s is --
+// `white-space` is a shorthand over two orthogonal longhands whose two components may be written in
+// either order, which is not the shape of the keyword switch the rest of ApplyDeclaration is.
+bool ApplyTextDeclaration(std::string_view property, std::string_view value,
+                          const ComputedStyle& parent, ComputedStyle& style,
+                          const MediaContext& context = {});
 
 // `transition-*` and `animation-*`. Their own entry points for the reason `transform`'s is: a
 // comma-separated list of space-separated lists, where the order inside an item is mostly free and one

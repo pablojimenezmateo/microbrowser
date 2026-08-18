@@ -69499,7 +69499,6 @@ FAIL=CSS Animations: property <tab-size> from [unset] to [10] at (0.6) should be
 FAIL=CSS Animations: property <tab-size> from [unset] to [10] at (1) should be [10]
 FAIL=CSS Animations: property <tab-size> from [unset] to [10] at (1.5) should be [5]
 FAIL=CSS Animations: property <tab-size> from neutral to [10] at (-0.3) should be [3.5]
-FAIL=CSS Animations: property <tab-size> from neutral to [10] at (0) should be [5]
 FAIL=CSS Animations: property <tab-size> from neutral to [10] at (0.3) should be [6.5]
 FAIL=CSS Animations: property <tab-size> from neutral to [10] at (0.6) should be [8]
 FAIL=CSS Animations: property <tab-size> from neutral to [10] at (1) should be [10]
@@ -69507,41 +69506,23 @@ FAIL=CSS Animations: property <tab-size> from neutral to [10] at (1.5) should be
 FAIL=CSS Transitions with transition-behavior:allow-discrete: property <tab-size> from [1] to [10px] at (-0.3) should be [1]
 FAIL=CSS Transitions with transition-behavior:allow-discrete: property <tab-size> from [1] to [10px] at (0) should be [1]
 FAIL=CSS Transitions with transition-behavior:allow-discrete: property <tab-size> from [1] to [10px] at (0.3) should be [1]
-FAIL=CSS Transitions with transition-behavior:allow-discrete: property <tab-size> from [1] to [10px] at (0.5) should be [10px]
-FAIL=CSS Transitions with transition-behavior:allow-discrete: property <tab-size> from [1] to [10px] at (0.6) should be [10px]
-FAIL=CSS Transitions with transition-behavior:allow-discrete: property <tab-size> from [1] to [10px] at (1) should be [10px]
-FAIL=CSS Transitions with transition-behavior:allow-discrete: property <tab-size> from [1] to [10px] at (1.5) should be [10px]
 FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <tab-size> from [1] to [10px] at (-0.3) should be [1]
 FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <tab-size> from [1] to [10px] at (0) should be [1]
 FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <tab-size> from [1] to [10px] at (0.3) should be [1]
-FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <tab-size> from [1] to [10px] at (0.5) should be [10px]
-FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <tab-size> from [1] to [10px] at (0.6) should be [10px]
-FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <tab-size> from [1] to [10px] at (1) should be [10px]
-FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <tab-size> from [1] to [10px] at (1.5) should be [10px]
 FAIL=CSS Transitions with transition: all: property <tab-size> from [0] to [10] at (-0.3) should be [0]
 FAIL=CSS Transitions with transition: all: property <tab-size> from [0] to [10] at (0) should be [0]
 FAIL=CSS Transitions with transition: all: property <tab-size> from [0] to [10] at (0.3) should be [3]
 FAIL=CSS Transitions with transition: all: property <tab-size> from [0] to [10] at (0.6) should be [6]
-FAIL=CSS Transitions with transition: all: property <tab-size> from [0] to [10] at (1) should be [10]
 FAIL=CSS Transitions with transition: all: property <tab-size> from [0] to [10] at (1.5) should be [15]
-FAIL=CSS Transitions with transition: all: property <tab-size> from [1] to [10px] at (-0.3) should be [10px]
-FAIL=CSS Transitions with transition: all: property <tab-size> from [1] to [10px] at (0) should be [10px]
-FAIL=CSS Transitions with transition: all: property <tab-size> from [1] to [10px] at (0.3) should be [10px]
-FAIL=CSS Transitions with transition: all: property <tab-size> from [1] to [10px] at (0.5) should be [10px]
-FAIL=CSS Transitions with transition: all: property <tab-size> from [1] to [10px] at (0.6) should be [10px]
-FAIL=CSS Transitions with transition: all: property <tab-size> from [1] to [10px] at (1) should be [10px]
-FAIL=CSS Transitions with transition: all: property <tab-size> from [1] to [10px] at (1.5) should be [10px]
 FAIL=CSS Transitions with transition: all: property <tab-size> from [1px] to [10px] at (-0.3) should be [0px]
 FAIL=CSS Transitions with transition: all: property <tab-size> from [1px] to [10px] at (0) should be [1px]
 FAIL=CSS Transitions with transition: all: property <tab-size> from [1px] to [10px] at (0.3) should be [3.7px]
 FAIL=CSS Transitions with transition: all: property <tab-size> from [1px] to [10px] at (0.6) should be [6.4px]
-FAIL=CSS Transitions with transition: all: property <tab-size> from [1px] to [10px] at (1) should be [10px]
 FAIL=CSS Transitions with transition: all: property <tab-size> from [1px] to [10px] at (1.5) should be [14.5px]
 FAIL=CSS Transitions with transition: all: property <tab-size> from [4] to [10] at (-0.3) should be [2.2]
 FAIL=CSS Transitions with transition: all: property <tab-size> from [4] to [10] at (0) should be [4]
 FAIL=CSS Transitions with transition: all: property <tab-size> from [4] to [10] at (0.3) should be [5.8]
 FAIL=CSS Transitions with transition: all: property <tab-size> from [4] to [10] at (0.6) should be [7.6]
-FAIL=CSS Transitions with transition: all: property <tab-size> from [4] to [10] at (1) should be [10]
 FAIL=CSS Transitions with transition: all: property <tab-size> from [4] to [10] at (1.5) should be [13]
 FAIL=CSS Transitions with transition: all: property <tab-size> from [inherit] to [10] at (-0.3) should be [23]
 FAIL=CSS Transitions with transition: all: property <tab-size> from [inherit] to [10] at (0) should be [20]
@@ -69565,32 +69546,21 @@ FAIL=CSS Transitions with transition: all: property <tab-size> from neutral to [
 FAIL=CSS Transitions with transition: all: property <tab-size> from neutral to [10] at (0) should be [5]
 FAIL=CSS Transitions with transition: all: property <tab-size> from neutral to [10] at (0.3) should be [6.5]
 FAIL=CSS Transitions with transition: all: property <tab-size> from neutral to [10] at (0.6) should be [8]
-FAIL=CSS Transitions with transition: all: property <tab-size> from neutral to [10] at (1) should be [10]
 FAIL=CSS Transitions with transition: all: property <tab-size> from neutral to [10] at (1.5) should be [12.5]
 FAIL=CSS Transitions: property <tab-size> from [0] to [10] at (-0.3) should be [0]
 FAIL=CSS Transitions: property <tab-size> from [0] to [10] at (0) should be [0]
 FAIL=CSS Transitions: property <tab-size> from [0] to [10] at (0.3) should be [3]
 FAIL=CSS Transitions: property <tab-size> from [0] to [10] at (0.6) should be [6]
-FAIL=CSS Transitions: property <tab-size> from [0] to [10] at (1) should be [10]
 FAIL=CSS Transitions: property <tab-size> from [0] to [10] at (1.5) should be [15]
-FAIL=CSS Transitions: property <tab-size> from [1] to [10px] at (-0.3) should be [10px]
-FAIL=CSS Transitions: property <tab-size> from [1] to [10px] at (0) should be [10px]
-FAIL=CSS Transitions: property <tab-size> from [1] to [10px] at (0.3) should be [10px]
-FAIL=CSS Transitions: property <tab-size> from [1] to [10px] at (0.5) should be [10px]
-FAIL=CSS Transitions: property <tab-size> from [1] to [10px] at (0.6) should be [10px]
-FAIL=CSS Transitions: property <tab-size> from [1] to [10px] at (1) should be [10px]
-FAIL=CSS Transitions: property <tab-size> from [1] to [10px] at (1.5) should be [10px]
 FAIL=CSS Transitions: property <tab-size> from [1px] to [10px] at (-0.3) should be [0px]
 FAIL=CSS Transitions: property <tab-size> from [1px] to [10px] at (0) should be [1px]
 FAIL=CSS Transitions: property <tab-size> from [1px] to [10px] at (0.3) should be [3.7px]
 FAIL=CSS Transitions: property <tab-size> from [1px] to [10px] at (0.6) should be [6.4px]
-FAIL=CSS Transitions: property <tab-size> from [1px] to [10px] at (1) should be [10px]
 FAIL=CSS Transitions: property <tab-size> from [1px] to [10px] at (1.5) should be [14.5px]
 FAIL=CSS Transitions: property <tab-size> from [4] to [10] at (-0.3) should be [2.2]
 FAIL=CSS Transitions: property <tab-size> from [4] to [10] at (0) should be [4]
 FAIL=CSS Transitions: property <tab-size> from [4] to [10] at (0.3) should be [5.8]
 FAIL=CSS Transitions: property <tab-size> from [4] to [10] at (0.6) should be [7.6]
-FAIL=CSS Transitions: property <tab-size> from [4] to [10] at (1) should be [10]
 FAIL=CSS Transitions: property <tab-size> from [4] to [10] at (1.5) should be [13]
 FAIL=CSS Transitions: property <tab-size> from [inherit] to [10] at (-0.3) should be [23]
 FAIL=CSS Transitions: property <tab-size> from [inherit] to [10] at (0) should be [20]
@@ -69614,7 +69584,6 @@ FAIL=CSS Transitions: property <tab-size> from neutral to [10] at (-0.3) should 
 FAIL=CSS Transitions: property <tab-size> from neutral to [10] at (0) should be [5]
 FAIL=CSS Transitions: property <tab-size> from neutral to [10] at (0.3) should be [6.5]
 FAIL=CSS Transitions: property <tab-size> from neutral to [10] at (0.6) should be [8]
-FAIL=CSS Transitions: property <tab-size> from neutral to [10] at (1) should be [10]
 FAIL=CSS Transitions: property <tab-size> from neutral to [10] at (1.5) should be [12.5]
 FAIL=Web Animations: property <tab-size> from [0] to [10] at (-0.3) should be [0]
 FAIL=Web Animations: property <tab-size> from [0] to [10] at (0) should be [0]
@@ -69660,7 +69629,6 @@ FAIL=Web Animations: property <tab-size> from [unset] to [10] at (0.6) should be
 FAIL=Web Animations: property <tab-size> from [unset] to [10] at (1) should be [10]
 FAIL=Web Animations: property <tab-size> from [unset] to [10] at (1.5) should be [5]
 FAIL=Web Animations: property <tab-size> from neutral to [10] at (-0.3) should be [3.5]
-FAIL=Web Animations: property <tab-size> from neutral to [10] at (0) should be [5]
 FAIL=Web Animations: property <tab-size> from neutral to [10] at (0.3) should be [6.5]
 FAIL=Web Animations: property <tab-size> from neutral to [10] at (0.6) should be [8]
 FAIL=Web Animations: property <tab-size> from neutral to [10] at (1) should be [10]
@@ -69780,7 +69748,6 @@ FAIL=CSS Animations: property <text-indent> from [unset] to [20px] at (0.6) shou
 FAIL=CSS Animations: property <text-indent> from [unset] to [20px] at (1) should be [20px]
 FAIL=CSS Animations: property <text-indent> from [unset] to [20px] at (1.5) should be [-5px]
 FAIL=CSS Animations: property <text-indent> from neutral to [40px] at (-0.3) should be [1px]
-FAIL=CSS Animations: property <text-indent> from neutral to [40px] at (0) should be [10px]
 FAIL=CSS Animations: property <text-indent> from neutral to [40px] at (0.3) should be [19px]
 FAIL=CSS Animations: property <text-indent> from neutral to [40px] at (0.6) should be [28px]
 FAIL=CSS Animations: property <text-indent> from neutral to [40px] at (1) should be [40px]
@@ -69788,62 +69755,29 @@ FAIL=CSS Animations: property <text-indent> from neutral to [40px] at (1.5) shou
 FAIL=CSS Transitions with transition-behavior:allow-discrete: property <text-indent> from [0px each-line] to [50px hanging] at (-0.3) should be [0px each-line]
 FAIL=CSS Transitions with transition-behavior:allow-discrete: property <text-indent> from [0px each-line] to [50px hanging] at (0) should be [0px each-line]
 FAIL=CSS Transitions with transition-behavior:allow-discrete: property <text-indent> from [0px each-line] to [50px hanging] at (0.3) should be [0px each-line]
-FAIL=CSS Transitions with transition-behavior:allow-discrete: property <text-indent> from [0px each-line] to [50px hanging] at (0.5) should be [50px hanging]
-FAIL=CSS Transitions with transition-behavior:allow-discrete: property <text-indent> from [0px each-line] to [50px hanging] at (0.6) should be [50px hanging]
-FAIL=CSS Transitions with transition-behavior:allow-discrete: property <text-indent> from [0px each-line] to [50px hanging] at (1) should be [50px hanging]
-FAIL=CSS Transitions with transition-behavior:allow-discrete: property <text-indent> from [0px each-line] to [50px hanging] at (1.5) should be [50px hanging]
 FAIL=CSS Transitions with transition-behavior:allow-discrete: property <text-indent> from [0px] to [50px each-line hanging] at (-0.3) should be [0px]
 FAIL=CSS Transitions with transition-behavior:allow-discrete: property <text-indent> from [0px] to [50px each-line hanging] at (0) should be [0px]
 FAIL=CSS Transitions with transition-behavior:allow-discrete: property <text-indent> from [0px] to [50px each-line hanging] at (0.3) should be [0px]
-FAIL=CSS Transitions with transition-behavior:allow-discrete: property <text-indent> from [0px] to [50px each-line hanging] at (0.5) should be [50px each-line hanging]
-FAIL=CSS Transitions with transition-behavior:allow-discrete: property <text-indent> from [0px] to [50px each-line hanging] at (0.6) should be [50px each-line hanging]
-FAIL=CSS Transitions with transition-behavior:allow-discrete: property <text-indent> from [0px] to [50px each-line hanging] at (1) should be [50px each-line hanging]
-FAIL=CSS Transitions with transition-behavior:allow-discrete: property <text-indent> from [0px] to [50px each-line hanging] at (1.5) should be [50px each-line hanging]
 FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <text-indent> from [0px each-line] to [50px hanging] at (-0.3) should be [0px each-line]
 FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <text-indent> from [0px each-line] to [50px hanging] at (0) should be [0px each-line]
 FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <text-indent> from [0px each-line] to [50px hanging] at (0.3) should be [0px each-line]
-FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <text-indent> from [0px each-line] to [50px hanging] at (0.5) should be [50px hanging]
-FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <text-indent> from [0px each-line] to [50px hanging] at (0.6) should be [50px hanging]
-FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <text-indent> from [0px each-line] to [50px hanging] at (1) should be [50px hanging]
-FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <text-indent> from [0px each-line] to [50px hanging] at (1.5) should be [50px hanging]
 FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <text-indent> from [0px] to [50px each-line hanging] at (-0.3) should be [0px]
 FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <text-indent> from [0px] to [50px each-line hanging] at (0) should be [0px]
 FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <text-indent> from [0px] to [50px each-line hanging] at (0.3) should be [0px]
-FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <text-indent> from [0px] to [50px each-line hanging] at (0.5) should be [50px each-line hanging]
-FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <text-indent> from [0px] to [50px each-line hanging] at (0.6) should be [50px each-line hanging]
-FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <text-indent> from [0px] to [50px each-line hanging] at (1) should be [50px each-line hanging]
-FAIL=CSS Transitions with transition-property:all and transition-behavor:allow-discrete: property <text-indent> from [0px] to [50px each-line hanging] at (1.5) should be [50px each-line hanging]
-FAIL=CSS Transitions with transition: all: property <text-indent> from [0px each-line] to [50px hanging] at (-0.3) should be [50px hanging]
-FAIL=CSS Transitions with transition: all: property <text-indent> from [0px each-line] to [50px hanging] at (0) should be [50px hanging]
-FAIL=CSS Transitions with transition: all: property <text-indent> from [0px each-line] to [50px hanging] at (0.3) should be [50px hanging]
-FAIL=CSS Transitions with transition: all: property <text-indent> from [0px each-line] to [50px hanging] at (0.5) should be [50px hanging]
-FAIL=CSS Transitions with transition: all: property <text-indent> from [0px each-line] to [50px hanging] at (0.6) should be [50px hanging]
-FAIL=CSS Transitions with transition: all: property <text-indent> from [0px each-line] to [50px hanging] at (1) should be [50px hanging]
-FAIL=CSS Transitions with transition: all: property <text-indent> from [0px each-line] to [50px hanging] at (1.5) should be [50px hanging]
 FAIL=CSS Transitions with transition: all: property <text-indent> from [0px hanging each-line] to [50px each-line hanging] at (-0.3) should be [-15px hanging each-line]
 FAIL=CSS Transitions with transition: all: property <text-indent> from [0px hanging each-line] to [50px each-line hanging] at (0) should be [0 hanging each-line]
 FAIL=CSS Transitions with transition: all: property <text-indent> from [0px hanging each-line] to [50px each-line hanging] at (0.3) should be [15px hanging each-line]
 FAIL=CSS Transitions with transition: all: property <text-indent> from [0px hanging each-line] to [50px each-line hanging] at (0.6) should be [30px hanging each-line]
-FAIL=CSS Transitions with transition: all: property <text-indent> from [0px hanging each-line] to [50px each-line hanging] at (1) should be [50px hanging each-line]
 FAIL=CSS Transitions with transition: all: property <text-indent> from [0px hanging each-line] to [50px each-line hanging] at (1.5) should be [75px hanging each-line]
 FAIL=CSS Transitions with transition: all: property <text-indent> from [0px hanging] to [50px hanging] at (-0.3) should be [-15px hanging]
 FAIL=CSS Transitions with transition: all: property <text-indent> from [0px hanging] to [50px hanging] at (0) should be [0 hanging]
 FAIL=CSS Transitions with transition: all: property <text-indent> from [0px hanging] to [50px hanging] at (0.3) should be [15px hanging]
 FAIL=CSS Transitions with transition: all: property <text-indent> from [0px hanging] to [50px hanging] at (0.6) should be [30px hanging]
-FAIL=CSS Transitions with transition: all: property <text-indent> from [0px hanging] to [50px hanging] at (1) should be [50px hanging]
 FAIL=CSS Transitions with transition: all: property <text-indent> from [0px hanging] to [50px hanging] at (1.5) should be [75px hanging]
-FAIL=CSS Transitions with transition: all: property <text-indent> from [0px] to [50px each-line hanging] at (-0.3) should be [50px each-line hanging]
-FAIL=CSS Transitions with transition: all: property <text-indent> from [0px] to [50px each-line hanging] at (0) should be [50px each-line hanging]
-FAIL=CSS Transitions with transition: all: property <text-indent> from [0px] to [50px each-line hanging] at (0.3) should be [50px each-line hanging]
-FAIL=CSS Transitions with transition: all: property <text-indent> from [0px] to [50px each-line hanging] at (0.5) should be [50px each-line hanging]
-FAIL=CSS Transitions with transition: all: property <text-indent> from [0px] to [50px each-line hanging] at (0.6) should be [50px each-line hanging]
-FAIL=CSS Transitions with transition: all: property <text-indent> from [0px] to [50px each-line hanging] at (1) should be [50px each-line hanging]
-FAIL=CSS Transitions with transition: all: property <text-indent> from [0px] to [50px each-line hanging] at (1.5) should be [50px each-line hanging]
 FAIL=CSS Transitions with transition: all: property <text-indent> from [0px] to [50px] at (-0.3) should be [-15px]
 FAIL=CSS Transitions with transition: all: property <text-indent> from [0px] to [50px] at (0) should be [0]
 FAIL=CSS Transitions with transition: all: property <text-indent> from [0px] to [50px] at (0.3) should be [15px]
 FAIL=CSS Transitions with transition: all: property <text-indent> from [0px] to [50px] at (0.6) should be [30px]
-FAIL=CSS Transitions with transition: all: property <text-indent> from [0px] to [50px] at (1) should be [50px]
 FAIL=CSS Transitions with transition: all: property <text-indent> from [0px] to [50px] at (1.5) should be [75px]
 FAIL=CSS Transitions with transition: all: property <text-indent> from [inherit] to [20px] at (-0.3) should be [85px]
 FAIL=CSS Transitions with transition: all: property <text-indent> from [inherit] to [20px] at (0) should be [70px]
@@ -69867,39 +69801,21 @@ FAIL=CSS Transitions with transition: all: property <text-indent> from neutral t
 FAIL=CSS Transitions with transition: all: property <text-indent> from neutral to [40px] at (0) should be [10px]
 FAIL=CSS Transitions with transition: all: property <text-indent> from neutral to [40px] at (0.3) should be [19px]
 FAIL=CSS Transitions with transition: all: property <text-indent> from neutral to [40px] at (0.6) should be [28px]
-FAIL=CSS Transitions with transition: all: property <text-indent> from neutral to [40px] at (1) should be [40px]
 FAIL=CSS Transitions with transition: all: property <text-indent> from neutral to [40px] at (1.5) should be [55px]
-FAIL=CSS Transitions: property <text-indent> from [0px each-line] to [50px hanging] at (-0.3) should be [50px hanging]
-FAIL=CSS Transitions: property <text-indent> from [0px each-line] to [50px hanging] at (0) should be [50px hanging]
-FAIL=CSS Transitions: property <text-indent> from [0px each-line] to [50px hanging] at (0.3) should be [50px hanging]
-FAIL=CSS Transitions: property <text-indent> from [0px each-line] to [50px hanging] at (0.5) should be [50px hanging]
-FAIL=CSS Transitions: property <text-indent> from [0px each-line] to [50px hanging] at (0.6) should be [50px hanging]
-FAIL=CSS Transitions: property <text-indent> from [0px each-line] to [50px hanging] at (1) should be [50px hanging]
-FAIL=CSS Transitions: property <text-indent> from [0px each-line] to [50px hanging] at (1.5) should be [50px hanging]
 FAIL=CSS Transitions: property <text-indent> from [0px hanging each-line] to [50px each-line hanging] at (-0.3) should be [-15px hanging each-line]
 FAIL=CSS Transitions: property <text-indent> from [0px hanging each-line] to [50px each-line hanging] at (0) should be [0 hanging each-line]
 FAIL=CSS Transitions: property <text-indent> from [0px hanging each-line] to [50px each-line hanging] at (0.3) should be [15px hanging each-line]
 FAIL=CSS Transitions: property <text-indent> from [0px hanging each-line] to [50px each-line hanging] at (0.6) should be [30px hanging each-line]
-FAIL=CSS Transitions: property <text-indent> from [0px hanging each-line] to [50px each-line hanging] at (1) should be [50px hanging each-line]
 FAIL=CSS Transitions: property <text-indent> from [0px hanging each-line] to [50px each-line hanging] at (1.5) should be [75px hanging each-line]
 FAIL=CSS Transitions: property <text-indent> from [0px hanging] to [50px hanging] at (-0.3) should be [-15px hanging]
 FAIL=CSS Transitions: property <text-indent> from [0px hanging] to [50px hanging] at (0) should be [0 hanging]
 FAIL=CSS Transitions: property <text-indent> from [0px hanging] to [50px hanging] at (0.3) should be [15px hanging]
 FAIL=CSS Transitions: property <text-indent> from [0px hanging] to [50px hanging] at (0.6) should be [30px hanging]
-FAIL=CSS Transitions: property <text-indent> from [0px hanging] to [50px hanging] at (1) should be [50px hanging]
 FAIL=CSS Transitions: property <text-indent> from [0px hanging] to [50px hanging] at (1.5) should be [75px hanging]
-FAIL=CSS Transitions: property <text-indent> from [0px] to [50px each-line hanging] at (-0.3) should be [50px each-line hanging]
-FAIL=CSS Transitions: property <text-indent> from [0px] to [50px each-line hanging] at (0) should be [50px each-line hanging]
-FAIL=CSS Transitions: property <text-indent> from [0px] to [50px each-line hanging] at (0.3) should be [50px each-line hanging]
-FAIL=CSS Transitions: property <text-indent> from [0px] to [50px each-line hanging] at (0.5) should be [50px each-line hanging]
-FAIL=CSS Transitions: property <text-indent> from [0px] to [50px each-line hanging] at (0.6) should be [50px each-line hanging]
-FAIL=CSS Transitions: property <text-indent> from [0px] to [50px each-line hanging] at (1) should be [50px each-line hanging]
-FAIL=CSS Transitions: property <text-indent> from [0px] to [50px each-line hanging] at (1.5) should be [50px each-line hanging]
 FAIL=CSS Transitions: property <text-indent> from [0px] to [50px] at (-0.3) should be [-15px]
 FAIL=CSS Transitions: property <text-indent> from [0px] to [50px] at (0) should be [0]
 FAIL=CSS Transitions: property <text-indent> from [0px] to [50px] at (0.3) should be [15px]
 FAIL=CSS Transitions: property <text-indent> from [0px] to [50px] at (0.6) should be [30px]
-FAIL=CSS Transitions: property <text-indent> from [0px] to [50px] at (1) should be [50px]
 FAIL=CSS Transitions: property <text-indent> from [0px] to [50px] at (1.5) should be [75px]
 FAIL=CSS Transitions: property <text-indent> from [inherit] to [20px] at (-0.3) should be [85px]
 FAIL=CSS Transitions: property <text-indent> from [inherit] to [20px] at (0) should be [70px]
@@ -69923,7 +69839,6 @@ FAIL=CSS Transitions: property <text-indent> from neutral to [40px] at (-0.3) sh
 FAIL=CSS Transitions: property <text-indent> from neutral to [40px] at (0) should be [10px]
 FAIL=CSS Transitions: property <text-indent> from neutral to [40px] at (0.3) should be [19px]
 FAIL=CSS Transitions: property <text-indent> from neutral to [40px] at (0.6) should be [28px]
-FAIL=CSS Transitions: property <text-indent> from neutral to [40px] at (1) should be [40px]
 FAIL=CSS Transitions: property <text-indent> from neutral to [40px] at (1.5) should be [55px]
 FAIL=Web Animations: property <text-indent> from [0px each-line] to [50px hanging] at (-0.3) should be [0px each-line]
 FAIL=Web Animations: property <text-indent> from [0px each-line] to [50px hanging] at (0) should be [0px each-line]
@@ -69976,7 +69891,6 @@ FAIL=Web Animations: property <text-indent> from [unset] to [20px] at (0.6) shou
 FAIL=Web Animations: property <text-indent> from [unset] to [20px] at (1) should be [20px]
 FAIL=Web Animations: property <text-indent> from [unset] to [20px] at (1.5) should be [-5px]
 FAIL=Web Animations: property <text-indent> from neutral to [40px] at (-0.3) should be [1px]
-FAIL=Web Animations: property <text-indent> from neutral to [40px] at (0) should be [10px]
 FAIL=Web Animations: property <text-indent> from neutral to [40px] at (0.3) should be [19px]
 FAIL=Web Animations: property <text-indent> from neutral to [40px] at (0.6) should be [28px]
 FAIL=Web Animations: property <text-indent> from neutral to [40px] at (1) should be [40px]
@@ -70161,6 +70075,8 @@ FAIL=Web Animations: property <word-spacing> from neutral to [20px] at (1.5) sho
 harness=FAIL
 [css/css-text/bidi/bidi-lines-002.html]
 harness=FAIL
+[css/css-text/bidi/bidi-tab-001.html]
+harness=FAIL
 [css/css-text/bidi/empty-span-001.html]
 harness=FAIL
 [css/css-text/boundary-shaping/boundary-shaping-001.html]
@@ -70192,6 +70108,8 @@ harness=FAIL
 [css/css-text/hanging-punctuation/hanging-punctuation-first-002.html]
 harness=FAIL
 [css/css-text/hanging-punctuation/hanging-punctuation-first-and-last-together.html]
+harness=FAIL
+[css/css-text/hanging-punctuation/hanging-punctuation-first-ascii-quote.html]
 harness=FAIL
 [css/css-text/hanging-punctuation/hanging-punctuation-first-rtl.html]
 harness=FAIL
@@ -70241,6 +70159,8 @@ harness=FAIL
 harness=FAIL
 [css/css-text/hyphens/hyphens-auto-inline-010.html]
 harness=FAIL
+[css/css-text/hyphens/hyphens-auto-last-word-001.html]
+harness=FAIL
 [css/css-text/hyphens/hyphens-character.html]
 harness=FAIL
 [css/css-text/hyphens/hyphens-manual-011.html]
@@ -70249,9 +70169,13 @@ harness=FAIL
 harness=FAIL
 [css/css-text/hyphens/hyphens-manual-013.html]
 harness=FAIL
+[css/css-text/hyphens/hyphens-manual-inline-010.html]
+harness=FAIL
 [css/css-text/hyphens/hyphens-manual-inline-011.html]
 harness=FAIL
 [css/css-text/hyphens/hyphens-manual-inline-012.html]
+harness=FAIL
+[css/css-text/hyphens/hyphens-none-011.html]
 harness=FAIL
 [css/css-text/hyphens/hyphens-none-012.html]
 harness=FAIL
@@ -70270,6 +70194,10 @@ harness=FAIL
 [css/css-text/hyphens/hyphens-shaping-001.html]
 harness=FAIL
 [css/css-text/hyphens/hyphens-shaping-002.html]
+harness=FAIL
+[css/css-text/hyphens/hyphens-span-001.html]
+harness=FAIL
+[css/css-text/hyphens/hyphens-span-002.html]
 harness=FAIL
 [css/css-text/hyphens/hyphens-vertical-001.html]
 harness=FAIL
@@ -70309,512 +70237,12 @@ harness=FAIL
 harness=FAIL
 [css/css-text/hyphens/shy-styling-001.html]
 harness=FAIL
-[css/css-text/i18n/css3-text-line-break-baspglwj-001.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-002.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-003.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-004.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-005.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-006.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-007.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-008.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-009.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-010.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-011.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-012.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-014.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-015.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-016.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-017.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-018.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-019.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-020.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-021.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-022.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
 [css/css-text/i18n/css3-text-line-break-baspglwj-023.html]
 FAIL=white-space:break-spaces
 FAIL=white-space:normal
 FAIL=white-space:pre-line
 FAIL=white-space:pre-wrap
 [css/css-text/i18n/css3-text-line-break-baspglwj-024.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-025.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-026.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-030.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-031.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-032.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-033.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-034.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-035.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-036.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-037.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-038.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-039.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-040.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-041.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-042.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-043.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-044.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-045.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-046.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-047.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-048.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-049.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-050.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-051.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-052.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-060.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-061.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-062.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-063.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-064.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-065.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-066.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-067.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-068.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-069.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-070.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-071.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-072.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-073.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-074.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-075.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-076.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-077.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-078.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-080.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-081.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-082.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-083.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-084.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-085.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-086.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-090.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-091.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-092.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-093.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-095.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-096.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-097.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-098.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-099.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-100.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-101.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-102.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-103.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-104.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-105.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-106.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-107.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-108.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-109.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-110.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-111.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-112.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-113.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-114.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-115.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-116.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-117.html]
-FAIL=white-space:break-spaces
-FAIL=white-space:normal
-FAIL=white-space:pre-line
-FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-baspglwj-118.html]
 FAIL=white-space:break-spaces
 FAIL=white-space:normal
 FAIL=white-space:pre-line
@@ -71000,11 +70428,8 @@ FAIL=Property letter-spacing has initial value normal
 FAIL=Property letter-spacing inherits
 FAIL=Property line-break has initial value auto
 FAIL=Property line-break inherits
-FAIL=Property overflow-wrap has initial value normal
 FAIL=Property overflow-wrap inherits
-FAIL=Property tab-size has initial value 8
 FAIL=Property tab-size inherits
-FAIL=Property text-align has initial value start
 FAIL=Property text-align inherits
 FAIL=Property text-align-all has initial value start
 FAIL=Property text-align-all inherits
@@ -71012,13 +70437,10 @@ FAIL=Property text-align-last has initial value auto
 FAIL=Property text-align-last inherits
 FAIL=Property text-fit has initial value none
 FAIL=Property text-fit inherits
-FAIL=Property text-indent has initial value 0px
 FAIL=Property text-indent inherits
 FAIL=Property text-justify has initial value auto
 FAIL=Property text-justify inherits
-FAIL=Property text-transform has initial value none
 FAIL=Property text-transform inherits
-FAIL=Property text-wrap has initial value wrap
 FAIL=Property text-wrap inherits
 FAIL=Property text-wrap-mode has initial value wrap
 FAIL=Property text-wrap-mode inherits
@@ -71028,7 +70450,6 @@ FAIL=Property white-space has initial value normal
 FAIL=Property white-space inherits
 FAIL=Property white-space-collapse has initial value collapse
 FAIL=Property white-space-collapse inherits
-FAIL=Property word-break has initial value normal
 FAIL=Property word-break inherits
 FAIL=Property word-spacing has initial value 0px
 FAIL=Property word-spacing inherits
@@ -71076,8 +70497,6 @@ harness=FAIL
 harness=FAIL
 [css/css-text/letter-spacing/letter-spacing-trim-start-001.html]
 harness=FAIL
-[css/css-text/letter-spacing/letter-spacing-trim-start-002.html]
-harness=TIMEOUT
 [css/css-text/line-break/line-break-anywhere-001.html]
 harness=FAIL
 [css/css-text/line-break/line-break-anywhere-002.html]
@@ -71250,8 +70669,6 @@ harness=FAIL
 harness=FAIL
 [css/css-text/line-breaking/line-breaking-022.html]
 harness=FAIL
-[css/css-text/line-breaking/line-breaking-023.html]
-harness=FAIL
 [css/css-text/line-breaking/line-breaking-024.html]
 harness=FAIL
 [css/css-text/line-breaking/line-breaking-025.html]
@@ -71409,8 +70826,6 @@ harness=FAIL
 harness=FAIL
 [css/css-text/overflow-wrap/overflow-wrap-break-word-001.html]
 harness=FAIL
-[css/css-text/overflow-wrap/overflow-wrap-break-word-002.html]
-harness=FAIL
 [css/css-text/overflow-wrap/overflow-wrap-break-word-003.html]
 harness=FAIL
 [css/css-text/overflow-wrap/overflow-wrap-break-word-004.html]
@@ -71427,9 +70842,6 @@ harness=FAIL
 harness=FAIL
 [css/css-text/overflow-wrap/overflow-wrap-break-word-010.html]
 harness=FAIL
-[css/css-text/overflow-wrap/overflow-wrap-break-word-keep-all-001.html]
-FAIL=0000000000
-FAIL=U+d5ecU+b85cU+c6b0U+c6d4U+b4dcU+d5ecU+b85cU+c6b0U+c6d4U+b4dcU+d5ecU+b85cU+c6b0U+c6d4U+b4dcU+d5ecU+b85cU+c6b0U+c6d4U+b4dcU+d5ecU+b85cU+c6b0U+c6d4U+b4dc
 [css/css-text/overflow-wrap/overflow-wrap-break-word-span-001.html]
 harness=FAIL
 [css/css-text/overflow-wrap/overflow-wrap-cluster-001.html]
@@ -71465,34 +70877,37 @@ harness=FAIL
 [css/css-text/overflow-wrap/word-wrap-alias.html]
 FAIL=word-wrap is a legacy name alias for overflow-wrap
 FAIL=word-wrap should be defined as an alias of overflow-wrap
-[css/css-text/parsing/hanging-punctuation-invalid.html]
-FAIL=e.style['hanging-punctuation'] = "20px" should not set the property value
-FAIL=e.style['hanging-punctuation'] = "allow-end last force-end" should not set the property value
-FAIL=e.style['hanging-punctuation'] = "first allow-end force-end last" should not set the property value
-FAIL=e.style['hanging-punctuation'] = "first allow-end last allow-end" should not set the property value
-FAIL=e.style['hanging-punctuation'] = "first first" should not set the property value
-FAIL=e.style['hanging-punctuation'] = "force-end allow-end" should not set the property value
-FAIL=e.style['hanging-punctuation'] = "last force-end last" should not set the property value
-FAIL=e.style['hanging-punctuation'] = "last last" should not set the property value
-FAIL=e.style['hanging-punctuation'] = "last none" should not set the property value
-FAIL=e.style['hanging-punctuation'] = "none first" should not set the property value
-FAIL=e.style['hanging-punctuation'] = "nonsense" should not set the property value
+[css/css-text/parsing/hanging-punctuation-valid.html]
+FAIL=e.style['hanging-punctuation'] = "allow-end first" should set the property value
+FAIL=e.style['hanging-punctuation'] = "allow-end last first" should set the property value
+FAIL=e.style['hanging-punctuation'] = "allow-end" should set the property value
+FAIL=e.style['hanging-punctuation'] = "first allow-end last" should set the property value
+FAIL=e.style['hanging-punctuation'] = "first allow-end" should set the property value
+FAIL=e.style['hanging-punctuation'] = "first force-end" should set the property value
+FAIL=e.style['hanging-punctuation'] = "first last force-end" should set the property value
+FAIL=e.style['hanging-punctuation'] = "first last" should set the property value
+FAIL=e.style['hanging-punctuation'] = "first" should set the property value
+FAIL=e.style['hanging-punctuation'] = "force-end first last" should set the property value
+FAIL=e.style['hanging-punctuation'] = "force-end last" should set the property value
+FAIL=e.style['hanging-punctuation'] = "force-end" should set the property value
+FAIL=e.style['hanging-punctuation'] = "last allow-end first" should set the property value
+FAIL=e.style['hanging-punctuation'] = "last allow-end" should set the property value
+FAIL=e.style['hanging-punctuation'] = "last first force-end" should set the property value
+FAIL=e.style['hanging-punctuation'] = "last first" should set the property value
+FAIL=e.style['hanging-punctuation'] = "last" should set the property value
+FAIL=e.style['hanging-punctuation'] = "none" should set the property value
 [css/css-text/parsing/hyphenate-character-computed.html]
 FAIL=Property hyphenate-character value '""'
 FAIL=Property hyphenate-character value '"/-/"'
 FAIL=Property hyphenate-character value '"="'
 FAIL=Property hyphenate-character value '"\1400"'
 FAIL=Property hyphenate-character value 'auto'
-[css/css-text/parsing/hyphenate-character-invalid.html]
-FAIL=e.style['hyphenate-character'] = "1400" should not set the property value
-FAIL=e.style['hyphenate-character'] = "U+1400" should not set the property value
-FAIL=e.style['hyphenate-character'] = "\"-\" \"=\"" should not set the property value
-FAIL=e.style['hyphenate-character'] = "auto auto" should not set the property value
-FAIL=e.style['hyphenate-character'] = "manual" should not set the property value
-FAIL=e.style['hyphenate-character'] = "none" should not set the property value
-FAIL=e.style['hyphenate-character'] = "normal" should not set the property value
 [css/css-text/parsing/hyphenate-character-valid.html]
+FAIL=e.style['hyphenate-character'] = "\"/-/\"" should set the property value
+FAIL=e.style['hyphenate-character'] = "\"=\"" should set the property value
+FAIL=e.style['hyphenate-character'] = "\"\"" should set the property value
 FAIL=e.style['hyphenate-character'] = "\"\\1400\"" should set the property value
+FAIL=e.style['hyphenate-character'] = "auto" should set the property value
 [css/css-text/parsing/hyphenate-limit-chars-computed.html]
 FAIL=Property hyphenate-limit-chars value '5 2 3'
 FAIL=Property hyphenate-limit-chars value '5 2 calc(3.1)'
@@ -71505,20 +70920,18 @@ FAIL=Property hyphenate-limit-chars value 'auto auto 2'
 FAIL=Property hyphenate-limit-chars value 'auto auto auto'
 FAIL=Property hyphenate-limit-chars value 'auto auto'
 FAIL=Property hyphenate-limit-chars value 'auto'
-[css/css-text/parsing/hyphenate-limit-chars-invalid.html]
-FAIL=e.style['hyphenate-limit-chars'] = "1 1.2" should not set the property value
-FAIL=e.style['hyphenate-limit-chars'] = "1 2 1.2" should not set the property value
-FAIL=e.style['hyphenate-limit-chars'] = "1 2 3 4" should not set the property value
-FAIL=e.style['hyphenate-limit-chars'] = "1 none" should not set the property value
-FAIL=e.style['hyphenate-limit-chars'] = "1 normal" should not set the property value
-FAIL=e.style['hyphenate-limit-chars'] = "1.2" should not set the property value
-FAIL=e.style['hyphenate-limit-chars'] = "none" should not set the property value
-FAIL=e.style['hyphenate-limit-chars'] = "normal" should not set the property value
 [css/css-text/parsing/hyphenate-limit-chars-valid.html]
 FAIL=e.style['hyphenate-limit-chars'] = "5 2 2" should set the property value
+FAIL=e.style['hyphenate-limit-chars'] = "5 2 3" should set the property value
+FAIL=e.style['hyphenate-limit-chars'] = "5 2" should set the property value
+FAIL=e.style['hyphenate-limit-chars'] = "5" should set the property value
 FAIL=e.style['hyphenate-limit-chars'] = "auto 2 2" should set the property value
+FAIL=e.style['hyphenate-limit-chars'] = "auto 2 auto" should set the property value
+FAIL=e.style['hyphenate-limit-chars'] = "auto 2" should set the property value
+FAIL=e.style['hyphenate-limit-chars'] = "auto auto 2" should set the property value
 FAIL=e.style['hyphenate-limit-chars'] = "auto auto auto" should set the property value
 FAIL=e.style['hyphenate-limit-chars'] = "auto auto" should set the property value
+FAIL=e.style['hyphenate-limit-chars'] = "auto" should set the property value
 [css/css-text/parsing/hyphens-computed.html]
 FAIL=Property hyphens value 'auto'
 FAIL=Property hyphens value 'manual'
@@ -71541,64 +70954,40 @@ FAIL=Property letter-spacing value 'normal'
 FAIL=computed letter-spacing
 FAIL=computed zoomed inherited letter-spacing
 FAIL=computed zoomed letter-spacing
-[css/css-text/parsing/letter-spacing-invalid.html]
-FAIL=e.style['letter-spacing'] = "10% 10px" should not set the property value
-FAIL=e.style['letter-spacing'] = "20" should not set the property value
-FAIL=e.style['letter-spacing'] = "auto" should not set the property value
-FAIL=e.style['letter-spacing'] = "normal 10px" should not set the property value
 [css/css-text/parsing/letter-spacing-valid.html]
+FAIL=e.style['letter-spacing'] = "-10%" should set the property value
+FAIL=e.style['letter-spacing'] = "-10px" should set the property value
 FAIL=e.style['letter-spacing'] = "0" should set the property value
+FAIL=e.style['letter-spacing'] = "120%" should set the property value
+FAIL=e.style['letter-spacing'] = "20px" should set the property value
 FAIL=e.style['letter-spacing'] = "calc(2ch - 30%)" should set the property value
+FAIL=e.style['letter-spacing'] = "calc(2em + 3ex)" should set the property value
+FAIL=e.style['letter-spacing'] = "calc(40% + 50px)" should set the property value
+FAIL=e.style['letter-spacing'] = "normal" should set the property value
 [css/css-text/parsing/line-break-computed.html]
 FAIL=Property line-break value 'anywhere'
 FAIL=Property line-break value 'auto'
 FAIL=Property line-break value 'loose'
 FAIL=Property line-break value 'normal'
 FAIL=Property line-break value 'strict'
-[css/css-text/parsing/line-break-invalid.html]
-FAIL=e.style['line-break'] = "after-white-space" should not set the property value
-FAIL=e.style['line-break'] = "anywhere anywhere" should not set the property value
-FAIL=e.style['line-break'] = "auto loose" should not set the property value
-FAIL=e.style['line-break'] = "none" should not set the property value
-FAIL=e.style['line-break'] = "strict normal" should not set the property value
-[css/css-text/parsing/overflow-wrap-computed.html]
-FAIL=Property overflow-wrap value 'anywhere'
-FAIL=Property overflow-wrap value 'break-word'
-FAIL=Property overflow-wrap value 'normal'
-[css/css-text/parsing/overflow-wrap-invalid.html]
-FAIL=e.style['overflow-wrap'] = "anywhere anywhere" should not set the property value
-FAIL=e.style['overflow-wrap'] = "auto" should not set the property value
-FAIL=e.style['overflow-wrap'] = "normal break-word" should not set the property value
+[css/css-text/parsing/line-break-valid.html]
+FAIL=e.style['line-break'] = "anywhere" should set the property value
+FAIL=e.style['line-break'] = "auto" should set the property value
+FAIL=e.style['line-break'] = "loose" should set the property value
+FAIL=e.style['line-break'] = "normal" should set the property value
+FAIL=e.style['line-break'] = "strict" should set the property value
 [css/css-text/parsing/tab-size-computed.html]
-FAIL=Property tab-size value '0'
-FAIL=Property tab-size value '0px'
-FAIL=Property tab-size value '10px'
-FAIL=Property tab-size value '16'
-FAIL=Property tab-size value '2.5'
-FAIL=Property tab-size value '4'
 FAIL=Property tab-size value 'calc(10 + (sign(2cqw - 10px) * 5))'
 FAIL=Property tab-size value 'calc(10px + (sign(2cqw - 10px) * 5px))'
-FAIL=Property tab-size value 'calc(10px + 0.5em)'
 FAIL=Property tab-size value 'calc(10px - 0.5em)'
-[css/css-text/parsing/tab-size-invalid.html]
-FAIL=e.style['tab-size'] = "-10px" should not set the property value
-FAIL=e.style['tab-size'] = "-20" should not set the property value
-FAIL=e.style['tab-size'] = "30%" should not set the property value
-FAIL=e.style['tab-size'] = "calc(40% + 50px)" should not set the property value
-[css/css-text/parsing/text-align-all-invalid.html]
-FAIL=e.style['text-align-all'] = "auto" should not set the property value
-FAIL=e.style['text-align-all'] = "center justify" should not set the property value
-FAIL=e.style['text-align-all'] = "left right" should not set the property value
-FAIL=e.style['text-align-all'] = "match-parent match-parent" should not set the property value
-FAIL=e.style['text-align-all'] = "start end" should not set the property value
-[css/css-text/parsing/text-align-computed.html]
-FAIL=Property text-align value 'match-parent'
-[css/css-text/parsing/text-align-invalid.html]
-FAIL=e.style['text-align'] = "auto" should not set the property value
-FAIL=e.style['text-align'] = "center justify" should not set the property value
-FAIL=e.style['text-align'] = "justify-all match-parent" should not set the property value
-FAIL=e.style['text-align'] = "left right" should not set the property value
-FAIL=e.style['text-align'] = "start end" should not set the property value
+[css/css-text/parsing/text-align-all-valid.html]
+FAIL=e.style['text-align-all'] = "center" should set the property value
+FAIL=e.style['text-align-all'] = "end" should set the property value
+FAIL=e.style['text-align-all'] = "justify" should set the property value
+FAIL=e.style['text-align-all'] = "left" should set the property value
+FAIL=e.style['text-align-all'] = "match-parent" should set the property value
+FAIL=e.style['text-align-all'] = "right" should set the property value
+FAIL=e.style['text-align-all'] = "start" should set the property value
 [css/css-text/parsing/text-align-last-computed.html]
 FAIL=Property text-align-last value 'auto'
 FAIL=Property text-align-last value 'center'
@@ -71608,12 +70997,15 @@ FAIL=Property text-align-last value 'left'
 FAIL=Property text-align-last value 'match-parent'
 FAIL=Property text-align-last value 'right'
 FAIL=Property text-align-last value 'start'
-[css/css-text/parsing/text-align-last-invalid.html]
-FAIL=e.style['text-align-last'] = "auto start" should not set the property value
-FAIL=e.style['text-align-last'] = "end left" should not set the property value
-FAIL=e.style['text-align-last'] = "justify match-parent" should not set the property value
-FAIL=e.style['text-align-last'] = "none" should not set the property value
-FAIL=e.style['text-align-last'] = "right center" should not set the property value
+[css/css-text/parsing/text-align-last-valid.html]
+FAIL=e.style['text-align-last'] = "auto" should set the property value
+FAIL=e.style['text-align-last'] = "center" should set the property value
+FAIL=e.style['text-align-last'] = "end" should set the property value
+FAIL=e.style['text-align-last'] = "justify" should set the property value
+FAIL=e.style['text-align-last'] = "left" should set the property value
+FAIL=e.style['text-align-last'] = "match-parent" should set the property value
+FAIL=e.style['text-align-last'] = "right" should set the property value
+FAIL=e.style['text-align-last'] = "start" should set the property value
 [css/css-text/parsing/text-autospace-computed.html]
 FAIL=Property text-autospace value 'auto'
 FAIL=Property text-autospace value 'ideograph-alpha ideograph-numeric insert'
@@ -71647,33 +71039,32 @@ FAIL=Property text-autospace value 'replace ideograph-numeric'
 FAIL=Property text-autospace value 'replace punctuation ideograph-alpha ideograph-numeric'
 FAIL=Property text-autospace value 'replace punctuation ideograph-alpha'
 FAIL=Property text-autospace value 'replace punctuation'
-[css/css-text/parsing/text-autospace-invalid.html]
-FAIL=e.style['text-autospace'] = "auto ideograph-alpha ideograph-numeric" should not set the property value
-FAIL=e.style['text-autospace'] = "auto ideograph-alpha" should not set the property value
-FAIL=e.style['text-autospace'] = "auto insert" should not set the property value
-FAIL=e.style['text-autospace'] = "auto punctuation" should not set the property value
-FAIL=e.style['text-autospace'] = "auto replace" should not set the property value
-FAIL=e.style['text-autospace'] = "insert punctuation normal" should not set the property value
-FAIL=e.style['text-autospace'] = "normal ideograph-alpha ideograph-numeric" should not set the property value
-FAIL=e.style['text-autospace'] = "normal ideograph-alpha" should not set the property value
-FAIL=e.style['text-autospace'] = "normal insert" should not set the property value
-FAIL=e.style['text-autospace'] = "normal punctuation" should not set the property value
-FAIL=e.style['text-autospace'] = "normal replace" should not set the property value
-FAIL=e.style['text-autospace'] = "punctuation normal insert" should not set the property value
-FAIL=e.style['text-autospace'] = "punctuation normal replace" should not set the property value
-FAIL=e.style['text-autospace'] = "punctuation normal" should not set the property value
-FAIL=e.style['text-autospace'] = "replace punctuation normal" should not set the property value
 [css/css-text/parsing/text-autospace-valid.html]
+FAIL=e.style['text-autospace'] = "auto" should set the property value
+FAIL=e.style['text-autospace'] = "ideograph-alpha ideograph-numeric insert" should set the property value
+FAIL=e.style['text-autospace'] = "ideograph-alpha ideograph-numeric replace" should set the property value
+FAIL=e.style['text-autospace'] = "ideograph-alpha ideograph-numeric" should set the property value
+FAIL=e.style['text-autospace'] = "ideograph-alpha insert" should set the property value
+FAIL=e.style['text-autospace'] = "ideograph-alpha replace" should set the property value
+FAIL=e.style['text-autospace'] = "ideograph-alpha" should set the property value
+FAIL=e.style['text-autospace'] = "ideograph-numeric insert" should set the property value
+FAIL=e.style['text-autospace'] = "ideograph-numeric replace" should set the property value
+FAIL=e.style['text-autospace'] = "ideograph-numeric" should set the property value
 FAIL=e.style['text-autospace'] = "insert ideograph-alpha ideograph-numeric" should set the property value
 FAIL=e.style['text-autospace'] = "insert ideograph-alpha" should set the property value
 FAIL=e.style['text-autospace'] = "insert ideograph-numeric" should set the property value
 FAIL=e.style['text-autospace'] = "insert punctuation ideograph-alpha ideograph-numeric" should set the property value
 FAIL=e.style['text-autospace'] = "insert punctuation ideograph-alpha" should set the property value
 FAIL=e.style['text-autospace'] = "insert punctuation" should set the property value
+FAIL=e.style['text-autospace'] = "no-autospace" should set the property value
+FAIL=e.style['text-autospace'] = "normal" should set the property value
 FAIL=e.style['text-autospace'] = "punctuation ideograph-alpha ideograph-numeric" should set the property value
 FAIL=e.style['text-autospace'] = "punctuation ideograph-alpha insert" should set the property value
 FAIL=e.style['text-autospace'] = "punctuation ideograph-alpha replace" should set the property value
 FAIL=e.style['text-autospace'] = "punctuation ideograph-alpha" should set the property value
+FAIL=e.style['text-autospace'] = "punctuation insert" should set the property value
+FAIL=e.style['text-autospace'] = "punctuation replace" should set the property value
+FAIL=e.style['text-autospace'] = "punctuation" should set the property value
 FAIL=e.style['text-autospace'] = "replace ideograph-alpha ideograph-numeric" should set the property value
 FAIL=e.style['text-autospace'] = "replace ideograph-alpha" should set the property value
 FAIL=e.style['text-autospace'] = "replace ideograph-numeric" should set the property value
@@ -71691,46 +71082,34 @@ FAIL=Property text-fit value 'none'
 FAIL=Property text-fit value 'shrink consistent 20%'
 FAIL=Property text-fit value 'shrink per-line 40%'
 FAIL=Property text-fit value 'shrink'
-[css/css-text/parsing/text-fit-invalid.html]
-FAIL=e.style['text-fit'] = "consistent 100%" should not set the property value
-FAIL=e.style['text-fit'] = "grow 150% consistent" should not set the property value
-FAIL=e.style['text-fit'] = "grow consistent 1.0" should not set the property value
-FAIL=e.style['text-fit'] = "larger" should not set the property value
-FAIL=e.style['text-fit'] = "smaller" should not set the property value
-FAIL=e.style['text-fit'] = "stretch per-line" should not set the property value
-[css/css-text/parsing/text-group-align-invalid.html]
-FAIL=e.style['text-group-align'] = "5px" should not set the property value
-FAIL=e.style['text-group-align'] = "auto" should not set the property value
-FAIL=e.style['text-group-align'] = "center start" should not set the property value
-FAIL=e.style['text-group-align'] = "end start" should not set the property value
-FAIL=e.style['text-group-align'] = "justify" should not set the property value
-FAIL=e.style['text-group-align'] = "left right" should not set the property value
-FAIL=e.style['text-group-align'] = "match-parent" should not set the property value
-FAIL=e.style['text-group-align'] = "none center" should not set the property value
-FAIL=e.style['text-group-align'] = "right center" should not set the property value
-FAIL=e.style['text-group-align'] = "start center" should not set the property value
-FAIL=e.style['text-group-align'] = "wrap" should not set the property value
+[css/css-text/parsing/text-fit-valid.html]
+FAIL=e.style['text-fit'] = "grow consistent 300%" should set the property value
+FAIL=e.style['text-fit'] = "grow consistent" should set the property value
+FAIL=e.style['text-fit'] = "grow per-line 132%" should set the property value
+FAIL=e.style['text-fit'] = "grow per-line" should set the property value
+FAIL=e.style['text-fit'] = "grow per-line-all" should set the property value
+FAIL=e.style['text-fit'] = "grow" should set the property value
+FAIL=e.style['text-fit'] = "none" should set the property value
+FAIL=e.style['text-fit'] = "shrink consistent 50%" should set the property value
+FAIL=e.style['text-fit'] = "shrink per-line 4%" should set the property value
+FAIL=e.style['text-fit'] = "shrink" should set the property value
+[css/css-text/parsing/text-group-align-valid.html]
+FAIL=e.style['text-group-align'] = "center" should set the property value
+FAIL=e.style['text-group-align'] = "end" should set the property value
+FAIL=e.style['text-group-align'] = "left" should set the property value
+FAIL=e.style['text-group-align'] = "none" should set the property value
+FAIL=e.style['text-group-align'] = "right" should set the property value
+FAIL=e.style['text-group-align'] = "start" should set the property value
 [css/css-text/parsing/text-indent-computed.html]
-FAIL=Property text-indent value '-30px'
-FAIL=Property text-indent value '-40%'
-FAIL=Property text-indent value '10px hanging'
-FAIL=Property text-indent value '10px'
-FAIL=Property text-indent value '20% each-line'
-FAIL=Property text-indent value '20%'
 FAIL=Property text-indent value 'calc(10px - 0.5em)'
 FAIL=Property text-indent value 'calc(50% + 60px) hanging each-line'
 FAIL=Property text-indent value 'calc(50% + 60px)'
 FAIL=Property text-indent value 'each-line hanging calc(10px + 0.5em)'
-[css/css-text/parsing/text-indent-invalid.html]
-FAIL=e.style['text-indent'] = "10" should not set the property value
-FAIL=e.style['text-indent'] = "10px hanging 20px" should not set the property value
-FAIL=e.style['text-indent'] = "auto" should not set the property value
-FAIL=e.style['text-indent'] = "each-line each-line" should not set the property value
-FAIL=e.style['text-indent'] = "each-line" should not set the property value
-FAIL=e.style['text-indent'] = "hanging 20% hanging" should not set the property value
-FAIL=e.style['text-indent'] = "hanging" should not set the property value
 [css/css-text/parsing/text-indent-valid.html]
+FAIL=e.style['text-indent'] = "calc(2em + 3ex) hanging each-line" should set the property value
+FAIL=e.style['text-indent'] = "calc(2em + 3ex)" should set the property value
 FAIL=e.style['text-indent'] = "calc(50% + 60px) each-line hanging" should set the property value
+FAIL=e.style['text-indent'] = "calc(50% + 60px)" should set the property value
 FAIL=e.style['text-indent'] = "each-line 10px" should set the property value
 FAIL=e.style['text-indent'] = "each-line hanging calc(2em + 3ex)" should set the property value
 FAIL=e.style['text-indent'] = "hanging 20% each-line" should set the property value
@@ -71742,10 +71121,11 @@ FAIL=Property text-justify value 'auto'
 FAIL=Property text-justify value 'inter-character'
 FAIL=Property text-justify value 'inter-word'
 FAIL=Property text-justify value 'none'
-[css/css-text/parsing/text-justify-invalid.html]
-FAIL=e.style['text-justify'] = "auto none" should not set the property value
-FAIL=e.style['text-justify'] = "inter-character inter-word" should not set the property value
-FAIL=e.style['text-justify'] = "normal" should not set the property value
+[css/css-text/parsing/text-justify-valid.html]
+FAIL=e.style['text-justify'] = "auto" should set the property value
+FAIL=e.style['text-justify'] = "inter-character" should set the property value
+FAIL=e.style['text-justify'] = "inter-word" should set the property value
+FAIL=e.style['text-justify'] = "none" should set the property value
 [css/css-text/parsing/text-spacing-computed.html]
 FAIL=Property text-spacing value 'auto'
 FAIL=Property text-spacing value 'initial'
@@ -71763,18 +71143,6 @@ FAIL=Property text-spacing value 'space-all'
 FAIL=Property text-spacing value 'trim-start no-autospace'
 FAIL=Property text-spacing value 'trim-start normal '
 FAIL=Property text-spacing value 'trim-start'
-[css/css-text/parsing/text-spacing-invalid.html]
-FAIL=e.style['text-spacing'] = "auto auto" should not set the property value
-FAIL=e.style['text-spacing'] = "auto no-autospace" should not set the property value
-FAIL=e.style['text-spacing'] = "auto space-first" should not set the property value
-FAIL=e.style['text-spacing'] = "no-autospace auto" should not set the property value
-FAIL=e.style['text-spacing'] = "no-autospace none" should not set the property value
-FAIL=e.style['text-spacing'] = "none no-autospace" should not set the property value
-FAIL=e.style['text-spacing'] = "none none" should not set the property value
-FAIL=e.style['text-spacing'] = "none space-first" should not set the property value
-FAIL=e.style['text-spacing'] = "normal normal no-autospace" should not set the property value
-FAIL=e.style['text-spacing'] = "space-first auto" should not set the property value
-FAIL=e.style['text-spacing'] = "space-first none" should not set the property value
 [css/css-text/parsing/text-spacing-trim-computed.html]
 FAIL=Property text-spacing-trim value 'auto'
 FAIL=Property text-spacing-trim value 'normal'
@@ -71783,56 +71151,32 @@ FAIL=Property text-spacing-trim value 'space-first'
 FAIL=Property text-spacing-trim value 'trim-all'
 FAIL=Property text-spacing-trim value 'trim-both'
 FAIL=Property text-spacing-trim value 'trim-start'
-[css/css-text/parsing/text-spacing-trim-invalid.html]
-FAIL=e.style['text-spacing-trim'] = "allow-end space-first" should not set the property value
-FAIL=e.style['text-spacing-trim'] = "allow-end" should not set the property value
-FAIL=e.style['text-spacing-trim'] = "auto space-all" should not set the property value
-FAIL=e.style['text-spacing-trim'] = "auto space-first" should not set the property value
-FAIL=e.style['text-spacing-trim'] = "none" should not set the property value
-FAIL=e.style['text-spacing-trim'] = "normal space-all" should not set the property value
-FAIL=e.style['text-spacing-trim'] = "normal space-first" should not set the property value
-FAIL=e.style['text-spacing-trim'] = "space-first allow-end" should not set the property value
-FAIL=e.style['text-spacing-trim'] = "trim-auto" should not set the property value
+[css/css-text/parsing/text-spacing-trim-valid.html]
+FAIL=e.style['text-spacing-trim'] = "auto" should set the property value
+FAIL=e.style['text-spacing-trim'] = "normal" should set the property value
+FAIL=e.style['text-spacing-trim'] = "space-all" should set the property value
+FAIL=e.style['text-spacing-trim'] = "space-first" should set the property value
+FAIL=e.style['text-spacing-trim'] = "trim-all" should set the property value
+FAIL=e.style['text-spacing-trim'] = "trim-both" should set the property value
+FAIL=e.style['text-spacing-trim'] = "trim-start" should set the property value
 [css/css-text/parsing/text-spacing-valid.html]
+FAIL=e.style['text-spacing'] = "auto" should set the property value
 FAIL=e.style['text-spacing'] = "no-autospace normal" should set the property value
 FAIL=e.style['text-spacing'] = "no-autospace space-all" should set the property value
 FAIL=e.style['text-spacing'] = "no-autospace trim-start" should set the property value
+FAIL=e.style['text-spacing'] = "no-autospace" should set the property value
+FAIL=e.style['text-spacing'] = "none" should set the property value
 FAIL=e.style['text-spacing'] = "normal no-autospace" should set the property value
 FAIL=e.style['text-spacing'] = "normal normal" should set the property value
 FAIL=e.style['text-spacing'] = "normal trim-start" should set the property value
+FAIL=e.style['text-spacing'] = "normal" should set the property value
 FAIL=e.style['text-spacing'] = "space-all no-autospace" should set the property value
+FAIL=e.style['text-spacing'] = "space-all" should set the property value
+FAIL=e.style['text-spacing'] = "trim-start no-autospace" should set the property value
 FAIL=e.style['text-spacing'] = "trim-start normal " should set the property value
+FAIL=e.style['text-spacing'] = "trim-start" should set the property value
 [css/css-text/parsing/text-transform-computed.html]
-FAIL=Property text-transform value 'capitalize full-width'
-FAIL=Property text-transform value 'capitalize'
-FAIL=Property text-transform value 'full-size-kana'
-FAIL=Property text-transform value 'full-width full-size-kana'
-FAIL=Property text-transform value 'full-width'
-FAIL=Property text-transform value 'lowercase'
 FAIL=Property text-transform value 'math-auto'
-FAIL=Property text-transform value 'none'
-FAIL=Property text-transform value 'uppercase full-width full-size-kana'
-FAIL=Property text-transform value 'uppercase'
-[css/css-text/parsing/text-transform-invalid.html]
-FAIL=e.style['text-transform'] = "capitalize full-width lowercase" should not set the property value
-FAIL=e.style['text-transform'] = "capitalize math-auto" should not set the property value
-FAIL=e.style['text-transform'] = "capitalize none" should not set the property value
-FAIL=e.style['text-transform'] = "full-size-kana capitalize full-size-kana" should not set the property value
-FAIL=e.style['text-transform'] = "full-size-kana math-auto" should not set the property value
-FAIL=e.style['text-transform'] = "full-width full-size-kana full-width" should not set the property value
-FAIL=e.style['text-transform'] = "full-width math-auto" should not set the property value
-FAIL=e.style['text-transform'] = "lowercase math-auto" should not set the property value
-FAIL=e.style['text-transform'] = "math-auto capitalize" should not set the property value
-FAIL=e.style['text-transform'] = "math-auto full-size-kana" should not set the property value
-FAIL=e.style['text-transform'] = "math-auto full-width" should not set the property value
-FAIL=e.style['text-transform'] = "math-auto lowercase" should not set the property value
-FAIL=e.style['text-transform'] = "math-auto math-auto" should not set the property value
-FAIL=e.style['text-transform'] = "math-auto none" should not set the property value
-FAIL=e.style['text-transform'] = "math-auto uppercase" should not set the property value
-FAIL=e.style['text-transform'] = "none full-width" should not set the property value
-FAIL=e.style['text-transform'] = "none math-auto" should not set the property value
-FAIL=e.style['text-transform'] = "uppercase full-size-kana uppercase" should not set the property value
-FAIL=e.style['text-transform'] = "uppercase math-auto" should not set the property value
 [css/css-text/parsing/text-transform-valid.html]
 FAIL=e.style['text-transform'] = "full-size-kana capitalize" should set the property value
 FAIL=e.style['text-transform'] = "full-size-kana full-width capitalize" should set the property value
@@ -71842,6 +71186,7 @@ FAIL=e.style['text-transform'] = "full-width full-size-kana uppercase" should se
 FAIL=e.style['text-transform'] = "full-width lowercase" should set the property value
 FAIL=e.style['text-transform'] = "full-width uppercase full-size-kana" should set the property value
 FAIL=e.style['text-transform'] = "lowercase full-size-kana full-width" should set the property value
+FAIL=e.style['text-transform'] = "math-auto" should set the property value
 [css/css-text/parsing/text-wrap-computed.html]
 FAIL=Property text-wrap value 'auto nowrap'
 FAIL=Property text-wrap value 'auto wrap'
@@ -71852,45 +71197,12 @@ FAIL=Property text-wrap value 'balance'
 FAIL=Property text-wrap value 'nowrap auto'
 FAIL=Property text-wrap value 'nowrap balance'
 FAIL=Property text-wrap value 'nowrap stable'
-FAIL=Property text-wrap value 'nowrap'
 FAIL=Property text-wrap value 'stable nowrap'
 FAIL=Property text-wrap value 'stable wrap'
 FAIL=Property text-wrap value 'stable'
 FAIL=Property text-wrap value 'wrap auto'
 FAIL=Property text-wrap value 'wrap balance'
 FAIL=Property text-wrap value 'wrap stable'
-FAIL=Property text-wrap value 'wrap'
-[css/css-text/parsing/text-wrap-invalid.html]
-FAIL=e.style['text-wrap'] = "5px" should not set the property value
-FAIL=e.style['text-wrap'] = "balance stable" should not set the property value
-FAIL=e.style['text-wrap'] = "delicious wrap" should not set the property value
-FAIL=e.style['text-wrap'] = "none" should not set the property value
-FAIL=e.style['text-wrap'] = "normal" should not set the property value
-FAIL=e.style['text-wrap'] = "pretty balance" should not set the property value
-FAIL=e.style['text-wrap'] = "stable pretty" should not set the property value
-FAIL=e.style['text-wrap'] = "wrap nowrap" should not set the property value
-[css/css-text/parsing/text-wrap-mode-computed.html]
-FAIL=Property text-wrap-mode value 'nowrap'
-FAIL=Property text-wrap-mode value 'wrap'
-[css/css-text/parsing/text-wrap-mode-invalid.html]
-FAIL=e.style['text-wrap-mode'] = "5px" should not set the property value
-FAIL=e.style['text-wrap-mode'] = "auto" should not set the property value
-FAIL=e.style['text-wrap-mode'] = "balance balance" should not set the property value
-FAIL=e.style['text-wrap-mode'] = "balance stable" should not set the property value
-FAIL=e.style['text-wrap-mode'] = "balance" should not set the property value
-FAIL=e.style['text-wrap-mode'] = "delicious wrap" should not set the property value
-FAIL=e.style['text-wrap-mode'] = "none" should not set the property value
-FAIL=e.style['text-wrap-mode'] = "normal" should not set the property value
-FAIL=e.style['text-wrap-mode'] = "nowrap stable" should not set the property value
-FAIL=e.style['text-wrap-mode'] = "pretty balance" should not set the property value
-FAIL=e.style['text-wrap-mode'] = "pretty pretty" should not set the property value
-FAIL=e.style['text-wrap-mode'] = "pretty" should not set the property value
-FAIL=e.style['text-wrap-mode'] = "stable pretty" should not set the property value
-FAIL=e.style['text-wrap-mode'] = "stable stable" should not set the property value
-FAIL=e.style['text-wrap-mode'] = "stable" should not set the property value
-FAIL=e.style['text-wrap-mode'] = "wrap auto" should not set the property value
-FAIL=e.style['text-wrap-mode'] = "wrap nowrap" should not set the property value
-FAIL=e.style['text-wrap-mode'] = "wrap stable" should not set the property value
 [css/css-text/parsing/text-wrap-pretty.html]
 FAIL=Property text-wrap value 'nowrap pretty'
 FAIL=Property text-wrap value 'pretty nowrap'
@@ -71899,61 +71211,37 @@ FAIL=Property text-wrap value 'pretty'
 FAIL=Property text-wrap value 'stable wrap'
 FAIL=Property text-wrap value 'wrap pretty'
 FAIL=Property text-wrap-style value 'pretty'
+FAIL=e.style['text-wrap'] = "nowrap pretty" should set the property value
 FAIL=e.style['text-wrap'] = "pretty nowrap" should set the property value
 FAIL=e.style['text-wrap'] = "pretty wrap" should set the property value
+FAIL=e.style['text-wrap'] = "pretty" should set the property value
 FAIL=e.style['text-wrap'] = "stable wrap" should set the property value
 FAIL=e.style['text-wrap'] = "wrap pretty" should set the property value
+FAIL=e.style['text-wrap-style'] = "pretty" should set the property value
 [css/css-text/parsing/text-wrap-style-computed.html]
 FAIL=Property text-wrap-style value 'auto'
 FAIL=Property text-wrap-style value 'balance'
 FAIL=Property text-wrap-style value 'stable'
-[css/css-text/parsing/text-wrap-style-invalid.html]
-FAIL=e.style['text-wrap-style'] = "5px" should not set the property value
-FAIL=e.style['text-wrap-style'] = "balance stable" should not set the property value
-FAIL=e.style['text-wrap-style'] = "delicious wrap" should not set the property value
-FAIL=e.style['text-wrap-style'] = "none" should not set the property value
-FAIL=e.style['text-wrap-style'] = "normal" should not set the property value
-FAIL=e.style['text-wrap-style'] = "nowrap nowrap" should not set the property value
-FAIL=e.style['text-wrap-style'] = "nowrap" should not set the property value
-FAIL=e.style['text-wrap-style'] = "pretty balance" should not set the property value
-FAIL=e.style['text-wrap-style'] = "stable pretty" should not set the property value
-FAIL=e.style['text-wrap-style'] = "wrap nowrap" should not set the property value
-FAIL=e.style['text-wrap-style'] = "wrap wrap" should not set the property value
-FAIL=e.style['text-wrap-style'] = "wrap" should not set the property value
+[css/css-text/parsing/text-wrap-style-valid.html]
+FAIL=e.style['text-wrap-style'] = "auto" should set the property value
+FAIL=e.style['text-wrap-style'] = "balance" should set the property value
+FAIL=e.style['text-wrap-style'] = "stable" should set the property value
 [css/css-text/parsing/text-wrap-valid.html]
 FAIL=e.style['text-wrap'] = "auto nowrap" should set the property value
 FAIL=e.style['text-wrap'] = "auto wrap" should set the property value
 FAIL=e.style['text-wrap'] = "auto" should set the property value
 FAIL=e.style['text-wrap'] = "balance nowrap" should set the property value
 FAIL=e.style['text-wrap'] = "balance wrap" should set the property value
+FAIL=e.style['text-wrap'] = "balance" should set the property value
 FAIL=e.style['text-wrap'] = "nowrap auto" should set the property value
+FAIL=e.style['text-wrap'] = "nowrap balance" should set the property value
+FAIL=e.style['text-wrap'] = "nowrap stable" should set the property value
 FAIL=e.style['text-wrap'] = "stable nowrap" should set the property value
 FAIL=e.style['text-wrap'] = "stable wrap" should set the property value
+FAIL=e.style['text-wrap'] = "stable" should set the property value
 FAIL=e.style['text-wrap'] = "wrap auto" should set the property value
 FAIL=e.style['text-wrap'] = "wrap balance" should set the property value
 FAIL=e.style['text-wrap'] = "wrap stable" should set the property value
-[css/css-text/parsing/white-space-collapse-computed.html]
-FAIL=Property white-space-collapse value 'break-spaces'
-FAIL=Property white-space-collapse value 'collapse'
-FAIL=Property white-space-collapse value 'preserve'
-FAIL=Property white-space-collapse value 'preserve-breaks'
-[css/css-text/parsing/white-space-collapse-invalid.html]
-FAIL=e.style['white-space-collapse'] = "5px" should not set the property value
-FAIL=e.style['white-space-collapse'] = "auto" should not set the property value
-FAIL=e.style['white-space-collapse'] = "collapse preserve" should not set the property value
-FAIL=e.style['white-space-collapse'] = "delicious collapse" should not set the property value
-FAIL=e.style['white-space-collapse'] = "none" should not set the property value
-FAIL=e.style['white-space-collapse'] = "preserve preserve-breaks" should not set the property value
-[css/css-text/parsing/white-space-computed.html]
-FAIL=Property white-space value 'break-spaces'
-FAIL=Property white-space value 'pre-line'
-[css/css-text/parsing/white-space-invalid.html]
-FAIL=e.style['white-space'] = "auto" should not set the property value
-FAIL=e.style['white-space'] = "balance" should not set the property value
-FAIL=e.style['white-space'] = "normal pre" should not set the property value
-FAIL=e.style['white-space'] = "nowrap pre-wrap" should not set the property value
-FAIL=e.style['white-space'] = "pre-line break-spaces" should not set the property value
-FAIL=e.style['white-space'] = "pretty" should not set the property value
 [css/css-text/parsing/white-space-shorthand-text-wrap.html]
 FAIL=`text-wrap: balance` should be set
 FAIL=`text-wrap` should not be affected by `white-space` on the parent
@@ -71962,38 +71250,13 @@ FAIL=`white-space` should not overwrite previous `text-wrap-style: balance`
 FAIL=`white-space` should overwrite `text-wrap-mode` on the parent
 FAIL=`white-space` should overwrite previous `text-wrap-mode: nowrap`
 [css/css-text/parsing/white-space-shorthand.html]
-FAIL=Property white-space value 'break-spaces wrap'
-FAIL=Property white-space value 'break-spaces'
-FAIL=Property white-space value 'collapse nowrap'
-FAIL=Property white-space value 'collapse wrap'
-FAIL=Property white-space value 'collapse'
-FAIL=Property white-space value 'nowrap collapse'
-FAIL=Property white-space value 'nowrap preserve'
-FAIL=Property white-space value 'nowrap preserve-breaks'
-FAIL=Property white-space value 'nowrap'
-FAIL=Property white-space value 'preserve nowrap'
-FAIL=Property white-space value 'preserve wrap'
-FAIL=Property white-space value 'preserve'
-FAIL=Property white-space value 'preserve-breaks nowrap'
-FAIL=Property white-space value 'preserve-breaks wrap'
-FAIL=Property white-space value 'preserve-breaks'
-FAIL=Property white-space value 'wrap break-spaces'
-FAIL=Property white-space value 'wrap collapse'
-FAIL=Property white-space value 'wrap preserve'
-FAIL=Property white-space value 'wrap preserve-breaks'
-FAIL=Property white-space value 'wrap'
-FAIL=e.style['white-space'] = "balance collapse" should not set the property value
-FAIL=e.style['white-space'] = "balance preserve" should not set the property value
-FAIL=e.style['white-space'] = "balance" should not set the property value
 FAIL=e.style['white-space'] = "break-spaces wrap" should set the property value
-FAIL=e.style['white-space'] = "collapse balance" should not set the property value
 FAIL=e.style['white-space'] = "collapse nowrap" should set the property value
 FAIL=e.style['white-space'] = "collapse wrap" should set the property value
 FAIL=e.style['white-space'] = "collapse" should set the property value
 FAIL=e.style['white-space'] = "nowrap collapse" should set the property value
 FAIL=e.style['white-space'] = "nowrap preserve" should set the property value
 FAIL=e.style['white-space'] = "nowrap preserve-breaks" should set the property value
-FAIL=e.style['white-space'] = "preserve balance" should not set the property value
 FAIL=e.style['white-space'] = "preserve nowrap" should set the property value
 FAIL=e.style['white-space'] = "preserve wrap" should set the property value
 FAIL=e.style['white-space'] = "preserve" should set the property value
@@ -72006,32 +71269,23 @@ FAIL=e.style['white-space'] = "wrap preserve-breaks" should set the property val
 FAIL=e.style['white-space'] = "wrap" should set the property value
 [css/css-text/parsing/word-break-computed.html]
 FAIL=Property word-break value 'auto-phrase'
-FAIL=Property word-break value 'break-all'
-FAIL=Property word-break value 'break-word'
-FAIL=Property word-break value 'keep-all'
-FAIL=Property word-break value 'normal'
-[css/css-text/parsing/word-break-invalid.html]
-FAIL=e.style['word-break'] = "auto" should not set the property value
-FAIL=e.style['word-break'] = "break-all break-all" should not set the property value
-FAIL=e.style['word-break'] = "break-all break-word" should not set the property value
-FAIL=e.style['word-break'] = "break-word normal" should not set the property value
-FAIL=e.style['word-break'] = "keep-all break-word" should not set the property value
-FAIL=e.style['word-break'] = "normal break-word" should not set the property value
-FAIL=e.style['word-break'] = "normal keep-all" should not set the property value
-FAIL=e.style['word-break'] = "word-break" should not set the property value
+[css/css-text/parsing/word-break-valid.html]
+FAIL=e.style['word-break'] = "auto-phrase" should set the property value
+FAIL=e.style['word-break'] = "manual" should set the property value
 [css/css-text/parsing/word-space-transform-computed.html]
 FAIL=Property word-space-transform value 'ideographic-space auto-phrase'
 FAIL=Property word-space-transform value 'ideographic-space'
 FAIL=Property word-space-transform value 'none'
 FAIL=Property word-space-transform value 'space auto-phrase'
 FAIL=Property word-space-transform value 'space'
-[css/css-text/parsing/word-space-transform-invalid.html]
-FAIL=e.style['word-space-transform'] = "auto" should not set the property value
-FAIL=e.style['word-space-transform'] = "auto-phrase" should not set the property value
-FAIL=e.style['word-space-transform'] = "none auto-phrase" should not set the property value
-FAIL=e.style['word-space-transform'] = "normal" should not set the property value
-FAIL=e.style['word-space-transform'] = "space ideographic-space" should not set the property value
-FAIL=e.style['word-space-transform'] = "spaces" should not set the property value
+[css/css-text/parsing/word-space-transform-valid.html]
+FAIL=e.style['word-space-transform'] = "auto-phrase ideographic-space" should set the property value
+FAIL=e.style['word-space-transform'] = "auto-phrase space" should set the property value
+FAIL=e.style['word-space-transform'] = "ideographic-space auto-phrase" should set the property value
+FAIL=e.style['word-space-transform'] = "ideographic-space" should set the property value
+FAIL=e.style['word-space-transform'] = "none" should set the property value
+FAIL=e.style['word-space-transform'] = "space auto-phrase" should set the property value
+FAIL=e.style['word-space-transform'] = "space" should set the property value
 [css/css-text/parsing/word-spacing-computed.html]
 FAIL=Property word-spacing value '-20px'
 FAIL=Property word-spacing value '-5%'
@@ -72042,21 +71296,16 @@ FAIL=Property word-spacing value 'calc(10% - 20%)'
 FAIL=Property word-spacing value 'calc(10px - (5% + 10%)'
 FAIL=Property word-spacing value 'calc(10px - 0.5em)'
 FAIL=Property word-spacing value 'normal'
-[css/css-text/parsing/word-spacing-invalid.html]
-FAIL=e.style['word-spacing'] = "10% 10px" should not set the property value
-FAIL=e.style['word-spacing'] = "auto" should not set the property value
-FAIL=e.style['word-spacing'] = "normal 10px" should not set the property value
 [css/css-text/parsing/word-spacing-valid.html]
+FAIL=e.style['word-spacing'] = "-10%" should set the property value
+FAIL=e.style['word-spacing'] = "-20px" should set the property value
 FAIL=e.style['word-spacing'] = "0" should set the property value
+FAIL=e.style['word-spacing'] = "10px" should set the property value
+FAIL=e.style['word-spacing'] = "120%" should set the property value
 FAIL=e.style['word-spacing'] = "calc(2ch - 30%)" should set the property value
-[css/css-text/parsing/word-wrap-computed.html]
-FAIL=Property word-wrap value 'anywhere'
-FAIL=Property word-wrap value 'break-word'
-FAIL=Property word-wrap value 'normal'
-[css/css-text/parsing/word-wrap-invalid.html]
-FAIL=e.style['word-wrap'] = "anywhere anywhere" should not set the property value
-FAIL=e.style['word-wrap'] = "auto" should not set the property value
-FAIL=e.style['word-wrap'] = "normal break-word" should not set the property value
+FAIL=e.style['word-spacing'] = "calc(2em + 3ex)" should set the property value
+FAIL=e.style['word-spacing'] = "calc(40% + 50px)" should set the property value
+FAIL=e.style['word-spacing'] = "normal" should set the property value
 [css/css-text/shaping/shaping-000.html]
 harness=FAIL
 [css/css-text/shaping/shaping-001.html]
@@ -72102,36 +71351,12 @@ harness=FAIL
 [css/css-text/tab-size/tab-size-computed-value-001.html]
 FAIL=testing tab-size: 0.5in
 FAIL=testing tab-size: 101.6Q
-FAIL=testing tab-size: 18pt
-FAIL=testing tab-size: 1em
 FAIL=testing tab-size: 2.54cm
 FAIL=testing tab-size: 25.4mm
-FAIL=testing tab-size: 2ex
-FAIL=testing tab-size: 3rem
-FAIL=testing tab-size: 4
 FAIL=testing tab-size: 5pc
-FAIL=testing tab-size: 7px
 [css/css-text/tab-size/tab-size-inheritance-001.html]
 harness=FAIL
-[css/css-text/tab-size/tab-size-inline-001.html]
-harness=FAIL
-[css/css-text/tab-size/tab-size-inline-002.html]
-harness=FAIL
-[css/css-text/tab-size/tab-size-integer-001.html]
-harness=FAIL
-[css/css-text/tab-size/tab-size-integer-002.html]
-harness=FAIL
-[css/css-text/tab-size/tab-size-integer-003.html]
-harness=FAIL
 [css/css-text/tab-size/tab-size-integer-004.html]
-harness=FAIL
-[css/css-text/tab-size/tab-size-integer-005.html]
-harness=FAIL
-[css/css-text/tab-size/tab-size-length-001.html]
-harness=FAIL
-[css/css-text/tab-size/tab-size-length-002.html]
-harness=FAIL
-[css/css-text/tab-size/tab-size-percent-001.html]
 harness=FAIL
 [css/css-text/tab-size/tab-size-spacing-001.html]
 harness=FAIL
@@ -72139,8 +71364,6 @@ harness=FAIL
 harness=FAIL
 [css/css-text/tab-size/tab-size-spacing-003.html]
 harness=FAIL
-[css/css-text/tab-size/tab-size.html]
-FAIL=Test tab-size measurements
 [css/css-text/text-align/text-align-center-last-center.html]
 harness=FAIL
 [css/css-text/text-align/text-align-center-last-end.html]
@@ -72204,6 +71427,8 @@ harness=FAIL
 [css/css-text/text-align/text-align-justify-last-justify.html]
 harness=FAIL
 [css/css-text/text-align/text-align-justify-last-start.html]
+harness=FAIL
+[css/css-text/text-align/text-align-justify-shy-001.html]
 harness=FAIL
 [css/css-text/text-align/text-align-justify-tabs-002.html]
 harness=FAIL
@@ -72538,8 +71763,10 @@ harness=FAIL
 [css/css-text/text-indent/below-float3.html]
 harness=FAIL
 [css/css-text/text-indent/percentage-value-intrinsic-size.html]
-harness=TIMEOUT
+FAIL=#container 1
 [css/css-text/text-indent/text-indent-abspos-hanging-001.html]
+harness=FAIL
+[css/css-text/text-indent/text-indent-each-line-hanging.html]
 harness=FAIL
 [css/css-text/text-indent/text-indent-length-001.html]
 harness=FAIL
@@ -72579,8 +71806,6 @@ harness=FAIL
 harness=FAIL
 [css/css-text/text-justify/text-justify-and-trailing-spaces-006.html]
 harness=FAIL
-[css/css-text/text-justify/text-justify-cjk-ideograph-extensions.html]
-harness=TIMEOUT
 [css/css-text/text-justify/text-justify-distribute-001.html]
 harness=FAIL
 [css/css-text/text-justify/text-justify-inter-character-001.html]
@@ -72810,6 +72035,26 @@ harness=FAIL
 harness=FAIL
 [css/css-text/text-spacing-trim/text-spacing-trim-combinations-001.html]
 harness=ERROR
+[css/css-text/text-spacing-trim/text-spacing-trim-combinations-001.html?class=htb&test=CC:HF]
+harness=ERROR
+[css/css-text/text-spacing-trim/text-spacing-trim-combinations-001.html?class=htb&test=CM:HF]
+harness=ERROR
+[css/css-text/text-spacing-trim/text-spacing-trim-combinations-001.html?class=htb&test=CO:FH]
+harness=ERROR
+[css/css-text/text-spacing-trim/text-spacing-trim-combinations-001.html?class=htb&test=MO:FH]
+harness=ERROR
+[css/css-text/text-spacing-trim/text-spacing-trim-combinations-001.html?class=htb&test=OO:FH]
+harness=ERROR
+[css/css-text/text-spacing-trim/text-spacing-trim-combinations-001.html?class=vrl&test=CC:HF]
+harness=ERROR
+[css/css-text/text-spacing-trim/text-spacing-trim-combinations-001.html?class=vrl&test=CM:HF]
+harness=ERROR
+[css/css-text/text-spacing-trim/text-spacing-trim-combinations-001.html?class=vrl&test=CO:FH]
+harness=ERROR
+[css/css-text/text-spacing-trim/text-spacing-trim-combinations-001.html?class=vrl&test=MO:FH]
+harness=ERROR
+[css/css-text/text-spacing-trim/text-spacing-trim-combinations-001.html?class=vrl&test=OO:FH]
+harness=ERROR
 [css/css-text/text-spacing-trim/text-spacing-trim-dot-001.html?class=chws,htb]
 harness=FAIL
 [css/css-text/text-spacing-trim/text-spacing-trim-dot-001.html?class=chws,vrl]
@@ -72818,8 +72063,6 @@ harness=FAIL
 harness=FAIL
 [css/css-text/text-spacing-trim/text-spacing-trim-dynamic-001.html?class=chws]
 harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-dynamic-001.html?class=halt]
-harness=FAIL
 [css/css-text/text-spacing-trim/text-spacing-trim-end-001.html?class=chws,htb]
 harness=FAIL
 [css/css-text/text-spacing-trim/text-spacing-trim-end-001.html?class=chws,vrl]
@@ -72827,8 +72070,6 @@ harness=FAIL
 [css/css-text/text-spacing-trim/text-spacing-trim-end-001.html?class=halt,htb]
 harness=FAIL
 [css/css-text/text-spacing-trim/text-spacing-trim-end-001.html?class=halt,vrl]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-fallback-001.html]
 harness=FAIL
 [css/css-text/text-spacing-trim/text-spacing-trim-fallback-002.html?class=chws,htb]
 harness=FAIL
@@ -72845,8 +72086,6 @@ harness=FAIL
 [css/css-text/text-spacing-trim/text-spacing-trim-quote-001.html?class=chws,vrl&lang=zh-hant]
 harness=FAIL
 [css/css-text/text-spacing-trim/text-spacing-trim-space-all-001.html?class=chws]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-space-all-001.html?class=halt]
 harness=FAIL
 [css/css-text/text-spacing-trim/text-spacing-trim-span-001.html?class=chws,htb]
 harness=FAIL
@@ -72926,8 +72165,6 @@ harness=FAIL
 harness=FAIL
 [css/css-text/text-transform/text-transform-capitalize-034.html]
 harness=FAIL
-[css/css-text/text-transform/text-transform-capitalize-035.html]
-harness=FAIL
 [css/css-text/text-transform/text-transform-capitalize-036.html]
 FAIL=text-transform: capitalize test for "john's apple"
 FAIL=text-transform: capitalize test for 'foo-bar'
@@ -72943,10 +72180,6 @@ harness=FAIL
 harness=FAIL
 [css/css-text/text-transform/text-transform-full-size-kana-004.html]
 harness=FAIL
-[css/css-text/text-transform/text-transform-full-size-kana-005.html]
-harness=FAIL
-[css/css-text/text-transform/text-transform-full-size-kana-006.html]
-harness=FAIL
 [css/css-text/text-transform/text-transform-full-size-kana-008.html]
 harness=FAIL
 [css/css-text/text-transform/text-transform-full-size-kana-009.html]
@@ -72954,10 +72187,6 @@ harness=TIMEOUT
 [css/css-text/text-transform/text-transform-fullwidth-001.xht]
 harness=FAIL
 [css/css-text/text-transform/text-transform-fullwidth-002.xht]
-harness=FAIL
-[css/css-text/text-transform/text-transform-fullwidth-004.xht]
-harness=FAIL
-[css/css-text/text-transform/text-transform-fullwidth-005.xht]
 harness=FAIL
 [css/css-text/text-transform/text-transform-fullwidth-006.html]
 harness=FAIL
@@ -73000,8 +72229,6 @@ harness=FAIL
 [css/css-text/text-transform/text-transform-uppercase-101.xht]
 harness=FAIL
 [css/css-text/text-transform/text-transform-upperlower-001.html]
-harness=FAIL
-[css/css-text/text-transform/text-transform-upperlower-002.html]
 harness=FAIL
 [css/css-text/text-transform/text-transform-upperlower-003.html]
 harness=FAIL
@@ -73427,20 +72654,6 @@ harness=FAIL
 harness=FAIL
 [css/css-text/white-space/pre-line-with-space-and-newline.html]
 harness=FAIL
-[css/css-text/white-space/pre-wrap-001.html]
-harness=FAIL
-[css/css-text/white-space/pre-wrap-002.html]
-harness=FAIL
-[css/css-text/white-space/pre-wrap-003.html]
-harness=FAIL
-[css/css-text/white-space/pre-wrap-004.html]
-harness=FAIL
-[css/css-text/white-space/pre-wrap-005.html]
-harness=FAIL
-[css/css-text/white-space/pre-wrap-006.html]
-harness=FAIL
-[css/css-text/white-space/pre-wrap-007.html]
-harness=FAIL
 [css/css-text/white-space/pre-wrap-008.html]
 harness=FAIL
 [css/css-text/white-space/pre-wrap-009.html]
@@ -73589,15 +72802,9 @@ harness=FAIL
 harness=FAIL
 [css/css-text/white-space/tab-position-with-text-align.html]
 harness=FAIL
-[css/css-text/white-space/tab-stop-threshold-001.html]
-harness=FAIL
 [css/css-text/white-space/tab-stop-threshold-002.html]
 harness=FAIL
-[css/css-text/white-space/tab-stop-threshold-003.html]
-harness=FAIL
 [css/css-text/white-space/tab-stop-threshold-004.html]
-harness=FAIL
-[css/css-text/white-space/tab-stop-threshold-005.html]
 harness=FAIL
 [css/css-text/white-space/tab-stop-threshold-006.html]
 harness=FAIL
@@ -73633,15 +72840,11 @@ harness=FAIL
 harness=FAIL
 [css/css-text/white-space/text-wrap-balance-line-clamp-005.html]
 harness=FAIL
-[css/css-text/white-space/text-wrap-balance-line-clamp-006.html]
-harness=FAIL
 [css/css-text/white-space/text-wrap-balance-line-clamp-007.html]
 harness=FAIL
 [css/css-text/white-space/text-wrap-balance-overflow-001.html]
 harness=FAIL
 [css/css-text/white-space/text-wrap-balance-overflow-002.html]
-harness=FAIL
-[css/css-text/white-space/text-wrap-balance-text-indent-001.html]
 harness=FAIL
 [css/css-text/white-space/text-wrap-balance-word-spacing-001.html]
 harness=FAIL
@@ -73681,11 +72884,7 @@ harness=FAIL
 harness=FAIL
 [css/css-text/white-space/trailing-ideographic-space-006.html]
 harness=FAIL
-[css/css-text/white-space/trailing-ideographic-space-007.html]
-harness=FAIL
 [css/css-text/white-space/trailing-ideographic-space-008.html]
-harness=FAIL
-[css/css-text/white-space/trailing-ideographic-space-009.html]
 harness=FAIL
 [css/css-text/white-space/trailing-ideographic-space-010.html]
 harness=FAIL
@@ -73774,7 +72973,11 @@ harness=FAIL
 [css/css-text/white-space/trailing-space-and-text-alignment-rtl-005.html]
 harness=FAIL
 [css/css-text/white-space/trailing-space-before-br-001.html]
-harness=TIMEOUT
+FAIL=&#x20;1111
+FAIL=&#x20;1111&#x20;
+FAIL=1111&#x20;
+FAIL=1111&#x20;<br>
+FAIL=1111&#x20;<br>&#x20;
 [css/css-text/white-space/trailing-space-position-001.html]
 harness=TIMEOUT
 [css/css-text/white-space/white-space-collapse-002.html]
@@ -73830,15 +73033,11 @@ harness=FAIL
 harness=FAIL
 [css/css-text/white-space/white-space-intrinsic-size-023.html]
 harness=FAIL
-[css/css-text/white-space/white-space-intrinsic-size-024.html]
-harness=FAIL
 [css/css-text/white-space/white-space-intrinsic-size-025.html]
 harness=FAIL
 [css/css-text/white-space/white-space-letter-spacing-001.html]
 harness=FAIL
 [css/css-text/white-space/white-space-normal-011.html]
-harness=FAIL
-[css/css-text/white-space/white-space-pre-011.html]
 harness=FAIL
 [css/css-text/white-space/white-space-pre-031.html]
 harness=FAIL
@@ -73857,8 +73056,6 @@ harness=FAIL
 [css/css-text/white-space/white-space-pre-wrap-justify-004.html]
 harness=FAIL
 [css/css-text/white-space/white-space-pre-wrap-trailing-spaces-001.html]
-harness=FAIL
-[css/css-text/white-space/white-space-pre-wrap-trailing-spaces-002.html]
 harness=FAIL
 [css/css-text/white-space/white-space-pre-wrap-trailing-spaces-003.html]
 harness=FAIL
@@ -73894,6 +73091,8 @@ harness=FAIL
 harness=FAIL
 [css/css-text/white-space/white-space-wrap-after-nowrap-001.html]
 harness=FAIL
+[css/css-text/white-space/white-space-zero-fontsize-001.html]
+harness=FAIL
 [css/css-text/white-space/white-space-zero-fontsize-002.html]
 harness=FAIL
 [css/css-text/white-space/ws-break-spaces-applies-to-001.html]
@@ -73916,10 +73115,6 @@ harness=FAIL
 harness=FAIL
 [css/css-text/white-space/ws-break-spaces-applies-to-011.html]
 harness=FAIL
-[css/css-text/white-space/ws-break-spaces-applies-to-012.html]
-harness=FAIL
-[css/css-text/white-space/ws-break-spaces-applies-to-013.html]
-harness=FAIL
 [css/css-text/white-space/ws-break-spaces-applies-to-014.html]
 harness=FAIL
 [css/css-text/white-space/ws-break-spaces-applies-to-015.html]
@@ -73934,17 +73129,9 @@ harness=FAIL
 harness=FAIL
 [css/css-text/word-break/break-boundary-2-chars-001.html]
 harness=FAIL
-[css/css-text/word-break/break-boundary-2-chars-002.html]
-harness=FAIL
-[css/css-text/word-break/word-break-break-all-001.html]
-harness=FAIL
-[css/css-text/word-break/word-break-break-all-003.html]
-harness=FAIL
 [css/css-text/word-break/word-break-break-all-004.html]
 harness=FAIL
 [css/css-text/word-break/word-break-break-all-006.html]
-harness=FAIL
-[css/css-text/word-break/word-break-break-all-007.html]
 harness=FAIL
 [css/css-text/word-break/word-break-break-all-008.html]
 harness=FAIL
@@ -73968,6 +73155,8 @@ harness=FAIL
 harness=FAIL
 [css/css-text/word-break/word-break-break-all-019.html]
 harness=FAIL
+[css/css-text/word-break/word-break-break-all-020.html]
+harness=FAIL
 [css/css-text/word-break/word-break-break-all-021.html]
 harness=FAIL
 [css/css-text/word-break/word-break-break-all-022.html]
@@ -73988,17 +73177,15 @@ harness=FAIL
 harness=FAIL
 [css/css-text/word-break/word-break-break-all-030.html]
 harness=FAIL
-[css/css-text/word-break/word-break-break-all-031.html]
-harness=FAIL
 [css/css-text/word-break/word-break-break-all-062.html]
+harness=FAIL
+[css/css-text/word-break/word-break-break-all-ethiopic.html]
 harness=FAIL
 [css/css-text/word-break/word-break-break-all-inline-001.html]
 harness=FAIL
 [css/css-text/word-break/word-break-break-all-inline-002.html]
 harness=FAIL
 [css/css-text/word-break/word-break-break-all-inline-003.html]
-harness=FAIL
-[css/css-text/word-break/word-break-break-all-inline-004.tentative.html]
 harness=FAIL
 [css/css-text/word-break/word-break-break-all-inline-005.html]
 harness=FAIL
@@ -74012,9 +73199,7 @@ harness=FAIL
 harness=FAIL
 [css/css-text/word-break/word-break-break-all-inline-010.tentative.html]
 harness=FAIL
-[css/css-text/word-break/word-break-keep-all-001.html]
-harness=FAIL
-[css/css-text/word-break/word-break-keep-all-002.html]
+[css/css-text/word-break/word-break-break-word-overflow-wrap-interactions.html]
 harness=FAIL
 [css/css-text/word-break/word-break-keep-all-003.html]
 harness=FAIL
@@ -74023,8 +73208,6 @@ harness=FAIL
 [css/css-text/word-break/word-break-keep-all-007.html]
 harness=FAIL
 [css/css-text/word-break/word-break-keep-all-008.html]
-harness=FAIL
-[css/css-text/word-break/word-break-keep-all-010.html]
 harness=FAIL
 [css/css-text/word-break/word-break-keep-all-011.html]
 harness=FAIL
@@ -74047,6 +73230,8 @@ harness=FAIL
 [css/css-text/word-break/word-break-normal-003.html]
 harness=FAIL
 [css/css-text/word-break/word-break-normal-ar-000.html]
+harness=FAIL
+[css/css-text/word-break/word-break-normal-ethiopic.html]
 harness=FAIL
 [css/css-text/word-break/word-break-normal-km-000.html]
 harness=FAIL
@@ -74103,6 +73288,8 @@ harness=FAIL
 [css/css-text/word-spacing/word-spacing-001.html]
 harness=FAIL
 [css/css-text/word-spacing/word-spacing-002.html]
+harness=FAIL
+[css/css-text/word-spacing/word-spacing-003.html]
 harness=FAIL
 [css/css-text/word-spacing/word-spacing-animating-font-size.html]
 harness=FAIL

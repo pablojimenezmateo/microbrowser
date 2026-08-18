@@ -40,7 +40,13 @@ void InheritInto(const ComputedStyle& parent, ComputedStyle& child, bool with_cu
   child.text_align = parent.text_align;
   child.direction = parent.direction;
   child.unicode_bidi = parent.unicode_bidi;
-  child.white_space = parent.white_space;
+  child.white_space_collapse = parent.white_space_collapse;
+  child.text_wrap_mode = parent.text_wrap_mode;
+  child.text_transform = parent.text_transform;
+  child.word_break = parent.word_break;
+  child.overflow_wrap = parent.overflow_wrap;
+  child.text_indent = parent.text_indent;
+  child.tab_size = parent.tab_size;
   child.visibility = parent.visibility;
   child.pointer_events = parent.pointer_events;
   if (with_custom_properties) {
@@ -262,6 +268,14 @@ std::optional<Length> ParseLength(std::string_view text, const MediaContext& con
   }
   if (unit == "em") {
     return Length{static_cast<float>(value), Length::Unit::Em};
+  }
+  // `ex` and `ch` are font-relative and this cascade has a font *size* but no font *metrics* --
+  // the face is chosen in `src/gfx` at paint time and the cascade cannot see it. CSS Values 4 says
+  // what to do about exactly that: when the x-height (or the advance of `0`) cannot be determined,
+  // assume 0.5em. That is a specified fallback rather than a guess, and it is the difference
+  // between `width: 50ch` being half a wrong width and being no width at all.
+  if (unit == "ex" || unit == "ch") {
+    return Length{static_cast<float>(value * 0.5), Length::Unit::Em};
   }
   if (unit == "rem") {
     // Absolutized here, at computed-value time, which is where CSS Values says a font-relative
@@ -659,6 +673,18 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
       style.text_align = TextAlign::Start;
     } else if (value == "end") {
       style.text_align = TextAlign::End;
+    } else if (value == "justify-all") {
+      // `justify` plus `text-align-all`, which this engine does not have. The alignment of every
+      // line but the last is the half it can honour, and that half is `justify`.
+      style.text_align = TextAlign::Justify;
+    } else if (value == "match-parent") {
+      // The parent's computed value, kept as written. The specification also resolves
+      // `start`/`end` against the *parent's* direction here, and that half is not done: nothing at
+      // this point can tell a root element from one whose parent happens to have the initial
+      // style, and resolving in that case gets the root exactly wrong -- `<html dir=rtl>` with
+      // `text-align: match-parent` must align right, which is what leaving `start` alone does and
+      // what resolving it against the initial left-to-right direction does not.
+      style.text_align = parent.text_align;
     } else if (value == "-microbrowser-center") {
       // What <center> means, and what no standard value expresses. See the
       // note on ComputedStyle::centers_block_children.
@@ -725,18 +751,10 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     }
     return true;
   }
-  if (property == "white-space") {
-    if (value == "pre") {
-      style.white_space = WhiteSpace::Pre;
-    } else if (value == "nowrap") {
-      style.white_space = WhiteSpace::NoWrap;
-    } else if (value == "pre-wrap") {
-      style.white_space = WhiteSpace::PreWrap;
-    } else if (value == "normal") {
-      style.white_space = WhiteSpace::Normal;
-    } else {
-      return false;
-    }
+  // The white-space family and the rest of CSS Text lives in TextDeclarations.cpp, for the reason
+  // `transform` has its own translation unit: `white-space` is a shorthand with two orthogonal
+  // longhands and an order-free grammar, which is not the shape of the keyword switches here.
+  if (ApplyTextDeclaration(property, value, parent, style, context)) {
     return true;
   }
   if (property == "margin") {

@@ -31,7 +31,8 @@ using css::StyleResolver;
 using css::UnicodeBidi;
 using css::SupportsDeclaration;
 using css::TextAlign;
-using css::WhiteSpace;
+using css::TextWrapMode;
+using css::WhiteSpaceCollapse;
 using dom::Element;
 
 namespace {
@@ -717,7 +718,8 @@ void RegisterStyleResolverTests(std::vector<TestCase>& tests) {
            "an invalid font-style leaves the earlier valid value alone");
     Expect(keywords.text_align == TextAlign::Center,
            "an invalid text-align leaves the earlier valid value alone");
-    Expect(keywords.white_space == WhiteSpace::Pre,
+    Expect(keywords.white_space_collapse == WhiteSpaceCollapse::Preserve &&
+               keywords.text_wrap_mode == TextWrapMode::NoWrap,
            "an invalid white-space leaves the earlier valid value alone");
 
     const ComputedStyle font =

@@ -27,6 +27,9 @@ namespace microbrowser::layout {
 // "what does this element display".
 std::string CollapseWhitespace(std::string_view text);
 
+// The same, for `white-space-collapse: preserve-breaks`: spaces collapse, segment breaks survive.
+std::string CollapseWhitespaceKeepingBreaks(std::string_view text);
+
 // Whether this element's content comes from outside CSS, so its children generate no boxes.
 bool IsReplacedElement(const dom::Element& element);
 

@@ -505,13 +505,36 @@ float LayoutEngine::MaxContentWidth(const Box& box) const {
   return measured;
 }
 
+namespace {
+
+// A preserved newline ends a line whatever the width, so the intrinsic width of preserved text is
+// its widest segment rather than its whole length. Before this, one `<pre>` with a long last line
+// made its table column as wide as the entire block of code.
+std::string_view NextSegment(std::string_view text, std::size_t& at) {
+  const std::size_t end = std::min(text.find('\n', at), text.size());
+  const std::string_view piece = text.substr(at, end - at);
+  at = end + 1;
+  return piece;
+}
+
+}  // namespace
+
+float LayoutEngine::WidestSegment(std::string_view text, const css::ComputedStyle& style) const {
+  float widest = 0.0f;
+  std::size_t at = 0;
+  while (at <= text.size()) {
+    widest = std::max(widest, measurer_->MeasureWidth(NextSegment(text, at), style));
+  }
+  return widest;
+}
+
 float LayoutEngine::MeasureMaxContentWidth(const Box& box) const {
   const css::ComputedStyle& style = box.Style();
   if (const std::optional<float> declared = DeclaredContentWidth(box)) {
     return *declared;
   }
   if (box.GetKind() == Box::Kind::Text) {
-    return measurer_->MeasureWidth(box.Text(), style);
+    return WidestSegment(box.Text(), style);
   }
   if (box.GetKind() == Box::Kind::Replaced) {
     // The element's own width, not the geometry layout last gave it. They are
@@ -568,8 +591,10 @@ float LayoutEngine::MeasureMinContentWidth(const Box& box) const {
     return *declared;
   }
   if (box.GetKind() == Box::Kind::Text) {
-    if (style.white_space == css::WhiteSpace::Pre) {
-      return measurer_->MeasureWidth(box.Text(), style);
+    if (style.text_wrap_mode == css::TextWrapMode::NoWrap) {
+      // Text that may not wrap is as wide as its widest *segment*: a preserved newline is still a
+      // break, so `<pre>` is not one long line even though nothing may wrap it.
+      return WidestSegment(box.Text(), style);
     }
     float widest = 0.0f;
     const std::string_view text = box.Text();

@@ -23,6 +23,37 @@ bool IsSpace(char c) {
 
 }  // namespace
 
+// `white-space-collapse: preserve-breaks` (`white-space: pre-line`): a run of spaces and tabs
+// collapses to one space, but a run that contains a segment break becomes the break. The spaces
+// either side of a preserved newline go with it -- CSS Text 3 §4.1.1 removes them before the break
+// is decided, which is why this cannot be "collapse, then keep the newlines".
+std::string CollapseWhitespaceKeepingBreaks(std::string_view text) {
+  std::string out;
+  out.reserve(text.size());
+  bool in_space = false;
+  bool in_break = false;
+  const auto flush = [&] {
+    if (in_break) {
+      out.push_back('\n');
+    } else if (in_space) {
+      out.push_back(' ');
+    }
+    in_space = false;
+    in_break = false;
+  };
+  for (const char c : text) {
+    if (IsSpace(c)) {
+      in_space = true;
+      in_break = in_break || c == '\n' || c == '\r' || c == '\f';
+      continue;
+    }
+    flush();
+    out.push_back(c);
+  }
+  flush();
+  return out;
+}
+
 std::string CollapseWhitespace(std::string_view text) {
   std::string out;
   out.reserve(text.size());
