@@ -604,6 +604,7 @@ class Page : private layout::ImageProvider,
   bool CanvasHitTest(const dom::Element& element, double x, double y, bool stroke,
                      bool even_odd) const override;
   bool CanvasParsesColor(const std::string& text) const override;
+  std::pair<int, int> CanvasSourceSize(const dom::Element* source) const override;
 
   // --- `bindings::WorkerHost` (ADR 0022 §1), in PageWorkers.cpp ----------------
   //
@@ -816,6 +817,12 @@ class Page : private layout::ImageProvider,
   // subtree script has built and not inserted. Resolved down the ancestor
   // chain, because inheritance only runs that direction.
   css::ComputedStyle StyleWithoutBox(const dom::Element& element) const;
+
+  // The pixels behind a `drawImage` or a `createPattern` source, and whether drawing them taints the
+  // canvas. One function because the two answers come from the same lookup and separating them is
+  // how a caller ends up drawing the pixels and forgetting the flag.
+  std::shared_ptr<const gfx::Image> CanvasImageSource(const dom::Element* source,
+                                                      bool& taints) const;
 
   // layout::ImageProvider. Private inheritance: layout asks the page for an
   // image, and nobody else has business calling this.

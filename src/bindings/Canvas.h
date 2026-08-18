@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace microbrowser::dom {
@@ -191,6 +192,12 @@ class CanvasSurface {
   // decision has to be made on this side of the seam -- a command that silently dropped the stop
   // would leave a page believing it had drawn a gradient it never described.
   virtual bool CanvasParsesColor(const std::string& text) const = 0;
+
+  // The natural size of a `drawImage` source, so the three- and five-argument forms can fill in the
+  // source rectangle. Asked here rather than derived on the far side because the *specification*
+  // makes it observable: `drawImage(img, x, y)` with a zero-sized source draws nothing, and a page
+  // that reads `img.naturalWidth` has to get the same number.
+  virtual std::pair<int, int> CanvasSourceSize(const dom::Element* source) const = 0;
 };
 
 }  // namespace microbrowser::bindings

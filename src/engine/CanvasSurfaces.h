@@ -130,6 +130,15 @@ class CanvasSurfaces {
   void SetSize(dom::Element& element, int width, int height);
   void Execute(dom::Element& element, const bindings::CanvasOp& op);
 
+  // `drawImage` and `createPattern`, which are the two commands that need pixels the binding layer
+  // could not name. The *image* is resolved by `Page` -- it is the thing that knows what an `<img>`
+  // fetched -- and `taints` is the decision it made about the source's origin, applied here before
+  // the draw so that a throw in the draw cannot leave it unset.
+  void DrawImage(dom::Element& element, const bindings::CanvasOp& op,
+                 const std::shared_ptr<const gfx::Image>& image, bool taints);
+  void SetPattern(dom::Element& element, const bindings::CanvasOp& op,
+                  const std::shared_ptr<const gfx::Image>& image, bool taints);
+
   // The pixels, for painting. A shared image rather than a copy per frame -- and rebuilt only when
   // something was drawn, which is what `dirty` is for.
   std::shared_ptr<const gfx::Image> Snapshot(const dom::Element& element);

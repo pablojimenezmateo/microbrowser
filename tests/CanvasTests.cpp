@@ -172,9 +172,18 @@ void RegisterCanvasTests(std::vector<TestCase>& tests) {
     // A cross-origin draw, which is the only thing that taints. Set at the *draw*: a flag computed at
     // read time would have to re-derive what had been drawn, and getting that wrong means a page
     // reading pixels of an image it was never allowed to see.
-    CanvasOp tainting = Op(CanvasOp::Kind::DrawImage);
-    tainting.flag = true;
-    surfaces.Execute(canvas, tainting);
+    //
+    // The taint decision itself is `Page`'s -- it is the object that knows what an `<img>` fetched
+    // and from which origin -- so it arrives here as an argument rather than on the command. What
+    // this test pins is the half that lives here: once set, it is never cleared.
+    auto source = std::make_shared<gfx::Image>();
+    source->Adopt(1, 1, std::vector<std::uint32_t>{0xFF112233u});
+    CanvasOp drawing = Op(CanvasOp::Kind::DrawImage);
+    drawing.c = 1;
+    drawing.d = 1;
+    drawing.g = 1;
+    drawing.h = 1;
+    surfaces.DrawImage(canvas, drawing, source, /*taints=*/true);
     Expect(surfaces.ReadPixels(canvas, 0, 0, 1, 1).empty(),
            "a tainted canvas reads as nothing, which the binding turns into a SecurityError");
     // `canvas.width = canvas.width` is the idiomatic clear, so a resize resets the state and the pixels.

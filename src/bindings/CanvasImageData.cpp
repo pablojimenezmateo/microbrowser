@@ -19,6 +19,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/Canvas.h"
+#include "bindings/CanvasSupport.h"
 #include "bindings/DomBindings.h"
 #include "dom/Node.h"
 #include "js/Interpreter.h"
@@ -31,7 +32,6 @@ namespace {
 using js::NativeCall;
 using js::Value;
 
-constexpr const char* kContextCanvasSlot = "#context-canvas";
 constexpr const char* kImageDataWidthSlot = "#imageDataWidth";
 constexpr const char* kImageDataHeightSlot = "#imageDataHeight";
 constexpr const char* kImageDataArraySlot = "#imageDataArray";
@@ -39,18 +39,6 @@ constexpr const char* kImageDataArraySlot = "#imageDataArray";
 // A page chooses both dimensions, so `new ImageData(1e5, 1e5)` is 40GB. Sixteen megapixels is the
 // same ceiling a canvas backing store has, for the same reason.
 constexpr std::size_t kMaxImageDataBytes = 16u * 1024u * 1024u * 4u;
-
-dom::Element* CanvasOf(const Value& context) {
-  if (!context.IsObject()) {
-    return nullptr;
-  }
-  const Value* canvas = context.object->GetOwn(kContextCanvasSlot);
-  if (canvas == nullptr) {
-    return nullptr;
-  }
-  dom::Node* node = NodeOf(*canvas);
-  return node != nullptr && node->IsElement() ? static_cast<dom::Element*>(node) : nullptr;
-}
 
 // `ToNumber` then the specification's `[EnforceRange] long` conversion. Not `static_cast<int>`: a
 // double past `INT_MAX` is undefined behaviour on the way in, and the value comes from a page.
@@ -82,7 +70,7 @@ void DomBindings::InstallImageData(const js::Value& prototype) {
   const Value get_image_data =
       interpreter_->NewNativeValue("getImageData", [](NativeCall& call) -> Value {
         DomBindings* owner = OwnerOf(call);
-        dom::Element* element = CanvasOf(call.self);
+        dom::Element* element = CanvasOfContext(call.self);
         if (call.arguments.size() < 4) {
           return call.Throw("TypeError", "getImageData requires four arguments");
         }
@@ -134,7 +122,7 @@ void DomBindings::InstallImageData(const js::Value& prototype) {
   const Value put_image_data =
       interpreter_->NewNativeValue("putImageData", [](NativeCall& call) -> Value {
         DomBindings* owner = OwnerOf(call);
-        dom::Element* element = CanvasOf(call.self);
+        dom::Element* element = CanvasOfContext(call.self);
         if (call.arguments.size() < 3) {
           return call.Throw("TypeError", "putImageData requires three arguments");
         }

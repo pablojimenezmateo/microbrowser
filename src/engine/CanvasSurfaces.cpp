@@ -682,14 +682,10 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
       break;
     case Kind::CreatePattern:
     case Kind::DrawImage:
-      // The image itself arrives through `WritePixels`/the caller, because `src/bindings` cannot hold a
-      // `gfx::Image`. What reaches here is the *taint decision* the caller made: `flag` set means the
-      // source was cross-origin without CORS, and once that is drawn the canvas can never be read
-      // again. Set before the draw, so a throw in the draw cannot leave it unset.
-      if (op.flag) {
-        surface->tainted = true;
-        AddPerformanceCounter(PerfCounterId::CanvasesTainted);
-      }
+      // Not here: these two need pixels, and `src/bindings` cannot hold a `gfx::Image`. `Page`
+      // resolves the source element and calls `DrawImage`/`SetPattern` below. Reaching this case
+      // means the caller had no image, which is a no-op rather than a failure -- an `<img>` that has
+      // not loaded draws nothing, per the specification.
       break;
   }
   surface->canvas.PopClip();
@@ -698,6 +694,80 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
     surface->snapshot.reset();
     AddPerformanceCounter(PerfCounterId::CanvasDraws);
   }
+}
+
+void CanvasSurfaces::DrawImage(dom::Element& element, const bindings::CanvasOp& op,
+                               const std::shared_ptr<const gfx::Image>& image, bool taints) {
+  Surface* surface = For(element);
+  if (surface == nullptr || surface->canvas.IsEmpty() || image == nullptr || !image->IsValid()) {
+    return;
+  }
+  if (taints) {
+    // Set before the draw, so a refusal further down cannot leave a canvas readable that has seen
+    // cross-origin pixels.
+    surface->tainted = true;
+    AddPerformanceCounter(PerfCounterId::CanvasesTainted);
+  }
+  // `a`..`d` are the source rectangle and `e`..`h` the destination. The three-argument and
+  // five-argument forms arrive with the source rectangle as the whole image, filled in by the
+  // binding layer's own natural-size query rather than guessed here.
+  const double sx = op.a;
+  const double sy = op.b;
+  const double sw = op.c;
+  const double sh = op.d;
+  const double dx = op.e;
+  const double dy = op.f;
+  const double dw = op.g;
+  const double dh = op.h;
+  if (!Finite(sx, sy, sw, sh) || !Finite(dx, dy, dw, dh) || sw == 0.0 || sh == 0.0 ||
+      dw == 0.0 || dh == 0.0) {
+    return;
+  }
+  State& state = surface->state;
+  gfx::Painter painter(surface->canvas);
+  painter.SetTransform(gfx::AffineTransform{});
+  surface->canvas.PushClip(state.clip);
+  // The image is painted as a *pattern* clipped to the destination rectangle, which is how one
+  // machine covers every case: the pattern already knows how to sample through an inverse transform,
+  // so a rotated or scaled `drawImage` costs nothing extra and cannot disagree with `createPattern`.
+  gfx::Paint paint = gfx::Paint::Pattern(image, gfx::Paint::Repeat::None);
+  // The source rectangle becomes part of the pattern's transform: scale the destination onto the
+  // source and translate so that (sx, sy) lands on (dx, dy).
+  const auto scale_x = static_cast<float>(dw / sw);
+  const auto scale_y = static_cast<float>(dh / sh);
+  const gfx::AffineTransform placement =
+      gfx::AffineTransform(scale_x, 0.0f, 0.0f, scale_y,
+                           static_cast<float>(dx) - static_cast<float>(sx) * scale_x,
+                           static_cast<float>(dy) - static_cast<float>(sy) * scale_y);
+  paint.SetTransform(placement.Then(state.transform));
+  gfx::Path rect;
+  rect.MoveTo(Apply(state.transform, dx, dy));
+  rect.LineTo(Apply(state.transform, dx + dw, dy));
+  rect.LineTo(Apply(state.transform, dx + dw, dy + dh));
+  rect.LineTo(Apply(state.transform, dx, dy + dh));
+  rect.Close();
+  painter.FillPath(rect, paint, state.alpha, gfx::FillRule::NonZero);
+  surface->canvas.PopClip();
+  surface->dirty = true;
+  surface->snapshot.reset();
+  AddPerformanceCounter(PerfCounterId::CanvasDraws);
+}
+
+void CanvasSurfaces::SetPattern(dom::Element& element, const bindings::CanvasOp& op,
+                                const std::shared_ptr<const gfx::Image>& image, bool taints) {
+  Surface* surface = For(element);
+  if (surface == nullptr || image == nullptr || !image->IsValid()) {
+    return;
+  }
+  if (taints) {
+    surface->tainted = true;
+    AddPerformanceCounter(PerfCounterId::CanvasesTainted);
+  }
+  const gfx::Paint::Repeat repeat = op.text == "repeat-x"  ? gfx::Paint::Repeat::X
+                                    : op.text == "repeat-y" ? gfx::Paint::Repeat::Y
+                                    : op.text == "no-repeat" ? gfx::Paint::Repeat::None
+                                                             : gfx::Paint::Repeat::Both;
+  surface->paints.insert_or_assign(op.handle, gfx::Paint::Pattern(image, repeat));
 }
 
 std::shared_ptr<const gfx::Image> CanvasSurfaces::Snapshot(const dom::Element& element) {

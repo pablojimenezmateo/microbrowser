@@ -23,6 +23,7 @@
 
 #include "bindings/BindingSupport.h"
 #include "bindings/Canvas.h"
+#include "bindings/CanvasSupport.h"
 #include "bindings/DomBindings.h"
 #include "dom/Node.h"
 #include "js/Interpreter.h"
@@ -34,55 +35,6 @@ namespace {
 
 using js::NativeCall;
 using js::Value;
-
-constexpr const char* kContextSlot = "#canvas-context";
-constexpr const char* kContextCanvasSlot = "#context-canvas";
-// The gradients and patterns this context has handed out, by handle, so that reading `fillStyle`
-// back gives the *same object* the page assigned -- which the specification requires and which is
-// what a page comparing `ctx.fillStyle === myGradient` depends on. The handle is the far side's
-// state, so `save()`/`restore()` restores which one is selected for free.
-constexpr const char* kPaintRegistrySlot = "#canvas-paints";
-constexpr const char* kPaintCounterSlot = "#canvas-paint-counter";
-constexpr const char* kPaintHandleSlot = "#paint-handle";
-
-double Number(const std::vector<Value>& arguments, std::size_t index, double fallback = 0.0) {
-  if (index >= arguments.size()) {
-    return fallback;
-  }
-  const double value = js::ToNumber(arguments[index]);
-  // NaN reaches the far side and is refused there, per command. Not filtered here: the specification's
-  // rule is that a non-finite argument makes the *call* a no-op, and which arguments a command has is
-  // the command's business rather than this function's.
-  return value;
-}
-
-dom::Element* CanvasOf(const Value& context) {
-  if (!context.IsObject()) {
-    return nullptr;
-  }
-  const Value* canvas = context.object->GetOwn(kContextCanvasSlot);
-  if (canvas == nullptr) {
-    return nullptr;
-  }
-  dom::Node* node = NodeOf(*canvas);
-  return node != nullptr && node->IsElement() ? static_cast<dom::Element*>(node) : nullptr;
-}
-
-// Web IDL's argument count check, which is a `TypeError` *before* anything else happens.
-//
-// Not decoration: `2d.conformance.requirements.missingargs` asserts it for thirty methods, and the
-// reason it matters outside a test is that a page calling `ctx.fillRect(x, y, w)` has a bug, and a
-// browser that filled a zero-height rectangle would hide it.
-bool Arity(NativeCall& call, std::size_t required, const char* name, Value& thrown) {
-  if (call.arguments.size() >= required) {
-    return true;
-  }
-  thrown = call.Throw("TypeError",
-                      std::string(name) + " requires " + std::to_string(required) +
-                          " arguments, but only " + std::to_string(call.arguments.size()) +
-                          " were passed");
-  return false;
-}
 
 // The methods that are "collect the numbers, send the command". Everything whose arguments are
 // positional doubles is one row here rather than one function, because forty functions differing only
@@ -133,28 +85,6 @@ constexpr Property kProperties[] = {
     {"textBaseline", CanvasOp::Kind::SetTextBaseline, false},
 };
 
-// The handle a gradient object carries, or zero when the value is not one of ours.
-std::uint32_t PaintHandleOf(const Value& value) {
-  if (!value.IsObject()) {
-    return 0;
-  }
-  const Value* handle = value.object->GetOwn(kPaintHandleSlot);
-  if (handle == nullptr) {
-    return 0;
-  }
-  const double number = js::ToNumber(*handle);
-  return number > 0.0 ? static_cast<std::uint32_t>(number) : 0;
-}
-
-// The next handle for this context, and the registry it is recorded in.
-std::uint32_t MintPaintHandle(const Value& context) {
-  const Value* counter = context.object->GetOwn(kPaintCounterSlot);
-  const auto next =
-      static_cast<std::uint32_t>((counter == nullptr ? 0.0 : js::ToNumber(*counter)) + 1.0);
-  context.object->SetHidden(kPaintCounterSlot, Value::Number(static_cast<double>(next)));
-  return next;
-}
-
 }  // namespace
 
 void DomBindings::InstallCanvas(const js::Value& target) {
@@ -194,14 +124,14 @@ void DomBindings::InstallCanvas(const js::Value& target) {
       return Value::Null();
     }
     // Cached: the same canvas must hand back the same context object every time.
-    if (const Value* existing = call.self.object->GetOwn(kContextSlot)) {
+    if (const Value* existing = call.self.object->GetOwn(kCanvasContextSlot)) {
       if (existing->IsObject()) {
         return *existing;
       }
     }
     const Value context = owner->MakeCanvasContext(call.self);
     if (context.IsObject()) {
-      call.self.object->SetHidden(kContextSlot, context);
+      call.self.object->SetHidden(kCanvasContextSlot, context);
     }
     return context;
   });
@@ -241,7 +171,7 @@ js::Value DomBindings::CanvasContextPrototype() {
   for (const Method& method : kNumericMethods) {
     const Value native = interpreter_->NewNativeValue(method.name, [](NativeCall& call) -> Value {
       DomBindings* owner = OwnerOf(call);
-      dom::Element* element = CanvasOf(call.self);
+      dom::Element* element = CanvasOfContext(call.self);
       const Value* tag = call.callee == nullptr ? nullptr : call.callee->GetOwn("#op");
       const Value* arity = call.callee == nullptr ? nullptr : call.callee->GetOwn("#arity");
       if (tag == nullptr || arity == nullptr) {
@@ -249,7 +179,7 @@ js::Value DomBindings::CanvasContextPrototype() {
       }
       Value thrown;
       const Value* name = call.callee->GetOwn("#name");
-      if (!Arity(call, static_cast<std::size_t>(js::ToNumber(*arity)),
+      if (!CanvasArity(call, static_cast<std::size_t>(js::ToNumber(*arity)),
                  name == nullptr ? "this method" : js::ToString(*name).c_str(), thrown)) {
         return thrown;
       }
@@ -258,12 +188,12 @@ js::Value DomBindings::CanvasContextPrototype() {
       }
       CanvasOp op;
       op.kind = static_cast<CanvasOp::Kind>(static_cast<int>(js::ToNumber(*tag)));
-      op.a = Number(call.arguments, 0);
-      op.b = Number(call.arguments, 1);
-      op.c = Number(call.arguments, 2);
-      op.d = Number(call.arguments, 3);
-      op.e = Number(call.arguments, 4);
-      op.f = Number(call.arguments, 5);
+      op.a = CanvasNumber(call.arguments, 0);
+      op.b = CanvasNumber(call.arguments, 1);
+      op.c = CanvasNumber(call.arguments, 2);
+      op.d = CanvasNumber(call.arguments, 3);
+      op.e = CanvasNumber(call.arguments, 4);
+      op.f = CanvasNumber(call.arguments, 5);
       owner->canvas_->ExecuteCanvasOp(*element, op);
       return Value::Undefined();
     });
@@ -285,156 +215,12 @@ js::Value DomBindings::CanvasContextPrototype() {
   return prototype;
 }
 
-void DomBindings::InstallCanvasPaintSources(const js::Value& prototype) {
-  // Eagerly, not at the first `createLinearGradient`. `window.CanvasGradient.prototype` is what a
-  // page patches to extend every gradient it will ever make, and it patches it *before* making one.
-  InstallCanvasGradientInterface();
-  // `createLinearGradient`, `createRadialGradient` and `createConicGradient`. One native for the
-  // three, because they differ only in how many numbers they take and which command they send.
-  struct Maker {
-    const char* name;
-    CanvasOp::Kind kind;
-    std::size_t required;
-  };
-  static constexpr Maker kMakers[] = {
-      {"createLinearGradient", CanvasOp::Kind::CreateLinearGradient, 4},
-      {"createRadialGradient", CanvasOp::Kind::CreateRadialGradient, 6},
-      {"createConicGradient", CanvasOp::Kind::CreateConicGradient, 3},
-  };
-  for (const Maker& maker : kMakers) {
-    const Value native = interpreter_->NewNativeValue(maker.name, [](NativeCall& call) -> Value {
-      DomBindings* owner = OwnerOf(call);
-      dom::Element* element = CanvasOf(call.self);
-      const Value* tag = call.callee == nullptr ? nullptr : call.callee->GetOwn("#op");
-      const Value* arity = call.callee == nullptr ? nullptr : call.callee->GetOwn("#arity");
-      const Value* named = call.callee == nullptr ? nullptr : call.callee->GetOwn("#name");
-      if (tag == nullptr || arity == nullptr) {
-        return Value::Undefined();
-      }
-      Value thrown;
-      if (!Arity(call, static_cast<std::size_t>(js::ToNumber(*arity)),
-                 named == nullptr ? "this method" : js::ToString(*named).c_str(), thrown)) {
-        return thrown;
-      }
-      if (owner == nullptr || owner->canvas_ == nullptr || element == nullptr) {
-        return Value::Undefined();
-      }
-      CanvasOp op;
-      op.kind = static_cast<CanvasOp::Kind>(static_cast<int>(js::ToNumber(*tag)));
-      op.a = Number(call.arguments, 0);
-      op.b = Number(call.arguments, 1);
-      op.c = Number(call.arguments, 2);
-      op.d = Number(call.arguments, 3);
-      op.e = Number(call.arguments, 4);
-      op.f = Number(call.arguments, 5);
-      if (!std::isfinite(op.a) || !std::isfinite(op.b) || !std::isfinite(op.c) ||
-          !std::isfinite(op.d) || !std::isfinite(op.e) || !std::isfinite(op.f)) {
-        // A non-finite coordinate is *not* a silent no-op here, unlike a drawing command: the call
-        // has to return an object, and one built from a NaN would paint nothing for the rest of the
-        // page's life with no way to find out why.
-        return ThrowDom(call, "NotSupportedError", "a gradient coordinate is not finite");
-      }
-      if (op.kind == CanvasOp::Kind::CreateRadialGradient && (op.c < 0.0 || op.f < 0.0)) {
-        return ThrowDom(call, "IndexSizeError", "a gradient radius is negative");
-      }
-      return owner->MakeCanvasGradient(call.self, *element, op);
-    });
-    if (native.IsObject()) {
-      native.object->Set(kOwnerSlot, OwnerValue(this));
-      native.object->SetHidden("#op", Value::Number(static_cast<double>(maker.kind)));
-      native.object->SetHidden("#arity", Value::Number(static_cast<double>(maker.required)));
-      native.object->SetHidden("#name", Value::String(maker.name));
-      DefineNonEnumerable(prototype.object, maker.name, native);
-    }
-  }
-}
-
-js::Value DomBindings::InstallCanvasGradientInterface() {
-  const Value prototype = MakeInterface("CanvasGradient", Value::Undefined());
-  if (prototype.IsObject() && !prototype.object->HasOwn("addColorStop")) {
-    const Value add = interpreter_->NewNativeValue("addColorStop", [](NativeCall& call) -> Value {
-      DomBindings* owner = OwnerOf(call);
-      if (call.arguments.size() < 2) {
-        return call.Throw("TypeError", "addColorStop requires two arguments");
-      }
-      if (owner == nullptr || owner->canvas_ == nullptr || !call.self.IsObject()) {
-        return Value::Undefined();
-      }
-      const Value* context_value = call.self.object->GetOwn(kContextCanvasSlot);
-      dom::Node* node = context_value == nullptr ? nullptr : NodeOf(*context_value);
-      if (node == nullptr || !node->IsElement()) {
-        return Value::Undefined();
-      }
-      const double offset = js::ToNumber(call.arguments[0]);
-      // Two different failures and they are not the same throw. A non-finite offset fails Web IDL's
-      // `double` conversion, which is a `TypeError` before the method's own steps run; an offset
-      // outside [0, 1] passes that and fails the method, which is an `IndexSizeError`.
-      if (!std::isfinite(offset)) {
-        return call.Throw("TypeError", "the stop offset is not a finite number");
-      }
-      if (offset < 0.0 || offset > 1.0) {
-        return ThrowDom(call, "IndexSizeError", "the stop offset is outside [0, 1]");
-      }
-      const std::string color = js::ToString(call.arguments[1]);
-      if (!owner->canvas_->CanvasParsesColor(color)) {
-        // A `SyntaxError` rather than a dropped stop: a page that misspelled a colour has drawn a
-        // gradient it did not describe, and silence there is a bug it cannot see.
-        return ThrowDom(call, "SyntaxError", "the stop colour does not parse");
-      }
-      CanvasOp stop;
-      stop.kind = CanvasOp::Kind::AddColorStop;
-      stop.handle = PaintHandleOf(call.self);
-      stop.a = offset;
-      stop.text = color;
-      owner->canvas_->ExecuteCanvasOp(static_cast<dom::Element&>(*node), stop);
-      return Value::Undefined();
-    });
-    if (add.IsObject()) {
-      add.object->Set(kOwnerSlot, OwnerValue(this));
-      DefineNonEnumerable(prototype.object, "addColorStop", add);
-    }
-  }
-  return prototype;
-}
-
-js::Value DomBindings::MakeCanvasGradient(const js::Value& context, dom::Element& element,
-                                          CanvasOp op) {
-  const Value prototype = InstallCanvasGradientInterface();
-  const Value gradient = interpreter_->NewObjectValue();
-  if (!prototype.IsObject() || !gradient.IsObject() || !context.IsObject()) {
-    return Value::Undefined();
-  }
-  op.handle = MintPaintHandle(context);
-  canvas_->ExecuteCanvasOp(element, op);
-  gradient.object->SetPrototype(prototype.object);
-  gradient.object->SetHidden(kPaintHandleSlot, Value::Number(static_cast<double>(op.handle)));
-  // The canvas element, so `addColorStop` can reach the surface holding the gradient. The gradient
-  // object rather than the context, because a context is reachable from the canvas and not the
-  // other way round.
-  const Value* canvas = context.object->GetOwn(kContextCanvasSlot);
-  if (canvas != nullptr) {
-    gradient.object->SetHidden(kContextCanvasSlot, *canvas);
-  }
-  // Recorded so that reading `fillStyle` back returns this object rather than an equal one.
-  const Value* existing = context.object->GetOwn(kPaintRegistrySlot);
-  Value registry = existing == nullptr ? Value::Undefined() : *existing;
-  if (!registry.IsObject()) {
-    registry = interpreter_->NewObjectValue();
-    if (!registry.IsObject()) {
-      return gradient;
-    }
-    context.object->SetHidden(kPaintRegistrySlot, registry);
-  }
-  registry.object->SetHidden(std::to_string(op.handle), gradient);
-  return gradient;
-}
-
 void DomBindings::InstallCanvasProperties(const js::Value& prototype) {
   for (const Property& property : kProperties) {
     const Value get =
         interpreter_->NewNativeValue(property.name, [property](NativeCall& call) -> Value {
           DomBindings* owner = OwnerOf(call);
-          dom::Element* element = CanvasOf(call.self);
+          dom::Element* element = CanvasOfContext(call.self);
           if (owner == nullptr || owner->canvas_ == nullptr || element == nullptr) {
             return Value::Undefined();
           }
@@ -466,7 +252,7 @@ void DomBindings::InstallCanvasProperties(const js::Value& prototype) {
     const Value set =
         interpreter_->NewNativeValue(property.name, [property](NativeCall& call) -> Value {
           DomBindings* owner = OwnerOf(call);
-          dom::Element* element = CanvasOf(call.self);
+          dom::Element* element = CanvasOfContext(call.self);
           if (owner == nullptr || owner->canvas_ == nullptr || element == nullptr) {
             return Value::Undefined();
           }
@@ -514,14 +300,14 @@ void DomBindings::InstallCanvasTransforms(const js::Value& prototype) {
   const auto shorthand = [this, &prototype](const char* name, std::size_t required) {
     const Value native = interpreter_->NewNativeValue(name, [](NativeCall& call) -> Value {
       DomBindings* owner = OwnerOf(call);
-      dom::Element* element = CanvasOf(call.self);
+      dom::Element* element = CanvasOfContext(call.self);
       const Value* which = call.callee == nullptr ? nullptr : call.callee->GetOwn("#shorthand");
       const Value* arity = call.callee == nullptr ? nullptr : call.callee->GetOwn("#arity");
       if (which == nullptr || arity == nullptr) {
         return Value::Undefined();
       }
       Value thrown;
-      if (!Arity(call, static_cast<std::size_t>(js::ToNumber(*arity)), js::ToString(*which).c_str(),
+      if (!CanvasArity(call, static_cast<std::size_t>(js::ToNumber(*arity)), js::ToString(*which).c_str(),
                  thrown)) {
         return thrown;
       }
@@ -534,13 +320,13 @@ void DomBindings::InstallCanvasTransforms(const js::Value& prototype) {
       if (what == "translate") {
         op.a = 1.0;
         op.d = 1.0;
-        op.e = Number(call.arguments, 0);
-        op.f = Number(call.arguments, 1);
+        op.e = CanvasNumber(call.arguments, 0);
+        op.f = CanvasNumber(call.arguments, 1);
       } else if (what == "scale") {
-        op.a = Number(call.arguments, 0, 1.0);
-        op.d = Number(call.arguments, 1, 1.0);
+        op.a = CanvasNumber(call.arguments, 0, 1.0);
+        op.d = CanvasNumber(call.arguments, 1, 1.0);
       } else {
-        const double radians = Number(call.arguments, 0);
+        const double radians = CanvasNumber(call.arguments, 0);
         op.a = std::cos(radians);
         op.b = std::sin(radians);
         op.c = -std::sin(radians);
@@ -566,7 +352,7 @@ void DomBindings::InstallCanvasTransforms(const js::Value& prototype) {
   const Value set_transform =
       interpreter_->NewNativeValue("setTransform", [](NativeCall& call) -> Value {
         DomBindings* owner = OwnerOf(call);
-        dom::Element* element = CanvasOf(call.self);
+        dom::Element* element = CanvasOfContext(call.self);
         if (owner == nullptr || owner->canvas_ == nullptr || element == nullptr) {
           return Value::Undefined();
         }
@@ -600,12 +386,12 @@ void DomBindings::InstallCanvasTransforms(const js::Value& prototype) {
         } else if (call.arguments.size() < 6) {
           return call.Throw("TypeError", "setTransform requires six numbers");
         } else {
-          op.a = Number(call.arguments, 0);
-          op.b = Number(call.arguments, 1);
-          op.c = Number(call.arguments, 2);
-          op.d = Number(call.arguments, 3);
-          op.e = Number(call.arguments, 4);
-          op.f = Number(call.arguments, 5);
+          op.a = CanvasNumber(call.arguments, 0);
+          op.b = CanvasNumber(call.arguments, 1);
+          op.c = CanvasNumber(call.arguments, 2);
+          op.d = CanvasNumber(call.arguments, 3);
+          op.e = CanvasNumber(call.arguments, 4);
+          op.f = CanvasNumber(call.arguments, 5);
         }
         owner->canvas_->ExecuteCanvasOp(*element, op);
         return Value::Undefined();
@@ -621,7 +407,7 @@ void DomBindings::InstallCanvasTransforms(const js::Value& prototype) {
   const Value get_transform =
       interpreter_->NewNativeValue("getTransform", [](NativeCall& call) -> Value {
         DomBindings* owner = OwnerOf(call);
-        dom::Element* element = CanvasOf(call.self);
+        dom::Element* element = CanvasOfContext(call.self);
         if (owner == nullptr || owner->canvas_ == nullptr || element == nullptr) {
           return Value::Undefined();
         }
@@ -652,7 +438,7 @@ void DomBindings::InstallCanvasPaths(const js::Value& prototype) {
   const auto painting = [this, &prototype](const char* name, CanvasOp::Kind kind) {
     const Value native = interpreter_->NewNativeValue(name, [kind](NativeCall& call) -> Value {
       DomBindings* owner = OwnerOf(call);
-      dom::Element* element = CanvasOf(call.self);
+      dom::Element* element = CanvasOfContext(call.self);
       if (owner == nullptr || owner->canvas_ == nullptr || element == nullptr) {
         return Value::Undefined();
       }
@@ -686,7 +472,7 @@ void DomBindings::InstallCanvasPaths(const js::Value& prototype) {
   const auto arc_method = [this, &prototype](const char* name, std::size_t required) {
     const Value native = interpreter_->NewNativeValue(name, [](NativeCall& call) -> Value {
       DomBindings* owner = OwnerOf(call);
-      dom::Element* element = CanvasOf(call.self);
+      dom::Element* element = CanvasOfContext(call.self);
       const Value* which = call.callee == nullptr ? nullptr : call.callee->GetOwn("#arc");
       const Value* arity = call.callee == nullptr ? nullptr : call.callee->GetOwn("#arity");
       if (which == nullptr || arity == nullptr) {
@@ -694,7 +480,7 @@ void DomBindings::InstallCanvasPaths(const js::Value& prototype) {
       }
       Value thrown;
       const std::string what = js::ToString(*which);
-      if (!Arity(call, static_cast<std::size_t>(js::ToNumber(*arity)), what.c_str(), thrown)) {
+      if (!CanvasArity(call, static_cast<std::size_t>(js::ToNumber(*arity)), what.c_str(), thrown)) {
         return thrown;
       }
       if (owner == nullptr || owner->canvas_ == nullptr || element == nullptr) {
@@ -703,35 +489,35 @@ void DomBindings::InstallCanvasPaths(const js::Value& prototype) {
       CanvasOp op;
       if (what == "arcTo") {
         op.kind = CanvasOp::Kind::ArcTo;
-        op.a = Number(call.arguments, 0);
-        op.b = Number(call.arguments, 1);
-        op.c = Number(call.arguments, 2);
-        op.d = Number(call.arguments, 3);
-        op.e = Number(call.arguments, 4);
+        op.a = CanvasNumber(call.arguments, 0);
+        op.b = CanvasNumber(call.arguments, 1);
+        op.c = CanvasNumber(call.arguments, 2);
+        op.d = CanvasNumber(call.arguments, 3);
+        op.e = CanvasNumber(call.arguments, 4);
         if (op.e < 0.0) {
           return ThrowDom(call, "IndexSizeError", "the radius is negative");
         }
       } else if (what == "arc") {
         op.kind = CanvasOp::Kind::Arc;
-        op.a = Number(call.arguments, 0);
-        op.b = Number(call.arguments, 1);
-        op.c = Number(call.arguments, 2);
+        op.a = CanvasNumber(call.arguments, 0);
+        op.b = CanvasNumber(call.arguments, 1);
+        op.c = CanvasNumber(call.arguments, 2);
         op.f = op.c;
-        op.d = Number(call.arguments, 3);
-        op.e = Number(call.arguments, 4);
+        op.d = CanvasNumber(call.arguments, 3);
+        op.e = CanvasNumber(call.arguments, 4);
         op.flag = js::ToBoolean(Argument(call.arguments, 5));
         if (op.c < 0.0) {
           return ThrowDom(call, "IndexSizeError", "the radius is negative");
         }
       } else {
         op.kind = CanvasOp::Kind::Arc;
-        op.a = Number(call.arguments, 0);
-        op.b = Number(call.arguments, 1);
-        op.c = Number(call.arguments, 2);
-        op.f = Number(call.arguments, 3);
-        op.g = Number(call.arguments, 4);
-        op.d = Number(call.arguments, 5);
-        op.e = Number(call.arguments, 6);
+        op.a = CanvasNumber(call.arguments, 0);
+        op.b = CanvasNumber(call.arguments, 1);
+        op.c = CanvasNumber(call.arguments, 2);
+        op.f = CanvasNumber(call.arguments, 3);
+        op.g = CanvasNumber(call.arguments, 4);
+        op.d = CanvasNumber(call.arguments, 5);
+        op.e = CanvasNumber(call.arguments, 6);
         op.flag = js::ToBoolean(Argument(call.arguments, 7));
         if (op.c < 0.0 || op.f < 0.0) {
           return ThrowDom(call, "IndexSizeError", "a radius is negative");
@@ -754,9 +540,9 @@ void DomBindings::InstallCanvasPaths(const js::Value& prototype) {
   const Value round_rect =
       interpreter_->NewNativeValue("roundRect", [](NativeCall& call) -> Value {
         DomBindings* owner = OwnerOf(call);
-        dom::Element* element = CanvasOf(call.self);
+        dom::Element* element = CanvasOfContext(call.self);
         Value thrown;
-        if (!Arity(call, 4, "roundRect", thrown)) {
+        if (!CanvasArity(call, 4, "roundRect", thrown)) {
           return thrown;
         }
         if (owner == nullptr || owner->canvas_ == nullptr || element == nullptr) {
@@ -764,10 +550,10 @@ void DomBindings::InstallCanvasPaths(const js::Value& prototype) {
         }
         CanvasOp op;
         op.kind = CanvasOp::Kind::RoundRect;
-        op.a = Number(call.arguments, 0);
-        op.b = Number(call.arguments, 1);
-        op.c = Number(call.arguments, 2);
-        op.d = Number(call.arguments, 3);
+        op.a = CanvasNumber(call.arguments, 0);
+        op.b = CanvasNumber(call.arguments, 1);
+        op.c = CanvasNumber(call.arguments, 2);
+        op.d = CanvasNumber(call.arguments, 3);
         Value radii_error;
         if (!DomBindings::ReadCornerRadii(call, Argument(call.arguments, 4), op.c, op.d, op.numbers,
                                           radii_error)) {
@@ -790,22 +576,22 @@ void DomBindings::InstallCanvasPaths(const js::Value& prototype) {
   const auto hit = [this, &prototype](const char* name, bool stroke, std::size_t required) {
     const Value native = interpreter_->NewNativeValue(name, [stroke](NativeCall& call) -> Value {
       DomBindings* owner = OwnerOf(call);
-      dom::Element* element = CanvasOf(call.self);
+      dom::Element* element = CanvasOfContext(call.self);
       const Value* arity = call.callee == nullptr ? nullptr : call.callee->GetOwn("#arity");
       if (arity == nullptr) {
         return Value::Bool(false);
       }
       Value thrown;
       const Value* called = call.callee->GetOwn("#name");
-      if (!Arity(call, static_cast<std::size_t>(js::ToNumber(*arity)),
+      if (!CanvasArity(call, static_cast<std::size_t>(js::ToNumber(*arity)),
                  called == nullptr ? "this method" : js::ToString(*called).c_str(), thrown)) {
         return thrown;
       }
       if (owner == nullptr || owner->canvas_ == nullptr || element == nullptr) {
         return Value::Bool(false);
       }
-      const double x = Number(call.arguments, 0);
-      const double y = Number(call.arguments, 1);
+      const double x = CanvasNumber(call.arguments, 0);
+      const double y = CanvasNumber(call.arguments, 1);
       bool even_odd = false;
       if (!stroke && call.arguments.size() > 2) {
         const std::string rule = js::ToString(call.arguments[2]);
@@ -928,9 +714,9 @@ void DomBindings::InstallCanvasText(const js::Value& prototype) {
   const auto text_method = [this, &prototype](const char* name, CanvasOp::Kind kind) {
     const Value native = interpreter_->NewNativeValue(name, [kind](NativeCall& call) -> Value {
       DomBindings* owner = OwnerOf(call);
-      dom::Element* element = CanvasOf(call.self);
+      dom::Element* element = CanvasOfContext(call.self);
       Value thrown;
-      if (!Arity(call, 3, "fillText/strokeText", thrown)) {
+      if (!CanvasArity(call, 3, "fillText/strokeText", thrown)) {
         return thrown;
       }
       if (owner == nullptr || owner->canvas_ == nullptr || element == nullptr) {
@@ -939,8 +725,8 @@ void DomBindings::InstallCanvasText(const js::Value& prototype) {
       CanvasOp op;
       op.kind = kind;
       op.text = js::ToString(Argument(call.arguments, 0));
-      op.a = Number(call.arguments, 1);
-      op.b = Number(call.arguments, 2);
+      op.a = CanvasNumber(call.arguments, 1);
+      op.b = CanvasNumber(call.arguments, 2);
       owner->canvas_->ExecuteCanvasOp(*element, op);
       return Value::Undefined();
     });
@@ -954,9 +740,9 @@ void DomBindings::InstallCanvasText(const js::Value& prototype) {
 
   const Value measure = interpreter_->NewNativeValue("measureText", [](NativeCall& call) -> Value {
     DomBindings* owner = OwnerOf(call);
-    dom::Element* element = CanvasOf(call.self);
+    dom::Element* element = CanvasOfContext(call.self);
     Value thrown;
-    if (!Arity(call, 1, "measureText", thrown)) {
+    if (!CanvasArity(call, 1, "measureText", thrown)) {
       return thrown;
     }
     if (owner == nullptr || owner->canvas_ == nullptr || element == nullptr) {

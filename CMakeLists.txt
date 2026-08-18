@@ -478,6 +478,7 @@ microbrowser_module(bindings
   SOURCES
     src/bindings/CanvasBindings.cpp
     src/bindings/CanvasImageData.cpp
+    src/bindings/CanvasPaint.cpp
     src/bindings/Fingerprint.cpp
     src/bindings/CryptoSubtle.cpp
     src/bindings/WorkerBindings.cpp

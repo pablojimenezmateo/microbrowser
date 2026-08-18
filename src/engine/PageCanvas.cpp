@@ -11,6 +11,7 @@
 #include "bindings/Canvas.h"
 #include "dom/Node.h"
 #include "css/ComputedStyle.h"
+#include "url/Url.h"
 #include "engine/Page.h"
 #include "util/Parse.h"
 
@@ -55,6 +56,21 @@ int Page::CanvasHeight(const dom::Element& element) const {
 }
 
 void Page::ExecuteCanvasOp(dom::Element& element, const bindings::CanvasOp& op) {
+  // The two commands that need pixels are resolved here, because this is the object that knows what
+  // an `<img>` fetched and what origin it came from. Everything else is state or geometry and goes
+  // straight through.
+  if (op.kind == bindings::CanvasOp::Kind::DrawImage ||
+      op.kind == bindings::CanvasOp::Kind::CreatePattern) {
+    bool taints = false;
+    const std::shared_ptr<const gfx::Image> image = CanvasImageSource(op.source, taints);
+    if (op.kind == bindings::CanvasOp::Kind::DrawImage) {
+      canvases_.DrawImage(element, op, image, taints);
+    } else {
+      canvases_.SetPattern(element, op, image, taints);
+    }
+    InvalidateLayout();
+    return;
+  }
   canvases_.Execute(element, op);
   // Every drawing command changes what the element paints as. Marked here rather than per command,
   // because "did this draw?" is the surface's answer and asking it twice is two answers to keep in step.
@@ -101,6 +117,40 @@ bool Page::CanvasHitTest(const dom::Element& element, double x, double y, bool s
 
 bool Page::CanvasParsesColor(const std::string& text) const {
   return css::ParseColor(text).has_value();
+}
+
+std::pair<int, int> Page::CanvasSourceSize(const dom::Element* source) const {
+  bool ignored = false;
+  const std::shared_ptr<const gfx::Image> image = CanvasImageSource(source, ignored);
+  if (image == nullptr || !image->IsValid()) {
+    return {0, 0};
+  }
+  return {image->Width(), image->Height()};
+}
+
+std::shared_ptr<const gfx::Image> Page::CanvasImageSource(const dom::Element* source,
+                                                          bool& taints) const {
+  taints = false;
+  if (source == nullptr) {
+    return nullptr;
+  }
+  // **The taint decision, and it is deliberately conservative.** This browser sends no
+  // `crossorigin` on an image request and enforces no CORS on one, so there is no such thing here as
+  // a cross-origin image a canvas may read back -- and the only safe reading of that is that every
+  // cross-origin source taints. Erring the other way would be a page reading pixels of an image it
+  // was never allowed to see, which is the whole reason the flag exists.
+  if (source->TagName() == "img") {
+    const auto selected = resources_.selected_image_urls.find(source);
+    if (selected != resources_.selected_image_urls.end()) {
+      const std::optional<url::Url> resolved =
+          policy_.Base().has_value() ? url::Url::Parse(selected->second, *policy_.Base())
+                                     : url::Url::Parse(selected->second);
+      // An address that does not parse taints, rather than not. There is no image behind it either
+      // way, but the flag is a security decision and "we could not tell" is not a reason to allow.
+      taints = !resolved.has_value() || !policy_.IsSameOrigin(*resolved);
+    }
+  }
+  return ImageForElement(*source);
 }
 
 }  // namespace microbrowser::engine
