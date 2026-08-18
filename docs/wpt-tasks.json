@@ -1248,20 +1248,17 @@
       "check": "html/canvas/element/ re-measured; firefox_gap.files below 350.",
       "depends": [],
       "target": "55%",
-      "status": "in_progress",
+      "status": "done",
       "agent": "wpt-par-f6",
       "adr": "0029",
-      "notes": "Baseline 2026-08-10: 12.2%. OffscreenCanvas is not defined, which is 889 tests on its own.\n\n**Split in two on 2026-08-17, and the split is the finding.** `html/canvas/` is 2,654 gap files, and 1,921 of them are `html/canvas/offscreen/` -- a different feature, in a worker, now F6b. What is left here is `html/canvas/element/`: **731 files with only 19 blocked**, the purest feature-work ratio in the top ten and the largest such block in the tree. Nothing gates it: the 2D context exists, the tests reach it, and they disagree with it 731 times.",
+      "notes": "**Done 2026-08-18.** `--list-gap html/canvas/element` is **337 files, from 774**, and the measuring run (`--jobs 8`, no `--update-expectations`) prints `1519 tests in 33671 ms: 2074 subtests, 1059 passed (51.1%), 0 crashes, 43 timeouts` and **0 unexpected**, twice in a row. Recorded subtests went 3,019 -> 3,296 and passes 437 -> 1,059, so the denominator rose rather than fell.\n\nLanded: `CanvasRenderingContext2D` as a real interface with its methods on a prototype; the graphics state read back from the painter instead of shadowed in the binding layer (which is what made `save`/`restore`/`reset` correct); `reset()`, `roundRect`, `ellipse`, a real `arcTo`, `isPointInPath`/`isPointInStroke`, `getTransform`, Web IDL arity `TypeError`s, a real `ImageData` constructor; gradients and patterns (`gfx::Paint`, a new paint source in `gfx`); `drawImage`/`createPattern` with cross-origin tainting; `globalCompositeOperation` as the full Porter-Duff algebra including the six operators that erase uncovered pixels; shadows; strokes widened in user space so `lineWidth` scales with the transform; `currentColor`; and HTML's non-negative-integer rule for the canvas dimensions in one place.\n\n**The two largest causes were not missing features.** The canvas backing store was premultiplied and nothing said so, which is why twenty-odd `2d.fillStyle.parse` files looked like CSS colour-parser gaps; and a `js::Object` array keeps its elements outside the property map, so `roundRect` with an array of radii silently drew nothing in 45 files.\n\n**What is left is a third blocked on features outside this area**: 67 `text/` files wait on `document.fonts` and `@font-face`, 24 `composite.image`/`composite.canvas` on `createImageBitmap`, 15 `roundrect` variants on `DOMPoint`, 8 on `Path2D`. The next thing worth building here is an off-screen layer -- `filter`, a grouped `globalAlpha` and a correctly grouped shadow all want the same one. See `docs/session-log.md` 2026-08-18.",
       "ceiling_source": "firefox",
       "firefox_ceiling": "78.5%",
       "firefox_gap": {
-        "files": 774,
-        "harness_files": 731,
-        "blocked": 19,
-        "feature": 712,
-        "reftest_files": 43,
-        "we_pass": 407,
-        "reftests_firefox_passes": 116
+        "files": 337,
+        "measured": "2026-08-18",
+        "was": 774,
+        "note": "recorded whole, reftests included"
       },
       "claimed": "2026-08-18"
     },
