@@ -162,7 +162,55 @@ void DomBindings::InstallImageData(const js::Value& prototype) {
         if (!ToLong(call.arguments[1], dx) || !ToLong(call.arguments[2], dy)) {
           return call.Throw("TypeError", "the destination is not representable");
         }
-        owner->canvas_->WriteCanvasPixels(*element, dx, dy, width, height, rgba);
+        // The seven-argument form's dirty rectangle: only the part of the ImageData inside it is
+        // written. Cropped here rather than on the far side because it is a *source* rectangle in the
+        // ImageData's own coordinates, and the far side only ever sees a destination.
+        int dirty_x = 0;
+        int dirty_y = 0;
+        int dirty_width = width;
+        int dirty_height = height;
+        if (call.arguments.size() >= 7) {
+          if (!ToLong(call.arguments[3], dirty_x) || !ToLong(call.arguments[4], dirty_y) ||
+              !ToLong(call.arguments[5], dirty_width) || !ToLong(call.arguments[6], dirty_height)) {
+            return call.Throw("TypeError", "the dirty rectangle is not representable");
+          }
+          // A negative extent flips the rectangle, per the specification.
+          if (dirty_width < 0) {
+            dirty_x += dirty_width;
+            dirty_width = -dirty_width;
+          }
+          if (dirty_height < 0) {
+            dirty_y += dirty_height;
+            dirty_height = -dirty_height;
+          }
+          // Clamped to the ImageData, so nothing outside it is read.
+          const int right = std::min(dirty_x + dirty_width, width);
+          const int bottom = std::min(dirty_y + dirty_height, height);
+          dirty_x = std::max(dirty_x, 0);
+          dirty_y = std::max(dirty_y, 0);
+          dirty_width = right - dirty_x;
+          dirty_height = bottom - dirty_y;
+          if (dirty_width <= 0 || dirty_height <= 0) {
+            return Value::Undefined();  // an empty dirty rectangle writes nothing
+          }
+        }
+        if (dirty_x == 0 && dirty_y == 0 && dirty_width == width && dirty_height == height) {
+          owner->canvas_->WriteCanvasPixels(*element, dx, dy, width, height, rgba);
+          return Value::Undefined();
+        }
+        std::vector<std::uint8_t> cropped(
+            static_cast<std::size_t>(dirty_width) * static_cast<std::size_t>(dirty_height) * 4);
+        for (int row = 0; row < dirty_height; ++row) {
+          const std::size_t from =
+              (static_cast<std::size_t>(dirty_y + row) * static_cast<std::size_t>(width) +
+               static_cast<std::size_t>(dirty_x)) * 4;
+          std::copy(rgba.begin() + static_cast<std::ptrdiff_t>(from),
+                    rgba.begin() + static_cast<std::ptrdiff_t>(
+                                       from + static_cast<std::size_t>(dirty_width) * 4),
+                    cropped.begin() + static_cast<std::ptrdiff_t>(row) * dirty_width * 4);
+        }
+        owner->canvas_->WriteCanvasPixels(*element, dx + dirty_x, dy + dirty_y, dirty_width,
+                                          dirty_height, cropped);
         return Value::Undefined();
       });
   if (put_image_data.IsObject()) {

@@ -140,6 +140,31 @@ std::string_view CompositeOpName(CompositeOp op) {
   return "source-over";
 }
 
+std::uint32_t UnpremultiplyPixel(std::uint32_t argb) {
+  const std::uint32_t alpha = (argb >> 24) & 0xFFu;
+  if (alpha == 0 || alpha == 255) {
+    return alpha == 0 ? 0u : argb;
+  }
+  const auto channel = [alpha](std::uint32_t value) {
+    return std::min(255u, (value * 255u + alpha / 2) / alpha);
+  };
+  return (alpha << 24) | (channel((argb >> 16) & 0xFFu) << 16) |
+         (channel((argb >> 8) & 0xFFu) << 8) | channel(argb & 0xFFu);
+}
+
+std::uint32_t PremultiplyPixel(std::uint32_t argb) {
+  const std::uint32_t alpha = (argb >> 24) & 0xFFu;
+  if (alpha == 255) {
+    return argb;
+  }
+  if (alpha == 0) {
+    return 0;
+  }
+  return (alpha << 24) | (gfx::MulDiv255((argb >> 16) & 0xFFu, alpha) << 16) |
+         (gfx::MulDiv255((argb >> 8) & 0xFFu, alpha) << 8) |
+         gfx::MulDiv255(argb & 0xFFu, alpha);
+}
+
 bool CompositeAffectsUncovered(CompositeOp op) {
   // Derived rather than listed: with `as` zero the formula leaves the backdrop alone exactly when
   // `Fb` is one, and these six are the operators where it is not.

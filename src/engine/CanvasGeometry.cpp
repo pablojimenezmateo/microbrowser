@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include <span>
+
 #include "gfx/PathFlattener.h"
 
 namespace microbrowser::engine {
@@ -258,5 +260,37 @@ bool PathContainsPoint(const gfx::Path& path, double x, double y, bool even_odd)
   counter.Finish();
   return even_odd ? (counter.crossings % 2) != 0 : counter.winding != 0;
 }
+
+// A path with `transform` applied to every point. `gfx::Path` has no transform verb -- a path is
+// geometry and a transform is a caller's business -- so the walk is here.
+gfx::Path Transformed(const gfx::Path& path, const gfx::AffineTransform& transform) {
+  gfx::Path out;
+  const std::span<const gfx::PathVerb> verbs = path.Verbs();
+  const std::span<const gfx::FloatPoint> points = path.Points();
+  std::size_t at = 0;
+  for (const gfx::PathVerb verb : verbs) {
+    switch (verb) {
+      case gfx::PathVerb::Move:
+        out.MoveTo(transform.MapPoint(points[at]));
+        break;
+      case gfx::PathVerb::Line:
+        out.LineTo(transform.MapPoint(points[at]));
+        break;
+      case gfx::PathVerb::Quad:
+        out.QuadTo(transform.MapPoint(points[at]), transform.MapPoint(points[at + 1]));
+        break;
+      case gfx::PathVerb::Cubic:
+        out.CubicTo(transform.MapPoint(points[at]), transform.MapPoint(points[at + 1]),
+                    transform.MapPoint(points[at + 2]));
+        break;
+      case gfx::PathVerb::Close:
+        out.Close();
+        break;
+    }
+    at += gfx::PointsForVerb(verb);
+  }
+  return out;
+}
+
 
 }  // namespace microbrowser::engine

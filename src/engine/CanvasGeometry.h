@@ -48,4 +48,12 @@ void AppendRoundRect(gfx::Path& path, const gfx::AffineTransform& transform, dou
 // `isPointInPath` in a hit-testing loop is called once per shape per pointer move.
 bool PathContainsPoint(const gfx::Path& path, double x, double y, bool even_odd);
 
+// `path` with `transform` applied to every point.
+//
+// `gfx::Path` has no transform verb -- a path is geometry and a transform is a caller's business --
+// so the walk is here. The canvas needs it in both directions: a stroke is widened in *user* space
+// and painted in device space, so the current path goes back through the inverse and the resulting
+// outline comes forward again.
+gfx::Path Transformed(const gfx::Path& path, const gfx::AffineTransform& transform);
+
 }  // namespace microbrowser::engine

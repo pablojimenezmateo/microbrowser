@@ -7,6 +7,7 @@
 #include <cmath>
 #include <functional>
 #include <optional>
+#include <span>
 
 #include "css/ComputedStyle.h"
 #include "css/StyleResolver.h"
@@ -23,40 +24,6 @@ namespace {
 
 using util::AddPerformanceCounter;
 using util::PerfCounterId;
-
-// The canvas backing store holds **premultiplied** ARGB, and these two are the only places that
-// matters.
-//
-// It is not a choice so much as a consequence: `gfx::BlendSrcOver` computes
-// `out.rgb = src.rgb * src.a + dst.rgb * (1 - src.a)`, which is the premultiplied formula. On a page
-// the destination is always opaque, so premultiplied and not are the same number and nobody ever had
-// to say which this was. A canvas starts *transparent*, and there it is the difference between
-// `fillStyle = 'rgba(0,255,0,0.5)'` reading back as green at half alpha and reading back as a dark
-// green -- which is what every `2d.fillStyle.parse` test with an alpha was measuring.
-std::uint32_t Unpremultiply(std::uint32_t argb) {
-  const std::uint32_t alpha = (argb >> 24) & 0xFFu;
-  if (alpha == 0 || alpha == 255) {
-    return alpha == 0 ? 0u : argb;
-  }
-  const auto channel = [alpha](std::uint32_t value) {
-    return std::min(255u, (value * 255u + alpha / 2) / alpha);
-  };
-  return (alpha << 24) | (channel((argb >> 16) & 0xFFu) << 16) |
-         (channel((argb >> 8) & 0xFFu) << 8) | channel(argb & 0xFFu);
-}
-
-std::uint32_t Premultiply(std::uint32_t argb) {
-  const std::uint32_t alpha = (argb >> 24) & 0xFFu;
-  if (alpha == 255) {
-    return argb;
-  }
-  if (alpha == 0) {
-    return 0;
-  }
-  return (alpha << 24) | (gfx::MulDiv255((argb >> 16) & 0xFFu, alpha) << 16) |
-         (gfx::MulDiv255((argb >> 8) & 0xFFu, alpha) << 8) |
-         gfx::MulDiv255(argb & 0xFFu, alpha);
-}
 
 // A colour as the page wrote it, through the one CSS colour parser.
 //
@@ -378,21 +345,32 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
       painter.FillPath(path, fill_color(), rule);
     }
   };
+  // **A stroke is widened in user space and then transformed**, which is what makes `lineWidth` scale
+  // with the transform -- and what makes a stroke under a skew an ellipse rather than a circle. The
+  // path is stored in device space, because the specification transforms each point as it is added
+  // and the transform may change between two of them; so it is mapped back through the inverse, and
+  // a transform that collapses the plane simply cannot be stroked.
   const auto stroke_path = [&](const gfx::Path& path) {
     const gfx::Paint* paint = paint_for(state.stroke_paint);
-    if (state.composite != CompositeOp::SourceOver) {
-      // Stroked to an outline first, which is what `StrokePath` does anyway: the compositor takes a
-      // shape, and a stroke is a shape.
-      const float scale = std::max(state.transform.MaximumScale(), 1e-4f);
-      gfx::Path outline;
-      gfx::StrokeToPath(path, state.line, gfx::kFlattenTolerance / scale, outline);
-      composite_shape(outline, gfx::FillRule::NonZero, paint, state.stroke);
+    const std::optional<gfx::AffineTransform> inverse = state.transform.Inverted();
+    if (!inverse.has_value()) {
       return;
     }
+    const float scale = std::max(state.transform.MaximumScale(), 1e-4f);
+    gfx::Path outline;
+    gfx::StrokeToPath(Transformed(path, *inverse), state.line, gfx::kFlattenTolerance / scale,
+                      outline);
+    const gfx::Path device = Transformed(outline, state.transform);
+    if (state.composite != CompositeOp::SourceOver) {
+      composite_shape(device, gfx::FillRule::NonZero, paint, state.stroke);
+      return;
+    }
+    // Always nonzero: a stroke is a union of overlapping pieces, and even-odd would punch every
+    // overlap back out.
     if (paint != nullptr) {
-      painter.StrokePath(path, state.line, *paint, state.alpha);
+      painter.FillPath(device, *paint, state.alpha, gfx::FillRule::NonZero);
     } else {
-      painter.StrokePath(path, state.line, stroke_color());
+      painter.FillPath(device, stroke_color(), gfx::FillRule::NonZero);
     }
   };
 
@@ -884,7 +862,7 @@ std::shared_ptr<const gfx::Image> CanvasSurfaces::Snapshot(const dom::Element& e
     // one image in the process that meant something different from all the others.
     std::transform(row, row + surface->canvas.Width(),
                    pixels.begin() + static_cast<std::ptrdiff_t>(y) * surface->canvas.Width(),
-                   Unpremultiply);
+                   UnpremultiplyPixel);
   }
   auto image = std::make_shared<gfx::Image>();
   if (!image->Adopt(surface->canvas.Width(), surface->canvas.Height(), std::move(pixels))) {
@@ -923,7 +901,7 @@ std::vector<std::uint8_t> CanvasSurfaces::ReadPixels(const dom::Element& element
       if (source_x < 0 || source_x >= surface->canvas.Width()) {
         continue;
       }
-      const std::uint32_t argb = Unpremultiply(pixels[source_x]);
+      const std::uint32_t argb = UnpremultiplyPixel(pixels[source_x]);
       const std::size_t at =
           (static_cast<std::size_t>(row) * static_cast<std::size_t>(width) +
            static_cast<std::size_t>(column)) * 4;
@@ -968,7 +946,7 @@ void CanvasSurfaces::WritePixels(dom::Element& element, int x, int y, int width,
       // `putImageData` *replaces* rather than blends, which is the specification's rule and is what
       // makes it usable for a pixel filter: a blend would compose the filtered pixels over the ones
       // they were computed from.
-      pixels[target_x] = Premultiply((static_cast<std::uint32_t>(rgba[at + 3]) << 24) |
+      pixels[target_x] = PremultiplyPixel((static_cast<std::uint32_t>(rgba[at + 3]) << 24) |
                                      (static_cast<std::uint32_t>(rgba[at + 0]) << 16) |
                                      (static_cast<std::uint32_t>(rgba[at + 1]) << 8) |
                                      static_cast<std::uint32_t>(rgba[at + 2]));
@@ -1001,9 +979,13 @@ bool CanvasSurfaces::HitTest(const dom::Element& element, double x, double y, bo
   // `isPointInStroke` is `isPointInPath` of the *stroked outline*, which is what the stroker already
   // produces: converting the stroke to a fill is how it is drawn, so asking the same question of the
   // same shape is the only construction that cannot disagree with what is on the screen.
+  const std::optional<gfx::AffineTransform> inverse = surface->state.transform.Inverted();
+  if (!inverse.has_value()) {
+    return false;
+  }
   gfx::Path outline;
-  gfx::StrokeToPath(surface->path, surface->state.line, outline);
-  return PathContainsPoint(outline, x, y, false);
+  gfx::StrokeToPath(Transformed(surface->path, *inverse), surface->state.line, outline);
+  return PathContainsPoint(Transformed(outline, surface->state.transform), x, y, false);
 }
 
 }  // namespace microbrowser::engine

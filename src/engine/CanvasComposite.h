@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <string_view>
 #include <vector>
 
@@ -44,6 +45,18 @@ enum class CompositeOp : std::uint8_t {
 // wrong with no way to find out.
 std::optional<CompositeOp> ParseCompositeOp(std::string_view name);
 std::string_view CompositeOpName(CompositeOp op);
+
+// The canvas backing store holds **premultiplied** ARGB, and these two are the only places that
+// matters.
+//
+// It is not a choice so much as a consequence: `gfx::BlendSrcOver` computes
+// `out.rgb = src.rgb * src.a + dst.rgb * (1 - src.a)`, which is the premultiplied formula. On a page
+// the destination is always opaque, so premultiplied and not are the same number and nobody ever had
+// to say which this was. A canvas starts *transparent*, and there it is the difference between
+// `fillStyle = 'rgba(0,255,0,0.5)'` reading back as green at half alpha and reading back as a dark
+// green -- which is what every `2d.fillStyle.parse` test with an alpha was measuring.
+std::uint32_t UnpremultiplyPixel(std::uint32_t argb);
+std::uint32_t PremultiplyPixel(std::uint32_t argb);
 
 // Whether this operator changes pixels the shape did not cover. Public because it is also the
 // question "may I take the span-only fast path", and one answer is better than two.
