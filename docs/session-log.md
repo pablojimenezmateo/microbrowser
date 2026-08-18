@@ -7504,3 +7504,67 @@ is told the truth.
 stubbed — `CanvasSurfaces::Execute` has a case listing them that refuses to store them, with the
 ADR 0012 reasoning next to it, and the binding layer does not install the names. `Path2D` is absent
 (8 files). `html/canvas/offscreen/` is F6b and was not touched.
+
+## Six WPT tasks in parallel worktrees — stopped part-way · 2026-08-18
+
+Six agents, one git worktree and branch each under `.claude/worktrees/`, `third_party` symlinked
+into the one 600MB fetch. Tasks were picked for module isolation as much as for rank: E1 and E8
+were the only pair sharing `src/layout`, and H9, F6, H6 and O4 took `tools/wpt`, `src/gfx`,
+`src/csp` and `src/html` respectively. **The work was halted by the user part-way, and this entry
+is the handoff.** Each agent's own entry above says what it found.
+
+**Merged into `main`, building, `2247 test(s) run, 0 failed`:** H9, F6, E1, E8, plus one
+integration commit. **Not merged:** `wpt/H6` at `ca206a0` (clean) and `wpt/O4` at `b07e805`
+(three files uncommitted, see below). Nothing has been pushed.
+
+**Three defects appeared only in the merge, and none was visible on any single branch.** This is
+the transferable finding: parallel branches that each pass their own gate can still combine into a
+tree that does not.
+
+- `(&style.border_width.top)[i]`, in fourteen places, was how the new four-sided border model read
+  a side by number. Walking off one member's address to reach the next is undefined behaviour
+  however the four are laid out, and gcc says so — "writing 1 byte into a region of size 0" — but
+  only once every caller is in one tree.
+- `src/css/ComputedStyle.h` reached 910 lines against a 900 cap, and
+  `src/layout/InlineLayout.cpp` 945, because `vertical-align` (E1) and the two-field white-space
+  model (E8) each fit alone. Split to `src/css/BoxEdges.h` and `src/layout/LineBidi.cpp` +
+  `src/layout/LineItem.h`.
+
+**What a resuming session must do, in this order:**
+
+1. Merge `wpt/H6`. Its tree is clean. Read its report first: the four `content-security-policy/`
+   segfaults were what it was sent at, and whether all four are fixed was not confirmed before it
+   was stopped.
+2. Merge `wpt/O4` — but **`tests/wpt/expectations/html.txt` in that worktree is a re-record that
+   was interrupted mid-run and must be discarded and redone, not committed.** `docs/wpt-plan.md`
+   and `docs/wpt-tasks.json` there are small and readable.
+3. **Re-record the affected areas on merged `main`, on an idle machine.** Every branch recorded
+   against its own base, and three changes reach outside their own area: E8's CSSOM validity rule
+   and its viewport-across-document-reset fix, E1's `application/xhtml+xml` routing, and F6's
+   `ImageData` in every realm. H9's https origin makes ~20 further areas reachable that were not
+   recorded at all. **Until this runs the `ctest` WPT gate is expected to be red, and that is
+   staleness rather than regression.**
+4. Then `python3 tools/wpt/firefox-gap.py --cache /tmp/firefox-wpt-summary.json --annotate-tasks`,
+   once, on `main`. No agent was allowed to run it: it rewrites every task and would have
+   conflicted six ways.
+5. ASan and UBSan on merged `main` — H9 rewrote `Server::Serve`'s poll loop (ADR 0040 §4 asks for
+   it by name), E1 put a second document parser on the load path, and F6 touched the rasteriser.
+   F6's unit-level ASan coverage of the new pixel code is clean; nothing else was swept.
+
+**Two process findings worth keeping.**
+
+- **`--testharness-only` on a re-record leaves the reftest half describing the old browser.** F6
+  did five such records and its first honest measuring run printed 49 unexpected, not 0: eleven
+  canvas reftests had been passing because *neither* the test nor its reference drew anything, and
+  the browser starting to draw is what broke the agreement. Recording the whole area took it to 0
+  and moved the gap **down**, 774 -> 337.
+- **Six agents on 24 cores drove the load average to 45**, which is the regime the `--jobs`
+  measurement in `tools/wpt/main.cpp` warns about. Every agent was capped at `--jobs 3` for that
+  reason, and it was still enough to make three of them see intermittent results that vanished on
+  an idle machine. Parallel worktrees multiply build cost linearly and measurement cost worse than
+  linearly; the recording pass wants the machine to itself.
+
+**Also left:** `CLAUDE.md` is stale in three places E1 named — `vertical-align` "does not exist at
+all", the `cellspacing`/`border-spacing` sentence, and `src/layout`'s "line boxes with a shared
+baseline". E1 deliberately did not touch the file to avoid conflicting with five sibling
+worktrees. Fixing all three is one pass and belongs to whoever finishes the merge.
