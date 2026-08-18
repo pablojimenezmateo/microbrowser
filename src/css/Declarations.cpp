@@ -39,7 +39,8 @@ void InheritInto(const ComputedStyle& parent, ComputedStyle& child, bool with_cu
   child.text_align = parent.text_align;
   child.direction = parent.direction;
   child.unicode_bidi = parent.unicode_bidi;
-  child.white_space = parent.white_space;
+  child.white_space_collapse = parent.white_space_collapse;
+  child.text_wrap_mode = parent.text_wrap_mode;
   child.visibility = parent.visibility;
   child.pointer_events = parent.pointer_events;
   if (with_custom_properties) {
@@ -756,18 +757,10 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     }
     return true;
   }
-  if (property == "white-space") {
-    if (value == "pre") {
-      style.white_space = WhiteSpace::Pre;
-    } else if (value == "nowrap") {
-      style.white_space = WhiteSpace::NoWrap;
-    } else if (value == "pre-wrap") {
-      style.white_space = WhiteSpace::PreWrap;
-    } else if (value == "normal") {
-      style.white_space = WhiteSpace::Normal;
-    } else {
-      return false;
-    }
+  // The white-space family and the rest of CSS Text lives in TextDeclarations.cpp, for the reason
+  // `transform` has its own translation unit: `white-space` is a shorthand with two orthogonal
+  // longhands and an order-free grammar, which is not the shape of the keyword switches here.
+  if (ApplyTextDeclaration(property, value, parent, style, context)) {
     return true;
   }
   if (property == "margin") {

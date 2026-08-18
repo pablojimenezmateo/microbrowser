@@ -38,7 +38,8 @@ bool IsAllWhitespace(std::string_view text) {
 // is the space between two words, and dropping it renders "boldand italic".
 bool IsCollapsibleSpace(const Box& box) {
   return box.GetKind() == Box::Kind::Text &&
-         box.Style().white_space == css::WhiteSpace::Normal && IsAllWhitespace(box.Text());
+         box.Style().white_space_collapse == css::WhiteSpaceCollapse::Collapse &&
+         IsAllWhitespace(box.Text());
 }
 
 }  // namespace
@@ -49,9 +50,13 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
                                             bool& produced_inline) const {
   if (node.IsText()) {
     const auto& text_node = static_cast<const dom::Text&>(node);
-    std::string text = parent_style.white_space == css::WhiteSpace::Pre ||
-                               parent_style.white_space == css::WhiteSpace::PreWrap
-                           ? text_node.Data()
+    // Three whitespace-processing modes rather than two. `preserve-breaks` (`pre-line`) is the
+    // one that was missing: it collapses spaces like `normal` and keeps segment breaks like `pre`,
+    // and folding it into either of the other two loses exactly the thing it is for.
+    const css::WhiteSpaceCollapse collapse = parent_style.white_space_collapse;
+    std::string text = css::PreservesSpaces(collapse) ? text_node.Data()
+                       : css::PreservesNewlines(collapse)
+                           ? CollapseWhitespaceKeepingBreaks(text_node.Data())
                            : CollapseWhitespace(text_node.Data());
     if (text.empty()) {
       return nullptr;
@@ -183,7 +188,7 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
   // *inlines* is the space between two words, and dropping it renders
   // "boldand italic". The difference is what the neighbours are, which is only
   // knowable here, after they have all been built.
-  if (style.white_space == css::WhiteSpace::Normal) {
+  if (style.white_space_collapse == css::WhiteSpaceCollapse::Collapse) {
     std::vector<std::unique_ptr<Box>> kept;
     kept.reserve(children.size());
     for (std::size_t i = 0; i < children.size(); ++i) {

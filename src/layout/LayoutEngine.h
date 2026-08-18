@@ -126,6 +126,9 @@ class LayoutEngine {
   // mistake to make.
   float MeasureMaxContentWidth(const Box& box) const;
   float MeasureMinContentWidth(const Box& box) const;
+  // The widest run between two preserved newlines. A segment break ends a line whatever the
+  // available width, so it bounds the intrinsic width of preserved text.
+  float WidestSegment(std::string_view text, const css::ComputedStyle& style) const;
 
   // The bounds of every column of `table`, and the width each one is actually
   // given once the table's own width is known. Separate because the first is a

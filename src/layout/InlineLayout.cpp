@@ -507,24 +507,50 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
     // one width and then another would otherwise paint both.
     text_box->ClearFragments();
 
+    // What whitespace processing left in the string, and what layout is still allowed to do with
+    // it. A newline in the text is a *segment break* the collapsing pass decided to keep, and it is
+    // a forced line break here -- nothing in this loop used to look at one, so `<pre>a\nb</pre>`
+    // put both lines on one. `nowrap` is the other half: a line that may not wrap must never take
+    // the break opportunity below, however far it overflows.
+    const bool preserve_spaces = css::PreservesSpaces(style.white_space_collapse);
+    const bool preserve_breaks = css::PreservesNewlines(style.white_space_collapse);
+    const bool may_wrap = style.text_wrap_mode == css::TextWrapMode::Wrap;
+
     const std::string& text = text_box->Text();
     std::size_t offset = 0;
     while (offset < text.size()) {
       // A line never begins with a collapsible space. This is the other half of
       // CollapseWhitespace keeping leading spaces: they matter between two
       // inlines, and only here is it known whether this one landed at the start
-      // of a line.
-      while (offset < text.size() && text[offset] == ' ' && line.empty()) {
+      // of a line. A *preserved* space is not collapsible and stays.
+      while (!preserve_spaces && offset < text.size() && text[offset] == ' ' && line.empty()) {
         ++offset;
       }
       if (offset >= text.size()) {
         break;
       }
-      const std::string_view remaining(text.data() + offset, text.size() - offset);
+      // The segment this line may hold at most: everything up to the next preserved break.
+      const std::size_t segment_end =
+          preserve_breaks ? text.find('\n', offset) : std::string::npos;
+      if (segment_end == offset) {
+        // An empty line. It still has this box's height, which is what makes a blank line in a
+        // `<pre>` occupy one.
+        const float ascent_here = measurer_->Ascent(style);
+        const float descent_here = std::max(0.0f, measurer_->LineHeight(style) - ascent_here);
+        line.push_back(LineItem{
+            .box = text_box, .x = x, .above = ascent_here, .below = descent_here});
+        finish_line();
+        offset = segment_end + 1;
+        continue;
+      }
+      const std::string_view remaining(text.data() + offset,
+                                       (segment_end == std::string::npos ? text.size()
+                                                                         : segment_end) -
+                                           offset);
       const float available = line_right - x;
       const float full_width = measurer_->MeasureWidth(remaining, style);
 
-      if (full_width > available && !line.empty()) {
+      if (may_wrap && full_width > available && !line.empty()) {
         // Does not fit and the line already has something on it: wrap and retry
         // against a full-width line.
         finish_line();
@@ -532,7 +558,7 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
       }
 
       std::string_view piece = remaining;
-      if (full_width > available) {
+      if (may_wrap && full_width > available) {
         // Break at the last **break opportunity** that fits, rather than at the last space.
         //
         // ADR 0025 §4: a space is not the only place a line may break, and for CJK it is not a place
@@ -577,8 +603,15 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
       x += advance;
 
       offset += piece.size();
-      while (offset < text.size() && text[offset] == ' ') {
+      // A space at a break stays on the line it ended, where it takes no width. A preserved one is
+      // content and is not skipped.
+      while (!preserve_spaces && offset < text.size() && text[offset] == ' ') {
         ++offset;
+      }
+      if (offset == segment_end) {
+        finish_line();
+        offset = segment_end + 1;
+        continue;
       }
       if (offset < text.size()) {
         finish_line();

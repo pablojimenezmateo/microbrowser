@@ -182,6 +182,17 @@ std::string Number(float value) {
   return text.empty() ? "0" : text;
 }
 
+std::string_view WhiteSpaceCollapseText(css::WhiteSpaceCollapse collapse) {
+  switch (collapse) {
+    case css::WhiteSpaceCollapse::Collapse: return "collapse";
+    case css::WhiteSpaceCollapse::Preserve: return "preserve";
+    case css::WhiteSpaceCollapse::PreserveBreaks: return "preserve-breaks";
+    case css::WhiteSpaceCollapse::PreserveSpaces: return "preserve-spaces";
+    case css::WhiteSpaceCollapse::BreakSpaces: return "break-spaces";
+  }
+  return "collapse";
+}
+
 std::string Pixels(float value) { return Number(value) + "px"; }
 
 // A colour as `getComputedStyle` reports one, from the one place that knows how a colour is written
@@ -392,13 +403,31 @@ std::optional<std::string> ComputedValueOf(const css::ComputedStyle& style,
       case css::TextAlign::Justify: return std::string("justify");
     }
   }
+  if (property == "white-space-collapse") {
+    return std::string(WhiteSpaceCollapseText(style.white_space_collapse));
+  }
+  if (property == "text-wrap-mode") {
+    return std::string(style.text_wrap_mode == css::TextWrapMode::Wrap ? "wrap" : "nowrap");
+  }
   if (property == "white-space") {
-    switch (style.white_space) {
-      case css::WhiteSpace::Normal: return std::string("normal");
-      case css::WhiteSpace::Pre: return std::string("pre");
-      case css::WhiteSpace::NoWrap: return std::string("nowrap");
-      case css::WhiteSpace::PreWrap: return std::string("pre-wrap");
+    // The shorthand serializes to its keyword when the pair has one, and to the two longhands
+    // otherwise. `preserve-breaks nowrap` is the pair with no keyword and the test asks for it in
+    // exactly that form (css/css-text/parsing/white-space-shorthand.html).
+    const css::WhiteSpaceCollapse collapse = style.white_space_collapse;
+    const bool wraps = style.text_wrap_mode == css::TextWrapMode::Wrap;
+    if (collapse == css::WhiteSpaceCollapse::Collapse) {
+      return std::string(wraps ? "normal" : "nowrap");
     }
+    if (collapse == css::WhiteSpaceCollapse::Preserve) {
+      return std::string(wraps ? "pre-wrap" : "pre");
+    }
+    if (collapse == css::WhiteSpaceCollapse::PreserveBreaks && wraps) {
+      return std::string("pre-line");
+    }
+    if (collapse == css::WhiteSpaceCollapse::BreakSpaces && wraps) {
+      return std::string("break-spaces");
+    }
+    return std::string(WhiteSpaceCollapseText(collapse)) + (wraps ? " wrap" : " nowrap");
   }
   if (property == "float") {
     switch (style.css_float) {

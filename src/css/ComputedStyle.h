@@ -130,7 +130,35 @@ enum class UnicodeBidi : std::uint8_t {
 };
 
 enum class BackgroundRepeat : std::uint8_t { Repeat, RepeatX, RepeatY, NoRepeat };
-enum class WhiteSpace : std::uint8_t { Normal, Pre, NoWrap, PreWrap };
+// CSS Text 4 makes `white-space` a *shorthand* over two orthogonal longhands, and the four values
+// this engine used to store were one enum standing in for both. Keeping one enum could not express
+// `preserve-breaks nowrap` -- a pair the shorthand has no keyword for and which
+// `css/css-text/parsing/white-space-shorthand.html` asks for by name -- and, worse, it made
+// `nowrap` a *different* collapsing mode from `normal` when the two collapse identically and differ
+// only in wrapping. Two fields say what the specification says.
+enum class WhiteSpaceCollapse : std::uint8_t {
+  Collapse,
+  Preserve,
+  PreserveBreaks,
+  PreserveSpaces,
+  BreakSpaces,
+};
+enum class TextWrapMode : std::uint8_t { Wrap, NoWrap };
+
+// A segment break (a newline in the source) survives whitespace processing. Only `collapse` and
+// `preserve-spaces` turn one into a space; every other mode makes it a forced line break, which is
+// what `<pre>` has always meant and what this browser did not do -- `<pre>a\nb</pre>` rendered on
+// one line, because nothing in inline layout looked at a newline at all.
+constexpr bool PreservesNewlines(WhiteSpaceCollapse collapse) {
+  return collapse != WhiteSpaceCollapse::Collapse && collapse != WhiteSpaceCollapse::PreserveSpaces;
+}
+
+// A run of spaces and tabs survives as written rather than collapsing to one space.
+constexpr bool PreservesSpaces(WhiteSpaceCollapse collapse) {
+  return collapse == WhiteSpaceCollapse::Preserve ||
+         collapse == WhiteSpaceCollapse::PreserveSpaces ||
+         collapse == WhiteSpaceCollapse::BreakSpaces;
+}
 
 // Taken out of the normal flow and shifted to one side, with the following
 // line boxes shortened around it. Not a display value: a float is a
@@ -360,7 +388,9 @@ struct ComputedStyle {
   // (`-moz-center`, `-webkit-center`). Not inherited, unlike text_align: see
   // LayoutEngine::LayoutBlock's `center_in_container`.
   bool centers_block_children = false;
-  WhiteSpace white_space = WhiteSpace::Normal;
+  // The two halves of `white-space`. Inherited, both of them.
+  WhiteSpaceCollapse white_space_collapse = WhiteSpaceCollapse::Collapse;
+  TextWrapMode text_wrap_mode = TextWrapMode::Wrap;
   Float css_float = Float::None;
   Clear clear = Clear::None;
 
@@ -671,6 +701,13 @@ bool ApplyTransformDeclaration(std::string_view property, std::string_view value
 bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
                          const ComputedStyle& parent, ComputedStyle& style,
                          const MediaContext& context = {});
+
+// CSS Text: the `white-space` family. Its own entry point for the reason `transform`'s is --
+// `white-space` is a shorthand over two orthogonal longhands whose two components may be written in
+// either order, which is not the shape of the keyword switch the rest of ApplyDeclaration is.
+bool ApplyTextDeclaration(std::string_view property, std::string_view value,
+                          const ComputedStyle& parent, ComputedStyle& style,
+                          const MediaContext& context = {});
 
 // `transition-*` and `animation-*`. Their own entry points for the reason `transform`'s is: a
 // comma-separated list of space-separated lists, where the order inside an item is mostly free and one
