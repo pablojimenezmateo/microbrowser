@@ -1,7 +1,13 @@
 #include "engine/CanvasSurfaces.h"
 
+#include "engine/CanvasComposite.h"
+#include "engine/CanvasGeometry.h"
+
 #include <algorithm>
 #include <cmath>
+#include <functional>
+#include <optional>
+#include <span>
 
 #include "css/ComputedStyle.h"
 #include "css/StyleResolver.h"
@@ -37,66 +43,6 @@ gfx::FloatPoint Apply(const gfx::AffineTransform& transform, double x, double y)
   return transform.MapPoint(gfx::FloatPoint{static_cast<float>(x), static_cast<float>(y)});
 }
 
-// An arc, flattened into cubics.
-//
-// `gfx::Path` has no arc verb -- deliberately, per its own header: "exactly the set every 2D path
-// format reduces to". So the conversion happens here, in the one place that needs it, rather than
-// widening the path type for one caller. Each cubic covers at most a quarter turn, which is where the
-// 0.5522847 magic constant comes from and is the standard bound for a quarter-arc's error.
-void AppendArc(gfx::Path& path, const gfx::AffineTransform& transform, double cx, double cy,
-               double radius, double start, double end, bool counter_clockwise, bool& have_current) {
-  if (!(radius > 0.0) || !std::isfinite(cx) || !std::isfinite(cy) || !std::isfinite(start) ||
-      !std::isfinite(end)) {
-    return;
-  }
-  constexpr double kTwoPi = 6.283185307179586;
-  double sweep = end - start;
-  if (counter_clockwise) {
-    // The specification's rule, and it is not just a sign: `arc(…, 0, 3π, true)` sweeps *backwards* by
-    // more than a full turn, which draws a full circle. Normalising the sweep into (-2π, 0] and then
-    // clamping to a full turn is what produces that.
-    if (sweep > 0.0) {
-      sweep = std::fmod(sweep, kTwoPi) - kTwoPi;
-    }
-    sweep = std::max(sweep, -kTwoPi);
-  } else {
-    if (sweep < 0.0) {
-      sweep = std::fmod(sweep, kTwoPi) + kTwoPi;
-    }
-    sweep = std::min(sweep, kTwoPi);
-  }
-  const int segments = std::max(1, static_cast<int>(std::ceil(std::abs(sweep) / (kTwoPi / 8.0))));
-  const double step = sweep / segments;
-  const gfx::FloatPoint first = Apply(transform, cx + radius * std::cos(start),
-                                     cy + radius * std::sin(start));
-  if (!have_current) {
-    path.MoveTo(first);
-    have_current = true;
-  } else {
-    // A `lineTo` to the arc's start, which is what the specification says when a subpath is already
-    // open -- and is why `arc` after a `moveTo` elsewhere draws a connecting line rather than jumping.
-    path.LineTo(first);
-  }
-  double angle = start;
-  for (int i = 0; i < segments; ++i) {
-    const double next = angle + step;
-    // The tangent-length factor for a cubic approximation of a circular arc of this angle.
-    const double alpha = std::sin(step) * (std::sqrt(4.0 + 3.0 * std::tan(step * 0.5) *
-                                                              std::tan(step * 0.5)) -
-                                           1.0) / 3.0;
-    const double x0 = cx + radius * std::cos(angle);
-    const double y0 = cy + radius * std::sin(angle);
-    const double x1 = cx + radius * std::cos(next);
-    const double y1 = cy + radius * std::sin(next);
-    const gfx::FloatPoint control1 = Apply(transform, x0 - alpha * radius * std::sin(angle),
-                                          y0 + alpha * radius * std::cos(angle));
-    const gfx::FloatPoint control2 = Apply(transform, x1 + alpha * radius * std::sin(next),
-                                          y1 - alpha * radius * std::cos(next));
-    path.CubicTo(control1, control2, Apply(transform, x1, y1));
-    angle = next;
-  }
-}
-
 bool Finite(double a, double b = 0.0, double c = 0.0, double d = 0.0) {
   return std::isfinite(a) && std::isfinite(b) && std::isfinite(c) && std::isfinite(d);
 }
@@ -126,9 +72,11 @@ CanvasSurfaces::Surface* CanvasSurfaces::For(const dom::Element& element) {
     if (value == nullptr) {
       return fallback;
     }
-    const std::optional<float> parsed = util::ParseFloat(*value);
-    if (!parsed.has_value() || *parsed < 0.0f ||
-        static_cast<std::int64_t>(*parsed) > kMaxCanvasPixels) {
+    // HTML's rule, the same one the reflected `canvas.width` and the presentational hint use. It was
+    // `util::ParseFloat`, which rejects `100em` -- so a canvas whose attribute any other browser
+    // reads as 100 got a 300-pixel backing store and a 100-pixel box.
+    const std::optional<std::int64_t> parsed = util::ParseHtmlNonNegativeInteger(*value);
+    if (!parsed.has_value() || *parsed > kMaxCanvasPixels) {
       return fallback;
     }
     return static_cast<int>(*parsed);
@@ -171,15 +119,164 @@ void CanvasSurfaces::SetSize(dom::Element& element, int width, int height) {
   surface->canvas.Resize(clamped_width, clamped_height);
   // **Resizing resets everything**, which is the specification's rule and a load-bearing one: pages use
   // `canvas.width = canvas.width` as the idiomatic clear, and a resize that kept the state would make
-  // that line a no-op that looks like a clear.
-  surface->state = State{};
-  surface->state.clip = surface->canvas.Bounds();
-  surface->stack.clear();
-  surface->path = gfx::Path{};
-  surface->dirty = true;
-  surface->snapshot.reset();
+  // that line a no-op that looks like a clear. It is literally `reset()`, which is why they share a
+  // function: the specification defines the width setter as running the reset algorithm.
+  ResetState(*surface);
   // The taint is *not* cleared. A resize does not un-see the cross-origin pixels that were drawn, and
   // clearing it here would be a one-line bypass of the whole check.
+}
+
+void CanvasSurfaces::ResetState(Surface& surface) {
+  surface.state = State{};
+  surface.state.clip = surface.canvas.Bounds();
+  surface.stack.clear();
+  surface.path = gfx::Path{};
+  surface.dirty = true;
+  surface.snapshot.reset();
+  // The pixels too: `reset()` clears the bitmap to transparent black. Written rather than filled, for
+  // the reason `clearRect` is -- every fill in `gfx` blends, and blending transparent black changes
+  // nothing.
+  for (int row = 0; row < surface.canvas.Height(); ++row) {
+    if (std::uint32_t* pixels = surface.canvas.Row(row)) {
+      std::fill(pixels, pixels + surface.canvas.Width(), 0u);
+    }
+  }
+}
+
+namespace {
+
+// A `gfx::Color` as the CSS Color serialization a canvas getter must return.
+//
+// The specification is exact and pages compare against it: opaque is six lowercase hex digits, and
+// anything else is `rgba(r, g, b, a)` with the alpha as a shortest-round-tripping decimal. Not
+// `gfx::ColorText`'s job, because that one serializes for CSS output where the rules differ.
+std::string SerializeCanvasColor(gfx::Color color) {
+  static constexpr char kHex[] = "0123456789abcdef";
+  if (color.Alpha() == 255) {
+    std::string out = "#";
+    for (const std::uint8_t component : {color.Red(), color.Green(), color.Blue()}) {
+      out.push_back(kHex[component >> 4]);
+      out.push_back(kHex[component & 0x0Fu]);
+    }
+    return out;
+  }
+  // The alpha to at most three decimals with trailing zeroes trimmed, which is what
+  // `2d.fillStyle.get` and every `save`/`restore` test compares against. Built by hand rather than
+  // with a stream, because a locale with a comma for a decimal separator would produce
+  // `rgba(0, 0, 0, 0,5)` and no test would say which one was wrong.
+  const int thousandths = static_cast<int>(std::lround(static_cast<double>(color.Alpha()) / 255.0 * 1000.0));
+  std::string alpha;
+  if (thousandths % 1000 == 0) {
+    alpha = std::to_string(thousandths / 1000);
+  } else {
+    std::string fraction = std::to_string(thousandths % 1000);
+    fraction.insert(0, static_cast<std::size_t>(3 - fraction.size()), '0');
+    while (!fraction.empty() && fraction.back() == '0') {
+      fraction.pop_back();
+    }
+    alpha = std::to_string(thousandths / 1000) + "." + fraction;
+  }
+  return "rgba(" + std::to_string(color.Red()) + ", " + std::to_string(color.Green()) + ", " +
+         std::to_string(color.Blue()) + ", " + alpha + ")";
+}
+
+}  // namespace
+
+std::string CanvasSurfaces::StateText(const dom::Element& element,
+                                      bindings::CanvasOp::Kind which) const {
+  const Surface* surface = Find(element);
+  const State state = surface == nullptr ? State{} : surface->state;
+  using Kind = bindings::CanvasOp::Kind;
+  switch (which) {
+    case Kind::SetFillColor:
+      return SerializeCanvasColor(state.fill);
+    case Kind::SetStrokeColor:
+      return SerializeCanvasColor(state.stroke);
+    case Kind::SetLineCap:
+      return state.line.cap == gfx::LineCap::Round    ? "round"
+             : state.line.cap == gfx::LineCap::Square ? "square"
+                                                      : "butt";
+    case Kind::SetLineJoin:
+      return state.line.join == gfx::LineJoin::Round   ? "round"
+             : state.line.join == gfx::LineJoin::Bevel ? "bevel"
+                                                       : "miter";
+    case Kind::SetFont:
+      return state.font;
+    case Kind::SetGlobalCompositeOperation:
+      return std::string(CompositeOpName(state.composite));
+    case Kind::SetShadowColor:
+      return SerializeCanvasColor(state.shadow_color);
+    case Kind::SetTextAlign:
+      switch (state.align) {
+        case State::Align::End:
+          return "end";
+        case State::Align::Left:
+          return "left";
+        case State::Align::Right:
+          return "right";
+        case State::Align::Center:
+          return "center";
+        case State::Align::Start:
+          break;
+      }
+      return "start";
+    case Kind::SetTextBaseline:
+      switch (state.baseline) {
+        case State::Baseline::Top:
+          return "top";
+        case State::Baseline::Middle:
+          return "middle";
+        case State::Baseline::Bottom:
+          return "bottom";
+        case State::Baseline::Hanging:
+          return "hanging";
+        case State::Baseline::Ideographic:
+          return "ideographic";
+        case State::Baseline::Alphabetic:
+          break;
+      }
+      return "alphabetic";
+    default:
+      break;
+  }
+  return {};
+}
+
+double CanvasSurfaces::StateNumber(const dom::Element& element,
+                                   bindings::CanvasOp::Kind which) const {
+  const Surface* surface = Find(element);
+  const State state = surface == nullptr ? State{} : surface->state;
+  using Kind = bindings::CanvasOp::Kind;
+  switch (which) {
+    case Kind::SetLineWidth:
+      return static_cast<double>(state.line.width);
+    case Kind::SetMiterLimit:
+      return static_cast<double>(state.line.miter_limit);
+    case Kind::SetGlobalAlpha:
+      return static_cast<double>(state.alpha);
+    case Kind::SetFillPaint:
+      return static_cast<double>(state.fill_paint);
+    case Kind::SetStrokePaint:
+      return static_cast<double>(state.stroke_paint);
+    case Kind::SetShadowBlur:
+      return static_cast<double>(state.shadow_blur);
+    case Kind::SetShadowOffsetX:
+      return state.shadow_offset_x;
+    case Kind::SetShadowOffsetY:
+      return state.shadow_offset_y;
+    default:
+      break;
+  }
+  return 0.0;
+}
+
+std::vector<double> CanvasSurfaces::Transform(const dom::Element& element) const {
+  const Surface* surface = Find(element);
+  const gfx::AffineTransform matrix =
+      surface == nullptr ? gfx::AffineTransform{} : surface->state.transform;
+  return {static_cast<double>(matrix.A()), static_cast<double>(matrix.B()),
+          static_cast<double>(matrix.C()), static_cast<double>(matrix.D()),
+          static_cast<double>(matrix.E()), static_cast<double>(matrix.F())};
 }
 
 void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op) {
@@ -210,6 +307,108 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
     return gfx::Color::Rgba(state.stroke.Red(), state.stroke.Green(), state.stroke.Blue(), scaled);
   };
   bool drew = false;
+  // The selected paint source, or null for a plain colour. Looked up once per command rather than at
+  // each of the five places that draw, and handed the transform in force *now* -- the specification
+  // says a gradient's coordinates are in the space at the time of filling, so a page that translates
+  // between `createLinearGradient` and `fill` gets the gradient where it drew, not where it built it.
+  const auto paint_for = [&](std::uint32_t handle) -> const gfx::Paint* {
+    if (handle == 0) {
+      return nullptr;
+    }
+    const auto found = surface->paints.find(handle);
+    if (found == surface->paints.end()) {
+      return nullptr;
+    }
+    found->second.SetTransform(state.transform);
+    return &found->second;
+  };
+  // `source-over` is every page's operator and stays the span fill it was; the other eleven go
+  // through the compositor, which is a different loop -- it visits pixels the shape never covered,
+  // because six of them erase exactly those.
+  // A shadow is drawn when its colour is not transparent *and* it is displaced or blurred -- the
+  // specification's own condition, and the reason there is no separate enable flag.
+  const auto shadow_wanted = [&state]() {
+    return state.shadow_color.Alpha() != 0 &&
+           (state.shadow_blur > 0.0f || state.shadow_offset_x != 0.0 || state.shadow_offset_y != 0.0);
+  };
+  const auto paint_shadow = [&](const gfx::Path& path, gfx::FillRule rule) {
+    if (!shadow_wanted()) {
+      return;
+    }
+    const gfx::IntRect clip = state.clip.Intersected(surface->canvas.Bounds());
+    // **The shape is rasterized where it *is*, not where the shadow lands.** The rasterizer clips,
+    // so rasterizing against the canvas would find nothing for a shape drawn above the top edge --
+    // and a shape drawn off-canvas whose shadow falls on it is exactly what half the shadow tests
+    // do. The source region is the clip walked back by the offset and grown by the blur's support.
+    const int blur = static_cast<int>(std::ceil(state.shadow_blur)) + 1;
+    const gfx::IntRect source_clip =
+        clip.Translated(-static_cast<int>(std::lround(state.shadow_offset_x)),
+                        -static_cast<int>(std::lround(state.shadow_offset_y)))
+            .Inflated(blur * 3);
+    gfx::PathRasterizer rasterizer;
+    PaintShadow(surface->canvas, clip,
+                rasterizer.Rasterize(path, rule, source_clip, gfx::AffineTransform{}),
+                state.shadow_offset_x, state.shadow_offset_y, state.shadow_blur * 0.5f,
+                state.shadow_color, state.alpha, state.composite);
+  };
+  const auto composite_shape = [&](const gfx::Path& path, gfx::FillRule rule,
+                                   const gfx::Paint* paint, gfx::Color colour) {
+    const gfx::IntRect clip = state.clip.Intersected(surface->canvas.Bounds());
+    gfx::PathRasterizer rasterizer;
+    const std::vector<gfx::CoverageSpan> spans =
+        rasterizer.Rasterize(path, rule, clip, gfx::AffineTransform{});
+    const std::function<gfx::Color(int, int)> source =
+        paint == nullptr
+            ? std::function<gfx::Color(int, int)>([colour](int, int) { return colour; })
+            : std::function<gfx::Color(int, int)>([paint](int x, int y) {
+                return paint->At(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f);
+              });
+    CompositeShape(surface->canvas, clip, spans, source, state.alpha, state.composite);
+  };
+  const auto fill_path = [&](const gfx::Path& path, gfx::FillRule rule) {
+    paint_shadow(path, rule);
+    const gfx::Paint* paint = paint_for(state.fill_paint);
+    if (state.composite != CompositeOp::SourceOver) {
+      // The colour goes in without `globalAlpha` folded into it, because the compositor folds it in
+      // itself -- doing both would square it.
+      composite_shape(path, rule, paint, state.fill);
+      return;
+    }
+    if (paint != nullptr) {
+      painter.FillPath(path, *paint, state.alpha, rule);
+    } else {
+      painter.FillPath(path, fill_color(), rule);
+    }
+  };
+  // **A stroke is widened in user space and then transformed**, which is what makes `lineWidth` scale
+  // with the transform -- and what makes a stroke under a skew an ellipse rather than a circle. The
+  // path is stored in device space, because the specification transforms each point as it is added
+  // and the transform may change between two of them; so it is mapped back through the inverse, and
+  // a transform that collapses the plane simply cannot be stroked.
+  const auto stroke_path = [&](const gfx::Path& path) {
+    const gfx::Paint* paint = paint_for(state.stroke_paint);
+    const std::optional<gfx::AffineTransform> inverse = state.transform.Inverted();
+    if (!inverse.has_value()) {
+      return;
+    }
+    const float scale = std::max(state.transform.MaximumScale(), 1e-4f);
+    gfx::Path outline;
+    gfx::StrokeToPath(Transformed(path, *inverse), state.line, gfx::kFlattenTolerance / scale,
+                      outline);
+    const gfx::Path device = Transformed(outline, state.transform);
+    paint_shadow(device, gfx::FillRule::NonZero);
+    if (state.composite != CompositeOp::SourceOver) {
+      composite_shape(device, gfx::FillRule::NonZero, paint, state.stroke);
+      return;
+    }
+    // Always nonzero: a stroke is a union of overlapping pieces, and even-odd would punch every
+    // overlap back out.
+    if (paint != nullptr) {
+      painter.FillPath(device, *paint, state.alpha, gfx::FillRule::NonZero);
+    } else {
+      painter.FillPath(device, stroke_color(), gfx::FillRule::NonZero);
+    }
+  };
 
   switch (op.kind) {
     case Kind::Save:
@@ -226,10 +425,17 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
       }
       break;
     case Kind::SetFillColor:
-      (void)ParseCanvasColor(op.text, state.fill);
+      // A colour that parses *deselects* the gradient. Both live in the state and only one of them
+      // is the fill, so leaving the handle set would make `ctx.fillStyle = 'red'` a no-op for any
+      // page that had ever assigned a gradient.
+      if (ParseCanvasColor(op.text, state.fill)) {
+        state.fill_paint = 0;
+      }
       break;
     case Kind::SetStrokeColor:
-      (void)ParseCanvasColor(op.text, state.stroke);
+      if (ParseCanvasColor(op.text, state.stroke)) {
+        state.stroke_paint = 0;
+      }
       break;
     case Kind::SetLineWidth:
       // Zero and negative are *ignored*, per the specification -- not clamped to a hairline. A page
@@ -306,6 +512,8 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
     case Kind::MoveTo:
       if (Finite(op.a, op.b)) {
         surface->path.MoveTo(Apply(state.transform, op.a, op.b));
+        state.pen_x = op.a;
+        state.pen_y = op.b;
       }
       break;
     case Kind::LineTo:
@@ -317,35 +525,72 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
         } else {
           surface->path.LineTo(Apply(state.transform, op.a, op.b));
         }
+        state.pen_x = op.a;
+        state.pen_y = op.b;
       }
       break;
     case Kind::QuadraticCurveTo:
       if (Finite(op.a, op.b, op.c, op.d) && !surface->path.IsEmpty()) {
         surface->path.QuadTo(Apply(state.transform, op.a, op.b),
                              Apply(state.transform, op.c, op.d));
+        state.pen_x = op.c;
+        state.pen_y = op.d;
       }
       break;
     case Kind::BezierCurveTo:
       if (Finite(op.a, op.b, op.c, op.d) && Finite(op.e, op.f) && !surface->path.IsEmpty()) {
         surface->path.CubicTo(Apply(state.transform, op.a, op.b), Apply(state.transform, op.c, op.d),
                               Apply(state.transform, op.e, op.f));
+        state.pen_x = op.e;
+        state.pen_y = op.f;
       }
       break;
     case Kind::Arc: {
+      // Negative radius is an `IndexSizeError`, thrown by the caller; here it is simply refused, so
+      // that a command that got through cannot draw a mirrored arc.
+      if (op.c < 0.0 || op.f < 0.0) {
+        break;
+      }
       bool have_current = !surface->path.IsEmpty();
-      AppendArc(surface->path, state.transform, op.a, op.b, op.c, op.d, op.e, op.flag,
-                have_current);
+      // `ellipse()` is this command with a second radius in `f` and a rotation in `g`; `arc()` sends
+      // the same radius twice. One arc construction rather than two, because two would be two places
+      // for the counter-clockwise sweep rule to be wrong.
+      AppendEllipseArc(surface->path, state.transform, op.a, op.b, op.c, op.f, op.g, op.d, op.e,
+                       op.flag, have_current);
+      // The pen ends where the arc ends, which is what a following `lineTo` starts from.
+      state.pen_x = op.a + op.c * std::cos(op.e);
+      state.pen_y = op.b + op.f * std::sin(op.e);
       break;
     }
     case Kind::ArcTo:
-      // Deliberately absent rather than approximated. `arcTo` is a tangent construction whose result
-      // depends on the current point, and one written as "a line then an arc" produces a shape that is
-      // close and wrong -- which is worse than a straight line, because it looks intentional. A page
-      // gets a `lineTo` to the second point, which is the specification's own answer for the degenerate
-      // case and is visibly not a curve.
-      if (Finite(op.c, op.d) && !surface->path.IsEmpty()) {
-        surface->path.LineTo(Apply(state.transform, op.c, op.d));
+      // The real tangent construction now (`engine::AppendArcTo`). It used to be a `lineTo`, on the
+      // argument that a close-but-wrong curve is worse than a straight line; that argument was right
+      // about the approximation and wrong about the alternative, which is to do the construction.
+      // It needs the *user-space* pen position, which is why the op carries it: the path holds
+      // device-space points and inverting the transform to recover one is a division by a determinant
+      // a page can make zero.
+      if (surface->path.IsEmpty()) {
+        // No subpath: the specification says the first control point is added as a `moveTo`.
+        if (Finite(op.a, op.b)) {
+          surface->path.MoveTo(Apply(state.transform, op.a, op.b));
+          state.pen_x = op.a;
+          state.pen_y = op.b;
+        }
+        break;
       }
+      AppendArcTo(surface->path, state.transform, state.pen_x, state.pen_y, op.a, op.b, op.c, op.d,
+                  op.e);
+      state.pen_x = op.c;
+      state.pen_y = op.d;
+      break;
+    case Kind::RoundRect:
+      AppendRoundRect(surface->path, state.transform, op.a, op.b, op.c, op.d, op.numbers);
+      state.pen_x = op.a;
+      state.pen_y = op.b;
+      break;
+    case Kind::Reset:
+      ResetState(*surface);
+      drew = true;
       break;
     case Kind::Rect:
       if (Finite(op.a, op.b, op.c, op.d)) {
@@ -356,6 +601,8 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
         surface->path.LineTo(Apply(state.transform, op.a + op.c, op.b + op.d));
         surface->path.LineTo(Apply(state.transform, op.a, op.b + op.d));
         surface->path.Close();
+        state.pen_x = op.a;
+        state.pen_y = op.b;
       }
       break;
     case Kind::ClosePath:
@@ -364,12 +611,11 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
       }
       break;
     case Kind::Fill:
-      painter.FillPath(surface->path, fill_color(),
-                       op.flag ? gfx::FillRule::EvenOdd : gfx::FillRule::NonZero);
+      fill_path(surface->path, op.flag ? gfx::FillRule::EvenOdd : gfx::FillRule::NonZero);
       drew = true;
       break;
     case Kind::Stroke:
-      painter.StrokePath(surface->path, state.line, stroke_color());
+      stroke_path(surface->path);
       drew = true;
       break;
     case Kind::Clip: {
@@ -398,9 +644,9 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
       rect.LineTo(Apply(state.transform, op.a, op.b + op.d));
       rect.Close();
       if (op.kind == Kind::FillRect) {
-        painter.FillPath(rect, fill_color());
+        fill_path(rect, gfx::FillRule::NonZero);
       } else if (op.kind == Kind::StrokeRect) {
-        painter.StrokePath(rect, state.line, stroke_color());
+        stroke_path(rect);
       } else {
         // `clearRect` writes transparent black, which is a *replacement* and not a blend -- so it goes
         // through the canvas rather than the painter. A painter fill of transparent black would blend
@@ -477,15 +723,79 @@ void CanvasSurfaces::Execute(dom::Element& element, const bindings::CanvasOp& op
       drew = true;
       break;
     }
-    case Kind::DrawImage:
-      // The image itself arrives through `WritePixels`/the caller, because `src/bindings` cannot hold a
-      // `gfx::Image`. What reaches here is the *taint decision* the caller made: `flag` set means the
-      // source was cross-origin without CORS, and once that is drawn the canvas can never be read
-      // again. Set before the draw, so a throw in the draw cannot leave it unset.
-      if (op.flag) {
-        surface->tainted = true;
-        AddPerformanceCounter(PerfCounterId::CanvasesTainted);
+    case Kind::SetGlobalCompositeOperation:
+      if (const std::optional<CompositeOp> parsed = ParseCompositeOp(op.text)) {
+        state.composite = *parsed;
       }
+      break;
+    case Kind::SetShadowColor:
+      // Unlike `fillStyle`, an unparseable value is *ignored* here too -- and unlike `fillStyle` the
+      // initial value is transparent, so the difference between "ignored" and "reset" is the
+      // difference between a shadow staying and a shadow vanishing.
+      (void)ParseCanvasColor(op.text, state.shadow_color);
+      break;
+    case Kind::SetShadowBlur:
+      if (op.a >= 0.0 && std::isfinite(op.a)) {
+        state.shadow_blur = static_cast<float>(op.a);
+      }
+      break;
+    case Kind::SetShadowOffsetX:
+      if (std::isfinite(op.a)) {
+        state.shadow_offset_x = op.a;
+      }
+      break;
+    case Kind::SetShadowOffsetY:
+      if (std::isfinite(op.a)) {
+        state.shadow_offset_y = op.a;
+      }
+      break;
+    case Kind::SetLineDash:
+    case Kind::SetLineDashOffset:
+    case Kind::SetImageSmoothing:
+    case Kind::SetDirection:
+      // Reserved, and deliberately not stored. A dash array kept here and ignored by the painter
+      // would make `ctx.getLineDash()` answer about a dash nothing draws -- which is the stub
+      // ADR 0012 forbids, wearing the shape of state rather than of a method. The binding layer does
+      // not install these names, so a page feature-detects an absence.
+      break;
+    case Kind::CreateLinearGradient:
+      surface->paints.insert_or_assign(
+          op.handle, gfx::Paint::Linear(static_cast<float>(op.a), static_cast<float>(op.b),
+                                        static_cast<float>(op.c), static_cast<float>(op.d)));
+      break;
+    case Kind::CreateRadialGradient:
+      surface->paints.insert_or_assign(
+          op.handle, gfx::Paint::Radial(static_cast<float>(op.a), static_cast<float>(op.b),
+                                        static_cast<float>(op.c), static_cast<float>(op.d),
+                                        static_cast<float>(op.e), static_cast<float>(op.f)));
+      break;
+    case Kind::CreateConicGradient:
+      surface->paints.insert_or_assign(
+          op.handle, gfx::Paint::Conic(static_cast<float>(op.a), static_cast<float>(op.b),
+                                       static_cast<float>(op.c)));
+      break;
+    case Kind::AddColorStop: {
+      const auto found = surface->paints.find(op.handle);
+      gfx::Color stop;
+      // An unparseable colour is a `SyntaxError` thrown by the caller, so reaching here with one
+      // means the caller let it through; refusing is better than adding black.
+      if (found != surface->paints.end() && ParseCanvasColor(op.text, stop)) {
+        found->second.AddStop(static_cast<float>(op.a), stop);
+      }
+      break;
+    }
+    case Kind::SetFillPaint:
+      state.fill_paint = op.handle;
+      break;
+    case Kind::SetStrokePaint:
+      state.stroke_paint = op.handle;
+      break;
+    case Kind::CreatePattern:
+    case Kind::DrawImage:
+      // Not here: these two need pixels, and `src/bindings` cannot hold a `gfx::Image`. `Page`
+      // resolves the source element and calls `DrawImage`/`SetPattern` below. Reaching this case
+      // means the caller had no image, which is a no-op rather than a failure -- an `<img>` that has
+      // not loaded draws nothing, per the specification.
       break;
   }
   surface->canvas.PopClip();
@@ -515,8 +825,12 @@ std::shared_ptr<const gfx::Image> CanvasSurfaces::Snapshot(const dom::Element& e
     if (row == nullptr) {
       continue;
     }
-    std::copy(row, row + surface->canvas.Width(),
-              pixels.begin() + static_cast<std::ptrdiff_t>(y) * surface->canvas.Width());
+    // Un-premultiplied on the way out, because a `gfx::Image` is what a decoder produces and those
+    // are not premultiplied -- so a canvas snapshot that kept the backing store's form would be the
+    // one image in the process that meant something different from all the others.
+    std::transform(row, row + surface->canvas.Width(),
+                   pixels.begin() + static_cast<std::ptrdiff_t>(y) * surface->canvas.Width(),
+                   UnpremultiplyPixel);
   }
   auto image = std::make_shared<gfx::Image>();
   if (!image->Adopt(surface->canvas.Width(), surface->canvas.Height(), std::move(pixels))) {
@@ -555,7 +869,7 @@ std::vector<std::uint8_t> CanvasSurfaces::ReadPixels(const dom::Element& element
       if (source_x < 0 || source_x >= surface->canvas.Width()) {
         continue;
       }
-      const std::uint32_t argb = pixels[source_x];
+      const std::uint32_t argb = UnpremultiplyPixel(pixels[source_x]);
       const std::size_t at =
           (static_cast<std::size_t>(row) * static_cast<std::size_t>(width) +
            static_cast<std::size_t>(column)) * 4;
@@ -600,10 +914,10 @@ void CanvasSurfaces::WritePixels(dom::Element& element, int x, int y, int width,
       // `putImageData` *replaces* rather than blends, which is the specification's rule and is what
       // makes it usable for a pixel filter: a blend would compose the filtered pixels over the ones
       // they were computed from.
-      pixels[target_x] = (static_cast<std::uint32_t>(rgba[at + 3]) << 24) |
-                         (static_cast<std::uint32_t>(rgba[at + 0]) << 16) |
-                         (static_cast<std::uint32_t>(rgba[at + 1]) << 8) |
-                         static_cast<std::uint32_t>(rgba[at + 2]);
+      pixels[target_x] = PremultiplyPixel((static_cast<std::uint32_t>(rgba[at + 3]) << 24) |
+                                     (static_cast<std::uint32_t>(rgba[at + 0]) << 16) |
+                                     (static_cast<std::uint32_t>(rgba[at + 1]) << 8) |
+                                     static_cast<std::uint32_t>(rgba[at + 2]));
     }
   }
   surface->dirty = true;
@@ -619,6 +933,27 @@ double CanvasSurfaces::MeasureText(const dom::Element& element, const std::strin
   css::ApplyDeclaration(css::Declaration{"font", surface->state.font, false}, css::ComputedStyle{},
                         style);
   return text_->MeasureRun(text, layout::FontRequestFor(style));
+}
+
+bool CanvasSurfaces::HitTest(const dom::Element& element, double x, double y, bool stroke,
+                             bool even_odd) const {
+  const Surface* surface = Find(element);
+  if (surface == nullptr) {
+    return false;
+  }
+  if (!stroke) {
+    return PathContainsPoint(surface->path, x, y, even_odd);
+  }
+  // `isPointInStroke` is `isPointInPath` of the *stroked outline*, which is what the stroker already
+  // produces: converting the stroke to a fill is how it is drawn, so asking the same question of the
+  // same shape is the only construction that cannot disagree with what is on the screen.
+  const std::optional<gfx::AffineTransform> inverse = surface->state.transform.Inverted();
+  if (!inverse.has_value()) {
+    return false;
+  }
+  gfx::Path outline;
+  gfx::StrokeToPath(Transformed(surface->path, *inverse), surface->state.line, outline);
+  return PathContainsPoint(Transformed(outline, surface->state.transform), x, y, false);
 }
 
 }  // namespace microbrowser::engine

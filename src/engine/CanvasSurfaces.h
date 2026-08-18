@@ -7,7 +7,9 @@
 #include <vector>
 
 #include "bindings/Canvas.h"
+#include "engine/CanvasComposite.h"
 #include "gfx/Canvas.h"
+#include "gfx/Gradient.h"
 #include "gfx/Image.h"
 #include "gfx/Painter.h"
 #include "gfx/Path.h"
@@ -78,7 +80,26 @@ class CanvasSurfaces {
     enum class Baseline : std::uint8_t { Alphabetic, Top, Middle, Bottom, Hanging, Ideographic };
     Align align = Align::Start;
     Baseline baseline = Baseline::Alphabetic;
+    // The gradient or pattern selected as the fill or the stroke, by the handle the binding layer
+    // minted for it. Zero is "a plain colour". Part of the *state* rather than of the surface,
+    // because `save()`/`restore()` restores which paint is selected and not the paints themselves.
+    std::uint32_t fill_paint = 0;
+    std::uint32_t stroke_paint = 0;
+    CompositeOp composite = CompositeOp::SourceOver;
+    // The shadow. Transparent black is "no shadow", which is the specification's initial value and
+    // also its off switch -- there is no separate flag, and `shadowColor = 'transparent'` is how a
+    // page turns one off.
+    gfx::Color shadow_color = gfx::Color::Rgba(0, 0, 0, 0);
+    float shadow_blur = 0.0f;
+    double shadow_offset_x = 0.0;
+    double shadow_offset_y = 0.0;
+    // The pen, in *user* space. The path holds device-space points, and `arcTo` and `roundRect` are
+    // defined in terms of where the pen is before them -- so recovering it would mean inverting the
+    // transform, whose determinant a page can make zero with one `scale(0, 0)`.
+    double pen_x = 0.0;
+    double pen_y = 0.0;
   };
+
 
   explicit CanvasSurfaces(gfx::TextRenderer& text) : text_(&text) {}
 
@@ -94,13 +115,38 @@ class CanvasSurfaces {
     // draws into costs no image copy per frame, which matters: the bitmap crosses to paint.
     bool dirty = true;
     std::shared_ptr<const gfx::Image> snapshot;
+    // The gradients and patterns this context has made, by handle. On the surface rather than in the
+    // state because a gradient outlives the `save()` that was in force when it was created -- a page
+    // keeps the object and assigns it again later.
+    std::map<std::uint32_t, gfx::Paint> paints;
   };
 
   Surface* For(const dom::Element& element);
   const Surface* Find(const dom::Element& element) const;
 
+  // The whole state back to its defaults, plus the path and the save stack. `reset()` and a
+  // `canvas.width = w` write are the same algorithm in the specification, which is why they are one
+  // function here rather than two that drift.
+  void ResetState(Surface& surface);
+
+  // The state, read back for a getter. See `bindings::CanvasSurface`: there is no second copy of it
+  // in the binding layer, so `ctx.lineWidth` comes from here and cannot disagree with the next stroke.
+  std::string StateText(const dom::Element& element, bindings::CanvasOp::Kind which) const;
+  double StateNumber(const dom::Element& element, bindings::CanvasOp::Kind which) const;
+  std::vector<double> Transform(const dom::Element& element) const;
+  bool HitTest(const dom::Element& element, double x, double y, bool stroke, bool even_odd) const;
+
   void SetSize(dom::Element& element, int width, int height);
   void Execute(dom::Element& element, const bindings::CanvasOp& op);
+
+  // `drawImage` and `createPattern`, which are the two commands that need pixels the binding layer
+  // could not name. The *image* is resolved by `Page` -- it is the thing that knows what an `<img>`
+  // fetched -- and `taints` is the decision it made about the source's origin, applied here before
+  // the draw so that a throw in the draw cannot leave it unset.
+  void DrawImage(dom::Element& element, const bindings::CanvasOp& op,
+                 const std::shared_ptr<const gfx::Image>& image, bool taints);
+  void SetPattern(dom::Element& element, const bindings::CanvasOp& op,
+                  const std::shared_ptr<const gfx::Image>& image, bool taints);
 
   // The pixels, for painting. A shared image rather than a copy per frame -- and rebuilt only when
   // something was drawn, which is what `dirty` is for.

@@ -29,6 +29,27 @@ void Painter::FillPath(const Path& path, Color color, FillRule rule) {
   FillSpans(rasterizer_.Rasterize(path, rule, clip, transform_), color);
 }
 
+void Painter::FillPath(const Path& path, const Paint& paint, float alpha, FillRule rule) {
+  if (!(alpha > 0.0f)) {
+    return;
+  }
+  const IntRect clip = canvas_->Clip().Intersected(canvas_->Bounds());
+  if (clip.IsEmpty()) {
+    return;
+  }
+  FillSpans(rasterizer_.Rasterize(path, rule, clip, transform_), paint, alpha);
+}
+
+void Painter::StrokePath(const Path& path, const StrokeStyle& style, const Paint& paint,
+                         float alpha) {
+  if (path.IsEmpty() || !(alpha > 0.0f)) {
+    return;
+  }
+  const float scale = std::max(transform_.MaximumScale(), 1e-4f);
+  StrokeToPath(path, style, kFlattenTolerance / scale, stroke_scratch_);
+  FillPath(stroke_scratch_, paint, alpha, FillRule::NonZero);
+}
+
 void Painter::FillRect(const FloatRect& rect, Color color) {
   if (rect.IsEmpty()) {
     return;
@@ -362,6 +383,34 @@ void Painter::FillSpans(const std::vector<CoverageSpan>& spans, Color color) {
     AddPerformanceCounter(PerfCounterId::GfxBlendedFills);
     BlendSpanSrcOver(pixels, static_cast<std::size_t>(span.length), blended);
   }
+}
+
+void Painter::FillSpans(const std::vector<CoverageSpan>& spans, const Paint& paint, float alpha) {
+  for (const CoverageSpan& span : spans) {
+    std::uint32_t* row = canvas_->Row(span.y);
+    if (row == nullptr) {
+      continue;
+    }
+    if (span.x < 0 || span.length <= 0 || span.x + span.length > canvas_->Width()) {
+      continue;
+    }
+    // Per pixel, because that is what a paint source is. The pixel *centre* is sampled rather than
+    // its corner: a two-stop gradient across a 100px box otherwise reads half a pixel early
+    // everywhere, which is invisible on a photograph and exactly what a canvas test measures.
+    for (std::int32_t i = 0; i < span.length; ++i) {
+      const std::int32_t x = span.x + i;
+      const Color source = paint.At(static_cast<float>(x) + 0.5f, static_cast<float>(span.y) + 0.5f);
+      const auto combined = static_cast<std::uint8_t>(std::lround(
+          std::clamp(static_cast<float>(source.Alpha()) * alpha *
+                         (static_cast<float>(span.coverage) / 255.0f),
+                     0.0f, 255.0f)));
+      if (combined == 0) {
+        continue;
+      }
+      row[x] = BlendSrcOver(row[x], source.WithAlpha(combined));
+    }
+  }
+  AddPerformanceCounter(PerfCounterId::GfxBlendedFills);
 }
 
 }  // namespace microbrowser::gfx

@@ -142,7 +142,7 @@ extern:
 # on the other -- and each measured its own total. Nothing here is new capability. The split the
 # three notes above keep asking for is now the *only* thing that will bring this number down, and
 # `UrlObject.cpp`'s surface remains where it should start.
-max_tu_lines: 1020
+max_tu_lines: 1040
 
 # A wrapper is a JavaScript object holding a raw `dom::Node*`, which is only
 # safe while nothing frees a node before its document. `Node::Remove` would;
@@ -300,9 +300,18 @@ budget: CookieSource    header_lines=35 public_methods=6  members=0
 # ADR 0029 §2's canvas seam. **One command type rather than forty virtuals**: a command is data, so it
 # can be counted, bounded and (later) sent to another process, and the seam stays as narrow as the
 # feature is wide. The `Kind` list growing is the feature growing, which is what the budget makes visible.
-budget: CanvasOp        header_lines=70 public_methods=0 members=12
-budget: Kind            header_lines=50 public_methods=0 members=0
-budget: CanvasSurface   header_lines=45 public_methods=12 members=0
+# Raised for the WPT pass on `html/canvas/element/` (task F6). Three new fields and they are all the
+# same shape -- a command whose arguments a *page* chooses the length of: `numbers` is `setLineDash`
+# and `roundRect`'s radii, `handle` names a gradient or pattern the page holds, `source` is the
+# element a `drawImage` reads. Each could have been eight more scalars and a naming convention; none
+# of them fits in one, which is what the members budget is asking about.
+budget: CanvasOp        header_lines=100 public_methods=0 members=15
+budget: Kind            header_lines=70 public_methods=0 members=0
+# +4 methods for the state *read back*. There is no shadow copy of the graphics state in this module
+# any more -- `ctx.fillStyle` asks the painter, because a second copy is how `restore()` ends up
+# putting back a colour the getter does not report. Four questions rather than one because their
+# return types differ: text, number, the six-number matrix, and a hit test.
+budget: CanvasSurface   header_lines=85 public_methods=18 members=0
 budget: MediaController header_lines=165 public_methods=51 members=0
 budget: SocketSource  header_lines=60 public_methods=11 members=0
 # +1 member, +3 public methods and +20 header lines for ADR 0020 §5's WebSocket: the
@@ -394,7 +403,11 @@ budget: SocketSource  header_lines=60 public_methods=11 members=0
 # other -- so neither of their counts described this class once both were in the tree. The number
 # below is measured after the merge rather than reasoned about, which is the same habit the
 # paragraph above the previous merge established.
-budget: DomBindings header_lines=980 public_methods=54 members=34
+# +2 lines for task F6's canvas work. The seven new declarations are the `CanvasRenderingContext2D`
+# prototype split into the four sections that build it, plus `ImageData`'s own interface -- and they
+# are the argument for the cut this budget has been asking for across six raises: the canvas half of
+# this class has nothing to do with the document half and wants a `CanvasBindings` of its own.
+budget: DomBindings header_lines=985 public_methods=54 members=34
 # ADR 0038's `indexedDB` seam: a database/store/key/version question this module
 # declares and `src/engine` answers, the same inversion StorageSource uses. Four
 # extra "methods" over what reads as the API (16) are the deleted copy ops and

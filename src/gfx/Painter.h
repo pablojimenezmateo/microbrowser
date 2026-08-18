@@ -5,6 +5,7 @@
 #include "gfx/Color.h"
 #include "gfx/Geometry.h"
 #include "gfx/GlyphCache.h"
+#include "gfx/Gradient.h"
 #include "gfx/Image.h"
 #include "gfx/Path.h"
 #include "gfx/Rasterizer.h"
@@ -38,6 +39,15 @@ class Painter {
 
   // Fills the interior of `path` under `rule`, honoring the canvas clip.
   void FillPath(const Path& path, Color color, FillRule rule = FillRule::NonZero);
+
+  // The same, through a paint source that is not one colour -- a gradient or a repeated image.
+  //
+  // A second entry point rather than a `Paint` that can also be a solid colour, because the solid
+  // path is the one every page takes and it must stay a span fill: this one evaluates per *pixel*,
+  // which is the cost of asking a question whose answer changes across the span.
+  void FillPath(const Path& path, const Paint& paint, float alpha,
+                FillRule rule = FillRule::NonZero);
+  void StrokePath(const Path& path, const StrokeStyle& style, const Paint& paint, float alpha);
 
   // Antialiased rectangle fill in layout space. Distinct from Canvas::FillRect,
   // which snaps to whole device pixels: a border or a table rule lands on a
@@ -99,6 +109,7 @@ class Painter {
   // image alpha channel produce the same thing and must not each grow their own
   // blitter.
   void FillSpans(const std::vector<CoverageSpan>& spans, Color color);
+  void FillSpans(const std::vector<CoverageSpan>& spans, const Paint& paint, float alpha);
 
   const PathRasterizer& Rasterizer() const { return rasterizer_; }
 

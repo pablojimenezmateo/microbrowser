@@ -2,7 +2,7 @@ purpose: Software rasterization. Pixels in memory; nothing about windows or the 
 
 allow: util
 
-public: Geometry.h AffineTransform.h Color.h ColorText.h Blitter.h Font.h FontCatalog.h TextRenderer.h Canvas.h DirtyRegion.h DisplayList.h DisplayListDiff.h Path.h PathFlattener.h GlyphCache.h Image.h JpegDecoder.h PngDecoder.h SvgDecoder.h SvgPath.h Rasterizer.h Stroker.h Surface.h TextShaper.h Painter.h SfntContainer.h Woff2.h
+public: Geometry.h AffineTransform.h Color.h ColorText.h Blitter.h Font.h FontCatalog.h TextRenderer.h Canvas.h DirtyRegion.h DisplayList.h DisplayListDiff.h Path.h PathFlattener.h GlyphCache.h Image.h JpegDecoder.h PngDecoder.h SvgDecoder.h SvgPath.h Rasterizer.h Stroker.h Surface.h TextShaper.h Painter.h Gradient.h SfntContainer.h Woff2.h
 
 # JpegPixels.h is deliberately absent from that list: it is the seam between the
 # JPEG decoder's parser half and its arithmetic half, and nothing outside this
@@ -24,6 +24,11 @@ max_tu_lines: 800
 # reasoning for their refusals where the refusal is, and both halves of the
 # decoder read through this one copy rather than two.
 budget: Reader       header_lines=90 public_methods=13 members=3
+# A paint source that is not one colour: a gradient or a repeated image. Its members are the union
+# of what the four kinds need rather than a variant, because they overlap almost entirely -- two
+# points, two radii and a stop list -- and a variant would cost a branch per pixel in the one loop
+# where that matters.
+budget: Paint        header_lines=60 public_methods=12 members=13
 budget: Color        header_lines=35 public_methods=14 members=1
 budget: FloatRect    header_lines=40 public_methods=8  members=4
 # Inflated() computes in 64 bits and clamps, with the reasoning next to it:

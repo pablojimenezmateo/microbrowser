@@ -383,6 +383,7 @@ microbrowser_module(gfx
     src/gfx/FontCatalog.cpp
     src/gfx/TextRenderer.cpp
     src/gfx/Geometry.cpp
+    src/gfx/Gradient.cpp
     src/gfx/GlyphCache.cpp
     src/gfx/Image.cpp
     src/gfx/JpegDecoder.cpp
@@ -436,6 +437,9 @@ microbrowser_module(engine
     src/engine/PageHitTest.cpp
     src/engine/PageEditing.cpp
     src/engine/Animations.cpp
+    src/engine/CanvasComposite.cpp
+    src/engine/CanvasGeometry.cpp
+    src/engine/CanvasImages.cpp
     src/engine/CanvasSurfaces.cpp
     src/engine/Workers.cpp
     src/engine/WorkerScope.cpp
@@ -475,6 +479,8 @@ microbrowser_module(platform
 microbrowser_module(bindings
   SOURCES
     src/bindings/CanvasBindings.cpp
+    src/bindings/CanvasImageData.cpp
+    src/bindings/CanvasPaint.cpp
     src/bindings/Fingerprint.cpp
     src/bindings/CryptoSubtle.cpp
     src/bindings/WorkerBindings.cpp
