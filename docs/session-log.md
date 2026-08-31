@@ -7733,3 +7733,79 @@ passing reftest, and fixing one of them breaks it — the third separate occurre
   reftest count moves with load again, it is a new cause.
 - Still undone from the 2026-08-18 handoff and untouched here: the full **testharness** re-record,
   and the ASan/UBSan sweep nobody has run since the six-way merge.
+
+## B6 — a summary state file that covers every area · 2026-08-31
+
+**Status:** done
+**Check:** `microbrowser_wpt --testharness-only --summary docs/wpt-baseline.md --summary-state
+tests/wpt/summary-state.tsv console/` — 19 tests, 694 ms — regenerated `docs/wpt-baseline.md`
+with all **297 rows** intact, from a state file that now covers **297 of 297** areas (98/98
+shards, 23,146 tests, 1,559,777 subtests, 1,396,185 passing, one binary, ~3h20m).
+**Landed:** "Re-take B6: the summary state is 165 areas of 297 and was written by two binaries";
+"--jobs is a budget of CPU-active tests, not a count of processes"; "The ceiling on tests in
+flight is the test server, not the cores"; "Do not run the whole WPT suite: the unit of work is
+one area, and it is under two minutes".
+
+**Re-taken and re-run from scratch, because the state on disk was worse than incomplete.** 165 of
+297 areas, written by two different binaries — 134 on 2026-08-17 and one shard appended by an
+unrelated `css/css-text` session on 2026-08-31. E1, E8, F6 and H9 all merged on 2026-08-18 and the
+font-cache fix landed 2026-08-31, so the older half described a tree that no longer builds. A
+state file assembled from two binaries is not a baseline; `--fresh` cost about an hour and bought
+a document that describes one commit.
+
+**The re-measurement is worth far more than the task, and in the direction nobody was watching.**
+Against the document it replaced, on the same 297 areas: reported subtests **481,764 →
+1,559,777**, passing subtests **107,394 → 1,396,185**, harness-OK tests **12,756 → 17,249**.
+Nothing in the browser changed to do that — the committed document had simply been wrong, and
+wrong *pessimistically*: `encoding/legacy-mb-japanese` read **1** passing subtest against an
+actual 439,938, and `legacy-mb-korean` read **0** against 410,448. `docs/wpt-plan.md` says the
+subtest rate "is least trustworthy exactly where we are least correct"; this is that sentence
+with a number on it, and it means every aggregate quoted from that file before today was built on
+a denominator of 482k where the real one is 1.56M.
+
+**Four areas moved the other way and are the only adverse signal in the run:**
+`css/css-transforms` 1,317 → 1,087 passing, `css/css-images` 679 → 378, `css/css-shapes` 741 →
+536, `subresource-integrity/unencoded-digest` 28 → 7. Those are the ones to look at first; the
+rest of the diff is the measurement catching up with the browser.
+
+**Two runner bugs, and the second is the one to remember.**
+
+*`--jobs` was counting the wrong thing.* 6,231 of the 23,146 testharness files carry a committed
+`harness=TIMEOUT`, and such a test spends its whole budget blocked in `poll` — twelve in flight
+hold this 24-core machine at a load average of 0.29. Two measurements in `main.cpp` had looked
+like a contradiction for weeks (raising `--jobs` is catastrophic on `encoding/`, free on
+`referrer-policy/`); what separates them is the expected-TIMEOUT fraction, which the runner
+already knows. An expected-TIMEOUT test now costs 0.15 of a job. `referrer-policy/4K+1/` 300s →
+120s byte-identical; `encoding/legacy-mb-japanese/` keeps all 442,614 subtests where a flat
+`--jobs 48` deletes 19,661.
+
+*The ceiling is the test server, not the cores, and no instrument in this repo would have told
+you.* The first version capped in-flight processes at 4× on a memory argument. The first baseline
+shard took `content-security-policy/` from 1,652s to **64s** — crashes 4 → 223, reported subtests
+3,868 → 389, every child killed by SIGPIPE. Our server is single-threaded and forked once for the
+whole run, so the real limit is how many clients it holds. **It is invisible below full scale:**
+`content-security-policy/gen/top.http-rp/script-src-self/` run alone is 26 tests, never reaches
+the ceiling, and is byte-identical at both settings — so the per-area validation passed and the
+full shard collapsed. And the load average is 0.2 either way, so the one number a person reaches
+for says the machine is fine. At 2× the shard is 854s with subtests, crashes and timeouts exact.
+
+**Process notes for whoever runs this next.**
+
+- **The expectations were not re-recorded.** `tools/wpt/baseline.sh` passes `--summary-state` and
+  not `--update-expectations` — correct for B6, and it means every unexpected result this run
+  reported is still unexpected. `html/syntax/` alone had 188, and it cost 1,802s for 378 tests
+  because each disagreement is re-run at a full 65s budget before being written down. Re-recording
+  the stale areas is the obvious follow-up and is a different task.
+- **`docs/wpt-firefox-gap.md` is unchanged and that is not an oversight**: it is derived from the
+  expectation files, which this run did not touch. `--annotate-tasks` would be a no-op.
+- **A per-area re-record now costs 51–211s** and rewrites the whole document. CLAUDE.md gained a
+  table of what each kind of run costs, because the old text recorded the cost of the full suite
+  and buried the instruction not to run it in the sentence underneath.
+- **The runner's completed-counter can double-count a retried test** — `content-security-policy/`
+  standalone reported 871 tests against an enumeration of 869, while the same shard inside the
+  baseline reported 869. Pre-existing, retry-dependent, ±0.2%, and it does not reach the state
+  file (the aggregate is exactly 23,146). Nobody has looked at it.
+- **`referrer-policy/gen/` was predicted to be the biggest win and was not.** 91% of its tests are
+  expected to TIMEOUT, but a recording run has the short-budget path interlocked off, so all 883
+  pay a full 65s deadline: 2,193s. Concurrency cannot shorten a wall-clock deadline. That cost is
+  exactly what `--known-timeout-budget` removes on *gating* runs, which are the ones you repeat.
