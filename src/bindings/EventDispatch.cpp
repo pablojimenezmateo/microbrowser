@@ -1,5 +1,6 @@
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
+#include "bindings/FontLoading.h"
 #include "dom/FlatTree.h"
 
 #include <cstddef>
@@ -727,6 +728,18 @@ bool DomBindings::NotifyLoad() {
     return false;
   }
   SetReadyState("complete");
+  // `document.fonts.ready` settles here, *before* the load event goes out: the engine's own
+  // load-complete predicate already requires `font_fetches_` to be empty, so this is the moment the
+  // document's fonts are done. Before the dispatch rather than after, because the handler that
+  // reads `ready` is the load handler -- `<body onload="document.fonts.ready.then(...)">` is how
+  // 714 web-platform-tests files start, and a promise settled afterwards would leave every one of
+  // them waiting for a `done()` that never comes.
+  if (document_ != nullptr) {
+    const Value document_object = WrapperFor(document_);
+    if (document_object.IsObject()) {
+      SettleFontsReady(*interpreter_, *document_object.object);
+    }
+  }
   // At the window, not at the document: `load` does not bubble, and
   // `window.onload` is where every page listens for it.
   const std::uint32_t saved_depth = trusted_script_depth_;

@@ -540,6 +540,7 @@ microbrowser_module(bindings
     src/bindings/Ranges.cpp
     src/bindings/HtmlParsing.cpp
     src/bindings/DomParsing.cpp
+    src/bindings/FontLoading.cpp
     src/bindings/UrlSearchParams.cpp
     src/bindings/ViewObservers.cpp
     src/bindings/WaapiBindings.cpp

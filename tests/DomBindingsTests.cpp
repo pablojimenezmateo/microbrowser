@@ -4176,6 +4176,59 @@ void RegisterDomBindingsTests(std::vector<TestCase>& tests) {
                  "try { document.body.style.getPropertyValue() } catch (e) { e.name }",
                  "TypeError");
   });
+
+  // `document.fonts`, the readiness half. src/bindings/FontLoading.h has the measurement that made
+  // it worth building: 714 test files start `<body onload="document.fonts.ready.then(...)">` and
+  // report nothing at all when the handler throws on an undefined `document.fonts`.
+  AddTest(tests, "DomBindings/DocumentFontsIsTheSameSetAndTheSamePromise", [] {
+    // The specification says `ready` is the *same* promise every read: a page that stores it before
+    // load and awaits it afterwards has to be holding the one that settles.
+    ExpectScript(kPage, "document.fonts === document.fonts", "true");
+    ExpectScript(kPage, "document.fonts.ready === document.fonts.ready", "true");
+    ExpectScript(kPage, "typeof document.fonts.ready.then", "function");
+  });
+
+  AddTest(tests, "DomBindings/DocumentFontsIsLoadingUntilLoadFires", [] {
+    Bound bound = Bind(kPage);
+    ExpectEqString(js::ToString(bound.interpreter->Run("document.fonts.status").value), "loading",
+                   "before the load event the document's fonts have not settled");
+    bound.dom_bindings->NotifyLoad();
+    ExpectEqString(js::ToString(bound.interpreter->Run("document.fonts.status").value), "loaded",
+                   "and the load event is what settles them");
+  });
+
+  AddTest(tests, "DomBindings/DocumentFontsReadySettlesAtLoad", [] {
+    Bound bound = Bind(kPage);
+    bound.interpreter->Run("globalThis.seen = 'no'; document.fonts.ready.then(() => seen = 'yes')");
+    bound.interpreter->DrainMicrotasks();
+    ExpectEqString(js::ToString(bound.interpreter->Run("seen").value), "no",
+                   "a promise read before load stays pending");
+    bound.dom_bindings->NotifyLoad();
+    bound.interpreter->DrainMicrotasks();
+    ExpectEqString(js::ToString(bound.interpreter->Run("seen").value), "yes",
+                   "and settles when load fires");
+  });
+
+  AddTest(tests, "DomBindings/DocumentFontsReadIsAlreadySettledAfterLoad", [] {
+    // The order every one of those 714 files actually takes: `ready` is first read *inside* the
+    // load handler, so the set is made after the settle and has to be born resolved.
+    Bound bound = Bind(kPage);
+    bound.dom_bindings->NotifyLoad();
+    bound.interpreter->Run("globalThis.seen = 'no'; document.fonts.ready.then(() => seen = 'yes')");
+    bound.interpreter->DrainMicrotasks();
+    ExpectEqString(js::ToString(bound.interpreter->Run("seen").value), "yes",
+                   "a set made after load is born settled");
+    ExpectEqString(js::ToString(bound.interpreter->Run("document.fonts.status").value), "loaded",
+                   "and says so");
+  });
+
+  AddTest(tests, "DomBindings/DocumentFontsRefusesWhatItCannotAnswer", [] {
+    // ADR 0012: absent, not stubbed. A page feature-detecting `check` or `load` must find them
+    // missing and take its fallback rather than trust an answer nothing is behind.
+    ExpectScript(kPage, "typeof document.fonts.check", "undefined");
+    ExpectScript(kPage, "typeof document.fonts.load", "undefined");
+    ExpectScript(kPage, "typeof document.fonts.add", "undefined");
+  });
 }
 
 }  // namespace microbrowser::tests

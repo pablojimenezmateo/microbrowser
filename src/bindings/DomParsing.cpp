@@ -7,6 +7,7 @@
 #include "bindings/BindingSupport.h"
 #include "bindings/DomBindings.h"
 #include "bindings/DocumentFacts.h"
+#include "bindings/FontLoading.h"
 #include "bindings/WebIdl.h"
 #include "html/Encoding.h"
 #include "html/TreeBuilder.h"
@@ -145,6 +146,17 @@ void DomBindings::InstallDomParsing() {
       return Value::String(std::string(html::EncodingName(encoding)));
     });
   }
+
+  // `document.fonts`. Only the readiness half exists -- see src/bindings/FontLoading.h for why it
+  // exists at all (714 test files are blocked on it) and for what is deliberately absent.
+  document_accessor("fonts", [](NativeCall& call) {
+    js::Object* behind = call.self.IsObject() ? BehindProxies(call.self.object) : nullptr;
+    if (behind == nullptr) {
+      return Value::Undefined();
+    }
+    js::Object* set = FontFaceSetFor(call.interpreter, *behind);
+    return set == nullptr ? Value::Undefined() : Value::Obj(set);
+  });
 
   document_accessor("contentType",
                     [](NativeCall& call) { return Value::String(ContentTypeOf(call.self)); });
