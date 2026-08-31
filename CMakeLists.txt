@@ -1023,23 +1023,28 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/third_party/wpt")
                    --wpt-root "${CMAKE_CURRENT_SOURCE_DIR}/third_party/wpt"
                    --expectations "${CMAKE_CURRENT_SOURCE_DIR}/tests/wpt/expectations"
                    --areas "${CMAKE_CURRENT_SOURCE_DIR}/tests/wpt/areas.txt"
-                   # Reftests are excluded, and for the third distinct reason in
-                   # three days -- the first two are gone. Fuzzy matching landed
-                   # with task F2 on 2026-08-17, so the comparison is no longer a
-                   # column of antialiasing noise; all 20,998 results were
-                   # recorded the same day with task F9, so they are no longer
-                   # "expected OK" by default. What is left is that **eight of
-                   # them are intermittent** across two full runs of the same
-                   # binary -- seven `@font-face` tests whose font this browser
-                   # never loads, plus an animation -- and a gate that is a coin
-                   # toss eight times is worse than one that does not run. Task
-                   # F10 names each and then removes this flag. Cost is not the
-                   # obstacle: the whole reftest suite is 105 seconds, against
-                   # ninety minutes for the testharness half.
-                   --testharness-only)
+                   # Both halves. `--testharness-only` lived here for three
+                   # distinct reasons in three days and task F10 removed the
+                   # last of them on 2026-08-31. It was never cost -- the whole
+                   # reftest suite is 90 seconds against ninety minutes for the
+                   # testharness half. It was that eight reftests flipped
+                   # between two runs of the same binary, and a gate that is a
+                   # coin toss eight times is worse than one that does not run.
+                   #
+                   # Seven of the eight were one bug and it was in the browser,
+                   # not in the suite: `SystemFontProvider` remembered what a
+                   # font stack resolved to and did not forget it when an
+                   # `@font-face` arrived, so whether a web font applied at all
+                   # was a race between the fetch and the first layout. The
+                   # eighth was the runner rasterizing a reftest when the
+                   # *document* had finished rather than when its fonts had.
+                   # `--reftests-only` is 0 unexpected on two consecutive runs.
+                   )
   # A WPT run is minutes, not seconds. ctest's default 1500s cap would kill it
-  # mid-run and report a timeout that says nothing about the browser.
-  set_tests_properties(microbrowser_wpt PROPERTIES TIMEOUT 5400)
+  # mid-run and report a timeout that says nothing about the browser. 5400s was
+  # the testharness half alone and had no headroom over it; the reftest half is
+  # 90 seconds more here and a loaded machine is what this cap has to survive.
+  set_tests_properties(microbrowser_wpt PROPERTIES TIMEOUT 7200)
 else()
   message(STATUS "web-platform-tests: third_party/wpt absent; run tools/wpt/fetch.sh to enable")
 endif()

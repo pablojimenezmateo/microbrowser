@@ -11,12 +11,14 @@
 # everything", so that adding a directory to directories.txt does not silently
 # add several thousand tests to the gate before anyone has looked at them.
 #
-# Reftests are excluded by `--testharness-only` in the ctest registration, not
-# here. All 20,998 of them have committed expectations as of 2026-08-17 (plan
-# task F9); what still keeps them out of the gate is eight intermittents, and
-# CMakeLists.txt is where that is written down. `microbrowser_wpt
-# --reftests-only` runs the whole pixel half in about two minutes and is not
-# limited by this file.
+# Reftests are in the gate as of 2026-08-31 (plan task F10) and are governed by
+# this list too: `--testharness-only` is gone from the ctest registration, so a
+# prefix added here adds both halves of that directory. All 20,998 reftests have
+# had committed expectations since 2026-08-17 (task F9); what kept them out was
+# eight that flipped between two runs of the same binary, and seven of those
+# were one bug in the browser's font cache rather than anything about the suite.
+# `microbrowser_wpt --reftests-only` still runs the pixel half alone, in about
+# ninety seconds.
 #
 # Where each area actually stands is `docs/wpt-baseline.md`, which is generated
 # by the run that measured it.
