@@ -337,6 +337,38 @@ bool ApplyEdges(std::string_view value, Edges& edges, bool allow_negative, bool 
   }
 }
 
+// One CSS `<string>` -- the whole of `content`'s value and nothing else -- with its quotes off.
+//
+// **No unescaping here.** `Scanner::ConsumeString` already did it, and the declaration's value is
+// that unescaped text with a quote put back on each end, so `content: "\\41"` arrives as `"A"`.
+// Doing it twice would eat a backslash the author wrote.
+//
+// False for anything that is not exactly one string: `url()`, `counter()`, `attr()`, the quote
+// keywords, and a list of several values. Each is a feature of its own, and refusing is what keeps
+// `content: counter(chapter)` from rendering as its own source text (ADR 0012).
+//
+// A quote *inside* the body is refused too, and that covers two different cases the round-trip
+// through the serializer has already made indistinguishable: `content: "a" "b"`, which should
+// concatenate, and `content: "a\\"b"`, which should not. One deserves a refusal and the other a
+// correct render, and there is no longer enough information here to tell them apart -- so both are
+// refused, which is the direction that renders nothing rather than the wrong thing.
+bool ParseContentString(std::string_view raw, std::string& out) {
+  const std::string_view value = Trim(raw);
+  if (value.size() < 2) {
+    return false;
+  }
+  const char quote = value.front();
+  if ((quote != '"' && quote != '\'') || value.back() != quote) {
+    return false;
+  }
+  const std::string_view body = value.substr(1, value.size() - 2);
+  if (body.find(quote) != std::string_view::npos) {
+    return false;
+  }
+  out.assign(body);
+  return true;
+}
+
 }  // namespace
 
 bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
@@ -391,18 +423,23 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     return true;
   }
   if (property == "content") {
-    // Only the forms `::before`/`::after` need for the aspect-ratio hack and
-    // "generate nothing". Quoted empty string is Empty; `none`/`normal` suppress
-    // the box. Anything richer is refused rather than approximated (ADR 0012).
+    // `none`/`normal` suppress the box; a quoted string generates one with that
+    // text in it. Everything richer -- `url()`, `counter()`, `attr()`,
+    // `open-quote` and a list of several of these -- is refused rather than
+    // approximated (ADR 0012), because content that renders as the wrong text is
+    // worse than content that does not render.
     if (value == "none" || value == "normal") {
       style.content = ComputedStyle::Content::None;
       return true;
     }
-    if (value == "\"\"" || value == "''") {
-      style.content = ComputedStyle::Content::Empty;
-      return true;
+    std::string text;
+    if (!ParseContentString(raw_value, text)) {
+      return false;
     }
-    return false;
+    style.content =
+        text.empty() ? ComputedStyle::Content::Empty : ComputedStyle::Content::String;
+    style.content_text = std::move(text);
+    return true;
   }
   if (property == "color") {
     const auto color = ParseColor(raw_value);

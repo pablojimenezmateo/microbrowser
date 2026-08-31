@@ -547,10 +547,22 @@ struct ComputedStyle {
 
   // `content`, for `::before` / `::after` only. `Normal`/`None` generate no box;
   // `Empty` is `content: ""`, which is what youtube's thumbnail aspect hack uses
-  // -- a block with percentage padding and no text. Strings, urls and counters
-  // are absent rather than stubbed (ADR 0012).
-  enum class Content : std::uint8_t { Normal, None, Empty };
+  // -- a block with percentage padding and no text; `String` is `content: "x"`
+  // and the text is in `content_text`.
+  //
+  // `Empty` stays a value of its own rather than becoming a `String` with an
+  // empty string, because the two are the same box and telling them apart in the
+  // one place that reads it costs nothing, while collapsing them would make the
+  // aspect hack's behaviour depend on a string comparison in the paint path.
+  //
+  // Urls, `counter()`, `attr()` and the quote keywords are still absent rather
+  // than stubbed (ADR 0012): a `content: counter(x)` that produced the literal
+  // text would be a wrong render, where a refused declaration is a missing one.
+  enum class Content : std::uint8_t { Normal, None, Empty, String };
   Content content = Content::Normal;
+  // The text of a `String` content, already unescaped and unquoted. Empty for
+  // every other value, so nothing has to check the enum before reading it.
+  std::string content_text;
 
   // A used *content* size, clamped by its bounds. `padding_border` is the sum of
   // the padding and border on the axis being clamped; under `box-sizing:

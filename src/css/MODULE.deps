@@ -118,7 +118,12 @@ budget: CustomProperties header_lines=70 public_methods=8 members=1
 # sub-struct: they inherit separately, they are set by separate declarations, and the one place
 # both are read (`FontRequestFor`) reads them as two numbers. A struct holding them would be a
 # name for nothing.
-budget: ComputedStyle    header_lines=365 public_methods=27 members=44
+# 44 -> 45 for the text of a string `content`. A member rather than a second enum value, because
+# `content: "x"` has to carry the x somewhere and every other place to put it -- a side table keyed
+# by element, a re-parse at box-tree time -- would be a second copy of a value the cascade already
+# resolved, with a second chance to disagree with it. The header lines are the paragraph saying why
+# `Empty` stays a value of its own rather than becoming a String holding "".
+budget: ComputedStyle    header_lines=372 public_methods=27 members=45
 budget: TransformOperation header_lines=50 public_methods=2 members=9
 budget: TransformList    header_lines=60 public_methods=4 members=1
 budget: Length           header_lines=40 public_methods=8 members=3

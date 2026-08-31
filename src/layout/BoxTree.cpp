@@ -356,7 +356,18 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
 
   const auto append_generated = [&](css::PseudoElement which, bool prepend) {
     const css::ComputedStyle pseudo = resolver_->StyleForPseudo(element, which, style);
-    if (pseudo.content != css::ComputedStyle::Content::Empty || !pseudo.GeneratesBox()) {
+    const bool generates = pseudo.content == css::ComputedStyle::Content::Empty ||
+                           pseudo.content == css::ComputedStyle::Content::String;
+    // A column box renders nothing -- CSS 2.1 s17.2, and the four
+    // `*-content-display-01{2,3}.xht` files state it in their own `assert`: generated content whose
+    // `display` is `table-column` or `table-column-group` is "not rendered (exactly as if they had
+    // display: none)". Not rendered rather than empty: the background goes too, which is why this
+    // is a refusal to make the box and not a refusal to fill it. The rule is narrower here than in
+    // the specification on purpose -- a real `<col>` does paint a column background, and that is a
+    // table question rather than a generated-content one.
+    const bool column_box = pseudo.display == css::Display::TableColumn ||
+                            pseudo.display == css::Display::TableColumnGroup;
+    if (!generates || !pseudo.GeneratesBox() || column_box) {
       return;
     }
     const bool atomic = pseudo.IsAtomicInline();
@@ -365,6 +376,40 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
                            : inline_level ? Box::Kind::Inline
                                           : Box::Kind::Block;
     auto generated = std::make_unique<Box>(kind, pseudo);
+    // The text of a string `content`, as an ordinary text child -- the specification's own model,
+    // "as if it were a real element inserted just inside its associated element", so a `display`
+    // declared on the pseudo decides the box and the text simply sits in it. It goes through the
+    // same whitespace processing and `text-transform` as document text, because `content: "  a  "`
+    // collapses exactly like the markup it stands for.
+    if (pseudo.content == css::ComputedStyle::Content::String) {
+      const css::WhiteSpaceCollapse collapse = pseudo.white_space_collapse;
+      std::string text = css::PreservesSpaces(collapse) ? pseudo.content_text
+                         : css::PreservesNewlines(collapse)
+                             ? CollapseWhitespaceKeepingBreaks(pseudo.content_text)
+                             : CollapseWhitespace(pseudo.content_text);
+      text = ApplyTextTransform(text, pseudo.text_transform);
+      if (!text.empty()) {
+        auto content_text = std::make_unique<Box>(Box::Kind::Text, TextStyleFrom(pseudo));
+        content_text->SetText(std::move(text));
+        // A flex container's children are flex items, and a run of text is one anonymous
+        // block-container item (CSS Flexbox s4) -- the same wrapping the element path does below
+        // for a declared flex container. It has to be repeated here because a generated box is
+        // built in this lambda rather than through `BuildFor`, so it reaches none of that code.
+        // Without it `::after { content: "x"; display: flex }` lays its text out as a bare child of
+        // a flex container and renders differently from the same declaration with `display: block`,
+        // which is exactly what `css/css-flexbox/flexbox_generated-flex.html` compares.
+        if (pseudo.IsFlexContainer()) {
+          css::ComputedStyle item = css::StyleResolver::InitialStyle();
+          css::InheritInto(pseudo, item);
+          item.display = css::Display::Block;
+          auto anonymous = std::make_unique<Box>(Box::Kind::AnonymousBlock, item);
+          anonymous->Append(std::move(content_text));
+          generated->Append(std::move(anonymous));
+        } else {
+          generated->Append(std::move(content_text));
+        }
+      }
+    }
     // No Origin: a generated box is not a DOM node, and hit-testing /
     // script geometry must not pretend otherwise.
     any_inline = any_inline || inline_level;

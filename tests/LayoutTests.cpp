@@ -1755,6 +1755,53 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     Expect(div->Style().color == gfx::Color::Rgb(0, 0, 0),
            "the originating element keeps its own colour");
   });
+
+  AddTest(tests, "Layout/GeneratedContentStringBecomesText", [] {
+    const LaidOut result =
+        Run("<div>a</div>", "div::after { content: \" b\" }");
+    const std::vector<const Box*> texts = TextBoxes(*result.root);
+    Expect(texts.size() == 2, "the generated box carries a text box of its own");
+    ExpectEqString(texts[1]->Text(), " b", "with the declared string in it");
+  });
+
+  AddTest(tests, "Layout/GeneratedContentRefusesWhatItCannotRender", [] {
+    // ADR 0012: `counter()`, `attr()` and `url()` are refused rather than approximated, so the
+    // declaration is dropped and no box is generated. Rendering the source text would be worse.
+    for (const std::string_view value : {"counter(x)", "attr(title)", "url(a.png)", "\"a\" \"b\""}) {
+      const LaidOut result =
+          Run("<div>a</div>", "div::after { content: " + std::string(value) + " }");
+      const std::vector<const Box*> texts = TextBoxes(*result.root);
+      Expect(texts.size() == 1, "no box is generated for a content value this engine refuses");
+    }
+  });
+
+  AddTest(tests, "Layout/GeneratedContentIsNotRenderedInAColumnBox", [] {
+    // CSS 2.1 s17.2: `display: table-column`/`table-column-group` on generated content is "not
+    // rendered (exactly as if they had display: none)" -- the background goes with it, so this is
+    // a refusal to make the box rather than to fill it.
+    const LaidOut result = Run(
+        "<div>a</div>",
+        "div::after { content: \"b\"; display: table-column; background: red }");
+    const std::vector<const Box*> texts = TextBoxes(*result.root);
+    Expect(texts.size() == 1, "a column box generates nothing at all");
+  });
+
+  AddTest(tests, "Layout/GeneratedFlexContentGetsAnAnonymousItem", [] {
+    // A flex container's text child is one anonymous block-container flex item (CSS Flexbox s4).
+    // The generated box is built outside BuildFor, so it needs the wrapping applied there.
+    const LaidOut result =
+        Run("<div>a</div>", "div::after { content: \"b\"; display: flex }");
+    const Box* generated = nullptr;
+    result.root->ForEachDescendant([&](const Box& box) {
+      if (generated == nullptr && box.Origin() == nullptr && box.Style().IsFlexContainer()) {
+        generated = &box;
+      }
+    });
+    Expect(generated != nullptr, "the generated flex container exists");
+    Expect(generated->Children().size() == 1, "it has one child");
+    Expect(generated->Children()[0]->GetKind() == Box::Kind::AnonymousBlock,
+           "and that child is an anonymous block flex item, not the raw text");
+  });
 }
 
 }  // namespace microbrowser::tests
