@@ -507,6 +507,24 @@ void DomBindings::InstallGeometry(const js::Value& element_interface) {
           return Value::Number(0.0);
         }
         const float child_edge = vertical ? box->border_box.y : box->border_box.x;
+        // A statically positioned body is an offsetParent that is not a
+        // reference: the offset is the document coordinate, exactly as it is
+        // when there is no offsetParent at all. Every engine does this and the
+        // suite is written against it -- `data-offset-x="8"` on an element at
+        // the body's content edge appears in every check-layout test that does
+        // not wrap its subject in a positioned container, and subtracting the
+        // body's padding edge makes each of them off by the UA sheet's 8px
+        // margin. Seven `align-content-*` files failed on nothing else.
+        //
+        // A body the page positioned is a real containing block and is handled
+        // below like any other.
+        if (offset_parent->TagName() == "body") {
+          const std::optional<std::string> body_position =
+              owner->geometry_->QueryUsedValue(*offset_parent, "position");
+          if (!body_position.has_value() || *body_position == "static") {
+            return Value::Number(Rounded(child_edge));
+          }
+        }
         const float parent_edge =
             vertical ? ancestor->padding_box.y : ancestor->padding_box.x;
         const float scrolled = vertical ? ancestor->scroll_y : ancestor->scroll_x;
