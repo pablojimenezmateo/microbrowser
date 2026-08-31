@@ -838,7 +838,7 @@
       ],
       "target": "60%",
       "status": "in_progress",
-      "agent": "wpt-par-e1",
+      "agent": "wpt-e1-retake",
       "adr": "",
       "notes": "Largest reftest area in the suite. 2026-08-18 (wpt-par-e1): css/CSS2/ reftests 2,230 -> 2,601 of 6,219 (35.9% -> 41.8%); the check prints \"6219 reftests: 2601 passed (41.8%)\" and its target is 60%, so it is NOT met. Landed: vertical-align, the absolute length units (in/cm/mm/pc/Q -- 1,873 files of this area are written in inches and \"width: 3in\" was an invalid declaration), XML parsing for application/xhtml+xml (3,087 reference files put their stylesheet in a CDATA section, which the HTML tokenizer glues onto the first selector), and a real per-side border model (twelve longhands and four shorthands were unknown properties and the paint stroked one rectangle at border-width.top). The whole reftest suite went 7,394 -> 7,893. Next causes, ranked from the artifact images: margin collapsing (margin-padding-clear), clip (visufx), abspos containing blocks (positioning), then border-collapse/border-spacing which do not exist at all. See docs/session-log.md, entry \"WPT task E1\".",
       "ceiling_source": "firefox",
@@ -852,7 +852,7 @@
         "we_pass": 2238,
         "reftests_firefox_passes": 6083
       },
-      "claimed": "2026-08-18"
+      "claimed": "2026-08-31"
     },
     {
       "id": "E2",
