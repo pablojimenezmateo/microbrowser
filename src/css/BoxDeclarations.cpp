@@ -26,15 +26,45 @@ namespace microbrowser::css {
 
 namespace {
 
+// `safe <position>` is CSS Box Alignment's overflow keyword: align as asked,
+// but fall back to start when the item would overflow its alignment container.
+// That fallback is what AlignOffset already does unconditionally -- every mode
+// there clamps at zero -- so accepting the prefix is exact rather than an
+// approximation. `unsafe` is deliberately *not* accepted: it means the opposite
+// (let the item overflow the start edge), nothing here can do it, and a value
+// that parsed into the wrong behaviour is worse than one that does not parse
+// (ADR 0012).
+std::string_view StripSafe(std::string_view value) {
+  constexpr std::string_view kSafe = "safe ";
+  if (value.size() > kSafe.size() && value.substr(0, kSafe.size()) == kSafe) {
+    std::string_view rest = value.substr(kSafe.size());
+    while (!rest.empty() && rest.front() == ' ') {
+      rest.remove_prefix(1);
+    }
+    return rest;
+  }
+  return value;
+}
+
 // `justify-content` and `align-content` take the same six values, and the two
 // spellings of the CSS Box Alignment module are accepted alongside the flexbox
 // ones: a page writes `start` as often as `flex-start`.
-std::optional<Distribution> ParseDistribution(std::string_view value) {
-  if (value == "flex-start" || value == "start" || value == "left" || value == "normal") {
+std::optional<Distribution> ParseDistribution(std::string_view raw) {
+  const std::string_view value = StripSafe(raw);
+  if (value == "flex-start" || value == "normal") {
     return Distribution::FlexStart;
   }
-  if (value == "flex-end" || value == "end" || value == "right") {
+  if (value == "flex-end") {
     return Distribution::FlexEnd;
+  }
+  // `left` and `right` are physical, and in a horizontal writing mode they are
+  // the writing mode's own edges -- which is what `start`/`end` are, and is why
+  // they land here rather than on the flex-relative pair.
+  if (value == "start" || value == "left") {
+    return Distribution::Start;
+  }
+  if (value == "end" || value == "right") {
+    return Distribution::End;
   }
   if (value == "center") {
     return Distribution::Center;
@@ -54,18 +84,25 @@ std::optional<Distribution> ParseDistribution(std::string_view value) {
   return std::nullopt;
 }
 
-std::optional<Alignment> ParseAlignment(std::string_view value) {
+std::optional<Alignment> ParseAlignment(std::string_view raw) {
+  const std::string_view value = StripSafe(raw);
   if (value == "auto") {
     return Alignment::Auto;
   }
   if (value == "stretch" || value == "normal") {
     return Alignment::Stretch;
   }
-  if (value == "flex-start" || value == "start" || value == "self-start") {
+  if (value == "flex-start") {
     return Alignment::FlexStart;
   }
-  if (value == "flex-end" || value == "end" || value == "self-end") {
+  if (value == "flex-end") {
     return Alignment::FlexEnd;
+  }
+  if (value == "start" || value == "self-start") {
+    return Alignment::Start;
+  }
+  if (value == "end" || value == "self-end") {
+    return Alignment::End;
   }
   if (value == "center") {
     return Alignment::Center;

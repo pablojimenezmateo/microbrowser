@@ -62,6 +62,13 @@ struct Item {
   // Resolved cross-axis content size when the item says a definite or
   // percentage height/width against a definite container cross size.
   std::optional<float> forced_cross;
+  // A column item's *hypothetical* outer cross size when its width is `auto`:
+  // fit-content against the container, which is what CSS Flexbox §9.4 asks for
+  // and is not the same as "as wide as the container". Only `align-self:
+  // stretch` grows it to the line afterwards, and only the row axis can leave
+  // this unset -- a row item's auto cross size is a height and comes out of
+  // laying the item out.
+  std::optional<float> auto_cross;
 };
 
 // A run of items that fit on one line, and how tall that line is.
@@ -103,6 +110,11 @@ Spacing Distribute(css::Distribution mode, float free_space, std::size_t count) 
   }
   const auto items = static_cast<float>(count);
   switch (mode) {
+    // Start/End never reach here: ResolveDistribution turns them into the
+    // flex-relative pair against the axis's own direction, because everything
+    // below is computed in the flex-relative frame and then mirrored.
+    case css::Distribution::Start:
+    case css::Distribution::End:
     case css::Distribution::FlexStart:
     case css::Distribution::Stretch:
       break;
@@ -141,6 +153,9 @@ float AlignOffset(css::Alignment alignment, float line_cross, float item_cross) 
     case css::Alignment::Auto:
     case css::Alignment::Stretch:
     case css::Alignment::FlexStart:
+    // Start/End are resolved into the pair above before they get here.
+    case css::Alignment::Start:
+    case css::Alignment::End:
     // A box's baseline is a property of its first line box, and line boxes are
     // not exposed outside inline layout. Until they are, this is flex-start --
     // which is what `baseline` looks like for the single-line-of-text items it
@@ -149,6 +164,30 @@ float AlignOffset(css::Alignment alignment, float line_cross, float item_cross) 
       break;
   }
   return 0.0f;
+}
+
+// The whole algorithm below works in the flex-relative frame and mirrors the
+// result when the axis is reversed. A writing-mode-relative `start` therefore
+// has to be handed over as its *opposite* flex-relative value on a reversed
+// axis, so that the mirror puts it back where the writing mode says it goes.
+css::Distribution ResolveDistribution(css::Distribution mode, bool reversed) {
+  if (mode == css::Distribution::Start) {
+    return reversed ? css::Distribution::FlexEnd : css::Distribution::FlexStart;
+  }
+  if (mode == css::Distribution::End) {
+    return reversed ? css::Distribution::FlexStart : css::Distribution::FlexEnd;
+  }
+  return mode;
+}
+
+css::Alignment ResolveAlignment(css::Alignment alignment, bool reversed) {
+  if (alignment == css::Alignment::Start) {
+    return reversed ? css::Alignment::FlexEnd : css::Alignment::FlexStart;
+  }
+  if (alignment == css::Alignment::End) {
+    return reversed ? css::Alignment::FlexStart : css::Alignment::FlexEnd;
+  }
+  return alignment;
 }
 
 }  // namespace
@@ -171,7 +210,7 @@ float LayoutEngine::LayoutFlexContainer(Box& box, float content_left, float cont
       padding_top + padding_bottom + border_top + border_bottom;
   std::optional<float> definite_main;
   std::optional<float> definite_cross;
-  if (forced != nullptr && forced->content_height.has_value()) {
+  if (forced != nullptr && forced->content_height.has_value() && forced->height_is_definite) {
     definite_main = *forced->content_height;
     definite_cross = *forced->content_height;
   } else if (!style.height.IsAuto() && !style.height.IsPercent()) {
@@ -308,6 +347,17 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
       forced_cross = cross_length.Resolve(font_size);
     }
     item.forced_cross = forced_cross;
+    if (!row && !forced_cross.has_value()) {
+      // fit-content: min(max(min-content, available), max-content). Both
+      // intrinsic widths are *outer* sizes, and so is the container's inner
+      // cross size as far as an item is concerned, so no conversion happens
+      // here. Laying an auto-width column item out against the container
+      // instead made every line as wide as the container: nothing ever wrapped
+      // into lines of different cross sizes, and `align-content` had nothing
+      // left to distribute.
+      item.auto_cross = std::min(std::max(MinContentWidth(*item.box), cross_size),
+                                 MaxContentWidth(*item.box));
+    }
     if (!basis_as_auto) {
       item.base_main = basis.Used(main_size, font_size);
       item.base_main += item.main_extra;
@@ -323,18 +373,29 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
       item.base_main = MaxContentWidth(*item.box);
     } else {
       // A column's base size is a height, and the only way to know a box's
-      // height is to lay it out. Measured against the container's cross size,
-      // which is the width it will actually have. Kept as the measuring pass
-      // when flexing does not change the height.
+      // height is to lay it out. Kept as the measuring pass when flexing does
+      // not change the height.
+      //
+      // Measured against the item's *hypothetical* cross size and not against
+      // the container's width. An `auto` width on a column item is fit-content
+      // (CSS Flexbox §9.4: the hypothetical cross size is the fit-content size,
+      // and only `align-self: stretch` afterwards grows it to the line). Laying
+      // it out against the container instead made every auto-width item as wide
+      // as the container, so every line was the container's full width, no
+      // column ever wrapped into a second line whose cross size differed, and
+      // `align-content` had nothing to distribute even once it could.
       float probe = 0.0f;
       item.measure_left = content_left;
       item.measure_top = probe;
       ForcedSize probe_forced;
+      float probe_available = cross_size;
       if (forced_cross.has_value()) {
         probe_forced.content_width = *forced_cross;
+      } else if (item.auto_cross.has_value()) {
+        probe_forced.content_width = std::max(0.0f, *item.auto_cross - item.cross_extra);
+        probe_available = *item.auto_cross;
       }
-      LayoutBlock(*item.box, content_left, cross_size, probe, floats, false,
-                  forced_cross.has_value() ? &probe_forced : nullptr);
+      LayoutBlock(*item.box, content_left, probe_available, probe, floats, false, &probe_forced);
       item.base_main = probe;
       item.measured = true;
     }
@@ -475,10 +536,21 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
         LayoutBlock(*item.box, content_left, item.outer_main, cursor, floats, false, &forced);
       } else {
         forced.content_height = std::max(0.0f, item.outer_main - item.main_extra);
+        // Only a container with a definite main size hands down a *definite*
+        // height (CSS Flexbox §9.8). An auto-height column's item height is
+        // whatever its own content produced, and a `height: 50%` inside it
+        // resolves against nothing -- forcing it as definite made a nested
+        // column flexbox shrink its two children to 2/3 and 1/3 of a height
+        // they had themselves decided.
+        forced.height_is_definite = main_size > 0.0f;
+        float available = cross_size;
         if (item.forced_cross.has_value()) {
           forced.content_width = *item.forced_cross;
+        } else if (item.auto_cross.has_value()) {
+          forced.content_width = std::max(0.0f, *item.auto_cross - item.cross_extra);
+          available = *item.auto_cross;
         }
-        LayoutBlock(*item.box, content_left, cross_size, cursor, floats, false, &forced);
+        LayoutBlock(*item.box, content_left, available, cursor, floats, false, &forced);
       }
       item.measured = true;
       // What the item actually occupies across the axis it was not sized on.
@@ -489,11 +561,14 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
     }
   }
 
-  // A single-line row with a definite container height: the line's cross size
-  // is the container's (CSS Flexbox §9.4). Content-sized lines alone left
-  // ForcedSize height as a border-box lie that stretch never saw.
-  if (row && definite_cross_size.has_value() && lines.size() == 1) {
-    lines[0].cross_size = std::max(lines[0].cross_size, *definite_cross_size);
+  // A *single-line* container with a definite cross size gives its one line
+  // the container's whole inner cross size (CSS Flexbox §9.4). "Single-line"
+  // is `flex-wrap: nowrap` and not "happened to produce one line": a wrapping
+  // container that fits on one line still answers to `align-content`, and
+  // taking the container's size here would pre-empt it. Content-sized lines
+  // alone left ForcedSize height as a border-box lie that stretch never saw.
+  if (!wraps && cross_size > 0.0f) {
+    lines[0].cross_size = std::max(lines[0].cross_size, cross_size);
   }
 
   // --- Place the lines, then the items on them ------------------------------
@@ -502,18 +577,45 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
   for (const Line& line : lines) {
     lines_total += line.cross_size;
   }
-  // The container's cross size is what its lines need. A definite one would
-  // let `align-content` distribute the difference; there is none to distribute
-  // when the size is derived from the content, so the lines simply stack.
-  const Spacing line_spacing = Distribute(flex.align_content, 0.0f, lines.size());
+  // `align-content` distributes the container's leftover cross space between
+  // the lines (CSS Flexbox §8.4, §9.6 step 15). There is nothing to distribute
+  // when the cross size is derived from the content, and nothing to distribute
+  // in a `nowrap` container, where the property has no effect at all and the
+  // rule above has already given the single line everything.
+  //
+  // `stretch` is the initial value and is the one mode that changes the lines
+  // rather than the space between them: each grows by an equal share, and only
+  // then does an item's own `align-self: stretch` see a line taller than its
+  // content. Leaving this at a hard-coded zero free space is why every
+  // `align-content-*` test in the suite reported its items packed at the top
+  // of a 200px container.
+  float free_cross = cross_size > 0.0f ? cross_size - lines_total : 0.0f;
+  if (free_cross > 0.0f && flex.align_content == css::Distribution::Stretch) {
+    const float share = free_cross / static_cast<float>(lines.size());
+    for (Line& line : lines) {
+      line.cross_size += share;
+    }
+    lines_total += free_cross;
+    free_cross = 0.0f;
+  }
+  const bool cross_reversed = flex.wrap == css::FlexWrap::WrapReverse;
+  const Spacing line_spacing =
+      Distribute(ResolveDistribution(flex.align_content, cross_reversed),
+                 std::max(0.0f, free_cross), lines.size());
   float cross_cursor = line_spacing.leading;
   for (Line& line : lines) {
     line.cross_position = cross_cursor;
     cross_cursor += line.cross_size + cross_gap + line_spacing.between;
   }
   if (flex.wrap == css::FlexWrap::WrapReverse) {
+    // Mirrored against the container when it has a definite cross size rather
+    // than against what the lines occupy: `wrap-reverse` moves the cross-start
+    // edge to the far side, so the space `align-content` did not claim has to
+    // end up on the other side too. Against `lines_total` a `flex-end` and a
+    // `flex-start` container would land in the same place.
+    const float extent = cross_size > 0.0f ? cross_size : lines_total;
     for (Line& line : lines) {
-      line.cross_position = lines_total - line.cross_position - line.cross_size;
+      line.cross_position = extent - line.cross_position - line.cross_size;
     }
   }
 
@@ -532,7 +634,9 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
         (auto_margins > 0 && free_space > 0.0f) ? free_space / static_cast<float>(auto_margins)
                                                 : 0.0f;
     const float justify_free = auto_share > 0.0f ? 0.0f : free_space;
-    const Spacing spacing = Distribute(flex.justify_content, justify_free, count);
+    const Spacing spacing =
+        Distribute(ResolveDistribution(flex.justify_content, IsReversed(flex.direction)),
+                   justify_free, count);
 
     // Positions first, then layout. A reversed direction is a mirror of the
     // whole line rather than a backwards walk over it: `row-reverse` moves the
@@ -579,9 +683,8 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
     for (std::size_t i = line.begin; i < line.end; ++i) {
       Item& item = items[i];
       const css::Alignment self = item.box->Style().flex.align_self;
-      const css::Alignment alignment = self == css::Alignment::Auto ? flex.align_items : self;
-      item.cross_position =
-          line.cross_position + AlignOffset(alignment, line.cross_size, item.outer_cross);
+      const css::Alignment declared = self == css::Alignment::Auto ? flex.align_items : self;
+      const css::Alignment alignment = ResolveAlignment(declared, cross_reversed);
 
       // Stretch is the default, and it is the reason an item's cross size is
       // set here rather than left as it was measured: a row of boxes with
@@ -591,6 +694,16 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
                              (row ? item.box->Style().height.IsAuto()
                                   : item.box->Style().width.IsAuto());
       const float used_cross = stretches ? line.cross_size : item.outer_cross;
+      // `wrap-reverse` inverts cross-start and cross-end (CSS Flexbox §5.2),
+      // and it inverts them for the *items* on a line as well as for the lines
+      // themselves. Without this an item that cannot stretch -- one with a
+      // stated height in a row, which is most of what these tests use -- sat
+      // against the top of its line in a container whose top is the cross-end.
+      float align_offset = AlignOffset(alignment, line.cross_size, used_cross);
+      if (cross_reversed) {
+        align_offset = std::max(0.0f, line.cross_size - used_cross) - align_offset;
+      }
+      item.cross_position = line.cross_position + align_offset;
 
       ForcedSize forced;
       float cursor = row ? start_y + item.cross_position : start_y + item.main_position;
@@ -613,6 +726,11 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
           }
         } else {
           forced.content_height = std::max(0.0f, item.outer_main - item.main_extra);
+          forced.height_is_definite = main_size > 0.0f;  // §9.8, as above
+          // The cross size is settled by now -- stretched to the line, or the
+          // item's own hypothetical size. Forcing it is what stops an `auto`
+          // width from falling back to "as wide as whatever is available".
+          forced.content_width = std::max(0.0f, used_cross - item.cross_extra);
         }
         LayoutBlock(*item.box, place_left, row ? item.outer_main : used_cross, cursor, floats,
                     false, &forced);
@@ -641,6 +759,55 @@ float LayoutEngine::LayoutFlexChildren(Box& box, float content_left, float conte
     tallest = std::max(tallest, item.main_position + item.outer_main);
   }
   return tallest;
+}
+
+// CSS Flexbox §4.1. An absolutely-positioned child of a flex container is not a
+// flex item -- it takes no space and nothing flexes around it -- but its
+// *static position* is still the container's business: it is where the box
+// would sit if it were the sole flex item in the container's content box. So a
+// container with `align-items: center` centres the abspos child that states no
+// offsets, and `justify-content: flex-end` pushes it to the main end.
+//
+// Per axis, because `left: 0` with an auto `top` is a real thing a page writes:
+// an axis with either offset stated was placed against the containing block by
+// LayoutAbsoluteBox and must not be moved.
+void LayoutEngine::ApplyFlexStaticPosition(const Box& container, Box& box) const {
+  const css::ComputedStyle::FlexStyle& flex = container.Style().flex;
+  const bool row = IsRow(flex.direction);
+  const bool main_reversed = IsReversed(flex.direction);
+  const bool cross_reversed = flex.wrap == css::FlexWrap::WrapReverse;
+
+  const gfx::FloatRect& content = container.Geometry().content;
+  const gfx::FloatRect margin_box = box.Geometry().MarginBox();
+  const float main_extent = row ? content.width : content.height;
+  const float cross_extent = row ? content.height : content.width;
+  const float main_size = row ? margin_box.width : margin_box.height;
+  const float cross_size = row ? margin_box.height : margin_box.width;
+
+  // One item, so every distribution collapses to a leading offset -- and
+  // `space-around` and `space-evenly` collapse to centring, which is why this
+  // asks Distribute rather than reimplementing the six cases.
+  float main = Distribute(ResolveDistribution(flex.justify_content, main_reversed),
+                          main_extent - main_size, 1)
+                   .leading;
+  if (main_reversed) {
+    main = main_extent - main_size - main;
+  }
+
+  const css::Alignment self = box.Style().flex.align_self;
+  const css::Alignment declared = self == css::Alignment::Auto ? flex.align_items : self;
+  float cross = AlignOffset(ResolveAlignment(declared, cross_reversed), cross_extent, cross_size);
+  if (cross_reversed) {
+    cross = std::max(0.0f, cross_extent - cross_size) - cross;
+  }
+
+  const css::Edges& inset = box.Style().inset;
+  const float target_x = row ? content.x + main : content.x + cross;
+  const float target_y = row ? content.y + cross : content.y + main;
+  const float dx =
+      inset.left.IsAuto() && inset.right.IsAuto() ? target_x - margin_box.x : 0.0f;
+  const float dy = inset.top.IsAuto() && inset.bottom.IsAuto() ? target_y - margin_box.y : 0.0f;
+  OffsetLaidOutSubtree(box, dx, dy);
 }
 
 }  // namespace microbrowser::layout

@@ -37,6 +37,16 @@ struct TableColumnWidths {
 struct ForcedSize {
   std::optional<float> content_width;
   std::optional<float> content_height;
+  // Whether that height is *definite* in the sense CSS Sizing means: something
+  // a percentage inside the box may resolve against. Usually it is -- an
+  // abspos box stretched between `top` and `bottom` has a real height, and so
+  // does a flex item in a container with a definite main size. It is not when a
+  // column flex container with an **indefinite** main size hands an item back
+  // the height its own content produced: that number exists, but resolving a
+  // child's `height: 50%` against it is circular, and CSS Flexbox §9.8 says so
+  // ("if the flex container has a definite main size, a flex item's
+  // post-flexing main size is treated as definite" -- and only then).
+  bool height_is_definite = true;
 };
 
 // Moves a laid-out subtree by `(dx, dy)`.
@@ -101,6 +111,8 @@ class LayoutEngine {
   // (PositionedLayout.cpp).
   void ApplyRelativeOffset(Box& box) const;
   void LayoutAbsoluteDescendants(Box& container, const gfx::FloatRect& containing_block) const;
+  // The static position of an abspos child of a flex container (FlexLayout.cpp).
+  void ApplyFlexStaticPosition(const Box& container, Box& box) const;
   void LayoutAbsoluteBox(Box& box, const gfx::FloatRect& containing_block) const;
   float LayoutInlineChildren(Box& box, float content_left, float content_width, float start_y,
                              FloatContext& floats,

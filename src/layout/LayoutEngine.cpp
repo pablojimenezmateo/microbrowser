@@ -326,7 +326,7 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   // (stated length, or ForcedSize from abspos stretch / flex). Needed for
   // percentage heights on both block children and inline replaced boxes.
   std::optional<float> definite_content_height;
-  if (forced != nullptr && forced->content_height.has_value()) {
+  if (forced != nullptr && forced->content_height.has_value() && forced->height_is_definite) {
     definite_content_height = *forced->content_height;
   } else if (!style.height.IsAuto() && !style.height.IsPercent()) {
     definite_content_height = style.height.Resolve(style.font_size);

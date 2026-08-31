@@ -833,6 +833,103 @@ void RegisterFlexLayoutTests(std::vector<TestCase>& tests) {
     ExpectEqInt(static_cast<long long>(item->Geometry().content.height + 0.5f), 80,
                 "height:100% against indefinite main sizes to content");
   });
+
+  AddTest(tests, "Flex/AlignContentDistributesTheContainersLeftoverCrossSpace", [] {
+    // CSS Flexbox §8.4. Before this the free space handed to `align-content`
+    // was a hard-coded zero, so every value of the property drew the same
+    // picture: three lines stacked at the cross-start of a container with 100px
+    // to spare. `stretch` is the initial value and is the one that grows the
+    // lines rather than the gaps between them.
+    constexpr const char* kMarkup =
+        "<div class=f><span></span><span></span><span></span></div>";
+    constexpr const char* kBase =
+        "body, div, span { margin: 0; padding: 0; border: 0 } "
+        ".f { display: flex; flex-wrap: wrap; width: 30px; height: 160px } "
+        "span { width: 30px; height: 20px } ";
+    ExpectEqString(Vertical(*Run(kMarkup, kBase).root, "span"), "0,20 53,20 107,20",
+                   "stretch grows each line by an equal share");
+    ExpectEqString(
+        Vertical(*Run(kMarkup, std::string(kBase) + ".f { align-content: flex-start }").root,
+                 "span"),
+        "0,20 20,20 40,20", "flex-start packs the lines and distributes nothing");
+    ExpectEqString(
+        Vertical(*Run(kMarkup, std::string(kBase) + ".f { align-content: flex-end }").root,
+                 "span"),
+        "100,20 120,20 140,20", "flex-end packs them against the cross-end");
+    ExpectEqString(
+        Vertical(*Run(kMarkup, std::string(kBase) + ".f { align-content: space-between }").root,
+                 "span"),
+        "0,20 70,20 140,20", "space-between puts the leftover between the lines");
+  });
+
+  AddTest(tests, "Flex/StartIsNotASynonymForFlexStart", [] {
+    // `flex-start` names the flex-relative edge, which `wrap-reverse` inverts;
+    // `start` names the writing mode's, which nothing in flexbox moves. Folding
+    // the two together was a layout bug rather than a serialization one -- and
+    // `wrap-reverse` also inverts the edge an *item* aligns to within its line,
+    // which is what put a fixed-height item against the top of a container
+    // whose top is the cross-end.
+    constexpr const char* kMarkup = "<div class=f><span></span><span></span></div>";
+    constexpr const char* kBase =
+        "body, div, span { margin: 0; padding: 0; border: 0 } "
+        ".f { display: flex; flex-wrap: wrap-reverse; width: 30px; height: 100px } "
+        "span { width: 30px; height: 20px } ";
+    ExpectEqString(
+        Vertical(*Run(kMarkup, std::string(kBase) + ".f { align-content: flex-start }").root,
+                 "span"),
+        "80,20 60,20", "flex-start is the bottom under wrap-reverse");
+    ExpectEqString(
+        Vertical(*Run(kMarkup, std::string(kBase) + ".f { align-content: start }").root, "span"),
+        "20,20 0,20",
+        "start is the top whatever the wrapping does -- and the first line is "
+        "still the one nearest the flex-start edge, which is the bottom of the "
+        "packed group");
+  });
+
+  AddTest(tests, "Flex/AColumnItemWithAnAutoWidthIsFitContentAndNotTheContainer", [] {
+    // CSS Flexbox §9.4: an item's hypothetical cross size is its fit-content
+    // size, and only `align-self: stretch` grows it to the line afterwards.
+    // Laying an auto-width column item out against the container instead made
+    // every line as wide as the container, so a column never wrapped into lines
+    // of different widths and `align-content` had nothing left to distribute.
+    const Flexed result =
+        Run("<div class=f><span><i></i></span><span><i></i></span></div>",
+            "body, div, span, i { margin: 0; padding: 0; border: 0 } "
+            ".f { display: flex; flex-direction: column; flex-wrap: wrap; "
+            "align-items: flex-start; align-content: flex-start; "
+            "width: 200px; height: 30px } "
+            "span { height: 30px } i { display: block; width: 40px; height: 10px }");
+    ExpectEqString(Horizontal(*result.root, "span"), "0,40 40,40",
+                   "each column item is as wide as its content wants");
+  });
+
+  AddTest(tests, "Flex/AnAbsposChildTakesItsStaticPositionFromTheContainer", [] {
+    // CSS Flexbox §4.1. An absolutely positioned child is not a flex item, but
+    // where it lands with no offsets is still the container's decision: it sits
+    // where it would if it were the sole item. The containing block's origin --
+    // what every other container gets -- is the top left, which is the answer
+    // only when the container aligns everything there anyway.
+    constexpr const char* kMarkup = "<div class=f><span></span></div>";
+    constexpr const char* kBase =
+        "body, div, span { margin: 0; padding: 0; border: 0 } "
+        ".f { display: flex; position: relative; width: 100px; height: 100px } "
+        "span { position: absolute; width: 20px; height: 20px } ";
+    ExpectEqString(
+        Horizontal(*Run(kMarkup, std::string(kBase) +
+                                     ".f { justify-content: center; align-items: center }")
+                        .root,
+                   "span"),
+        "40,20", "justify-content centres it on the main axis");
+    ExpectEqString(
+        Vertical(*Run(kMarkup, std::string(kBase) +
+                                   ".f { justify-content: center; align-items: center }")
+                      .root,
+                 "span"),
+        "40,20", "align-items centres it on the cross axis");
+    ExpectEqString(
+        Horizontal(*Run(kMarkup, std::string(kBase) + "span { left: 5px }").root, "span"),
+        "5,20", "an axis with a stated offset is placed against the containing block");
+  });
 }
 
 }  // namespace microbrowser::tests

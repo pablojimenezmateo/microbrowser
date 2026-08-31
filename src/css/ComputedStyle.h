@@ -86,9 +86,17 @@ enum class FlexWrap : std::uint8_t { NoWrap, Wrap, WrapReverse };
 // One enum for `justify-content` and `align-content`, because the spec gives
 // them the same value set and a second copy would be a second thing to keep in
 // step.
+// `start`/`end` are *not* synonyms for `flex-start`/`flex-end` and folding them
+// together is a layout bug rather than a serialization one: `flex-start` names
+// the flex-relative edge, which `row-reverse` and `wrap-reverse` invert, while
+// `start` names the writing mode's edge, which nothing in flexbox moves. A
+// `wrap-reverse` container with `align-content: start` packs its lines at the
+// top and with `flex-start` packs them at the bottom.
 enum class Distribution : std::uint8_t {
   FlexStart,
   FlexEnd,
+  Start,
+  End,
   Center,
   SpaceBetween,
   SpaceAround,
@@ -98,7 +106,17 @@ enum class Distribution : std::uint8_t {
 // `align-items` and `align-self` share this. `Auto` is only meaningful on
 // `align-self`, where it means "whatever the container says" -- which is why
 // the two are one enum with a value the other never takes.
-enum class Alignment : std::uint8_t { Auto, Stretch, FlexStart, FlexEnd, Center, Baseline };
+enum class Alignment : std::uint8_t {
+  Auto,
+  Stretch,
+  FlexStart,
+  FlexEnd,
+  // Writing-mode-relative, and so unmoved by `wrap-reverse`. See Distribution.
+  Start,
+  End,
+  Center,
+  Baseline,
+};
 enum class FontStyle : std::uint8_t { Normal, Italic };
 // `start` is the initial value, and it is a *distinct* value rather than a synonym for left:
 // which edge it means depends on `direction`, and collapsing it to Left at parse time is why an

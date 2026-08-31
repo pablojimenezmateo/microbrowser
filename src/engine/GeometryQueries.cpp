@@ -539,6 +539,8 @@ std::optional<std::string> ComputedValueOf(const css::ComputedStyle& style,
       case css::Alignment::Stretch: return std::string("stretch");
       case css::Alignment::FlexStart: return std::string("flex-start");
       case css::Alignment::FlexEnd: return std::string("flex-end");
+      case css::Alignment::Start: return std::string("start");
+      case css::Alignment::End: return std::string("end");
       case css::Alignment::Center: return std::string("center");
       case css::Alignment::Baseline: return std::string("baseline");
     }
@@ -549,6 +551,8 @@ std::optional<std::string> ComputedValueOf(const css::ComputedStyle& style,
       case css::Alignment::Stretch: return std::string("stretch");
       case css::Alignment::FlexStart: return std::string("flex-start");
       case css::Alignment::FlexEnd: return std::string("flex-end");
+      case css::Alignment::Start: return std::string("start");
+      case css::Alignment::End: return std::string("end");
       case css::Alignment::Center: return std::string("center");
       case css::Alignment::Baseline: return std::string("baseline");
     }
@@ -557,6 +561,8 @@ std::optional<std::string> ComputedValueOf(const css::ComputedStyle& style,
     switch (style.flex.justify_content) {
       case css::Distribution::FlexStart: return std::string("flex-start");
       case css::Distribution::FlexEnd: return std::string("flex-end");
+      case css::Distribution::Start: return std::string("start");
+      case css::Distribution::End: return std::string("end");
       case css::Distribution::Center: return std::string("center");
       case css::Distribution::SpaceBetween: return std::string("space-between");
       case css::Distribution::SpaceAround: return std::string("space-around");

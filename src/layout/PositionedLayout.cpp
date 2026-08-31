@@ -21,6 +21,11 @@
 // means remembering where the flow would have put a box it never placed, and
 // the approximation is correct for the case pages actually write: an absolute
 // box with at least one offset on each axis.
+//
+// One container knows better and says so: a flex container's abspos child has a
+// static position defined by `justify-content` and `align-self`, and
+// ApplyFlexStaticPosition (FlexLayout.cpp) applies it once this pass has given
+// the box a size.
 
 namespace microbrowser::layout {
 
@@ -95,9 +100,18 @@ void LayoutEngine::ApplyRelativeOffset(Box& box) const {
 
 void LayoutEngine::LayoutAbsoluteDescendants(Box& container,
                                              const gfx::FloatRect& containing_block) const {
+  const bool flex_container = container.Style().IsFlexContainer();
   for (std::unique_ptr<Box>& child : container.MutableChildren()) {
     if (child->IsAbsolutelyPositioned()) {
       LayoutAbsoluteBox(*child, containing_block);
+      if (flex_container) {
+        // Not a flex item, but its static position is still the flex
+        // container's business (CSS Flexbox §4.1). Applied here rather than
+        // inside LayoutAbsoluteBox because it needs the box's finished size,
+        // and because the container it aligns against is not necessarily the
+        // containing block it was sized against.
+        ApplyFlexStaticPosition(container, *child);
+      }
       continue;
     }
     // A positioned child is a containing block of its own and placed the boxes
