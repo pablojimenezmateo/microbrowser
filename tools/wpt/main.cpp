@@ -1146,9 +1146,28 @@ int main(int argc, char** argv) {
   // hand. 0.15 costs a timeout-heavy area a fifth of its theoretical headroom
   // and bounds the damage if a whole directory turns out to hang hot.
   constexpr double kIdleLoad = 0.15;
-  // And an absolute ceiling, because the budget is about CPU and processes cost
-  // memory: a test child is ~110MB resident here, so 4x is ~5GB in flight.
-  const int job_ceiling = jobs * 4;
+  // **And an absolute ceiling, because CPU is not the only shared resource and
+  // it turned out not to be the binding one.** The first version of this budget
+  // capped at 4x and was measured on `content-security-policy/`, 869 tests:
+  // 1,652s -> 64s, which is not a speedup, it is a collapse. Crashes went
+  // 4 -> 223 and reported subtests 3,868 -> 389, every crash a child killed by
+  // SIGPIPE.
+  //
+  // The children were not short of CPU or memory. They were writing to **our
+  // own test server, which is single-threaded and forked once for the whole
+  // run** -- so the real ceiling on concurrent tests is how many clients that
+  // server can hold, and it is far below what the cores allow. It shows up only
+  // at scale: `content-security-policy/gen/top.http-rp/script-src-self/` run on
+  // its own is 26 tests, never reaches the ceiling, and is byte-identical at
+  // both settings. Across the whole shard the runner passes through long
+  // stretches where every test is expected to TIMEOUT, `active_load` stays near
+  // zero, and it admits until it hits this number -- so this constant, not
+  // `jobs`, is what those stretches actually run at.
+  //
+  // 2x is the measured-safe value; see the re-validation in the commit that
+  // lowered it. Raising it is not a CPU question and the load average will not
+  // warn you: the machine is idle either way, and what breaks is the server.
+  const int job_ceiling = jobs * 2;
 
   std::size_t next_test = 0;
   std::size_t completed = 0;
