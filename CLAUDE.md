@@ -861,9 +861,44 @@ slower on every page. `tools/run-checks.sh wpt` builds the perf preset for that 
 in a Debug tree passes `--timeout-multiplier 6` to compensate, which is a mitigation and not a
 proof (ADR 0040 §6).
 
-**The whole suite does not fit in one run on one machine** — 21,265 testharness tests is the
-better part of a day here, and `--update-expectations` writes only when the run finishes. Take
-it an area at a time and commit each; that is what `--summary-state` exists for.
+**Do not run the whole suite. The unit of work is one area, and it is under two minutes.**
+This is the single most expensive mistake a fresh session can make, because the full run looks
+like the thorough choice and is nearly always the wrong one. What each thing actually costs:
+
+| what | when you run it | cost |
+|---|---|---|
+| `ctest -E microbrowser_wpt` | the inner loop, constantly | **4.5s**, all 24 unit shards |
+| `microbrowser_wpt <area>/` | every WPT session | `css/css-text/` 51s, `dom/` 146s, `encoding/` 211s |
+| `microbrowser_wpt --reftests-only` | after layout or paint work | ~90s for all 20,998 |
+| the full `ctest` gate | before a push | tens of minutes |
+| a **full** `--summary-state` baseline | ~never; task B6 did it | hours |
+
+**A per-area re-record regenerates the whole `docs/wpt-baseline.md`**, because
+`tests/wpt/summary-state.tsv` is committed and is that document's memory: the area this run
+measured replaces what the file said about it, and every other row comes from the state. That is
+what B6 bought and it is why the full run is not the price of a measurement. Pass
+`--summary-state tests/wpt/summary-state.tsv` and commit both files. A run *without* it rewrites
+the document down to the areas it touched, which is what the writer's row-count refusal exists to
+catch — it has caught three sessions already.
+
+`--update-expectations` writes only when the run finishes, so an interrupted full run records
+nothing at all. One more reason to go an area at a time and commit each.
+
+**`--jobs` is a budget of *CPU-active* tests, not a count of processes, and you should not need to
+touch it** (2026-08-31). 6,231 of the 23,146 testharness files are already expected to TIMEOUT and
+such a test sits in `poll` — twelve of them in flight hold a 24-core machine at a load average of
+0.29 — so one is admitted against 0.15 of a job rather than a whole one, and the runner self-tunes
+per area from the expectations it already has. That is why `referrer-policy/4K+1/` is 120s where it
+was 300s, with a byte-identical result, while `encoding/legacy-mb-japanese/` correctly stays at
+twelve processes and keeps all 442,614 of its subtests.
+
+**The ceiling on processes is the test server, not the cores, and the load average will not warn
+you.** Our server is single-threaded and forked once for the whole run. A first version of the
+budget capped at 4× and took `content-security-policy/` from 1,652s to 64s — which is a collapse,
+not a speedup: crashes 4 → 223, reported subtests 3,868 → 389, every child killed by SIGPIPE. It is
+invisible below full scale (the directory that crashed is byte-identical at both settings when run
+alone, because it is too small to reach the ceiling). The cap is 2× and the argument is in
+`tools/wpt/main.cpp`; raising it is a question about the server, and the machine is idle either way.
 
 Every test runs in **its own process**, so a hang is one `TIMEOUT` line and a crash is one
 `CRASH` line rather than the end of the run. The server is ours and single-threaded, forked
