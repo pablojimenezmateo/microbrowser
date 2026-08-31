@@ -892,8 +892,8 @@
         "F2"
       ],
       "target": "60%",
-      "status": "not_started",
-      "agent": null,
+      "status": "in_progress",
+      "agent": "wpt-e3",
       "adr": "",
       "notes": "roadmap-sessions.json session 39 is in_progress.",
       "ceiling_source": "firefox",
@@ -906,7 +906,8 @@
         "reftest_files": 610,
         "we_pass": 255,
         "reftests_firefox_passes": 840
-      }
+      },
+      "claimed": "2026-08-31"
     },
     {
       "id": "E4",
