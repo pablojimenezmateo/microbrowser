@@ -2917,7 +2917,29 @@ FAIL=elementFromPoint(...) on <rect>s with simple strokes, element at (80, 100)
 FAIL=elementFromPoint(...) on <rect>s with simple strokes, element at (80, 40)
 FAIL=elementFromPoint(...) on <rect>s with simple strokes, element at (89, 155)
 [svg/interact/scripted/svg-pointer-events-bbox.html]
-harness=TIMEOUT
+FAIL=bbox of circle2 contains point at (438, 103)
+FAIL=bbox of circle2 contains point at (450, 200)
+FAIL=bbox of text1 contains point at (115, 46)
+FAIL=bbox of text1 contains point at (435, 32)
+FAIL=bbox of text2 contains point at (295, 214)
+FAIL=bbox of text2 contains point at (444, 222)
+FAIL=circle1 contains point at (36, 60)
+FAIL=circle1 contains point at (42, 67)
+FAIL=circle2 contains point at (361, 122)
+FAIL=circle2 contains point at (400, 150)
+FAIL=circle2 contains point at (432, 182)
+FAIL=group1 contains point at (100, 100)
+FAIL=group1 contains point at (137, 84)
+FAIL=group1 contains point at (51, 156)
+FAIL=group1 contains point at (70, 120)
+FAIL=image1 contains point at (19, 215)
+FAIL=image1 contains point at (45, 225)
+FAIL=text1 contains point at (134, 16)
+FAIL=text2 contains point at (178, 146)
+FAIL=text3 contains point at (198, 291)
+FAIL=text3 contains point at (286, 301)
+FAIL=tspan1 contains point at (579, 46)
+FAIL=tspan2 contains point at (568, 283)
 [svg/interact/scripted/svg-root-border-radius.html]
 FAIL=SVG root with border-radius hit test
 [svg/interact/scripted/svg-small-big-path.html]
@@ -4211,18 +4233,24 @@ harness=FAIL
 [svg/text/reftests/xml-lang-attribute.svg]
 harness=FAIL
 [svg/text/scripted/getcharnumatposition-slr.tentative.html]
-harness=TIMEOUT
+FAIL=sideways-lr
 [svg/text/scripted/getcharnumatposition-zoomed.html]
-harness=TIMEOUT
+FAIL=CSS zoomed text
 [svg/text/scripted/getcharnumatposition.html]
-harness=TIMEOUT
+FAIL=horizontal-tb
+FAIL=sideways-rl
+FAIL=vertical-lr
+FAIL=vertical-rl
 [svg/text/scripted/getextentofchar-zoomed.html]
 FAIL=CSS Zoomed text
 [svg/text/scripted/getextentofchar.html]
 FAIL=Multiple chunks in a tspan
 FAIL=With dominant-baseline
 [svg/text/scripted/getnumberofchars.html]
-harness=TIMEOUT
+FAIL=latin text
+FAIL=latin text and tspan
+FAIL=mixed-rtl text and tested tspan
+FAIL=mixed-rtl text and tspan
 [svg/text/scripted/getrotationofchar.html]
 FAIL='text-orientation: mixed' - horizontal-tb
 FAIL='text-orientation: mixed' - sideways-lr
@@ -4258,7 +4286,11 @@ FAIL=Vertical: getStartPositionOfChar/getEndPositionOfChar not affected by domin
 FAIL=textPath: get*PositionOfChar().y should not depend on dominant-baseline
 FAIL=tspan: get*PositionOfChar().y should not depend on dominant-baseline
 [svg/text/scripted/getstartpositionofchar.html]
-harness=TIMEOUT
+FAIL=sideways-lr
+FAIL=sideways-rl
+FAIL=tspan
+FAIL=vertical-lr
+FAIL=vertical-rl
 [svg/text/scripted/getsubstringlength-emoji-ligatures.html]
 FAIL=SVGTextContentElement.getSubStringLength on Emoji with ligatures
 [svg/text/scripted/lengthadjust.html]
@@ -4273,7 +4305,10 @@ harness=TIMEOUT
 [svg/text/scripted/transform-dynamic-update.html]
 FAIL=Dynamic update of transform CSS property
 [svg/text/scripted/tspan-xml-space-preserve-position.html]
-harness=TIMEOUT
+FAIL=First tspan starts at its specified x/y
+FAIL=Second character of multi-char tspan follows naturally without position shift
+FAIL=Second tspan starts at its specified x/y, not offset by inter-tspan whitespace
+FAIL=Third tspan starts at its specified x/y
 [svg/types/SVGElement.ownerSVGElement-01.html]
 FAIL=inner <svg> child of outer <svg> in foreignObject (in document)
 FAIL=inner <svg> child of outer <svg> in foreignObject (not in document)

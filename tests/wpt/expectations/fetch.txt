@@ -3771,9 +3771,80 @@ harness=TIMEOUT
 [fetch/metadata/generated/element-picture.sub.html]
 harness=TIMEOUT
 [fetch/metadata/generated/element-script.https.sub.html]
-harness=TIMEOUT
+FAIL=sec-fetch-dest - no attributes
+FAIL=sec-fetch-mode - attributes: crossorigin
+FAIL=sec-fetch-mode - attributes: crossorigin=anonymous
+FAIL=sec-fetch-mode - attributes: crossorigin=use-credentials
+FAIL=sec-fetch-mode - attributes: type=module
+FAIL=sec-fetch-mode - no attributes
+FAIL=sec-fetch-site - Cross-Site -> Cross-Site, attributes: type=module
+FAIL=sec-fetch-site - Cross-Site -> Cross-Site, no attributes
+FAIL=sec-fetch-site - Cross-Site -> Same Origin, attributes: type=module
+FAIL=sec-fetch-site - Cross-Site -> Same Origin, no attributes
+FAIL=sec-fetch-site - Cross-Site -> Same-Site, attributes: type=module
+FAIL=sec-fetch-site - Cross-Site -> Same-Site, no attributes
+FAIL=sec-fetch-site - Cross-site, attributes: type=module
+FAIL=sec-fetch-site - Cross-site, no attributes
+FAIL=sec-fetch-site - Same origin, attributes: type=module
+FAIL=sec-fetch-site - Same origin, no attributes
+FAIL=sec-fetch-site - Same site, attributes: type=module
+FAIL=sec-fetch-site - Same site, no attributes
+FAIL=sec-fetch-site - Same-Origin -> Cross-Site -> Same-Origin redirect, attributes: type=module
+FAIL=sec-fetch-site - Same-Origin -> Cross-Site -> Same-Origin redirect, no attributes
+FAIL=sec-fetch-site - Same-Origin -> Cross-Site, attributes: type=module
+FAIL=sec-fetch-site - Same-Origin -> Cross-Site, no attributes
+FAIL=sec-fetch-site - Same-Origin -> Same Origin, attributes: type=module
+FAIL=sec-fetch-site - Same-Origin -> Same Origin, no attributes
+FAIL=sec-fetch-site - Same-Origin -> Same-Site -> Same-Origin redirect, attributes: type=module
+FAIL=sec-fetch-site - Same-Origin -> Same-Site -> Same-Origin redirect, no attributes
+FAIL=sec-fetch-site - Same-Origin -> Same-Site, attributes: type=module
+FAIL=sec-fetch-site - Same-Origin -> Same-Site, no attributes
+FAIL=sec-fetch-site - Same-Site -> Cross-Site, attributes: type=module
+FAIL=sec-fetch-site - Same-Site -> Cross-Site, no attributes
+FAIL=sec-fetch-site - Same-Site -> Same Origin, attributes: type=module
+FAIL=sec-fetch-site - Same-Site -> Same Origin, no attributes
+FAIL=sec-fetch-site - Same-Site -> Same-Site, attributes: type=module
+FAIL=sec-fetch-site - Same-Site -> Same-Site, no attributes
+FAIL=sec-fetch-storage-access - Cross-site, no attributes
+FAIL=sec-fetch-storage-access - Same site, no attributes
+FAIL=sec-fetch-user - no attributes
 [fetch/metadata/generated/element-script.sub.html]
-harness=TIMEOUT
+FAIL=sec-fetch-dest - Not sent to non-trustworthy cross-site destination, attributes: type=module
+FAIL=sec-fetch-dest - Not sent to non-trustworthy cross-site destination, no attributes
+FAIL=sec-fetch-dest - Not sent to non-trustworthy same-origin destination, attributes: type=module
+FAIL=sec-fetch-dest - Not sent to non-trustworthy same-origin destination, no attributes
+FAIL=sec-fetch-dest - Not sent to non-trustworthy same-site destination, attributes: type=module
+FAIL=sec-fetch-dest - Not sent to non-trustworthy same-site destination, no attributes
+FAIL=sec-fetch-mode - Not sent to non-trustworthy cross-site destination, attributes: type=module
+FAIL=sec-fetch-mode - Not sent to non-trustworthy cross-site destination, no attributes
+FAIL=sec-fetch-mode - Not sent to non-trustworthy same-origin destination, attributes: type=module
+FAIL=sec-fetch-mode - Not sent to non-trustworthy same-origin destination, no attributes
+FAIL=sec-fetch-mode - Not sent to non-trustworthy same-site destination, attributes: type=module
+FAIL=sec-fetch-mode - Not sent to non-trustworthy same-site destination, no attributes
+FAIL=sec-fetch-site - HTTPS downgrade (header not sent), attributes: type=module
+FAIL=sec-fetch-site - HTTPS downgrade (header not sent), no attributes
+FAIL=sec-fetch-site - HTTPS downgrade-upgrade, attributes: type=module
+FAIL=sec-fetch-site - HTTPS downgrade-upgrade, no attributes
+FAIL=sec-fetch-site - HTTPS upgrade, attributes: type=module
+FAIL=sec-fetch-site - HTTPS upgrade, no attributes
+FAIL=sec-fetch-site - Not sent to non-trustworthy cross-site destination, attributes: type=module
+FAIL=sec-fetch-site - Not sent to non-trustworthy cross-site destination, no attributes
+FAIL=sec-fetch-site - Not sent to non-trustworthy same-origin destination, attributes: type=module
+FAIL=sec-fetch-site - Not sent to non-trustworthy same-origin destination, no attributes
+FAIL=sec-fetch-site - Not sent to non-trustworthy same-site destination, attributes: type=module
+FAIL=sec-fetch-site - Not sent to non-trustworthy same-site destination, no attributes
+FAIL=sec-fetch-storage-access - Not sent to non-trustworthy cross-site destination, attributes: type=module
+FAIL=sec-fetch-storage-access - Not sent to non-trustworthy cross-site destination, no attributes
+FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-origin destination, attributes: type=module
+FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-origin destination, no attributes
+FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-site destination, attributes: type=module
+FAIL=sec-fetch-storage-access - Not sent to non-trustworthy same-site destination, no attributes
+FAIL=sec-fetch-user - Not sent to non-trustworthy cross-site destination, attributes: type=module
+FAIL=sec-fetch-user - Not sent to non-trustworthy cross-site destination, no attributes
+FAIL=sec-fetch-user - Not sent to non-trustworthy same-origin destination, attributes: type=module
+FAIL=sec-fetch-user - Not sent to non-trustworthy same-origin destination, no attributes
+FAIL=sec-fetch-user - Not sent to non-trustworthy same-site destination, attributes: type=module
+FAIL=sec-fetch-user - Not sent to non-trustworthy same-site destination, no attributes
 [fetch/metadata/generated/element-video-poster.https.sub.html]
 harness=TIMEOUT
 [fetch/metadata/generated/element-video-poster.sub.html]
@@ -4126,90 +4197,7 @@ harness=TIMEOUT
 [fetch/metadata/generated/window-history.sub.html]
 harness=TIMEOUT
 [fetch/metadata/generated/window-location.https.sub.html]
-FAIL=sec-fetch-dest - location
-FAIL=sec-fetch-dest - location.assign
-FAIL=sec-fetch-dest - location.href
-FAIL=sec-fetch-dest - location.replace
-FAIL=sec-fetch-mode - location
-FAIL=sec-fetch-mode - location.assign
-FAIL=sec-fetch-mode - location.href
-FAIL=sec-fetch-mode - location.replace
-FAIL=sec-fetch-site - Cross-Site -> Cross-Site - location
-FAIL=sec-fetch-site - Cross-Site -> Cross-Site - location.assign
-FAIL=sec-fetch-site - Cross-Site -> Cross-Site - location.href
-FAIL=sec-fetch-site - Cross-Site -> Cross-Site - location.replace
-FAIL=sec-fetch-site - Cross-Site -> Same Origin - location
-FAIL=sec-fetch-site - Cross-Site -> Same Origin - location.assign
-FAIL=sec-fetch-site - Cross-Site -> Same Origin - location.href
-FAIL=sec-fetch-site - Cross-Site -> Same Origin - location.replace
-FAIL=sec-fetch-site - Cross-Site -> Same-Site - location
-FAIL=sec-fetch-site - Cross-Site -> Same-Site - location.assign
-FAIL=sec-fetch-site - Cross-Site -> Same-Site - location.href
-FAIL=sec-fetch-site - Cross-Site -> Same-Site - location.replace
-FAIL=sec-fetch-site - Cross-site - location
-FAIL=sec-fetch-site - Cross-site - location.assign
-FAIL=sec-fetch-site - Cross-site - location.href
-FAIL=sec-fetch-site - Cross-site - location.replace
-FAIL=sec-fetch-site - HTTPS downgrade-upgrade - location
-FAIL=sec-fetch-site - HTTPS downgrade-upgrade - location.assign
-FAIL=sec-fetch-site - HTTPS downgrade-upgrade - location.href
-FAIL=sec-fetch-site - HTTPS downgrade-upgrade - location.replace
-FAIL=sec-fetch-site - Same origin - location
-FAIL=sec-fetch-site - Same origin - location.assign
-FAIL=sec-fetch-site - Same origin - location.href
-FAIL=sec-fetch-site - Same origin - location.replace
-FAIL=sec-fetch-site - Same site - location
-FAIL=sec-fetch-site - Same site - location.assign
-FAIL=sec-fetch-site - Same site - location.href
-FAIL=sec-fetch-site - Same site - location.replace
-FAIL=sec-fetch-site - Same-Origin -> Cross-Site - location
-FAIL=sec-fetch-site - Same-Origin -> Cross-Site - location.assign
-FAIL=sec-fetch-site - Same-Origin -> Cross-Site - location.href
-FAIL=sec-fetch-site - Same-Origin -> Cross-Site - location.replace
-FAIL=sec-fetch-site - Same-Origin -> Cross-Site -> Same-Origin redirect - location
-FAIL=sec-fetch-site - Same-Origin -> Cross-Site -> Same-Origin redirect - location.assign
-FAIL=sec-fetch-site - Same-Origin -> Cross-Site -> Same-Origin redirect - location.href
-FAIL=sec-fetch-site - Same-Origin -> Cross-Site -> Same-Origin redirect - location.replace
-FAIL=sec-fetch-site - Same-Origin -> Same Origin - location
-FAIL=sec-fetch-site - Same-Origin -> Same Origin - location.assign
-FAIL=sec-fetch-site - Same-Origin -> Same Origin - location.href
-FAIL=sec-fetch-site - Same-Origin -> Same Origin - location.replace
-FAIL=sec-fetch-site - Same-Origin -> Same-Site - location
-FAIL=sec-fetch-site - Same-Origin -> Same-Site - location.assign
-FAIL=sec-fetch-site - Same-Origin -> Same-Site - location.href
-FAIL=sec-fetch-site - Same-Origin -> Same-Site - location.replace
-FAIL=sec-fetch-site - Same-Origin -> Same-Site -> Same-Origin redirect - location
-FAIL=sec-fetch-site - Same-Origin -> Same-Site -> Same-Origin redirect - location.assign
-FAIL=sec-fetch-site - Same-Origin -> Same-Site -> Same-Origin redirect - location.href
-FAIL=sec-fetch-site - Same-Origin -> Same-Site -> Same-Origin redirect - location.replace
-FAIL=sec-fetch-site - Same-Site -> Cross-Site - location
-FAIL=sec-fetch-site - Same-Site -> Cross-Site - location.assign
-FAIL=sec-fetch-site - Same-Site -> Cross-Site - location.href
-FAIL=sec-fetch-site - Same-Site -> Cross-Site - location.replace
-FAIL=sec-fetch-site - Same-Site -> Same Origin - location
-FAIL=sec-fetch-site - Same-Site -> Same Origin - location.assign
-FAIL=sec-fetch-site - Same-Site -> Same Origin - location.href
-FAIL=sec-fetch-site - Same-Site -> Same Origin - location.replace
-FAIL=sec-fetch-site - Same-Site -> Same-Site - location
-FAIL=sec-fetch-site - Same-Site -> Same-Site - location.assign
-FAIL=sec-fetch-site - Same-Site -> Same-Site - location.href
-FAIL=sec-fetch-site - Same-Site -> Same-Site - location.replace
-FAIL=sec-fetch-storage-access - Cross-site - location
-FAIL=sec-fetch-storage-access - Cross-site - location.assign
-FAIL=sec-fetch-storage-access - Cross-site - location.href
-FAIL=sec-fetch-storage-access - Cross-site - location.replace
-FAIL=sec-fetch-storage-access - Same site - location
-FAIL=sec-fetch-storage-access - Same site - location.assign
-FAIL=sec-fetch-storage-access - Same site - location.href
-FAIL=sec-fetch-storage-access - Same site - location.replace
-FAIL=sec-fetch-user - location
-FAIL=sec-fetch-user - location with user activation
-FAIL=sec-fetch-user - location.assign
-FAIL=sec-fetch-user - location.assign with user activation
-FAIL=sec-fetch-user - location.href
-FAIL=sec-fetch-user - location.href with user activation
-FAIL=sec-fetch-user - location.replace
-FAIL=sec-fetch-user - location.replace with user activation
+harness=TIMEOUT
 [fetch/metadata/generated/window-location.sub.html]
 FAIL=sec-fetch-dest - Not sent to non-trustworthy cross-site destination - location
 FAIL=sec-fetch-dest - Not sent to non-trustworthy cross-site destination - location.assign
@@ -4284,7 +4272,12 @@ FAIL=sec-fetch-user - Not sent to non-trustworthy same-site destination - locati
 FAIL=sec-fetch-user - Not sent to non-trustworthy same-site destination - location.href
 FAIL=sec-fetch-user - Not sent to non-trustworthy same-site destination - location.replace
 [fetch/metadata/generated/worker-dedicated-constructor.https.sub.html]
-harness=TIMEOUT
+FAIL=sec-fetch-dest - no options
+FAIL=sec-fetch-dest - options: type=module
+FAIL=sec-fetch-mode - no options
+FAIL=sec-fetch-mode - options: type=module
+FAIL=sec-fetch-user - no options
+FAIL=sec-fetch-user - options: type=module
 [fetch/metadata/generated/worker-dedicated-constructor.sub.html]
 FAIL=sec-fetch-dest - Not sent to non-trustworthy same-origin destination, no options
 FAIL=sec-fetch-mode - Not sent to non-trustworthy same-origin destination, no options

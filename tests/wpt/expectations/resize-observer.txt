@@ -1,5 +1,5 @@
 [resize-observer/callback-cross-realm-report-exception.html]
-harness=TIMEOUT
+FAIL=ResizeObserver reports the exception from its callback in the callback's global object
 [resize-observer/change-layout-in-error.html]
 harness=TIMEOUT
 [resize-observer/devicepixel.html]
@@ -14,7 +14,6 @@ FAIL=Resizing 2nd fragment
 FAIL=Resizing all fragments
 [resize-observer/idlharness.window.html]
 FAIL=ResizeObserver interface object length
-FAIL=ResizeObserver interface object name
 FAIL=ResizeObserver interface: calling observe(Element, optional ResizeObserverOptions) on observer with too few arguments must throw TypeError
 FAIL=ResizeObserver interface: calling unobserve(Element) on observer with too few arguments must throw TypeError
 FAIL=ResizeObserver interface: existence and properties of interface object
