@@ -5342,6 +5342,8 @@ harness=FAIL
 harness=FAIL
 [css/CSS2/selectors/universal-selector-005.xht]
 harness=FAIL
+[css/CSS2/stacking-context/opacity-change-parent-stacking-context.html]
+harness=FAIL
 [css/CSS2/stacking-context/opacity-change-twice-stacking-context.html]
 harness=FAIL
 [css/CSS2/stacking-context/opacity-transition-change-parent-stacking-context.html]
@@ -9317,6 +9319,8 @@ FAIL=.wrapper 6
 FAIL=.wrapper 7
 [css/css-align/baseline-rules/synthesized-baseline-inline-block-001.html]
 FAIL=.wrapper 2
+[css/css-align/baseline-rules/synthesized-baseline-table-cell-001.html]
+harness=FAIL
 [css/css-align/blocks/align-content-block-001.html]
 harness=FAIL
 [css/css-align/blocks/align-content-block-002.html]
@@ -9867,19 +9871,18 @@ FAIL=Checking align-content: unsafe end
 FAIL=Checking align-content: unsafe flex-start
 [css/css-align/content-distribution/parse-align-content-004.html]
 FAIL=Checking invalid combination - align-content: left
+FAIL=Checking invalid combination - align-content: safe right
 [css/css-align/content-distribution/parse-align-content-005.html]
 FAIL=Test the value 'inherit' overrides current value ('end')
 FAIL=Test the value 'inherit' overrides current value ('safe start')
 FAIL=Test the value 'inherit' overrides current value ('unsafe center')
 [css/css-align/content-distribution/parse-justify-content-001.html]
-FAIL=Checking justify-content: end
 FAIL=Checking justify-content: left
 FAIL=Checking justify-content: normal
 FAIL=Checking justify-content: right
 FAIL=Checking justify-content: safe center
 FAIL=Checking justify-content: safe end
 FAIL=Checking justify-content: safe flex-end
-FAIL=Checking justify-content: start
 FAIL=Checking justify-content: unsafe end
 FAIL=Checking justify-content: unsafe flex-start
 [css/css-align/content-distribution/parse-justify-content-002.html]
@@ -9891,14 +9894,12 @@ FAIL=Test flex items justify-content: 'initial'
 FAIL=Test grid items justify-content: 'initial'
 FAIL=Test justify-content: 'initial'
 [css/css-align/content-distribution/parse-justify-content-003.html]
-FAIL=Checking justify-content: end
 FAIL=Checking justify-content: left
 FAIL=Checking justify-content: normal
 FAIL=Checking justify-content: right
 FAIL=Checking justify-content: safe center
 FAIL=Checking justify-content: safe end
 FAIL=Checking justify-content: safe flex-end
-FAIL=Checking justify-content: start
 FAIL=Checking justify-content: unsafe end
 FAIL=Checking justify-content: unsafe flex-start
 [css/css-align/content-distribution/parse-justify-content-005.html]
@@ -10306,7 +10307,6 @@ harness=FAIL
 [css/css-align/default-alignment/justify-items-legacy-001.html]
 FAIL=legacy value for justify-items
 [css/css-align/default-alignment/parse-align-items-001.html]
-FAIL=Checking align-items: end
 FAIL=Checking align-items: first baseline
 FAIL=Checking align-items: last baseline
 FAIL=Checking align-items: normal
@@ -10315,7 +10315,6 @@ FAIL=Checking align-items: safe end
 FAIL=Checking align-items: safe flex-end
 FAIL=Checking align-items: self-end
 FAIL=Checking align-items: self-start
-FAIL=Checking align-items: start
 FAIL=Checking align-items: unsafe end
 FAIL=Checking align-items: unsafe flex-start
 [css/css-align/default-alignment/parse-align-items-002.html]
@@ -10327,7 +10326,6 @@ FAIL=Test align-items: 'initial'
 FAIL=Test flex items align-items: 'initial'
 FAIL=Test grid items align-items: 'initial'
 [css/css-align/default-alignment/parse-align-items-003.html]
-FAIL=Checking align-items: end
 FAIL=Checking align-items: first baseline
 FAIL=Checking align-items: last baseline
 FAIL=Checking align-items: normal
@@ -10336,7 +10334,6 @@ FAIL=Checking align-items: safe end
 FAIL=Checking align-items: safe flex-end
 FAIL=Checking align-items: self-end
 FAIL=Checking align-items: self-start
-FAIL=Checking align-items: start
 FAIL=Checking align-items: unsafe end
 FAIL=Checking align-items: unsafe flex-start
 [css/css-align/default-alignment/parse-align-items-005.html]
@@ -11229,35 +11226,28 @@ FAIL=e.style['align-content'] = "left" should not set the property value
 FAIL=e.style['align-content'] = "baseline" should set the property value
 FAIL=e.style['align-content'] = "first baseline" should set the property value
 FAIL=e.style['align-content'] = "last baseline" should set the property value
-FAIL=e.style['align-content'] = "safe flex-start" should set the property value
 FAIL=e.style['align-content'] = "unsafe end" should set the property value
 [css/css-align/parsing/align-items-computed.html]
-FAIL=Property align-items value 'end'
 FAIL=Property align-items value 'last baseline'
 FAIL=Property align-items value 'normal'
 FAIL=Property align-items value 'safe self-end'
 FAIL=Property align-items value 'self-end'
 FAIL=Property align-items value 'self-start'
-FAIL=Property align-items value 'start'
 FAIL=Property align-items value 'unsafe center'
 [css/css-align/parsing/align-items-valid.html]
 FAIL=e.style['align-items'] = "first baseline" should set the property value
 FAIL=e.style['align-items'] = "last baseline" should set the property value
-FAIL=e.style['align-items'] = "safe self-end" should set the property value
 FAIL=e.style['align-items'] = "unsafe center" should set the property value
 [css/css-align/parsing/align-self-computed.html]
-FAIL=Property align-self value 'end'
 FAIL=Property align-self value 'last baseline'
 FAIL=Property align-self value 'normal'
 FAIL=Property align-self value 'safe self-end'
 FAIL=Property align-self value 'self-end'
 FAIL=Property align-self value 'self-start'
-FAIL=Property align-self value 'start'
 FAIL=Property align-self value 'unsafe center'
 [css/css-align/parsing/align-self-valid.html]
 FAIL=e.style['align-self'] = "first baseline" should set the property value
 FAIL=e.style['align-self'] = "last baseline" should set the property value
-FAIL=e.style['align-self'] = "safe self-end" should set the property value
 FAIL=e.style['align-self'] = "unsafe center" should set the property value
 [css/css-align/parsing/column-gap-computed.html]
 FAIL=Property column-gap value '40%'
@@ -11368,15 +11358,12 @@ FAIL=e.style['grid-row-gap'] = "20%" should set the property value
 FAIL=e.style['grid-row-gap'] = "calc(20% + 10px)" should set the property value
 FAIL=e.style['grid-row-gap'] = "normal" should set the property value
 [css/css-align/parsing/justify-content-computed.html]
-FAIL=Property justify-content value 'end'
 FAIL=Property justify-content value 'left'
 FAIL=Property justify-content value 'normal'
 FAIL=Property justify-content value 'safe flex-start'
-FAIL=Property justify-content value 'start'
 FAIL=Property justify-content value 'unsafe end'
 FAIL=Property justify-content value 'unsafe right'
 [css/css-align/parsing/justify-content-valid.html]
-FAIL=e.style['justify-content'] = "safe flex-start" should set the property value
 FAIL=e.style['justify-content'] = "unsafe end" should set the property value
 FAIL=e.style['justify-content'] = "unsafe right" should set the property value
 [css/css-align/parsing/justify-items-computed.html]
@@ -11636,7 +11623,6 @@ FAIL=e.style['row-gap'] = "normal" should set the property value
 [css/css-align/self-alignment/block-justify-self.html]
 harness=FAIL
 [css/css-align/self-alignment/parse-align-self-001.html]
-FAIL=Checking align-self: end
 FAIL=Checking align-self: first baseline
 FAIL=Checking align-self: last baseline
 FAIL=Checking align-self: normal
@@ -11645,17 +11631,12 @@ FAIL=Checking align-self: safe end
 FAIL=Checking align-self: safe flex-end
 FAIL=Checking align-self: self-end
 FAIL=Checking align-self: self-start
-FAIL=Checking align-self: start
 FAIL=Checking align-self: unsafe end
 FAIL=Checking align-self: unsafe flex-start
 [css/css-align/self-alignment/parse-align-self-002.html]
-FAIL=Test absolute positioned elements align-self: 'initial'
-FAIL=Test absolute positioned flex items align-self: 'initial'
-FAIL=Test absolute positioned grid items align-self: 'initial'
 FAIL=Test flex items align-self: 'initial'
 FAIL=Test grid items align-self: 'initial'
 [css/css-align/self-alignment/parse-align-self-003.html]
-FAIL=Checking align-self: end
 FAIL=Checking align-self: first baseline
 FAIL=Checking align-self: last baseline
 FAIL=Checking align-self: normal
@@ -11664,7 +11645,6 @@ FAIL=Checking align-self: safe end
 FAIL=Checking align-self: safe flex-end
 FAIL=Checking align-self: self-end
 FAIL=Checking align-self: self-start
-FAIL=Checking align-self: start
 FAIL=Checking align-self: unsafe end
 FAIL=Checking align-self: unsafe flex-start
 [css/css-align/self-alignment/parse-align-self-005.html]
@@ -12311,11 +12291,11 @@ FAIL=Checking place-self: stretch stretch
 harness=FAIL
 [css/css-align/self-alignment/self-align-safe-unsafe-flex-002.html]
 harness=FAIL
+[css/css-align/self-alignment/self-align-safe-unsafe-flex-003.html]
+harness=FAIL
 [css/css-align/self-alignment/self-align-safe-unsafe-grid-001.html]
 harness=FAIL
 [css/css-align/self-alignment/self-align-safe-unsafe-grid-002.html]
-harness=FAIL
-[css/css-align/self-alignment/self-align-start-end-flex-001.html]
 harness=FAIL
 [css/css-animations/AnimationEffect-getComputedTiming.tentative.html]
 FAIL=Negative delay of a new animation
@@ -20410,15 +20390,12 @@ FAIL=.collapsed 1
 [css/css-box/margin-trim/block-container-block-end-self-collapsing-children-offsets-nested-multiple-times.html]
 FAIL=.collapsed 1
 [css/css-box/margin-trim/block-container-block-end-self-collapsing-children-offsets-nested-once.html]
-FAIL=container > item 1
 FAIL=container > item 2
 FAIL=container > item 3
 [css/css-box/margin-trim/block-container-block-end-self-collapsing-children-offsets-vert-lr.html]
-FAIL=container > item 1
 FAIL=container > item 2
 FAIL=container > item 3
 [css/css-box/margin-trim/block-container-block-end-self-collapsing-children-offsets.html]
-FAIL=container > item 1
 FAIL=container > item 2
 FAIL=container > item 3
 [css/css-box/margin-trim/block-container-block-end-start-margin.html]
@@ -20482,25 +20459,14 @@ FAIL=item 1
 FAIL=flexbox > item 1
 FAIL=flexbox > item 2
 [css/css-box/margin-trim/computed-margin-values/flexbox-column-block-start.html]
-FAIL=flexbox > item 1
 FAIL=flexbox > item 2
-[css/css-box/margin-trim/computed-margin-values/flexbox-column-inline-end.html]
-FAIL=flexbox > item 1
-FAIL=flexbox > item 2
-FAIL=flexbox > item 3
-[css/css-box/margin-trim/computed-margin-values/flexbox-column-inline-start.html]
-FAIL=flexbox > item 1
-FAIL=flexbox > item 2
-FAIL=flexbox > item 3
 [css/css-box/margin-trim/computed-margin-values/flexbox-column-multi-line-block-end.html]
 FAIL=flexbox > item 1
 FAIL=flexbox > item 2
 FAIL=flexbox > item 3
 FAIL=flexbox > item 4
 [css/css-box/margin-trim/computed-margin-values/flexbox-column-multi-line-block-start.html]
-FAIL=flexbox > item 1
 FAIL=flexbox > item 2
-FAIL=flexbox > item 3
 FAIL=flexbox > item 4
 [css/css-box/margin-trim/computed-margin-values/flexbox-column-multi-line-block.html]
 FAIL=flexbox > item 1
@@ -20513,27 +20479,16 @@ FAIL=flexbox > item 2
 FAIL=flexbox > item 3
 FAIL=flexbox > item 4
 [css/css-box/margin-trim/computed-margin-values/flexbox-column-multi-line-inline-start.html]
-FAIL=flexbox > item 1
-FAIL=flexbox > item 2
 FAIL=flexbox > item 3
 FAIL=flexbox > item 4
 [css/css-box/margin-trim/computed-margin-values/flexbox-column-style-change-triggers-layout-block-start.html]
 FAIL=flexbox > item 1
 FAIL=flexbox > item 2
-[css/css-box/margin-trim/computed-margin-values/flexbox-row-block-start.html]
-FAIL=flexbox > item 1
-FAIL=flexbox > item 2
-FAIL=flexbox > item 3
-[css/css-box/margin-trim/computed-margin-values/flexbox-row-block.html]
-FAIL=flexbox > item 1
-FAIL=flexbox > item 2
-FAIL=flexbox > item 3
 [css/css-box/margin-trim/computed-margin-values/flexbox-row-inline-end.html]
 FAIL=flexbox > item 1
 FAIL=flexbox > item 2
 FAIL=flexbox > item 3
 [css/css-box/margin-trim/computed-margin-values/flexbox-row-inline-start.html]
-FAIL=flexbox > item 1
 FAIL=flexbox > item 2
 FAIL=flexbox > item 3
 [css/css-box/margin-trim/computed-margin-values/flexbox-row-multi-line-block-end.html]
@@ -20542,8 +20497,6 @@ FAIL=flexbox > item 2
 FAIL=flexbox > item 3
 FAIL=flexbox > item 4
 [css/css-box/margin-trim/computed-margin-values/flexbox-row-multi-line-block-start.html]
-FAIL=flexbox > item 1
-FAIL=flexbox > item 2
 FAIL=flexbox > item 3
 FAIL=flexbox > item 4
 [css/css-box/margin-trim/computed-margin-values/flexbox-row-multi-line-block.html]
@@ -20557,9 +20510,7 @@ FAIL=flexbox > item 2
 FAIL=flexbox > item 3
 FAIL=flexbox > item 4
 [css/css-box/margin-trim/computed-margin-values/flexbox-row-multi-line-inline-start.html]
-FAIL=flexbox > item 1
 FAIL=flexbox > item 2
-FAIL=flexbox > item 3
 FAIL=flexbox > item 4
 [css/css-box/margin-trim/computed-margin-values/grid-block-end-column-auto-flow.html]
 harness=TIMEOUT
@@ -20579,6 +20530,8 @@ FAIL=grid > item 4
 harness=TIMEOUT
 [css/css-box/margin-trim/computed-margin-values/grid-inline-start.html]
 harness=TIMEOUT
+[css/css-box/margin-trim/flex-column-block-multiline.html]
+harness=FAIL
 [css/css-box/margin-trim/flex-column-inline-multiline.html]
 harness=FAIL
 [css/css-box/margin-trim/flex-inline-end-trimmed-only.html]
@@ -22187,8 +22140,6 @@ FAIL=list-style-image: light-dark(none, url('dark.png'))
 FAIL=list-style-image: light-dark(url('light.png'), none)
 FAIL=list-style-image: light-dark(url('light.png'), url('dark.png'))
 [css/css-color/light-dark-inheritance.html]
-harness=FAIL
-[css/css-color/named-001.html]
 harness=FAIL
 [css/css-color/nested-color-mix-with-currentcolor.html]
 FAIL=Nested color-mix function with inner currentColor should inherit unresolved
@@ -23961,389 +23912,8 @@ FAIL=Property color value 'oklch(none none none / none)'
 FAIL=Property color value 'oklch(none none none)'
 [css/css-color/parsing/color-computed-named-color.html]
 FAIL=Property color value '/**/transparent' [Should parse to completely transparent]
-FAIL=Property color value 'ALICEBLUE' [Keywords should be case-insensitive]
-FAIL=Property color value 'ANTIQUEWHITE' [Keywords should be case-insensitive]
-FAIL=Property color value 'AQUAMARINE' [Keywords should be case-insensitive]
-FAIL=Property color value 'AZURE' [Keywords should be case-insensitive]
-FAIL=Property color value 'BEIGE' [Keywords should be case-insensitive]
-FAIL=Property color value 'BISQUE' [Keywords should be case-insensitive]
-FAIL=Property color value 'BLANCHEDALMOND' [Keywords should be case-insensitive]
-FAIL=Property color value 'BLUEVIOLET' [Keywords should be case-insensitive]
-FAIL=Property color value 'BROWN' [Keywords should be case-insensitive]
-FAIL=Property color value 'BURLYWOOD' [Keywords should be case-insensitive]
-FAIL=Property color value 'CADETBLUE' [Keywords should be case-insensitive]
-FAIL=Property color value 'CHARTREUSE' [Keywords should be case-insensitive]
-FAIL=Property color value 'CHOCOLATE' [Keywords should be case-insensitive]
-FAIL=Property color value 'CORAL' [Keywords should be case-insensitive]
-FAIL=Property color value 'CORNFLOWERBLUE' [Keywords should be case-insensitive]
-FAIL=Property color value 'CORNSILK' [Keywords should be case-insensitive]
-FAIL=Property color value 'CRIMSON' [Keywords should be case-insensitive]
 FAIL=Property color value 'CURRENTcolor' [Should be same as parent color]
-FAIL=Property color value 'DARKBLUE' [Keywords should be case-insensitive]
-FAIL=Property color value 'DARKCYAN' [Keywords should be case-insensitive]
-FAIL=Property color value 'DARKGOLDENROD' [Keywords should be case-insensitive]
-FAIL=Property color value 'DARKGRAY' [Keywords should be case-insensitive]
-FAIL=Property color value 'DARKGREEN' [Keywords should be case-insensitive]
-FAIL=Property color value 'DARKGREY' [Keywords should be case-insensitive]
-FAIL=Property color value 'DARKKHAKI' [Keywords should be case-insensitive]
-FAIL=Property color value 'DARKMAGENTA' [Keywords should be case-insensitive]
-FAIL=Property color value 'DARKOLIVEGREEN' [Keywords should be case-insensitive]
-FAIL=Property color value 'DARKORANGE' [Keywords should be case-insensitive]
-FAIL=Property color value 'DARKORCHID' [Keywords should be case-insensitive]
-FAIL=Property color value 'DARKRED' [Keywords should be case-insensitive]
-FAIL=Property color value 'DARKSALMON' [Keywords should be case-insensitive]
-FAIL=Property color value 'DARKSEAGREEN' [Keywords should be case-insensitive]
-FAIL=Property color value 'DARKSLATEBLUE' [Keywords should be case-insensitive]
-FAIL=Property color value 'DARKSLATEGRAY' [Keywords should be case-insensitive]
-FAIL=Property color value 'DARKSLATEGREY' [Keywords should be case-insensitive]
-FAIL=Property color value 'DARKTURQUOISE' [Keywords should be case-insensitive]
-FAIL=Property color value 'DARKVIOLET' [Keywords should be case-insensitive]
-FAIL=Property color value 'DEEPPINK' [Keywords should be case-insensitive]
-FAIL=Property color value 'DEEPSKYBLUE' [Keywords should be case-insensitive]
-FAIL=Property color value 'DIMGRAY' [Keywords should be case-insensitive]
-FAIL=Property color value 'DIMGREY' [Keywords should be case-insensitive]
-FAIL=Property color value 'DODGERBLUE' [Keywords should be case-insensitive]
-FAIL=Property color value 'FIREBRICK' [Keywords should be case-insensitive]
-FAIL=Property color value 'FLORALWHITE' [Keywords should be case-insensitive]
-FAIL=Property color value 'FORESTGREEN' [Keywords should be case-insensitive]
-FAIL=Property color value 'GAINSBORO' [Keywords should be case-insensitive]
-FAIL=Property color value 'GHOSTWHITE' [Keywords should be case-insensitive]
-FAIL=Property color value 'GOLD' [Keywords should be case-insensitive]
-FAIL=Property color value 'GOLDENROD' [Keywords should be case-insensitive]
-FAIL=Property color value 'GREENYELLOW' [Keywords should be case-insensitive]
-FAIL=Property color value 'HONEYDEW' [Keywords should be case-insensitive]
-FAIL=Property color value 'HOTPINK' [Keywords should be case-insensitive]
-FAIL=Property color value 'INDIANRED' [Keywords should be case-insensitive]
-FAIL=Property color value 'INDIGO' [Keywords should be case-insensitive]
-FAIL=Property color value 'IVORY' [Keywords should be case-insensitive]
-FAIL=Property color value 'KHAKI' [Keywords should be case-insensitive]
-FAIL=Property color value 'LAVENDER' [Keywords should be case-insensitive]
-FAIL=Property color value 'LAVENDERBLUSH' [Keywords should be case-insensitive]
-FAIL=Property color value 'LAWNGREEN' [Keywords should be case-insensitive]
-FAIL=Property color value 'LEMONCHIFFON' [Keywords should be case-insensitive]
-FAIL=Property color value 'LIGHTBLUE' [Keywords should be case-insensitive]
-FAIL=Property color value 'LIGHTCORAL' [Keywords should be case-insensitive]
-FAIL=Property color value 'LIGHTCYAN' [Keywords should be case-insensitive]
-FAIL=Property color value 'LIGHTGOLDENRODYELLOW' [Keywords should be case-insensitive]
-FAIL=Property color value 'LIGHTGRAY' [Keywords should be case-insensitive]
-FAIL=Property color value 'LIGHTGREEN' [Keywords should be case-insensitive]
-FAIL=Property color value 'LIGHTGREY' [Keywords should be case-insensitive]
-FAIL=Property color value 'LIGHTPINK' [Keywords should be case-insensitive]
-FAIL=Property color value 'LIGHTSALMON' [Keywords should be case-insensitive]
-FAIL=Property color value 'LIGHTSEAGREEN' [Keywords should be case-insensitive]
-FAIL=Property color value 'LIGHTSKYBLUE' [Keywords should be case-insensitive]
-FAIL=Property color value 'LIGHTSLATEGRAY' [Keywords should be case-insensitive]
-FAIL=Property color value 'LIGHTSLATEGREY' [Keywords should be case-insensitive]
-FAIL=Property color value 'LIGHTSTEELBLUE' [Keywords should be case-insensitive]
-FAIL=Property color value 'LIGHTYELLOW' [Keywords should be case-insensitive]
-FAIL=Property color value 'LIMEGREEN' [Keywords should be case-insensitive]
-FAIL=Property color value 'LINEN' [Keywords should be case-insensitive]
-FAIL=Property color value 'MEDIUMAQUAMARINE' [Keywords should be case-insensitive]
-FAIL=Property color value 'MEDIUMBLUE' [Keywords should be case-insensitive]
-FAIL=Property color value 'MEDIUMORCHID' [Keywords should be case-insensitive]
-FAIL=Property color value 'MEDIUMPURPLE' [Keywords should be case-insensitive]
-FAIL=Property color value 'MEDIUMSEAGREEN' [Keywords should be case-insensitive]
-FAIL=Property color value 'MEDIUMSLATEBLUE' [Keywords should be case-insensitive]
-FAIL=Property color value 'MEDIUMSPRINGGREEN' [Keywords should be case-insensitive]
-FAIL=Property color value 'MEDIUMTURQUOISE' [Keywords should be case-insensitive]
-FAIL=Property color value 'MEDIUMVIOLETRED' [Keywords should be case-insensitive]
-FAIL=Property color value 'MIDNIGHTBLUE' [Keywords should be case-insensitive]
-FAIL=Property color value 'MINTCREAM' [Keywords should be case-insensitive]
-FAIL=Property color value 'MISTYROSE' [Keywords should be case-insensitive]
-FAIL=Property color value 'MOCCASIN' [Keywords should be case-insensitive]
-FAIL=Property color value 'NAVAJOWHITE' [Keywords should be case-insensitive]
-FAIL=Property color value 'OLDLACE' [Keywords should be case-insensitive]
-FAIL=Property color value 'OLIVEDRAB' [Keywords should be case-insensitive]
-FAIL=Property color value 'ORANGERED' [Keywords should be case-insensitive]
-FAIL=Property color value 'ORCHID' [Keywords should be case-insensitive]
-FAIL=Property color value 'PALEGOLDENROD' [Keywords should be case-insensitive]
-FAIL=Property color value 'PALEGREEN' [Keywords should be case-insensitive]
-FAIL=Property color value 'PALETURQUOISE' [Keywords should be case-insensitive]
-FAIL=Property color value 'PALEVIOLETRED' [Keywords should be case-insensitive]
-FAIL=Property color value 'PAPAYAWHIP' [Keywords should be case-insensitive]
-FAIL=Property color value 'PEACHPUFF' [Keywords should be case-insensitive]
-FAIL=Property color value 'PERU' [Keywords should be case-insensitive]
-FAIL=Property color value 'PINK' [Keywords should be case-insensitive]
-FAIL=Property color value 'PLUM' [Keywords should be case-insensitive]
-FAIL=Property color value 'POWDERBLUE' [Keywords should be case-insensitive]
-FAIL=Property color value 'ROSYBROWN' [Keywords should be case-insensitive]
-FAIL=Property color value 'ROYALBLUE' [Keywords should be case-insensitive]
-FAIL=Property color value 'SADDLEBROWN' [Keywords should be case-insensitive]
-FAIL=Property color value 'SALMON' [Keywords should be case-insensitive]
-FAIL=Property color value 'SANDYBROWN' [Keywords should be case-insensitive]
-FAIL=Property color value 'SEAGREEN' [Keywords should be case-insensitive]
-FAIL=Property color value 'SEASHELL' [Keywords should be case-insensitive]
-FAIL=Property color value 'SIENNA' [Keywords should be case-insensitive]
-FAIL=Property color value 'SKYBLUE' [Keywords should be case-insensitive]
-FAIL=Property color value 'SLATEBLUE' [Keywords should be case-insensitive]
-FAIL=Property color value 'SLATEGRAY' [Keywords should be case-insensitive]
-FAIL=Property color value 'SLATEGREY' [Keywords should be case-insensitive]
-FAIL=Property color value 'SNOW' [Keywords should be case-insensitive]
-FAIL=Property color value 'SPRINGGREEN' [Keywords should be case-insensitive]
-FAIL=Property color value 'STEELBLUE' [Keywords should be case-insensitive]
-FAIL=Property color value 'TAN' [Keywords should be case-insensitive]
-FAIL=Property color value 'THISTLE' [Keywords should be case-insensitive]
-FAIL=Property color value 'TOMATO' [Keywords should be case-insensitive]
-FAIL=Property color value 'TURQUOISE' [Keywords should be case-insensitive]
-FAIL=Property color value 'VIOLET' [Keywords should be case-insensitive]
-FAIL=Property color value 'WHEAT' [Keywords should be case-insensitive]
-FAIL=Property color value 'WHITESMOKE' [Keywords should be case-insensitive]
-FAIL=Property color value 'YELLOWGREEN' [Keywords should be case-insensitive]
-FAIL=Property color value 'aliceblue' [Code point should parse]
-FAIL=Property color value 'aliceblue' [Keyword should parse properly]
-FAIL=Property color value 'antiquewhite' [Code point should parse]
-FAIL=Property color value 'antiquewhite' [Keyword should parse properly]
-FAIL=Property color value 'aquamarine' [Code point should parse]
-FAIL=Property color value 'aquamarine' [Keyword should parse properly]
-FAIL=Property color value 'azure' [Code point should parse]
-FAIL=Property color value 'azure' [Keyword should parse properly]
-FAIL=Property color value 'beige' [Code point should parse]
-FAIL=Property color value 'beige' [Keyword should parse properly]
-FAIL=Property color value 'bisque' [Code point should parse]
-FAIL=Property color value 'bisque' [Keyword should parse properly]
-FAIL=Property color value 'blanchedalmond' [Code point should parse]
-FAIL=Property color value 'blanchedalmond' [Keyword should parse properly]
-FAIL=Property color value 'blueviolet' [Code point should parse]
-FAIL=Property color value 'blueviolet' [Keyword should parse properly]
-FAIL=Property color value 'brown' [Code point should parse]
-FAIL=Property color value 'brown' [Keyword should parse properly]
-FAIL=Property color value 'burlywood' [Code point should parse]
-FAIL=Property color value 'burlywood' [Keyword should parse properly]
-FAIL=Property color value 'cadetblue' [Code point should parse]
-FAIL=Property color value 'cadetblue' [Keyword should parse properly]
-FAIL=Property color value 'chartreuse' [Code point should parse]
-FAIL=Property color value 'chartreuse' [Keyword should parse properly]
-FAIL=Property color value 'chocolate' [Code point should parse]
-FAIL=Property color value 'chocolate' [Keyword should parse properly]
-FAIL=Property color value 'coral' [Code point should parse]
-FAIL=Property color value 'coral' [Keyword should parse properly]
-FAIL=Property color value 'cornflowerblue' [Code point should parse]
-FAIL=Property color value 'cornflowerblue' [Keyword should parse properly]
-FAIL=Property color value 'cornsilk' [Code point should parse]
-FAIL=Property color value 'cornsilk' [Keyword should parse properly]
-FAIL=Property color value 'crimson' [Code point should parse]
-FAIL=Property color value 'crimson' [Keyword should parse properly]
 FAIL=Property color value 'currentColor' [Should be same as parent color]
-FAIL=Property color value 'darkblue' [Code point should parse]
-FAIL=Property color value 'darkblue' [Keyword should parse properly]
-FAIL=Property color value 'darkcyan' [Code point should parse]
-FAIL=Property color value 'darkcyan' [Keyword should parse properly]
-FAIL=Property color value 'darkgoldenrod' [Code point should parse]
-FAIL=Property color value 'darkgoldenrod' [Keyword should parse properly]
-FAIL=Property color value 'darkgray' [Code point should parse]
-FAIL=Property color value 'darkgray' [Keyword should parse properly]
-FAIL=Property color value 'darkgreen' [Code point should parse]
-FAIL=Property color value 'darkgreen' [Keyword should parse properly]
-FAIL=Property color value 'darkgrey' [Code point should parse]
-FAIL=Property color value 'darkgrey' [Keyword should parse properly]
-FAIL=Property color value 'darkkhaki' [Code point should parse]
-FAIL=Property color value 'darkkhaki' [Keyword should parse properly]
-FAIL=Property color value 'darkmagenta' [Code point should parse]
-FAIL=Property color value 'darkmagenta' [Keyword should parse properly]
-FAIL=Property color value 'darkolivegreen' [Code point should parse]
-FAIL=Property color value 'darkolivegreen' [Keyword should parse properly]
-FAIL=Property color value 'darkorange' [Code point should parse]
-FAIL=Property color value 'darkorange' [Keyword should parse properly]
-FAIL=Property color value 'darkorchid' [Code point should parse]
-FAIL=Property color value 'darkorchid' [Keyword should parse properly]
-FAIL=Property color value 'darkred' [Code point should parse]
-FAIL=Property color value 'darkred' [Keyword should parse properly]
-FAIL=Property color value 'darksalmon' [Code point should parse]
-FAIL=Property color value 'darksalmon' [Keyword should parse properly]
-FAIL=Property color value 'darkseagreen' [Code point should parse]
-FAIL=Property color value 'darkseagreen' [Keyword should parse properly]
-FAIL=Property color value 'darkslateblue' [Code point should parse]
-FAIL=Property color value 'darkslateblue' [Keyword should parse properly]
-FAIL=Property color value 'darkslategray' [Code point should parse]
-FAIL=Property color value 'darkslategray' [Keyword should parse properly]
-FAIL=Property color value 'darkslategrey' [Code point should parse]
-FAIL=Property color value 'darkslategrey' [Keyword should parse properly]
-FAIL=Property color value 'darkturquoise' [Code point should parse]
-FAIL=Property color value 'darkturquoise' [Keyword should parse properly]
-FAIL=Property color value 'darkviolet' [Code point should parse]
-FAIL=Property color value 'darkviolet' [Keyword should parse properly]
-FAIL=Property color value 'deeppink' [Code point should parse]
-FAIL=Property color value 'deeppink' [Keyword should parse properly]
-FAIL=Property color value 'deepskyblue' [Code point should parse]
-FAIL=Property color value 'deepskyblue' [Keyword should parse properly]
-FAIL=Property color value 'dimgray' [Code point should parse]
-FAIL=Property color value 'dimgray' [Keyword should parse properly]
-FAIL=Property color value 'dimgrey' [Code point should parse]
-FAIL=Property color value 'dimgrey' [Keyword should parse properly]
-FAIL=Property color value 'dodgerblue' [Code point should parse]
-FAIL=Property color value 'dodgerblue' [Keyword should parse properly]
-FAIL=Property color value 'firebrick' [Code point should parse]
-FAIL=Property color value 'firebrick' [Keyword should parse properly]
-FAIL=Property color value 'floralwhite' [Code point should parse]
-FAIL=Property color value 'floralwhite' [Keyword should parse properly]
-FAIL=Property color value 'forestgreen' [Code point should parse]
-FAIL=Property color value 'forestgreen' [Keyword should parse properly]
-FAIL=Property color value 'gainsboro' [Code point should parse]
-FAIL=Property color value 'gainsboro' [Keyword should parse properly]
-FAIL=Property color value 'ghostwhite' [Code point should parse]
-FAIL=Property color value 'ghostwhite' [Keyword should parse properly]
-FAIL=Property color value 'gold' [Code point should parse]
-FAIL=Property color value 'gold' [Keyword should parse properly]
-FAIL=Property color value 'goldenrod' [Code point should parse]
-FAIL=Property color value 'goldenrod' [Keyword should parse properly]
-FAIL=Property color value 'greenyellow' [Code point should parse]
-FAIL=Property color value 'greenyellow' [Keyword should parse properly]
-FAIL=Property color value 'honeydew' [Code point should parse]
-FAIL=Property color value 'honeydew' [Keyword should parse properly]
-FAIL=Property color value 'hotpink' [Code point should parse]
-FAIL=Property color value 'hotpink' [Keyword should parse properly]
-FAIL=Property color value 'indianred' [Code point should parse]
-FAIL=Property color value 'indianred' [Keyword should parse properly]
-FAIL=Property color value 'indigo' [Code point should parse]
-FAIL=Property color value 'indigo' [Keyword should parse properly]
-FAIL=Property color value 'ivory' [Code point should parse]
-FAIL=Property color value 'ivory' [Keyword should parse properly]
-FAIL=Property color value 'khaki' [Code point should parse]
-FAIL=Property color value 'khaki' [Keyword should parse properly]
-FAIL=Property color value 'lavender' [Code point should parse]
-FAIL=Property color value 'lavender' [Keyword should parse properly]
-FAIL=Property color value 'lavenderblush' [Code point should parse]
-FAIL=Property color value 'lavenderblush' [Keyword should parse properly]
-FAIL=Property color value 'lawngreen' [Code point should parse]
-FAIL=Property color value 'lawngreen' [Keyword should parse properly]
-FAIL=Property color value 'lemonchiffon' [Code point should parse]
-FAIL=Property color value 'lemonchiffon' [Keyword should parse properly]
-FAIL=Property color value 'lightblue' [Code point should parse]
-FAIL=Property color value 'lightblue' [Keyword should parse properly]
-FAIL=Property color value 'lightcoral' [Code point should parse]
-FAIL=Property color value 'lightcoral' [Keyword should parse properly]
-FAIL=Property color value 'lightcyan' [Code point should parse]
-FAIL=Property color value 'lightcyan' [Keyword should parse properly]
-FAIL=Property color value 'lightgoldenrodyellow' [Code point should parse]
-FAIL=Property color value 'lightgoldenrodyellow' [Keyword should parse properly]
-FAIL=Property color value 'lightgray' [Code point should parse]
-FAIL=Property color value 'lightgray' [Keyword should parse properly]
-FAIL=Property color value 'lightgreen' [Code point should parse]
-FAIL=Property color value 'lightgreen' [Keyword should parse properly]
-FAIL=Property color value 'lightgrey' [Code point should parse]
-FAIL=Property color value 'lightgrey' [Keyword should parse properly]
-FAIL=Property color value 'lightpink' [Code point should parse]
-FAIL=Property color value 'lightpink' [Keyword should parse properly]
-FAIL=Property color value 'lightsalmon' [Code point should parse]
-FAIL=Property color value 'lightsalmon' [Keyword should parse properly]
-FAIL=Property color value 'lightseagreen' [Code point should parse]
-FAIL=Property color value 'lightseagreen' [Keyword should parse properly]
-FAIL=Property color value 'lightskyblue' [Code point should parse]
-FAIL=Property color value 'lightskyblue' [Keyword should parse properly]
-FAIL=Property color value 'lightslategray' [Code point should parse]
-FAIL=Property color value 'lightslategray' [Keyword should parse properly]
-FAIL=Property color value 'lightslategrey' [Code point should parse]
-FAIL=Property color value 'lightslategrey' [Keyword should parse properly]
-FAIL=Property color value 'lightsteelblue' [Code point should parse]
-FAIL=Property color value 'lightsteelblue' [Keyword should parse properly]
-FAIL=Property color value 'lightyellow' [Code point should parse]
-FAIL=Property color value 'lightyellow' [Keyword should parse properly]
-FAIL=Property color value 'limegreen' [Code point should parse]
-FAIL=Property color value 'limegreen' [Keyword should parse properly]
-FAIL=Property color value 'linen' [Code point should parse]
-FAIL=Property color value 'linen' [Keyword should parse properly]
-FAIL=Property color value 'mediumaquamarine' [Code point should parse]
-FAIL=Property color value 'mediumaquamarine' [Keyword should parse properly]
-FAIL=Property color value 'mediumblue' [Code point should parse]
-FAIL=Property color value 'mediumblue' [Keyword should parse properly]
-FAIL=Property color value 'mediumorchid' [Code point should parse]
-FAIL=Property color value 'mediumorchid' [Keyword should parse properly]
-FAIL=Property color value 'mediumpurple' [Code point should parse]
-FAIL=Property color value 'mediumpurple' [Keyword should parse properly]
-FAIL=Property color value 'mediumseagreen' [Code point should parse]
-FAIL=Property color value 'mediumseagreen' [Keyword should parse properly]
-FAIL=Property color value 'mediumslateblue' [Code point should parse]
-FAIL=Property color value 'mediumslateblue' [Keyword should parse properly]
-FAIL=Property color value 'mediumspringgreen' [Code point should parse]
-FAIL=Property color value 'mediumspringgreen' [Keyword should parse properly]
-FAIL=Property color value 'mediumturquoise' [Code point should parse]
-FAIL=Property color value 'mediumturquoise' [Keyword should parse properly]
-FAIL=Property color value 'mediumvioletred' [Code point should parse]
-FAIL=Property color value 'mediumvioletred' [Keyword should parse properly]
-FAIL=Property color value 'midnightblue' [Code point should parse]
-FAIL=Property color value 'midnightblue' [Keyword should parse properly]
-FAIL=Property color value 'mintcream' [Code point should parse]
-FAIL=Property color value 'mintcream' [Keyword should parse properly]
-FAIL=Property color value 'mistyrose' [Code point should parse]
-FAIL=Property color value 'mistyrose' [Keyword should parse properly]
-FAIL=Property color value 'moccasin' [Code point should parse]
-FAIL=Property color value 'moccasin' [Keyword should parse properly]
-FAIL=Property color value 'navajowhite' [Code point should parse]
-FAIL=Property color value 'navajowhite' [Keyword should parse properly]
-FAIL=Property color value 'oldlace' [Code point should parse]
-FAIL=Property color value 'oldlace' [Keyword should parse properly]
-FAIL=Property color value 'olivedrab' [Code point should parse]
-FAIL=Property color value 'olivedrab' [Keyword should parse properly]
-FAIL=Property color value 'orangered' [Code point should parse]
-FAIL=Property color value 'orangered' [Keyword should parse properly]
-FAIL=Property color value 'orchid' [Code point should parse]
-FAIL=Property color value 'orchid' [Keyword should parse properly]
-FAIL=Property color value 'palegoldenrod' [Code point should parse]
-FAIL=Property color value 'palegoldenrod' [Keyword should parse properly]
-FAIL=Property color value 'palegreen' [Code point should parse]
-FAIL=Property color value 'palegreen' [Keyword should parse properly]
-FAIL=Property color value 'paleturquoise' [Code point should parse]
-FAIL=Property color value 'paleturquoise' [Keyword should parse properly]
-FAIL=Property color value 'palevioletred' [Code point should parse]
-FAIL=Property color value 'palevioletred' [Keyword should parse properly]
-FAIL=Property color value 'papayawhip' [Code point should parse]
-FAIL=Property color value 'papayawhip' [Keyword should parse properly]
-FAIL=Property color value 'peachpuff' [Code point should parse]
-FAIL=Property color value 'peachpuff' [Keyword should parse properly]
-FAIL=Property color value 'peru' [Code point should parse]
-FAIL=Property color value 'peru' [Keyword should parse properly]
-FAIL=Property color value 'pink' [Code point should parse]
-FAIL=Property color value 'pink' [Keyword should parse properly]
-FAIL=Property color value 'plum' [Code point should parse]
-FAIL=Property color value 'plum' [Keyword should parse properly]
-FAIL=Property color value 'powderblue' [Code point should parse]
-FAIL=Property color value 'powderblue' [Keyword should parse properly]
-FAIL=Property color value 'rosybrown' [Code point should parse]
-FAIL=Property color value 'rosybrown' [Keyword should parse properly]
-FAIL=Property color value 'royalblue' [Code point should parse]
-FAIL=Property color value 'royalblue' [Keyword should parse properly]
-FAIL=Property color value 'saddlebrown' [Code point should parse]
-FAIL=Property color value 'saddlebrown' [Keyword should parse properly]
-FAIL=Property color value 'salmon' [Code point should parse]
-FAIL=Property color value 'salmon' [Keyword should parse properly]
-FAIL=Property color value 'sandybrown' [Code point should parse]
-FAIL=Property color value 'sandybrown' [Keyword should parse properly]
-FAIL=Property color value 'seagreen' [Code point should parse]
-FAIL=Property color value 'seagreen' [Keyword should parse properly]
-FAIL=Property color value 'seashell' [Code point should parse]
-FAIL=Property color value 'seashell' [Keyword should parse properly]
-FAIL=Property color value 'sienna' [Code point should parse]
-FAIL=Property color value 'sienna' [Keyword should parse properly]
-FAIL=Property color value 'skyblue' [Code point should parse]
-FAIL=Property color value 'skyblue' [Keyword should parse properly]
-FAIL=Property color value 'slateblue' [Code point should parse]
-FAIL=Property color value 'slateblue' [Keyword should parse properly]
-FAIL=Property color value 'slategray' [Code point should parse]
-FAIL=Property color value 'slategray' [Keyword should parse properly]
-FAIL=Property color value 'slategrey' [Code point should parse]
-FAIL=Property color value 'slategrey' [Keyword should parse properly]
-FAIL=Property color value 'snow' [Code point should parse]
-FAIL=Property color value 'snow' [Keyword should parse properly]
-FAIL=Property color value 'springgreen' [Code point should parse]
-FAIL=Property color value 'springgreen' [Keyword should parse properly]
-FAIL=Property color value 'steelblue' [Code point should parse]
-FAIL=Property color value 'steelblue' [Keyword should parse properly]
-FAIL=Property color value 'tan' [Code point should parse]
-FAIL=Property color value 'tan' [Keyword should parse properly]
-FAIL=Property color value 'thistle' [Code point should parse]
-FAIL=Property color value 'thistle' [Keyword should parse properly]
-FAIL=Property color value 'tomato' [Code point should parse]
-FAIL=Property color value 'tomato' [Keyword should parse properly]
-FAIL=Property color value 'turquoise' [Code point should parse]
-FAIL=Property color value 'turquoise' [Keyword should parse properly]
-FAIL=Property color value 'violet' [Code point should parse]
-FAIL=Property color value 'violet' [Keyword should parse properly]
-FAIL=Property color value 'wheat' [Code point should parse]
-FAIL=Property color value 'wheat' [Keyword should parse properly]
-FAIL=Property color value 'whitesmoke' [Code point should parse]
-FAIL=Property color value 'whitesmoke' [Keyword should parse properly]
-FAIL=Property color value 'yellowgreen' [Code point should parse]
-FAIL=Property color value 'yellowgreen' [Keyword should parse properly]
 [css/css-color/parsing/color-computed-relative-color.html]
 FAIL=Property background-color value 'color(from currentColor a98-rgb r g b)'
 FAIL=Property background-color value 'color(from currentColor display-p3 r g b)'
@@ -29208,6 +28778,8 @@ harness=ERROR
 harness=ERROR
 [css/css-conditional/container-queries/style-container-invalidation-inheritance.html]
 harness=ERROR
+[css/css-conditional/container-queries/style-negation-with-container-name.html]
+harness=FAIL
 [css/css-conditional/container-queries/style-not-sharing-float.html]
 harness=ERROR
 [css/css-conditional/container-queries/style-query-attr-change-svg.html]
@@ -30055,10 +29627,6 @@ harness=FAIL
 [css/css-flexbox/abspos/flex-abspos-align-self-safe-outer-cb-002.tentative.html]
 harness=FAIL
 [css/css-flexbox/abspos/flex-abspos-staticpos-align-content-001.html]
-FAIL=.container > div 1
-FAIL=.container > div 10
-FAIL=.container > div 11
-FAIL=.container > div 12
 FAIL=.container > div 13
 FAIL=.container > div 14
 FAIL=.container > div 15
@@ -30066,219 +29634,87 @@ FAIL=.container > div 16
 FAIL=.container > div 17
 FAIL=.container > div 18
 FAIL=.container > div 19
-FAIL=.container > div 2
 FAIL=.container > div 20
 FAIL=.container > div 21
 FAIL=.container > div 22
 FAIL=.container > div 23
 FAIL=.container > div 24
-FAIL=.container > div 3
-FAIL=.container > div 4
-FAIL=.container > div 5
-FAIL=.container > div 6
-FAIL=.container > div 7
-FAIL=.container > div 8
-FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-align-self-001.html]
-FAIL=.container > div 1
-FAIL=.container > div 10
-FAIL=.container > div 11
-FAIL=.container > div 12
 FAIL=.container > div 13
-FAIL=.container > div 14
-FAIL=.container > div 15
-FAIL=.container > div 16
 FAIL=.container > div 17
 FAIL=.container > div 18
-FAIL=.container > div 19
-FAIL=.container > div 2
 FAIL=.container > div 20
-FAIL=.container > div 21
 FAIL=.container > div 22
-FAIL=.container > div 23
 FAIL=.container > div 24
-FAIL=.container > div 3
-FAIL=.container > div 4
 FAIL=.container > div 5
-FAIL=.container > div 6
-FAIL=.container > div 7
-FAIL=.container > div 8
-FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-align-self-002.html]
-FAIL=.container > div 1
-FAIL=.container > div 10
-FAIL=.container > div 11
-FAIL=.container > div 12
 FAIL=.container > div 13
 FAIL=.container > div 14
 FAIL=.container > div 15
-FAIL=.container > div 16
 FAIL=.container > div 17
 FAIL=.container > div 18
-FAIL=.container > div 19
-FAIL=.container > div 2
 FAIL=.container > div 20
-FAIL=.container > div 21
 FAIL=.container > div 22
 FAIL=.container > div 23
-FAIL=.container > div 24
-FAIL=.container > div 3
 FAIL=.container > div 4
 FAIL=.container > div 5
-FAIL=.container > div 6
-FAIL=.container > div 7
-FAIL=.container > div 8
-FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-align-self-003.html]
-FAIL=.container > div 1
-FAIL=.container > div 10
-FAIL=.container > div 11
-FAIL=.container > div 12
 FAIL=.container > div 13
-FAIL=.container > div 14
-FAIL=.container > div 15
-FAIL=.container > div 16
 FAIL=.container > div 17
 FAIL=.container > div 18
-FAIL=.container > div 19
-FAIL=.container > div 2
 FAIL=.container > div 20
-FAIL=.container > div 21
 FAIL=.container > div 22
-FAIL=.container > div 23
 FAIL=.container > div 24
-FAIL=.container > div 3
-FAIL=.container > div 4
 FAIL=.container > div 5
-FAIL=.container > div 6
-FAIL=.container > div 7
-FAIL=.container > div 8
-FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-align-self-004.html]
-FAIL=.container > div 1
-FAIL=.container > div 10
-FAIL=.container > div 11
-FAIL=.container > div 12
 FAIL=.container > div 13
 FAIL=.container > div 14
 FAIL=.container > div 15
-FAIL=.container > div 16
 FAIL=.container > div 17
 FAIL=.container > div 18
-FAIL=.container > div 19
-FAIL=.container > div 2
 FAIL=.container > div 20
-FAIL=.container > div 21
 FAIL=.container > div 22
 FAIL=.container > div 23
-FAIL=.container > div 24
-FAIL=.container > div 3
 FAIL=.container > div 4
 FAIL=.container > div 5
-FAIL=.container > div 6
-FAIL=.container > div 7
-FAIL=.container > div 8
-FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-align-self-005.html]
-FAIL=.container > div 1
-FAIL=.container > div 10
-FAIL=.container > div 11
-FAIL=.container > div 12
 FAIL=.container > div 13
-FAIL=.container > div 14
-FAIL=.container > div 15
-FAIL=.container > div 16
 FAIL=.container > div 17
 FAIL=.container > div 18
-FAIL=.container > div 19
-FAIL=.container > div 2
 FAIL=.container > div 20
-FAIL=.container > div 21
 FAIL=.container > div 22
-FAIL=.container > div 23
 FAIL=.container > div 24
-FAIL=.container > div 3
-FAIL=.container > div 4
 FAIL=.container > div 5
-FAIL=.container > div 6
-FAIL=.container > div 7
-FAIL=.container > div 8
-FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-align-self-006.html]
-FAIL=.container > div 1
-FAIL=.container > div 10
-FAIL=.container > div 11
-FAIL=.container > div 12
 FAIL=.container > div 13
 FAIL=.container > div 14
 FAIL=.container > div 15
-FAIL=.container > div 16
 FAIL=.container > div 17
 FAIL=.container > div 18
-FAIL=.container > div 19
-FAIL=.container > div 2
 FAIL=.container > div 20
-FAIL=.container > div 21
 FAIL=.container > div 22
 FAIL=.container > div 23
-FAIL=.container > div 24
-FAIL=.container > div 3
 FAIL=.container > div 4
 FAIL=.container > div 5
-FAIL=.container > div 6
-FAIL=.container > div 7
-FAIL=.container > div 8
-FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-align-self-007.html]
-FAIL=.container > div 1
-FAIL=.container > div 10
-FAIL=.container > div 11
-FAIL=.container > div 12
 FAIL=.container > div 13
-FAIL=.container > div 14
-FAIL=.container > div 15
-FAIL=.container > div 16
 FAIL=.container > div 17
 FAIL=.container > div 18
-FAIL=.container > div 19
-FAIL=.container > div 2
 FAIL=.container > div 20
-FAIL=.container > div 21
 FAIL=.container > div 22
-FAIL=.container > div 23
 FAIL=.container > div 24
-FAIL=.container > div 3
-FAIL=.container > div 4
 FAIL=.container > div 5
-FAIL=.container > div 6
-FAIL=.container > div 7
-FAIL=.container > div 8
-FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-align-self-008.html]
-FAIL=.container > div 1
-FAIL=.container > div 10
-FAIL=.container > div 11
-FAIL=.container > div 12
 FAIL=.container > div 13
 FAIL=.container > div 14
 FAIL=.container > div 15
-FAIL=.container > div 16
 FAIL=.container > div 17
 FAIL=.container > div 18
-FAIL=.container > div 19
-FAIL=.container > div 2
 FAIL=.container > div 20
-FAIL=.container > div 21
 FAIL=.container > div 22
 FAIL=.container > div 23
-FAIL=.container > div 24
-FAIL=.container > div 3
 FAIL=.container > div 4
 FAIL=.container > div 5
-FAIL=.container > div 6
-FAIL=.container > div 7
-FAIL=.container > div 8
-FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-align-self-rtl-001.html]
 FAIL=.container > div 1
 FAIL=.container > div 10
@@ -30338,47 +29774,33 @@ FAIL=.container > div 13
 FAIL=.container > div 14
 FAIL=.container > div 15
 FAIL=.container > div 16
-FAIL=.container > div 17
 FAIL=.container > div 18
 FAIL=.container > div 19
 FAIL=.container > div 2
-FAIL=.container > div 20
 FAIL=.container > div 21
-FAIL=.container > div 22
 FAIL=.container > div 23
-FAIL=.container > div 24
 FAIL=.container > div 3
 FAIL=.container > div 4
-FAIL=.container > div 5
-FAIL=.container > div 6
 FAIL=.container > div 7
 FAIL=.container > div 8
 FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-align-self-rtl-004.html]
 FAIL=.container > div 1
-FAIL=.container > div 10
 FAIL=.container > div 11
 FAIL=.container > div 12
 FAIL=.container > div 13
 FAIL=.container > div 14
 FAIL=.container > div 15
 FAIL=.container > div 16
-FAIL=.container > div 17
 FAIL=.container > div 18
 FAIL=.container > div 19
 FAIL=.container > div 2
-FAIL=.container > div 20
-FAIL=.container > div 21
 FAIL=.container > div 22
 FAIL=.container > div 23
-FAIL=.container > div 24
 FAIL=.container > div 3
 FAIL=.container > div 4
-FAIL=.container > div 5
-FAIL=.container > div 6
 FAIL=.container > div 7
 FAIL=.container > div 8
-FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-align-self-vertWM-001.html]
 FAIL=.container > div 1
 FAIL=.container > div 10
@@ -30390,20 +29812,15 @@ FAIL=.container > div 15
 FAIL=.container > div 16
 FAIL=.container > div 17
 FAIL=.container > div 18
-FAIL=.container > div 19
 FAIL=.container > div 2
 FAIL=.container > div 20
 FAIL=.container > div 21
-FAIL=.container > div 22
 FAIL=.container > div 23
-FAIL=.container > div 24
 FAIL=.container > div 25
-FAIL=.container > div 26
 FAIL=.container > div 27
 FAIL=.container > div 28
 FAIL=.container > div 3
 FAIL=.container > div 4
-FAIL=.container > div 5
 FAIL=.container > div 6
 FAIL=.container > div 7
 FAIL=.container > div 8
@@ -30419,24 +29836,18 @@ FAIL=.container > div 15
 FAIL=.container > div 16
 FAIL=.container > div 17
 FAIL=.container > div 18
-FAIL=.container > div 19
 FAIL=.container > div 2
 FAIL=.container > div 20
 FAIL=.container > div 21
-FAIL=.container > div 22
-FAIL=.container > div 23
 FAIL=.container > div 24
 FAIL=.container > div 25
-FAIL=.container > div 26
 FAIL=.container > div 27
 FAIL=.container > div 28
 FAIL=.container > div 3
 FAIL=.container > div 4
-FAIL=.container > div 5
 FAIL=.container > div 6
 FAIL=.container > div 7
 FAIL=.container > div 8
-FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-align-self-vertWM-003.html]
 FAIL=.container > div 1
 FAIL=.container > div 10
@@ -30464,7 +29875,6 @@ FAIL=.container > div 8
 FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-align-self-vertWM-004.html]
 FAIL=.container > div 1
-FAIL=.container > div 10
 FAIL=.container > div 11
 FAIL=.container > div 12
 FAIL=.container > div 13
@@ -30490,35 +29900,13 @@ FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-fallback-justify-content-001.html]
 harness=FAIL
 [css/css-flexbox/abspos/flex-abspos-staticpos-justify-content-001.html]
-FAIL=.container > div 1
-FAIL=.container > div 10
-FAIL=.container > div 11
-FAIL=.container > div 12
-FAIL=.container > div 13
-FAIL=.container > div 14
 FAIL=.container > div 15
 FAIL=.container > div 16
-FAIL=.container > div 17
 FAIL=.container > div 18
-FAIL=.container > div 19
-FAIL=.container > div 2
 FAIL=.container > div 20
-FAIL=.container > div 21
 FAIL=.container > div 22
-FAIL=.container > div 23
 FAIL=.container > div 24
-FAIL=.container > div 3
-FAIL=.container > div 4
-FAIL=.container > div 5
-FAIL=.container > div 6
-FAIL=.container > div 7
-FAIL=.container > div 8
-FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-justify-content-002.html]
-FAIL=.container > div 1
-FAIL=.container > div 10
-FAIL=.container > div 11
-FAIL=.container > div 12
 FAIL=.container > div 13
 FAIL=.container > div 14
 FAIL=.container > div 15
@@ -30526,49 +29914,19 @@ FAIL=.container > div 16
 FAIL=.container > div 17
 FAIL=.container > div 18
 FAIL=.container > div 19
-FAIL=.container > div 2
 FAIL=.container > div 20
 FAIL=.container > div 21
 FAIL=.container > div 22
 FAIL=.container > div 23
 FAIL=.container > div 24
-FAIL=.container > div 3
-FAIL=.container > div 4
-FAIL=.container > div 5
-FAIL=.container > div 6
-FAIL=.container > div 7
-FAIL=.container > div 8
-FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-justify-content-003.html]
-FAIL=.container > div 1
-FAIL=.container > div 10
-FAIL=.container > div 11
-FAIL=.container > div 12
-FAIL=.container > div 13
-FAIL=.container > div 14
 FAIL=.container > div 15
 FAIL=.container > div 16
-FAIL=.container > div 17
 FAIL=.container > div 18
 FAIL=.container > div 19
-FAIL=.container > div 2
-FAIL=.container > div 20
-FAIL=.container > div 21
 FAIL=.container > div 22
 FAIL=.container > div 23
-FAIL=.container > div 24
-FAIL=.container > div 3
-FAIL=.container > div 4
-FAIL=.container > div 5
-FAIL=.container > div 6
-FAIL=.container > div 7
-FAIL=.container > div 8
-FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-justify-content-004.html]
-FAIL=.container > div 1
-FAIL=.container > div 10
-FAIL=.container > div 11
-FAIL=.container > div 12
 FAIL=.container > div 13
 FAIL=.container > div 14
 FAIL=.container > div 15
@@ -30576,48 +29934,19 @@ FAIL=.container > div 16
 FAIL=.container > div 17
 FAIL=.container > div 18
 FAIL=.container > div 19
-FAIL=.container > div 2
 FAIL=.container > div 20
 FAIL=.container > div 21
 FAIL=.container > div 22
 FAIL=.container > div 23
 FAIL=.container > div 24
-FAIL=.container > div 3
-FAIL=.container > div 4
-FAIL=.container > div 5
-FAIL=.container > div 6
-FAIL=.container > div 7
-FAIL=.container > div 8
-FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-justify-content-005.html]
-FAIL=.container > div 1
-FAIL=.container > div 10
-FAIL=.container > div 11
 FAIL=.container > div 12
-FAIL=.container > div 13
-FAIL=.container > div 14
 FAIL=.container > div 15
 FAIL=.container > div 16
-FAIL=.container > div 17
 FAIL=.container > div 18
-FAIL=.container > div 19
-FAIL=.container > div 2
 FAIL=.container > div 20
-FAIL=.container > div 21
 FAIL=.container > div 22
-FAIL=.container > div 23
-FAIL=.container > div 24
-FAIL=.container > div 3
-FAIL=.container > div 4
-FAIL=.container > div 5
-FAIL=.container > div 6
-FAIL=.container > div 7
-FAIL=.container > div 8
-FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-justify-content-006.html]
-FAIL=.container > div 1
-FAIL=.container > div 10
-FAIL=.container > div 11
 FAIL=.container > div 12
 FAIL=.container > div 13
 FAIL=.container > div 14
@@ -30626,48 +29955,21 @@ FAIL=.container > div 16
 FAIL=.container > div 17
 FAIL=.container > div 18
 FAIL=.container > div 19
-FAIL=.container > div 2
 FAIL=.container > div 20
 FAIL=.container > div 21
 FAIL=.container > div 22
 FAIL=.container > div 23
 FAIL=.container > div 24
-FAIL=.container > div 3
-FAIL=.container > div 4
-FAIL=.container > div 5
-FAIL=.container > div 6
-FAIL=.container > div 7
-FAIL=.container > div 8
-FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-justify-content-007.html]
-FAIL=.container > div 1
-FAIL=.container > div 10
-FAIL=.container > div 11
 FAIL=.container > div 12
-FAIL=.container > div 13
-FAIL=.container > div 14
 FAIL=.container > div 15
 FAIL=.container > div 16
-FAIL=.container > div 17
 FAIL=.container > div 18
 FAIL=.container > div 19
-FAIL=.container > div 2
-FAIL=.container > div 20
-FAIL=.container > div 21
 FAIL=.container > div 22
 FAIL=.container > div 23
 FAIL=.container > div 24
-FAIL=.container > div 3
-FAIL=.container > div 4
-FAIL=.container > div 5
-FAIL=.container > div 6
-FAIL=.container > div 7
-FAIL=.container > div 8
-FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-justify-content-008.html]
-FAIL=.container > div 1
-FAIL=.container > div 10
-FAIL=.container > div 11
 FAIL=.container > div 12
 FAIL=.container > div 13
 FAIL=.container > div 14
@@ -30676,24 +29978,14 @@ FAIL=.container > div 16
 FAIL=.container > div 17
 FAIL=.container > div 18
 FAIL=.container > div 19
-FAIL=.container > div 2
 FAIL=.container > div 20
 FAIL=.container > div 21
 FAIL=.container > div 22
 FAIL=.container > div 23
 FAIL=.container > div 24
-FAIL=.container > div 3
-FAIL=.container > div 4
-FAIL=.container > div 5
-FAIL=.container > div 6
-FAIL=.container > div 7
-FAIL=.container > div 8
-FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-justify-content-rtl-001.html]
 FAIL=.container > div 1
 FAIL=.container > div 10
-FAIL=.container > div 11
-FAIL=.container > div 12
 FAIL=.container > div 13
 FAIL=.container > div 14
 FAIL=.container > div 15
@@ -30702,15 +29994,9 @@ FAIL=.container > div 17
 FAIL=.container > div 18
 FAIL=.container > div 19
 FAIL=.container > div 2
-FAIL=.container > div 20
 FAIL=.container > div 21
-FAIL=.container > div 22
-FAIL=.container > div 23
 FAIL=.container > div 24
-FAIL=.container > div 3
-FAIL=.container > div 4
 FAIL=.container > div 5
-FAIL=.container > div 6
 FAIL=.container > div 7
 FAIL=.container > div 8
 FAIL=.container > div 9
@@ -30767,7 +30053,6 @@ FAIL=.container > div 9
 [css/css-flexbox/abspos/flex-abspos-staticpos-justify-content-vertWM-002.html]
 FAIL=.container > div 1
 FAIL=.container > div 10
-FAIL=.container > div 11
 FAIL=.container > div 12
 FAIL=.container > div 13
 FAIL=.container > div 14
@@ -30777,10 +30062,7 @@ FAIL=.container > div 17
 FAIL=.container > div 18
 FAIL=.container > div 19
 FAIL=.container > div 2
-FAIL=.container > div 20
 FAIL=.container > div 21
-FAIL=.container > div 22
-FAIL=.container > div 23
 FAIL=.container > div 24
 FAIL=.container > div 3
 FAIL=.container > div 4
@@ -30789,23 +30071,20 @@ FAIL=.container > div 6
 FAIL=.container > div 7
 FAIL=.container > div 8
 FAIL=.container > div 9
-[css/css-flexbox/abspos/flex-abspos-staticpos-justify-self-001.html]
-harness=FAIL
-[css/css-flexbox/abspos/flex-abspos-staticpos-margin-001.html]
-harness=FAIL
 [css/css-flexbox/abspos/flex-abspos-staticpos-margin-002.html]
 harness=FAIL
 [css/css-flexbox/abspos/flex-abspos-staticpos-margin-003.html]
 harness=FAIL
 [css/css-flexbox/abspos/position-absolute-001.html]
-FAIL=.flexbox 10
 FAIL=.flexbox 100
 FAIL=.flexbox 101
 FAIL=.flexbox 103
 FAIL=.flexbox 104
 FAIL=.flexbox 105
+FAIL=.flexbox 106
 FAIL=.flexbox 107
 FAIL=.flexbox 108
+FAIL=.flexbox 109
 FAIL=.flexbox 110
 FAIL=.flexbox 111
 FAIL=.flexbox 113
@@ -30815,28 +30094,15 @@ FAIL=.flexbox 116
 FAIL=.flexbox 117
 FAIL=.flexbox 118
 FAIL=.flexbox 119
-FAIL=.flexbox 12
 FAIL=.flexbox 120
-FAIL=.flexbox 13
-FAIL=.flexbox 15
 FAIL=.flexbox 16
 FAIL=.flexbox 17
 FAIL=.flexbox 18
 FAIL=.flexbox 19
-FAIL=.flexbox 2
 FAIL=.flexbox 20
-FAIL=.flexbox 21
-FAIL=.flexbox 23
-FAIL=.flexbox 24
-FAIL=.flexbox 25
+FAIL=.flexbox 26
 FAIL=.flexbox 27
-FAIL=.flexbox 28
-FAIL=.flexbox 3
-FAIL=.flexbox 30
-FAIL=.flexbox 31
-FAIL=.flexbox 33
-FAIL=.flexbox 34
-FAIL=.flexbox 35
+FAIL=.flexbox 29
 FAIL=.flexbox 36
 FAIL=.flexbox 37
 FAIL=.flexbox 38
@@ -30848,17 +30114,15 @@ FAIL=.flexbox 43
 FAIL=.flexbox 44
 FAIL=.flexbox 45
 FAIL=.flexbox 46
-FAIL=.flexbox 47
 FAIL=.flexbox 48
 FAIL=.flexbox 49
-FAIL=.flexbox 5
 FAIL=.flexbox 50
 FAIL=.flexbox 51
+FAIL=.flexbox 52
 FAIL=.flexbox 53
 FAIL=.flexbox 54
 FAIL=.flexbox 55
 FAIL=.flexbox 56
-FAIL=.flexbox 57
 FAIL=.flexbox 58
 FAIL=.flexbox 59
 FAIL=.flexbox 6
@@ -30868,24 +30132,23 @@ FAIL=.flexbox 62
 FAIL=.flexbox 63
 FAIL=.flexbox 64
 FAIL=.flexbox 65
-FAIL=.flexbox 66
 FAIL=.flexbox 67
 FAIL=.flexbox 68
-FAIL=.flexbox 69
+FAIL=.flexbox 7
 FAIL=.flexbox 70
+FAIL=.flexbox 71
 FAIL=.flexbox 72
 FAIL=.flexbox 73
+FAIL=.flexbox 74
 FAIL=.flexbox 75
-FAIL=.flexbox 76
 FAIL=.flexbox 77
 FAIL=.flexbox 78
-FAIL=.flexbox 79
-FAIL=.flexbox 8
 FAIL=.flexbox 80
 FAIL=.flexbox 82
 FAIL=.flexbox 83
 FAIL=.flexbox 85
 FAIL=.flexbox 86
+FAIL=.flexbox 87
 FAIL=.flexbox 88
 FAIL=.flexbox 89
 FAIL=.flexbox 9
@@ -30898,396 +30161,58 @@ FAIL=.flexbox 97
 FAIL=.flexbox 98
 FAIL=.flexbox 99
 [css/css-flexbox/abspos/position-absolute-002.html]
-FAIL=.flexbox 2
 FAIL=.flexbox 3
 FAIL=.flexbox 4
 FAIL=.flexbox 5
 FAIL=.flexbox 6
-FAIL=.flexbox 8
-FAIL=.flexbox 9
 [css/css-flexbox/abspos/position-absolute-003.html]
-FAIL=.rect 1
 FAIL=.rect 13
 FAIL=.rect 14
 FAIL=.rect 15
 FAIL=.rect 16
-FAIL=.rect 2
-FAIL=.rect 3
-FAIL=.rect 4
 FAIL=.rect 5
 FAIL=.rect 6
 FAIL=.rect 7
 FAIL=.rect 8
-[css/css-flexbox/abspos/position-absolute-007.html]
-harness=FAIL
 [css/css-flexbox/abspos/position-absolute-012.html]
-FAIL=.flexbox 10
-FAIL=.flexbox 11
-FAIL=.flexbox 12
 FAIL=.flexbox 13
 FAIL=.flexbox 14
+FAIL=.flexbox 15
 FAIL=.flexbox 16
-FAIL=.flexbox 18
-FAIL=.flexbox 19
-FAIL=.flexbox 2
-FAIL=.flexbox 20
 FAIL=.flexbox 21
 FAIL=.flexbox 22
+FAIL=.flexbox 23
 FAIL=.flexbox 24
-FAIL=.flexbox 26
-FAIL=.flexbox 27
-FAIL=.flexbox 28
 FAIL=.flexbox 29
-FAIL=.flexbox 3
 FAIL=.flexbox 30
+FAIL=.flexbox 31
 FAIL=.flexbox 32
 FAIL=.flexbox 33
+FAIL=.flexbox 34
 FAIL=.flexbox 35
 FAIL=.flexbox 36
 FAIL=.flexbox 37
-FAIL=.flexbox 38
-FAIL=.flexbox 39
-FAIL=.flexbox 4
+FAIL=.flexbox 40
 FAIL=.flexbox 41
+FAIL=.flexbox 42
 FAIL=.flexbox 43
 FAIL=.flexbox 44
 FAIL=.flexbox 45
-FAIL=.flexbox 46
-FAIL=.flexbox 47
+FAIL=.flexbox 48
 FAIL=.flexbox 49
 FAIL=.flexbox 5
+FAIL=.flexbox 50
 FAIL=.flexbox 51
 FAIL=.flexbox 52
 FAIL=.flexbox 53
-FAIL=.flexbox 54
-FAIL=.flexbox 55
+FAIL=.flexbox 56
 FAIL=.flexbox 57
+FAIL=.flexbox 58
 FAIL=.flexbox 59
 FAIL=.flexbox 6
 FAIL=.flexbox 60
 FAIL=.flexbox 61
-FAIL=.flexbox 62
-FAIL=.flexbox 63
-FAIL=.flexbox 66
-FAIL=.flexbox 67
-FAIL=.flexbox 68
-FAIL=.flexbox 69
-FAIL=.flexbox 70
-FAIL=.flexbox 72
-FAIL=.flexbox 74
-FAIL=.flexbox 75
-FAIL=.flexbox 76
-FAIL=.flexbox 77
-FAIL=.flexbox 78
-FAIL=.flexbox 8
-FAIL=.flexbox 80
-FAIL=.flexbox 82
-FAIL=.flexbox 83
-FAIL=.flexbox 84
-FAIL=.flexbox 85
-FAIL=.flexbox 86
-FAIL=.flexbox 88
-FAIL=.flexbox 90
-FAIL=.flexbox 91
-FAIL=.flexbox 92
-FAIL=.flexbox 93
-FAIL=.flexbox 94
-FAIL=.flexbox 96
-[css/css-flexbox/abspos/position-absolute-013.html]
-FAIL=.flexbox 100
-FAIL=.flexbox 101
-FAIL=.flexbox 102
-FAIL=.flexbox 103
-FAIL=.flexbox 104
-FAIL=.flexbox 105
-FAIL=.flexbox 106
-FAIL=.flexbox 108
-FAIL=.flexbox 109
-FAIL=.flexbox 11
-FAIL=.flexbox 111
-FAIL=.flexbox 112
-FAIL=.flexbox 113
-FAIL=.flexbox 114
-FAIL=.flexbox 116
-FAIL=.flexbox 118
-FAIL=.flexbox 119
-FAIL=.flexbox 120
-FAIL=.flexbox 121
-FAIL=.flexbox 122
-FAIL=.flexbox 123
-FAIL=.flexbox 124
-FAIL=.flexbox 126
-FAIL=.flexbox 127
-FAIL=.flexbox 129
-FAIL=.flexbox 130
-FAIL=.flexbox 131
-FAIL=.flexbox 132
-FAIL=.flexbox 133
-FAIL=.flexbox 134
-FAIL=.flexbox 135
-FAIL=.flexbox 136
-FAIL=.flexbox 138
-FAIL=.flexbox 139
-FAIL=.flexbox 14
-FAIL=.flexbox 140
-FAIL=.flexbox 141
-FAIL=.flexbox 143
-FAIL=.flexbox 145
-FAIL=.flexbox 147
-FAIL=.flexbox 148
-FAIL=.flexbox 149
-FAIL=.flexbox 150
-FAIL=.flexbox 151
-FAIL=.flexbox 152
-FAIL=.flexbox 153
-FAIL=.flexbox 154
-FAIL=.flexbox 156
-FAIL=.flexbox 157
-FAIL=.flexbox 158
-FAIL=.flexbox 159
-FAIL=.flexbox 16
-FAIL=.flexbox 161
-FAIL=.flexbox 163
-FAIL=.flexbox 164
-FAIL=.flexbox 165
-FAIL=.flexbox 166
-FAIL=.flexbox 168
-FAIL=.flexbox 169
-FAIL=.flexbox 17
-FAIL=.flexbox 170
-FAIL=.flexbox 171
-FAIL=.flexbox 172
-FAIL=.flexbox 174
-FAIL=.flexbox 175
-FAIL=.flexbox 177
-FAIL=.flexbox 178
-FAIL=.flexbox 179
-FAIL=.flexbox 18
-FAIL=.flexbox 180
-FAIL=.flexbox 182
-FAIL=.flexbox 184
-FAIL=.flexbox 185
-FAIL=.flexbox 186
-FAIL=.flexbox 187
-FAIL=.flexbox 189
-FAIL=.flexbox 19
-FAIL=.flexbox 190
-FAIL=.flexbox 191
-FAIL=.flexbox 192
-FAIL=.flexbox 193
-FAIL=.flexbox 195
-FAIL=.flexbox 196
-FAIL=.flexbox 197
-FAIL=.flexbox 198
-FAIL=.flexbox 199
-FAIL=.flexbox 2
-FAIL=.flexbox 200
-FAIL=.flexbox 201
-FAIL=.flexbox 202
-FAIL=.flexbox 204
-FAIL=.flexbox 205
-FAIL=.flexbox 206
-FAIL=.flexbox 207
-FAIL=.flexbox 209
-FAIL=.flexbox 21
-FAIL=.flexbox 211
-FAIL=.flexbox 212
-FAIL=.flexbox 213
-FAIL=.flexbox 214
-FAIL=.flexbox 216
-FAIL=.flexbox 217
-FAIL=.flexbox 218
-FAIL=.flexbox 219
-FAIL=.flexbox 22
-FAIL=.flexbox 220
-FAIL=.flexbox 222
-FAIL=.flexbox 223
-FAIL=.flexbox 225
-FAIL=.flexbox 226
-FAIL=.flexbox 227
-FAIL=.flexbox 228
-FAIL=.flexbox 23
-FAIL=.flexbox 230
-FAIL=.flexbox 232
-FAIL=.flexbox 233
-FAIL=.flexbox 234
-FAIL=.flexbox 235
-FAIL=.flexbox 237
-FAIL=.flexbox 238
-FAIL=.flexbox 239
-FAIL=.flexbox 24
-FAIL=.flexbox 240
-FAIL=.flexbox 242
-FAIL=.flexbox 244
-FAIL=.flexbox 245
-FAIL=.flexbox 246
-FAIL=.flexbox 247
-FAIL=.flexbox 248
-FAIL=.flexbox 249
-FAIL=.flexbox 25
-FAIL=.flexbox 251
-FAIL=.flexbox 253
-FAIL=.flexbox 254
-FAIL=.flexbox 255
-FAIL=.flexbox 256
-FAIL=.flexbox 258
-FAIL=.flexbox 259
-FAIL=.flexbox 26
-FAIL=.flexbox 260
-FAIL=.flexbox 261
-FAIL=.flexbox 263
-FAIL=.flexbox 265
-FAIL=.flexbox 266
-FAIL=.flexbox 267
-FAIL=.flexbox 269
-FAIL=.flexbox 27
-FAIL=.flexbox 272
-FAIL=.flexbox 274
-FAIL=.flexbox 275
-FAIL=.flexbox 276
-FAIL=.flexbox 277
-FAIL=.flexbox 279
-FAIL=.flexbox 280
-FAIL=.flexbox 281
-FAIL=.flexbox 282
-FAIL=.flexbox 284
-FAIL=.flexbox 286
-FAIL=.flexbox 287
-FAIL=.flexbox 288
-FAIL=.flexbox 29
-FAIL=.flexbox 290
-FAIL=.flexbox 292
-FAIL=.flexbox 293
-FAIL=.flexbox 294
-FAIL=.flexbox 295
-FAIL=.flexbox 296
-FAIL=.flexbox 297
-FAIL=.flexbox 299
-FAIL=.flexbox 302
-FAIL=.flexbox 304
-FAIL=.flexbox 305
-FAIL=.flexbox 306
-FAIL=.flexbox 307
-FAIL=.flexbox 309
-FAIL=.flexbox 310
-FAIL=.flexbox 311
-FAIL=.flexbox 312
-FAIL=.flexbox 313
-FAIL=.flexbox 314
-FAIL=.flexbox 315
-FAIL=.flexbox 317
-FAIL=.flexbox 32
-FAIL=.flexbox 320
-FAIL=.flexbox 322
-FAIL=.flexbox 323
-FAIL=.flexbox 324
-FAIL=.flexbox 325
-FAIL=.flexbox 326
-FAIL=.flexbox 327
-FAIL=.flexbox 329
-FAIL=.flexbox 331
-FAIL=.flexbox 332
-FAIL=.flexbox 333
-FAIL=.flexbox 334
-FAIL=.flexbox 336
-FAIL=.flexbox 338
-FAIL=.flexbox 34
-FAIL=.flexbox 340
-FAIL=.flexbox 341
-FAIL=.flexbox 342
-FAIL=.flexbox 343
-FAIL=.flexbox 344
-FAIL=.flexbox 345
-FAIL=.flexbox 347
-FAIL=.flexbox 35
-FAIL=.flexbox 350
-FAIL=.flexbox 352
-FAIL=.flexbox 353
-FAIL=.flexbox 354
-FAIL=.flexbox 355
-FAIL=.flexbox 357
-FAIL=.flexbox 358
-FAIL=.flexbox 359
-FAIL=.flexbox 36
-FAIL=.flexbox 360
-FAIL=.flexbox 361
-FAIL=.flexbox 362
-FAIL=.flexbox 363
-FAIL=.flexbox 365
-FAIL=.flexbox 368
-FAIL=.flexbox 37
-FAIL=.flexbox 370
-FAIL=.flexbox 371
-FAIL=.flexbox 372
-FAIL=.flexbox 373
-FAIL=.flexbox 374
-FAIL=.flexbox 375
-FAIL=.flexbox 377
-FAIL=.flexbox 379
-FAIL=.flexbox 38
-FAIL=.flexbox 380
-FAIL=.flexbox 381
-FAIL=.flexbox 382
-FAIL=.flexbox 384
-FAIL=.flexbox 385
-FAIL=.flexbox 387
-FAIL=.flexbox 388
-FAIL=.flexbox 389
-FAIL=.flexbox 39
-FAIL=.flexbox 390
-FAIL=.flexbox 391
-FAIL=.flexbox 392
-FAIL=.flexbox 393
-FAIL=.flexbox 394
-FAIL=.flexbox 396
-FAIL=.flexbox 397
-FAIL=.flexbox 399
-FAIL=.flexbox 4
-FAIL=.flexbox 400
-FAIL=.flexbox 401
-FAIL=.flexbox 402
-FAIL=.flexbox 404
-FAIL=.flexbox 406
-FAIL=.flexbox 407
-FAIL=.flexbox 408
-FAIL=.flexbox 409
-FAIL=.flexbox 41
-FAIL=.flexbox 410
-FAIL=.flexbox 411
-FAIL=.flexbox 412
-FAIL=.flexbox 414
-FAIL=.flexbox 415
-FAIL=.flexbox 417
-FAIL=.flexbox 418
-FAIL=.flexbox 419
-FAIL=.flexbox 420
-FAIL=.flexbox 421
-FAIL=.flexbox 422
-FAIL=.flexbox 423
-FAIL=.flexbox 424
-FAIL=.flexbox 426
-FAIL=.flexbox 427
-FAIL=.flexbox 428
-FAIL=.flexbox 429
-FAIL=.flexbox 43
-FAIL=.flexbox 431
-FAIL=.flexbox 44
-FAIL=.flexbox 45
-FAIL=.flexbox 46
-FAIL=.flexbox 48
-FAIL=.flexbox 5
-FAIL=.flexbox 50
-FAIL=.flexbox 52
-FAIL=.flexbox 53
-FAIL=.flexbox 54
-FAIL=.flexbox 55
-FAIL=.flexbox 56
-FAIL=.flexbox 57
-FAIL=.flexbox 59
-FAIL=.flexbox 6
-FAIL=.flexbox 62
 FAIL=.flexbox 64
-FAIL=.flexbox 65
 FAIL=.flexbox 66
 FAIL=.flexbox 67
 FAIL=.flexbox 69
@@ -31295,32 +30220,315 @@ FAIL=.flexbox 7
 FAIL=.flexbox 70
 FAIL=.flexbox 71
 FAIL=.flexbox 72
-FAIL=.flexbox 73
 FAIL=.flexbox 74
 FAIL=.flexbox 75
 FAIL=.flexbox 77
+FAIL=.flexbox 78
+FAIL=.flexbox 79
 FAIL=.flexbox 8
 FAIL=.flexbox 80
 FAIL=.flexbox 82
 FAIL=.flexbox 83
-FAIL=.flexbox 84
 FAIL=.flexbox 85
 FAIL=.flexbox 86
 FAIL=.flexbox 87
-FAIL=.flexbox 89
+FAIL=.flexbox 88
+FAIL=.flexbox 90
+FAIL=.flexbox 91
+FAIL=.flexbox 93
+FAIL=.flexbox 94
+FAIL=.flexbox 95
+FAIL=.flexbox 96
+[css/css-flexbox/abspos/position-absolute-013.html]
+FAIL=.flexbox 10
+FAIL=.flexbox 103
+FAIL=.flexbox 104
+FAIL=.flexbox 105
+FAIL=.flexbox 106
+FAIL=.flexbox 107
+FAIL=.flexbox 108
+FAIL=.flexbox 11
+FAIL=.flexbox 115
+FAIL=.flexbox 116
+FAIL=.flexbox 117
+FAIL=.flexbox 118
+FAIL=.flexbox 119
+FAIL=.flexbox 12
+FAIL=.flexbox 120
+FAIL=.flexbox 127
+FAIL=.flexbox 128
+FAIL=.flexbox 129
+FAIL=.flexbox 130
+FAIL=.flexbox 131
+FAIL=.flexbox 132
+FAIL=.flexbox 139
+FAIL=.flexbox 140
+FAIL=.flexbox 141
+FAIL=.flexbox 142
+FAIL=.flexbox 143
+FAIL=.flexbox 144
+FAIL=.flexbox 145
+FAIL=.flexbox 146
+FAIL=.flexbox 147
+FAIL=.flexbox 148
+FAIL=.flexbox 149
+FAIL=.flexbox 150
+FAIL=.flexbox 151
+FAIL=.flexbox 153
+FAIL=.flexbox 155
+FAIL=.flexbox 157
+FAIL=.flexbox 158
+FAIL=.flexbox 159
+FAIL=.flexbox 160
+FAIL=.flexbox 161
+FAIL=.flexbox 162
+FAIL=.flexbox 163
+FAIL=.flexbox 165
+FAIL=.flexbox 167
+FAIL=.flexbox 169
+FAIL=.flexbox 170
+FAIL=.flexbox 171
+FAIL=.flexbox 172
+FAIL=.flexbox 173
+FAIL=.flexbox 174
+FAIL=.flexbox 176
+FAIL=.flexbox 178
+FAIL=.flexbox 180
+FAIL=.flexbox 181
+FAIL=.flexbox 182
+FAIL=.flexbox 183
+FAIL=.flexbox 184
+FAIL=.flexbox 185
+FAIL=.flexbox 186
+FAIL=.flexbox 188
+FAIL=.flexbox 19
+FAIL=.flexbox 190
+FAIL=.flexbox 192
+FAIL=.flexbox 193
+FAIL=.flexbox 194
+FAIL=.flexbox 195
+FAIL=.flexbox 196
+FAIL=.flexbox 197
+FAIL=.flexbox 198
+FAIL=.flexbox 199
+FAIL=.flexbox 20
+FAIL=.flexbox 201
+FAIL=.flexbox 203
+FAIL=.flexbox 205
+FAIL=.flexbox 206
+FAIL=.flexbox 207
+FAIL=.flexbox 208
+FAIL=.flexbox 209
+FAIL=.flexbox 21
+FAIL=.flexbox 210
+FAIL=.flexbox 211
+FAIL=.flexbox 213
+FAIL=.flexbox 215
+FAIL=.flexbox 217
+FAIL=.flexbox 218
+FAIL=.flexbox 219
+FAIL=.flexbox 22
+FAIL=.flexbox 220
+FAIL=.flexbox 221
+FAIL=.flexbox 222
+FAIL=.flexbox 224
+FAIL=.flexbox 226
+FAIL=.flexbox 228
+FAIL=.flexbox 229
+FAIL=.flexbox 23
+FAIL=.flexbox 230
+FAIL=.flexbox 231
+FAIL=.flexbox 232
+FAIL=.flexbox 233
+FAIL=.flexbox 234
+FAIL=.flexbox 236
+FAIL=.flexbox 238
+FAIL=.flexbox 24
+FAIL=.flexbox 240
+FAIL=.flexbox 241
+FAIL=.flexbox 242
+FAIL=.flexbox 243
+FAIL=.flexbox 244
+FAIL=.flexbox 245
+FAIL=.flexbox 246
+FAIL=.flexbox 248
+FAIL=.flexbox 250
+FAIL=.flexbox 252
+FAIL=.flexbox 253
+FAIL=.flexbox 254
+FAIL=.flexbox 255
+FAIL=.flexbox 256
+FAIL=.flexbox 257
+FAIL=.flexbox 258
+FAIL=.flexbox 260
+FAIL=.flexbox 262
+FAIL=.flexbox 264
+FAIL=.flexbox 265
+FAIL=.flexbox 266
+FAIL=.flexbox 267
+FAIL=.flexbox 268
+FAIL=.flexbox 269
+FAIL=.flexbox 270
+FAIL=.flexbox 271
+FAIL=.flexbox 273
+FAIL=.flexbox 275
+FAIL=.flexbox 277
+FAIL=.flexbox 278
+FAIL=.flexbox 279
+FAIL=.flexbox 280
+FAIL=.flexbox 281
+FAIL=.flexbox 282
+FAIL=.flexbox 283
+FAIL=.flexbox 285
+FAIL=.flexbox 287
+FAIL=.flexbox 290
+FAIL=.flexbox 292
+FAIL=.flexbox 294
+FAIL=.flexbox 295
+FAIL=.flexbox 296
+FAIL=.flexbox 297
+FAIL=.flexbox 298
+FAIL=.flexbox 299
+FAIL=.flexbox 300
+FAIL=.flexbox 302
+FAIL=.flexbox 304
+FAIL=.flexbox 306
+FAIL=.flexbox 307
+FAIL=.flexbox 308
+FAIL=.flexbox 309
+FAIL=.flexbox 31
+FAIL=.flexbox 310
+FAIL=.flexbox 311
+FAIL=.flexbox 312
+FAIL=.flexbox 313
+FAIL=.flexbox 315
+FAIL=.flexbox 317
+FAIL=.flexbox 319
+FAIL=.flexbox 32
+FAIL=.flexbox 320
+FAIL=.flexbox 321
+FAIL=.flexbox 322
+FAIL=.flexbox 323
+FAIL=.flexbox 324
+FAIL=.flexbox 325
+FAIL=.flexbox 327
+FAIL=.flexbox 329
+FAIL=.flexbox 33
+FAIL=.flexbox 331
+FAIL=.flexbox 332
+FAIL=.flexbox 333
+FAIL=.flexbox 334
+FAIL=.flexbox 335
+FAIL=.flexbox 336
+FAIL=.flexbox 338
+FAIL=.flexbox 34
+FAIL=.flexbox 340
+FAIL=.flexbox 342
+FAIL=.flexbox 343
+FAIL=.flexbox 344
+FAIL=.flexbox 345
+FAIL=.flexbox 346
+FAIL=.flexbox 347
+FAIL=.flexbox 348
+FAIL=.flexbox 35
+FAIL=.flexbox 350
+FAIL=.flexbox 352
+FAIL=.flexbox 354
+FAIL=.flexbox 355
+FAIL=.flexbox 356
+FAIL=.flexbox 357
+FAIL=.flexbox 358
+FAIL=.flexbox 359
+FAIL=.flexbox 36
+FAIL=.flexbox 360
+FAIL=.flexbox 361
+FAIL=.flexbox 363
+FAIL=.flexbox 365
+FAIL=.flexbox 367
+FAIL=.flexbox 368
+FAIL=.flexbox 369
+FAIL=.flexbox 370
+FAIL=.flexbox 371
+FAIL=.flexbox 372
+FAIL=.flexbox 373
+FAIL=.flexbox 375
+FAIL=.flexbox 377
+FAIL=.flexbox 379
+FAIL=.flexbox 380
+FAIL=.flexbox 381
+FAIL=.flexbox 382
+FAIL=.flexbox 383
+FAIL=.flexbox 384
+FAIL=.flexbox 385
+FAIL=.flexbox 387
+FAIL=.flexbox 389
+FAIL=.flexbox 391
+FAIL=.flexbox 392
+FAIL=.flexbox 393
+FAIL=.flexbox 394
+FAIL=.flexbox 395
+FAIL=.flexbox 396
+FAIL=.flexbox 397
+FAIL=.flexbox 399
+FAIL=.flexbox 401
+FAIL=.flexbox 403
+FAIL=.flexbox 404
+FAIL=.flexbox 405
+FAIL=.flexbox 406
+FAIL=.flexbox 407
+FAIL=.flexbox 408
+FAIL=.flexbox 410
+FAIL=.flexbox 412
+FAIL=.flexbox 414
+FAIL=.flexbox 415
+FAIL=.flexbox 416
+FAIL=.flexbox 417
+FAIL=.flexbox 418
+FAIL=.flexbox 419
+FAIL=.flexbox 420
+FAIL=.flexbox 422
+FAIL=.flexbox 424
+FAIL=.flexbox 426
+FAIL=.flexbox 427
+FAIL=.flexbox 428
+FAIL=.flexbox 429
+FAIL=.flexbox 43
+FAIL=.flexbox 430
+FAIL=.flexbox 431
+FAIL=.flexbox 432
+FAIL=.flexbox 44
+FAIL=.flexbox 45
+FAIL=.flexbox 46
+FAIL=.flexbox 47
+FAIL=.flexbox 48
+FAIL=.flexbox 55
+FAIL=.flexbox 56
+FAIL=.flexbox 57
+FAIL=.flexbox 58
+FAIL=.flexbox 59
+FAIL=.flexbox 60
+FAIL=.flexbox 67
+FAIL=.flexbox 68
+FAIL=.flexbox 69
+FAIL=.flexbox 7
+FAIL=.flexbox 70
+FAIL=.flexbox 71
+FAIL=.flexbox 72
+FAIL=.flexbox 79
+FAIL=.flexbox 8
+FAIL=.flexbox 80
+FAIL=.flexbox 81
+FAIL=.flexbox 82
+FAIL=.flexbox 83
+FAIL=.flexbox 84
 FAIL=.flexbox 9
 FAIL=.flexbox 91
 FAIL=.flexbox 92
 FAIL=.flexbox 93
 FAIL=.flexbox 94
+FAIL=.flexbox 95
 FAIL=.flexbox 96
-FAIL=.flexbox 97
-FAIL=.flexbox 99
-[css/css-flexbox/abspos/position-absolute-015.html]
-FAIL=#abspos 1
-[css/css-flexbox/abspos/position-absolute-containing-block-001.html]
-harness=FAIL
-[css/css-flexbox/abspos/position-absolute-containing-block-002.html]
+[css/css-flexbox/align-baseline.html]
 harness=FAIL
 [css/css-flexbox/align-content-001.htm]
 harness=FAIL
@@ -31332,465 +30540,16 @@ harness=FAIL
 harness=FAIL
 [css/css-flexbox/align-content-005.htm]
 harness=FAIL
-[css/css-flexbox/align-content-006.htm]
-harness=FAIL
 [css/css-flexbox/align-content-007.htm]
 harness=FAIL
-[css/css-flexbox/align-content-horiz-001a.html]
-FAIL=.flexbox div 1
-FAIL=.flexbox div 10
-FAIL=.flexbox div 11
-FAIL=.flexbox div 12
-FAIL=.flexbox div 13
-FAIL=.flexbox div 14
-FAIL=.flexbox div 15
-FAIL=.flexbox div 16
-FAIL=.flexbox div 17
-FAIL=.flexbox div 18
-FAIL=.flexbox div 19
-FAIL=.flexbox div 2
-FAIL=.flexbox div 20
-FAIL=.flexbox div 21
-FAIL=.flexbox div 22
-FAIL=.flexbox div 23
-FAIL=.flexbox div 24
-FAIL=.flexbox div 25
-FAIL=.flexbox div 26
-FAIL=.flexbox div 27
-FAIL=.flexbox div 28
-FAIL=.flexbox div 29
-FAIL=.flexbox div 3
-FAIL=.flexbox div 30
-FAIL=.flexbox div 31
-FAIL=.flexbox div 32
-FAIL=.flexbox div 33
-FAIL=.flexbox div 34
-FAIL=.flexbox div 35
-FAIL=.flexbox div 36
-FAIL=.flexbox div 37
-FAIL=.flexbox div 38
-FAIL=.flexbox div 39
-FAIL=.flexbox div 4
-FAIL=.flexbox div 40
-FAIL=.flexbox div 41
-FAIL=.flexbox div 42
-FAIL=.flexbox div 43
-FAIL=.flexbox div 44
-FAIL=.flexbox div 45
-FAIL=.flexbox div 46
-FAIL=.flexbox div 47
-FAIL=.flexbox div 48
-FAIL=.flexbox div 49
-FAIL=.flexbox div 5
-FAIL=.flexbox div 50
-FAIL=.flexbox div 51
-FAIL=.flexbox div 52
-FAIL=.flexbox div 53
-FAIL=.flexbox div 54
-FAIL=.flexbox div 55
-FAIL=.flexbox div 56
-FAIL=.flexbox div 57
-FAIL=.flexbox div 58
-FAIL=.flexbox div 59
-FAIL=.flexbox div 6
-FAIL=.flexbox div 60
-FAIL=.flexbox div 61
-FAIL=.flexbox div 62
-FAIL=.flexbox div 63
-FAIL=.flexbox div 64
-FAIL=.flexbox div 65
-FAIL=.flexbox div 66
-FAIL=.flexbox div 67
-FAIL=.flexbox div 68
-FAIL=.flexbox div 69
-FAIL=.flexbox div 7
-FAIL=.flexbox div 70
-FAIL=.flexbox div 71
-FAIL=.flexbox div 72
-FAIL=.flexbox div 8
-FAIL=.flexbox div 9
-[css/css-flexbox/align-content-horiz-001b.html]
-FAIL=.flexbox div 1
-FAIL=.flexbox div 10
-FAIL=.flexbox div 11
-FAIL=.flexbox div 12
-FAIL=.flexbox div 13
-FAIL=.flexbox div 14
-FAIL=.flexbox div 15
-FAIL=.flexbox div 16
-FAIL=.flexbox div 17
-FAIL=.flexbox div 18
-FAIL=.flexbox div 19
-FAIL=.flexbox div 2
-FAIL=.flexbox div 20
-FAIL=.flexbox div 21
-FAIL=.flexbox div 22
-FAIL=.flexbox div 23
-FAIL=.flexbox div 24
-FAIL=.flexbox div 25
-FAIL=.flexbox div 26
-FAIL=.flexbox div 27
-FAIL=.flexbox div 28
-FAIL=.flexbox div 29
-FAIL=.flexbox div 3
-FAIL=.flexbox div 30
-FAIL=.flexbox div 31
-FAIL=.flexbox div 32
-FAIL=.flexbox div 33
-FAIL=.flexbox div 34
-FAIL=.flexbox div 35
-FAIL=.flexbox div 36
-FAIL=.flexbox div 37
-FAIL=.flexbox div 38
-FAIL=.flexbox div 39
-FAIL=.flexbox div 4
-FAIL=.flexbox div 40
-FAIL=.flexbox div 41
-FAIL=.flexbox div 42
-FAIL=.flexbox div 43
-FAIL=.flexbox div 44
-FAIL=.flexbox div 45
-FAIL=.flexbox div 46
-FAIL=.flexbox div 47
-FAIL=.flexbox div 48
-FAIL=.flexbox div 49
-FAIL=.flexbox div 5
-FAIL=.flexbox div 50
-FAIL=.flexbox div 51
-FAIL=.flexbox div 52
-FAIL=.flexbox div 53
-FAIL=.flexbox div 54
-FAIL=.flexbox div 55
-FAIL=.flexbox div 56
-FAIL=.flexbox div 57
-FAIL=.flexbox div 58
-FAIL=.flexbox div 59
-FAIL=.flexbox div 6
-FAIL=.flexbox div 60
-FAIL=.flexbox div 61
-FAIL=.flexbox div 62
-FAIL=.flexbox div 63
-FAIL=.flexbox div 64
-FAIL=.flexbox div 65
-FAIL=.flexbox div 66
-FAIL=.flexbox div 67
-FAIL=.flexbox div 68
-FAIL=.flexbox div 69
-FAIL=.flexbox div 7
-FAIL=.flexbox div 70
-FAIL=.flexbox div 71
-FAIL=.flexbox div 72
-FAIL=.flexbox div 8
-FAIL=.flexbox div 9
-[css/css-flexbox/align-content-horiz-002.html]
-FAIL=.flexbox div 1
-FAIL=.flexbox div 10
-FAIL=.flexbox div 11
-FAIL=.flexbox div 12
-FAIL=.flexbox div 13
-FAIL=.flexbox div 14
-FAIL=.flexbox div 15
-FAIL=.flexbox div 16
-FAIL=.flexbox div 17
-FAIL=.flexbox div 18
-FAIL=.flexbox div 19
-FAIL=.flexbox div 2
-FAIL=.flexbox div 20
-FAIL=.flexbox div 21
-FAIL=.flexbox div 22
-FAIL=.flexbox div 23
-FAIL=.flexbox div 24
-FAIL=.flexbox div 25
-FAIL=.flexbox div 26
-FAIL=.flexbox div 27
-FAIL=.flexbox div 28
-FAIL=.flexbox div 29
-FAIL=.flexbox div 3
-FAIL=.flexbox div 30
-FAIL=.flexbox div 31
-FAIL=.flexbox div 32
-FAIL=.flexbox div 33
-FAIL=.flexbox div 34
-FAIL=.flexbox div 35
-FAIL=.flexbox div 36
-FAIL=.flexbox div 37
-FAIL=.flexbox div 38
-FAIL=.flexbox div 39
-FAIL=.flexbox div 4
-FAIL=.flexbox div 40
-FAIL=.flexbox div 41
-FAIL=.flexbox div 42
-FAIL=.flexbox div 43
-FAIL=.flexbox div 44
-FAIL=.flexbox div 45
-FAIL=.flexbox div 46
-FAIL=.flexbox div 47
-FAIL=.flexbox div 48
-FAIL=.flexbox div 49
-FAIL=.flexbox div 5
-FAIL=.flexbox div 50
-FAIL=.flexbox div 51
-FAIL=.flexbox div 52
-FAIL=.flexbox div 53
-FAIL=.flexbox div 54
-FAIL=.flexbox div 55
-FAIL=.flexbox div 56
-FAIL=.flexbox div 57
-FAIL=.flexbox div 58
-FAIL=.flexbox div 59
-FAIL=.flexbox div 6
-FAIL=.flexbox div 60
-FAIL=.flexbox div 61
-FAIL=.flexbox div 62
-FAIL=.flexbox div 63
-FAIL=.flexbox div 64
-FAIL=.flexbox div 65
-FAIL=.flexbox div 66
-FAIL=.flexbox div 67
-FAIL=.flexbox div 68
-FAIL=.flexbox div 69
-FAIL=.flexbox div 7
-FAIL=.flexbox div 70
-FAIL=.flexbox div 71
-FAIL=.flexbox div 72
-FAIL=.flexbox div 8
-FAIL=.flexbox div 9
 [css/css-flexbox/align-content-rounding.html]
 FAIL=The last item should match the end edge.
 [css/css-flexbox/align-content-stretch-rounding.html]
 FAIL=The last item should match the end edge.
-[css/css-flexbox/align-content-vert-001a.html]
-FAIL=.flexbox div 1
-FAIL=.flexbox div 10
-FAIL=.flexbox div 11
-FAIL=.flexbox div 12
-FAIL=.flexbox div 13
-FAIL=.flexbox div 14
-FAIL=.flexbox div 15
-FAIL=.flexbox div 16
-FAIL=.flexbox div 17
-FAIL=.flexbox div 18
-FAIL=.flexbox div 19
-FAIL=.flexbox div 2
-FAIL=.flexbox div 20
-FAIL=.flexbox div 21
-FAIL=.flexbox div 22
-FAIL=.flexbox div 23
-FAIL=.flexbox div 24
-FAIL=.flexbox div 25
-FAIL=.flexbox div 26
-FAIL=.flexbox div 27
-FAIL=.flexbox div 28
-FAIL=.flexbox div 29
-FAIL=.flexbox div 3
-FAIL=.flexbox div 30
-FAIL=.flexbox div 31
-FAIL=.flexbox div 32
-FAIL=.flexbox div 33
-FAIL=.flexbox div 34
-FAIL=.flexbox div 35
-FAIL=.flexbox div 36
-FAIL=.flexbox div 37
-FAIL=.flexbox div 38
-FAIL=.flexbox div 39
-FAIL=.flexbox div 4
-FAIL=.flexbox div 40
-FAIL=.flexbox div 41
-FAIL=.flexbox div 42
-FAIL=.flexbox div 43
-FAIL=.flexbox div 44
-FAIL=.flexbox div 45
-FAIL=.flexbox div 46
-FAIL=.flexbox div 47
-FAIL=.flexbox div 48
-FAIL=.flexbox div 49
-FAIL=.flexbox div 5
-FAIL=.flexbox div 50
-FAIL=.flexbox div 51
-FAIL=.flexbox div 52
-FAIL=.flexbox div 53
-FAIL=.flexbox div 54
-FAIL=.flexbox div 55
-FAIL=.flexbox div 56
-FAIL=.flexbox div 57
-FAIL=.flexbox div 58
-FAIL=.flexbox div 59
-FAIL=.flexbox div 6
-FAIL=.flexbox div 60
-FAIL=.flexbox div 61
-FAIL=.flexbox div 62
-FAIL=.flexbox div 63
-FAIL=.flexbox div 64
-FAIL=.flexbox div 65
-FAIL=.flexbox div 66
-FAIL=.flexbox div 67
-FAIL=.flexbox div 68
-FAIL=.flexbox div 69
-FAIL=.flexbox div 7
-FAIL=.flexbox div 70
-FAIL=.flexbox div 71
-FAIL=.flexbox div 72
-FAIL=.flexbox div 8
-FAIL=.flexbox div 9
-[css/css-flexbox/align-content-vert-001b.html]
-FAIL=.flexbox div 1
-FAIL=.flexbox div 10
-FAIL=.flexbox div 11
-FAIL=.flexbox div 12
-FAIL=.flexbox div 13
-FAIL=.flexbox div 14
-FAIL=.flexbox div 15
-FAIL=.flexbox div 16
-FAIL=.flexbox div 17
-FAIL=.flexbox div 18
-FAIL=.flexbox div 19
-FAIL=.flexbox div 2
-FAIL=.flexbox div 20
-FAIL=.flexbox div 21
-FAIL=.flexbox div 22
-FAIL=.flexbox div 23
-FAIL=.flexbox div 24
-FAIL=.flexbox div 25
-FAIL=.flexbox div 26
-FAIL=.flexbox div 27
-FAIL=.flexbox div 28
-FAIL=.flexbox div 29
-FAIL=.flexbox div 3
-FAIL=.flexbox div 30
-FAIL=.flexbox div 31
-FAIL=.flexbox div 32
-FAIL=.flexbox div 33
-FAIL=.flexbox div 34
-FAIL=.flexbox div 35
-FAIL=.flexbox div 36
-FAIL=.flexbox div 37
-FAIL=.flexbox div 38
-FAIL=.flexbox div 39
-FAIL=.flexbox div 4
-FAIL=.flexbox div 40
-FAIL=.flexbox div 41
-FAIL=.flexbox div 42
-FAIL=.flexbox div 43
-FAIL=.flexbox div 44
-FAIL=.flexbox div 45
-FAIL=.flexbox div 46
-FAIL=.flexbox div 47
-FAIL=.flexbox div 48
-FAIL=.flexbox div 49
-FAIL=.flexbox div 5
-FAIL=.flexbox div 50
-FAIL=.flexbox div 51
-FAIL=.flexbox div 52
-FAIL=.flexbox div 53
-FAIL=.flexbox div 54
-FAIL=.flexbox div 55
-FAIL=.flexbox div 56
-FAIL=.flexbox div 57
-FAIL=.flexbox div 58
-FAIL=.flexbox div 59
-FAIL=.flexbox div 6
-FAIL=.flexbox div 60
-FAIL=.flexbox div 61
-FAIL=.flexbox div 62
-FAIL=.flexbox div 63
-FAIL=.flexbox div 64
-FAIL=.flexbox div 65
-FAIL=.flexbox div 66
-FAIL=.flexbox div 67
-FAIL=.flexbox div 68
-FAIL=.flexbox div 69
-FAIL=.flexbox div 7
-FAIL=.flexbox div 70
-FAIL=.flexbox div 71
-FAIL=.flexbox div 72
-FAIL=.flexbox div 8
-FAIL=.flexbox div 9
-[css/css-flexbox/align-content-vert-002.html]
-FAIL=.flexbox div 1
-FAIL=.flexbox div 10
-FAIL=.flexbox div 11
-FAIL=.flexbox div 12
-FAIL=.flexbox div 13
-FAIL=.flexbox div 14
-FAIL=.flexbox div 15
-FAIL=.flexbox div 16
-FAIL=.flexbox div 17
-FAIL=.flexbox div 18
-FAIL=.flexbox div 19
-FAIL=.flexbox div 2
-FAIL=.flexbox div 20
-FAIL=.flexbox div 21
-FAIL=.flexbox div 22
-FAIL=.flexbox div 23
-FAIL=.flexbox div 24
-FAIL=.flexbox div 25
-FAIL=.flexbox div 26
-FAIL=.flexbox div 27
-FAIL=.flexbox div 28
-FAIL=.flexbox div 29
-FAIL=.flexbox div 3
-FAIL=.flexbox div 30
-FAIL=.flexbox div 31
-FAIL=.flexbox div 32
-FAIL=.flexbox div 33
-FAIL=.flexbox div 34
-FAIL=.flexbox div 35
-FAIL=.flexbox div 36
-FAIL=.flexbox div 37
-FAIL=.flexbox div 38
-FAIL=.flexbox div 39
-FAIL=.flexbox div 4
-FAIL=.flexbox div 40
-FAIL=.flexbox div 41
-FAIL=.flexbox div 42
-FAIL=.flexbox div 43
-FAIL=.flexbox div 44
-FAIL=.flexbox div 45
-FAIL=.flexbox div 46
-FAIL=.flexbox div 47
-FAIL=.flexbox div 48
-FAIL=.flexbox div 49
-FAIL=.flexbox div 5
-FAIL=.flexbox div 50
-FAIL=.flexbox div 51
-FAIL=.flexbox div 52
-FAIL=.flexbox div 53
-FAIL=.flexbox div 54
-FAIL=.flexbox div 55
-FAIL=.flexbox div 56
-FAIL=.flexbox div 57
-FAIL=.flexbox div 58
-FAIL=.flexbox div 59
-FAIL=.flexbox div 6
-FAIL=.flexbox div 60
-FAIL=.flexbox div 61
-FAIL=.flexbox div 62
-FAIL=.flexbox div 63
-FAIL=.flexbox div 64
-FAIL=.flexbox div 65
-FAIL=.flexbox div 66
-FAIL=.flexbox div 67
-FAIL=.flexbox div 68
-FAIL=.flexbox div 69
-FAIL=.flexbox div 7
-FAIL=.flexbox div 70
-FAIL=.flexbox div 71
-FAIL=.flexbox div 72
-FAIL=.flexbox div 8
-FAIL=.flexbox div 9
 [css/css-flexbox/align-content-wmvert-001.html]
-FAIL=.flexbox div 1
-FAIL=.flexbox div 10
-FAIL=.flexbox div 11
-FAIL=.flexbox div 12
-FAIL=.flexbox div 13
-FAIL=.flexbox div 14
-FAIL=.flexbox div 15
-FAIL=.flexbox div 16
 FAIL=.flexbox div 17
 FAIL=.flexbox div 18
 FAIL=.flexbox div 19
-FAIL=.flexbox div 2
 FAIL=.flexbox div 20
 FAIL=.flexbox div 21
 FAIL=.flexbox div 22
@@ -31805,11 +30564,8 @@ FAIL=.flexbox div 3
 FAIL=.flexbox div 30
 FAIL=.flexbox div 31
 FAIL=.flexbox div 32
-FAIL=.flexbox div 33
-FAIL=.flexbox div 34
 FAIL=.flexbox div 35
 FAIL=.flexbox div 36
-FAIL=.flexbox div 37
 FAIL=.flexbox div 38
 FAIL=.flexbox div 39
 FAIL=.flexbox div 4
@@ -31823,7 +30579,6 @@ FAIL=.flexbox div 46
 FAIL=.flexbox div 47
 FAIL=.flexbox div 48
 FAIL=.flexbox div 49
-FAIL=.flexbox div 5
 FAIL=.flexbox div 50
 FAIL=.flexbox div 51
 FAIL=.flexbox div 52
@@ -31831,7 +30586,6 @@ FAIL=.flexbox div 53
 FAIL=.flexbox div 54
 FAIL=.flexbox div 55
 FAIL=.flexbox div 56
-FAIL=.flexbox div 57
 FAIL=.flexbox div 58
 FAIL=.flexbox div 59
 FAIL=.flexbox div 6
@@ -31850,25 +30604,15 @@ FAIL=.flexbox div 70
 FAIL=.flexbox div 71
 FAIL=.flexbox div 72
 FAIL=.flexbox div 8
-FAIL=.flexbox div 9
 [css/css-flexbox/align-content-wrap-001.html]
 FAIL=.default, .verticalWriting 10
 FAIL=.default, .verticalWriting 12
-FAIL=.default, .verticalWriting 2
-FAIL=.default, .verticalWriting 3
-FAIL=.default, .verticalWriting 5
-FAIL=.default, .verticalWriting 6
 FAIL=.default, .verticalWriting 9
 [css/css-flexbox/align-content-wrap-002.html]
 FAIL=.flex-horizontal, .flex-vertical 1
-FAIL=.flex-horizontal, .flex-vertical 5
-FAIL=.flex-horizontal, .flex-vertical 6
+FAIL=.flex-horizontal, .flex-vertical 4
 [css/css-flexbox/align-content-wrap-003.html]
-FAIL=.flexbox 1
 FAIL=.flexbox 10
-FAIL=.flexbox 19
-FAIL=.flexbox 20
-FAIL=.flexbox 21
 FAIL=.flexbox 23
 FAIL=.flexbox 24
 FAIL=.flexbox 25
@@ -31876,7 +30620,6 @@ FAIL=.flexbox 26
 FAIL=.flexbox 27
 FAIL=.flexbox 28
 FAIL=.flexbox 29
-FAIL=.flexbox 3
 FAIL=.flexbox 30
 FAIL=.flexbox 31
 FAIL=.flexbox 32
@@ -31884,33 +30627,16 @@ FAIL=.flexbox 33
 FAIL=.flexbox 34
 FAIL=.flexbox 35
 FAIL=.flexbox 36
-FAIL=.flexbox 4
 FAIL=.flexbox 41
 FAIL=.flexbox 42
 FAIL=.flexbox 43
 FAIL=.flexbox 44
-FAIL=.flexbox 5
-FAIL=.flexbox 6
-FAIL=.flexbox 7
-FAIL=.flexbox 8
 FAIL=.flexbox 9
 [css/css-flexbox/align-content-wrap-005.html]
-FAIL=.flexitem 3
-FAIL=.flexitem 4
 FAIL=.flexitem 5
 FAIL=.flexitem 6
 FAIL=.flexitem 7
 FAIL=.flexitem 8
-[css/css-flexbox/align-content_center.html]
-harness=FAIL
-[css/css-flexbox/align-content_flex-end.html]
-harness=FAIL
-[css/css-flexbox/align-content_space-around.html]
-harness=FAIL
-[css/css-flexbox/align-content_space-between.html]
-harness=FAIL
-[css/css-flexbox/align-content_stretch.html]
-harness=FAIL
 [css/css-flexbox/align-items-001.htm]
 harness=FAIL
 [css/css-flexbox/align-items-002.htm]
@@ -31929,19 +30655,14 @@ harness=FAIL
 FAIL=#target > div 1
 FAIL=#target > div 2
 FAIL=#target > div 3
-FAIL=#target > div 4
 FAIL=#target > div 5
 [css/css-flexbox/align-items-baseline-column-vert-lr-flexbox-item.html]
-FAIL=#target > div 1
 FAIL=#target > div 2
 [css/css-flexbox/align-items-baseline-column-vert-lr-grid-item.html]
-FAIL=#target > div 1
 FAIL=#target > div 2
 [css/css-flexbox/align-items-baseline-column-vert-lr-items.html]
-FAIL=#target > div 1
 FAIL=#target > div 2
 [css/css-flexbox/align-items-baseline-column-vert-lr-table-item.html]
-FAIL=#target > * 1
 FAIL=#target > * 2
 [css/css-flexbox/align-items-baseline-column-vert-rl-flexbox-item.html]
 FAIL=#target > div 1
@@ -31956,7 +30677,6 @@ FAIL=#target > div 2
 FAIL=#target > * 1
 FAIL=#target > * 2
 [css/css-flexbox/align-items-baseline-column-vert.html]
-FAIL=#target > div 1
 FAIL=#target > div 2
 FAIL=#target > div 3
 [css/css-flexbox/align-items-baseline-overflow-non-visible.html]
@@ -31964,7 +30684,6 @@ harness=FAIL
 [css/css-flexbox/align-items-baseline-row-horz.html]
 FAIL=#target > div 1
 FAIL=#target > div 2
-FAIL=#target > div 3
 [css/css-flexbox/align-items-baseline-row-vert.html]
 FAIL=#target > div 1
 FAIL=#target > div 2
@@ -31972,27 +30691,23 @@ FAIL=#target > div 3
 FAIL=#target > div 4
 FAIL=#target > div 5
 [css/css-flexbox/align-items-baseline-vert-lr-column-horz-flexbox-item.html]
-FAIL=#target > div 1
 FAIL=#target > div 2
 [css/css-flexbox/align-items-baseline-vert-lr-column-horz-grid-item.html]
-FAIL=#target > div 1
 FAIL=#target > div 2
 [css/css-flexbox/align-items-baseline-vert-lr-column-horz-items.html]
-FAIL=#target > div 1
 FAIL=#target > div 2
 [css/css-flexbox/align-items-baseline-vert-lr-column-horz-table-item.html]
 FAIL=#target > div 1
 [css/css-flexbox/align-items-baseline-vert-rl-column-horz-flexbox-item.html]
-FAIL=#target > div 1
 FAIL=#target > div 2
 [css/css-flexbox/align-items-baseline-vert-rl-column-horz-grid-item.html]
-FAIL=#target > div 1
 FAIL=#target > div 2
 [css/css-flexbox/align-items-baseline-vert-rl-column-horz-items.html]
-FAIL=#target > div 1
 FAIL=#target > div 2
 [css/css-flexbox/align-items-baseline-vert-rl-column-horz-table-item.html]
 FAIL=#target > div 1
+[css/css-flexbox/align-self-015.html]
+harness=FAIL
 [css/css-flexbox/align-self-016.html]
 harness=FAIL
 [css/css-flexbox/align-self-baseline-with-flex-wrap.html]
@@ -32342,21 +31057,16 @@ FAIL=.target > * 1
 FAIL=.target > * 2
 FAIL=.target > * 3
 FAIL=.target > * 4
-[css/css-flexbox/alignment/flex-content-alignment-with-abspos-001.html]
-FAIL=.flex 1
 [css/css-flexbox/alignment/multiline-align-self.html]
 FAIL=.flexbox 1
-FAIL=.flexbox 10
 FAIL=.flexbox 11
 FAIL=.flexbox 12
 FAIL=.flexbox 13
-FAIL=.flexbox 14
 FAIL=.flexbox 15
 FAIL=.flexbox 16
 FAIL=.flexbox 17
 FAIL=.flexbox 18
 FAIL=.flexbox 19
-FAIL=.flexbox 2
 FAIL=.flexbox 20
 FAIL=.flexbox 21
 FAIL=.flexbox 22
@@ -32389,7 +31099,6 @@ FAIL=.flexbox 46
 FAIL=.flexbox 47
 FAIL=.flexbox 48
 FAIL=.flexbox 5
-FAIL=.flexbox 6
 FAIL=.flexbox 7
 FAIL=.flexbox 8
 FAIL=.flexbox 9
@@ -33285,6 +31994,10 @@ FAIL=.flexbox 9
 [css/css-flexbox/box-sizing-min-max-sizes-001.html]
 FAIL=.flexbox 1
 FAIL=.flexbox 2
+[css/css-flexbox/break-nested-float-in-flex-item-001-print.html]
+harness=FAIL
+[css/css-flexbox/break-nested-float-in-flex-item-002-print.html]
+harness=FAIL
 [css/css-flexbox/canvas-contain-size.html]
 harness=FAIL
 [css/css-flexbox/canvas-dynamic-change-001.html]
@@ -33296,8 +32009,8 @@ harness=FAIL
 [css/css-flexbox/column-flex-child-with-overflow-scroll.html]
 FAIL=.flexbox 1
 FAIL=.flexbox 2
-[css/css-flexbox/columns-height-set-via-top-bottom.html]
-FAIL=.flexbox 2
+[css/css-flexbox/content-height-with-scrollbars.html]
+harness=FAIL
 [css/css-flexbox/cross-axis-scrollbar.html]
 harness=FAIL
 [css/css-flexbox/css-box-justify-content.html]
@@ -33340,8 +32053,6 @@ harness=FAIL
 [css/css-flexbox/fieldset-as-item-overflow.html]
 harness=FAIL
 [css/css-flexbox/fieldset-baseline-alignment.html]
-harness=FAIL
-[css/css-flexbox/fit-content-item-001.html]
 harness=FAIL
 [css/css-flexbox/fixed-table-layout-with-percentage-width-in-flex-item.html]
 harness=FAIL
@@ -33650,8 +32361,6 @@ harness=FAIL
 harness=FAIL
 [css/css-flexbox/flex-lines/multi-line-wrap-reverse-column-reverse.html]
 harness=FAIL
-[css/css-flexbox/flex-lines/multi-line-wrap-with-column-reverse.html]
-harness=FAIL
 [css/css-flexbox/flex-lines/multi-line-wrap-with-row-reverse.html]
 harness=FAIL
 [css/css-flexbox/flex-margin-no-collapse.html]
@@ -33690,9 +32399,14 @@ harness=FAIL
 harness=FAIL
 [css/css-flexbox/flex-minimum-height-flex-items-021.html]
 harness=FAIL
-[css/css-flexbox/flex-minimum-height-flex-items-022.html]
-harness=FAIL
 [css/css-flexbox/flex-minimum-height-flex-items-023.html]
+harness=FAIL
+[css/css-flexbox/flex-minimum-height-flex-items-025.html]
+FAIL=.outer-column-flexbox > div 1
+FAIL=.outer-column-flexbox > div 2
+FAIL=.outer-column-flexbox > div 3
+FAIL=.outer-column-flexbox > div 4
+[css/css-flexbox/flex-minimum-height-flex-items-028.html]
 harness=FAIL
 [css/css-flexbox/flex-minimum-height-flex-items-029.html]
 harness=FAIL
@@ -33786,7 +32500,6 @@ FAIL=img 2
 [css/css-flexbox/flex-minimum-size-single-axis-scroll-container.html]
 FAIL=.item 1
 FAIL=.item 3
-FAIL=.item 4
 [css/css-flexbox/flex-minimum-width-flex-items-001.xht]
 harness=FAIL
 [css/css-flexbox/flex-minimum-width-flex-items-002.xht]
@@ -33839,6 +32552,10 @@ FAIL=.flexbox 4
 FAIL=.flexbox 5
 FAIL=.flexbox 7
 FAIL=.flexbox 8
+[css/css-flexbox/flex-order-last-baseline-multiple.html]
+harness=FAIL
+[css/css-flexbox/flex-order-last-baseline.html]
+harness=FAIL
 [css/css-flexbox/flex-rounding.html]
 FAIL=The last item shouldn't overflow the flexbox.
 [css/css-flexbox/flex-shorthand-calc.html]
@@ -33871,6 +32588,8 @@ harness=FAIL
 harness=FAIL
 [css/css-flexbox/flexbox-align-self-baseline-horiz-003.xhtml]
 harness=FAIL
+[css/css-flexbox/flexbox-align-self-baseline-horiz-005.xhtml]
+harness=FAIL
 [css/css-flexbox/flexbox-align-self-baseline-horiz-006.xhtml]
 harness=FAIL
 [css/css-flexbox/flexbox-align-self-baseline-horiz-007.xhtml]
@@ -33889,7 +32608,7 @@ harness=FAIL
 harness=FAIL
 [css/css-flexbox/flexbox-align-self-horiz-005.xhtml]
 harness=FAIL
-[css/css-flexbox/flexbox-align-self-stretch-vert-002.html]
+[css/css-flexbox/flexbox-align-self-stretch-vert-001.html]
 harness=FAIL
 [css/css-flexbox/flexbox-align-self-vert-001.xhtml]
 harness=FAIL
@@ -33927,13 +32646,15 @@ harness=FAIL
 harness=FAIL
 [css/css-flexbox/flexbox-baseline-multi-line-horiz-002.html]
 harness=FAIL
-[css/css-flexbox/flexbox-baseline-multi-line-horiz-003.html]
-harness=FAIL
 [css/css-flexbox/flexbox-baseline-multi-line-horiz-004.html]
 harness=FAIL
 [css/css-flexbox/flexbox-baseline-multi-line-vert-001.html]
 harness=FAIL
 [css/css-flexbox/flexbox-baseline-multi-line-vert-002.html]
+harness=FAIL
+[css/css-flexbox/flexbox-baseline-single-item-001a.html]
+harness=FAIL
+[css/css-flexbox/flexbox-baseline-single-item-001b.html]
 harness=FAIL
 [css/css-flexbox/flexbox-basic-block-horiz-001v.xhtml]
 harness=FAIL
@@ -33966,14 +32687,6 @@ harness=FAIL
 [css/css-flexbox/flexbox-basic-video-horiz-001.xhtml]
 harness=FAIL
 [css/css-flexbox/flexbox-basic-video-vert-001.xhtml]
-harness=FAIL
-[css/css-flexbox/flexbox-break-request-horiz-001a.html]
-harness=FAIL
-[css/css-flexbox/flexbox-break-request-horiz-001b.html]
-harness=FAIL
-[css/css-flexbox/flexbox-break-request-vert-001a.html]
-harness=FAIL
-[css/css-flexbox/flexbox-break-request-vert-001b.html]
 harness=FAIL
 [css/css-flexbox/flexbox-collapsed-item-baseline-001.html]
 harness=FAIL
@@ -34017,21 +32730,13 @@ harness=FAIL
 harness=FAIL
 [css/css-flexbox/flexbox-flex-basis-content-004b.html]
 harness=FAIL
-[css/css-flexbox/flexbox-flex-direction-column-reverse.htm]
-harness=FAIL
-[css/css-flexbox/flexbox-flex-direction-row-reverse.htm]
-harness=FAIL
 [css/css-flexbox/flexbox-flex-flow-001.html]
 harness=FAIL
 [css/css-flexbox/flexbox-flex-wrap-flexing-003.html]
 harness=FAIL
 [css/css-flexbox/flexbox-flex-wrap-flexing.html]
 harness=FAIL
-[css/css-flexbox/flexbox-flex-wrap-horiz-001.html]
-harness=FAIL
 [css/css-flexbox/flexbox-flex-wrap-horiz-002.html]
-harness=FAIL
-[css/css-flexbox/flexbox-flex-wrap-vert-001.html]
 harness=FAIL
 [css/css-flexbox/flexbox-flex-wrap-vert-002.html]
 harness=FAIL
@@ -34071,8 +32776,6 @@ FAIL=.flexitem 4
 [css/css-flexbox/flexbox-justify-content-wmvert-003.html]
 FAIL=.flexitem 3
 FAIL=.flexitem 4
-[css/css-flexbox/flexbox-lines-must-be-stretched-by-default.html]
-FAIL=.flex-container 1
 [css/css-flexbox/flexbox-margin-auto-horiz-002.xhtml]
 harness=FAIL
 [css/css-flexbox/flexbox-mbp-horiz-001-reverse.xhtml]
@@ -34117,19 +32820,19 @@ harness=FAIL
 harness=FAIL
 [css/css-flexbox/flexbox-overflow-horiz-001.html]
 harness=FAIL
+[css/css-flexbox/flexbox-overflow-horiz-002.html]
+harness=FAIL
 [css/css-flexbox/flexbox-overflow-vert-001.html]
+harness=FAIL
+[css/css-flexbox/flexbox-overflow-vert-002.html]
 harness=FAIL
 [css/css-flexbox/flexbox-paint-ordering-001.xhtml]
 harness=FAIL
 [css/css-flexbox/flexbox-paint-ordering-002.xhtml]
 harness=FAIL
-[css/css-flexbox/flexbox-paint-ordering-003.html]
-harness=FAIL
 [css/css-flexbox/flexbox-root-node-001a.html]
 harness=FAIL
 [css/css-flexbox/flexbox-root-node-001b.html]
-harness=FAIL
-[css/css-flexbox/flexbox-safe-overflow-position-001.html]
 harness=FAIL
 [css/css-flexbox/flexbox-safe-overflow-position-002.html]
 harness=FAIL
@@ -34142,6 +32845,10 @@ harness=FAIL
 [css/css-flexbox/flexbox-safe-overflow-position-006.html]
 harness=FAIL
 [css/css-flexbox/flexbox-single-line-clamp-1.html]
+harness=FAIL
+[css/css-flexbox/flexbox-single-line-clamp-2.html]
+harness=FAIL
+[css/css-flexbox/flexbox-single-line-clamp-3.html]
 harness=FAIL
 [css/css-flexbox/flexbox-sizing-horiz-001.xhtml]
 harness=FAIL
@@ -34189,21 +32896,7 @@ harness=FAIL
 harness=FAIL
 [css/css-flexbox/flexbox-writing-mode-srl.html]
 harness=FAIL
-[css/css-flexbox/flexbox_align-content-center.html]
-harness=FAIL
-[css/css-flexbox/flexbox_align-content-flexend.html]
-harness=FAIL
-[css/css-flexbox/flexbox_align-content-spacearound.html]
-harness=FAIL
-[css/css-flexbox/flexbox_align-content-spacebetween.html]
-harness=FAIL
-[css/css-flexbox/flexbox_align-content-stretch-2.html]
-harness=FAIL
-[css/css-flexbox/flexbox_align-content-stretch.html]
-harness=FAIL
 [css/css-flexbox/flexbox_align-items-baseline.html]
-harness=FAIL
-[css/css-flexbox/flexbox_align-items-center-3.html]
 harness=FAIL
 [css/css-flexbox/flexbox_align-items-stretch-3.html]
 harness=FAIL
@@ -34435,14 +33128,6 @@ harness=FAIL
 FAIL=span 1
 FAIL=span 2
 FAIL=span 3
-[css/css-flexbox/flexbox_justifycontent-end-rtl.html]
-harness=FAIL
-[css/css-flexbox/flexbox_justifycontent-end.html]
-harness=FAIL
-[css/css-flexbox/flexbox_justifycontent-left-001.html]
-harness=FAIL
-[css/css-flexbox/flexbox_justifycontent-left-002.html]
-harness=FAIL
 [css/css-flexbox/flexbox_justifycontent-right-001.html]
 harness=FAIL
 [css/css-flexbox/flexbox_justifycontent-right-002.html]
@@ -34468,10 +33153,6 @@ FAIL=.container > div 6
 FAIL=.container > div 7
 FAIL=.container > div 8
 FAIL=.container > div 9
-[css/css-flexbox/flexbox_justifycontent-start-rtl.html]
-harness=FAIL
-[css/css-flexbox/flexbox_justifycontent-start.html]
-harness=FAIL
 [css/css-flexbox/flexbox_margin-left-ex.html]
 harness=FAIL
 [css/css-flexbox/flexbox_nested-flex.html]
@@ -34508,8 +33189,6 @@ harness=FAIL
 harness=FAIL
 [css/css-flexbox/flexbox_visibility-collapse.html]
 harness=FAIL
-[css/css-flexbox/flexbox_width-wrapping-column.html]
-FAIL=.flexbox 1
 [css/css-flexbox/flexbox_wrap-long.html]
 harness=FAIL
 [css/css-flexbox/flexbox_wrap-reverse.html]
@@ -34619,12 +33298,8 @@ harness=FAIL
 harness=FAIL
 [css/css-flexbox/grid-flex-item-007.html]
 harness=FAIL
-[css/css-flexbox/hittest-overlapping-margin.html]
-FAIL=Flexboxes should perform hit testing in reverse paint order for overlapping elements: negative margin case (crbug.com/844505)
 [css/css-flexbox/hittest-overlapping-order.html]
 FAIL=Flexboxes should perform hit testing in reverse paint order for overlapping elements: flex order case (crbug.com/844505)
-[css/css-flexbox/hittest-overlapping-relative.html]
-FAIL=Flexboxes should perform hit testing in reverse paint order for overlapping elements: relative case (crbug.com/844505)
 [css/css-flexbox/image-as-flexitem-size-001.html]
 FAIL=.flexbox > img 10
 FAIL=.flexbox > img 11
@@ -34693,13 +33368,8 @@ FAIL=.flexbox > img 7
 FAIL=.flexbox > img 8
 [css/css-flexbox/image-as-flexitem-size-004.html]
 FAIL=.flexbox > img 1
-FAIL=.flexbox > img 10
 FAIL=.flexbox > img 12
-FAIL=.flexbox > img 13
-FAIL=.flexbox > img 15
 FAIL=.flexbox > img 2
-FAIL=.flexbox > img 3
-FAIL=.flexbox > img 4
 FAIL=.flexbox > img 5
 FAIL=.flexbox > img 6
 FAIL=.flexbox > img 7
@@ -34707,13 +33377,8 @@ FAIL=.flexbox > img 8
 FAIL=.flexbox > img 9
 [css/css-flexbox/image-as-flexitem-size-004v.html]
 FAIL=.flexbox > img 1
-FAIL=.flexbox > img 10
 FAIL=.flexbox > img 12
-FAIL=.flexbox > img 13
-FAIL=.flexbox > img 15
 FAIL=.flexbox > img 2
-FAIL=.flexbox > img 3
-FAIL=.flexbox > img 4
 FAIL=.flexbox > img 5
 FAIL=.flexbox > img 6
 FAIL=.flexbox > img 7
@@ -34821,14 +33486,12 @@ harness=FAIL
 FAIL=.inline-flexbox 10
 FAIL=.inline-flexbox 11
 FAIL=.inline-flexbox 12
-FAIL=.inline-flexbox 13
 FAIL=.inline-flexbox 14
 FAIL=.inline-flexbox 15
 FAIL=.inline-flexbox 16
 FAIL=.inline-flexbox 2
 FAIL=.inline-flexbox 3
 FAIL=.inline-flexbox 4
-FAIL=.inline-flexbox 5
 FAIL=.inline-flexbox 6
 FAIL=.inline-flexbox 7
 FAIL=.inline-flexbox 8
@@ -34917,6 +33580,7 @@ FAIL=#wrapping-broke .flex 1
 [css/css-flexbox/intrinsic-size/row-use-cases-001.html]
 FAIL=left < right
 FAIL=no overflow
+FAIL=same heights
 FAIL=same widths
 FAIL=zero width
 [css/css-flexbox/intrinsic-size/row-wrap-001.html]
@@ -34940,6 +33604,8 @@ harness=FAIL
 harness=FAIL
 [css/css-flexbox/justify-content-005.htm]
 harness=FAIL
+[css/css-flexbox/justify-content-006.html]
+FAIL=.middle > div 1
 [css/css-flexbox/justify-content-rounding.html]
 FAIL=The last item should match the end edge.
 [css/css-flexbox/justify-content-sideways-001.html]
@@ -34952,8 +33618,6 @@ FAIL=The last item should match the end edge.
 FAIL=.columns 1
 FAIL=.columns 2
 [css/css-flexbox/min-size-auto-overflow-clip.html]
-harness=FAIL
-[css/css-flexbox/multiline-column-max-height.html]
 harness=FAIL
 [css/css-flexbox/multiline-min-max.html]
 FAIL=.flexbox 10
@@ -35190,6 +33854,7 @@ FAIL=.flexbox 1
 FAIL=.flexbox 10
 FAIL=.flexbox 11
 FAIL=.flexbox 3
+FAIL=.flexbox 5
 FAIL=.flexbox 6
 FAIL=.flexbox 7
 FAIL=.flexbox 8
@@ -35202,6 +33867,8 @@ harness=FAIL
 harness=FAIL
 [css/css-flexbox/orthogonal-writing-modes-and-intrinsic-sizing.html]
 FAIL=.flexbox 2
+[css/css-flexbox/overflow-auto-004.html]
+FAIL=#list-wrapper 1
 [css/css-flexbox/overflow-auto-005.html]
 harness=TIMEOUT
 [css/css-flexbox/overflow-top-left.html]
@@ -35490,6 +34157,8 @@ harness=FAIL
 harness=FAIL
 [css/css-flexbox/scrollbars.html]
 harness=FAIL
+[css/css-flexbox/select-as-flex-item-child-with-overflow.html]
+FAIL=select content (option) should not trigger scrollable overflow.
 [css/css-flexbox/select-as-flex-item-with-overflow.html]
 FAIL=select content (option) should not trigger scrollable overflow.
 [css/css-flexbox/select-element-multiple.html]
@@ -35501,8 +34170,6 @@ harness=FAIL
 [css/css-flexbox/stretch-flex-item-checkbox-input.html]
 harness=FAIL
 [css/css-flexbox/stretch-flex-item-radio-input.html]
-harness=FAIL
-[css/css-flexbox/stretch-input-in-column.html]
 harness=FAIL
 [css/css-flexbox/stretch-obeys-min-max-001.html]
 harness=FAIL
@@ -35547,8 +34214,6 @@ harness=FAIL
 [css/css-flexbox/table-as-item-min-content-height-2.tentative.html]
 harness=FAIL
 [css/css-flexbox/table-as-item-min-height-1.html]
-harness=FAIL
-[css/css-flexbox/table-as-item-narrow-content-2.html]
 harness=FAIL
 [css/css-flexbox/table-as-item-stretch-cross-size-2.html]
 harness=FAIL
@@ -41989,6 +40654,8 @@ harness=FAIL
 harness=FAIL
 [css/css-grid/abspos/positioned-grid-items-018.html]
 harness=FAIL
+[css/css-grid/abspos/positioned-grid-items-022.html]
+harness=FAIL
 [css/css-grid/abspos/positioned-grid-items-023.html]
 harness=FAIL
 [css/css-grid/abspos/positioned-grid-items-024.html]
@@ -41996,6 +40663,8 @@ harness=FAIL
 [css/css-grid/abspos/positioned-grid-items-025.html]
 harness=FAIL
 [css/css-grid/abspos/positioned-grid-items-negative-indices-001.html]
+harness=FAIL
+[css/css-grid/abspos/positioned-grid-items-negative-indices-003.html]
 harness=FAIL
 [css/css-grid/abspos/positioned-grid-items-should-not-create-implicit-tracks-001.html]
 FAIL=.grid 1
@@ -48601,6 +47270,8 @@ harness=FAIL
 harness=FAIL
 [css/css-grid/grid-lanes/alignment/column-fill-reverse-align-content-safe-001.html]
 harness=FAIL
+[css/css-grid/grid-lanes/alignment/column-fill-reverse-align-items-multi-span-indefinite-size-001.html]
+harness=FAIL
 [css/css-grid/grid-lanes/alignment/column-fill-reverse-align-items-stretch-indefinite-size-001.html]
 harness=FAIL
 [css/css-grid/grid-lanes/alignment/column-fill-reverse-dense-packing-align-items-multi-span-001.html]
@@ -48646,6 +47317,10 @@ harness=FAIL
 [css/css-grid/grid-lanes/alignment/column-track-reverse-dense-packing-align-items-multi-span-001.html]
 harness=FAIL
 [css/css-grid/grid-lanes/alignment/grid-lanes-align-content-001.html]
+harness=FAIL
+[css/css-grid/grid-lanes/alignment/row-align-items-center-001.html]
+harness=FAIL
+[css/css-grid/grid-lanes/alignment/row-align-items-end-align-self-start-001.html]
 harness=FAIL
 [css/css-grid/grid-lanes/alignment/row-dense-packing-justify-items-001.html]
 harness=FAIL
@@ -50523,7 +49198,17 @@ harness=FAIL
 harness=FAIL
 [css/css-grid/grid-lanes/grid-placement/row-explicit-placement-008.html]
 harness=FAIL
+[css/css-grid/grid-lanes/intrinsic-sizing/grid-lanes-contain-intrinsic-size-001.html]
+harness=FAIL
 [css/css-grid/grid-lanes/intrinsic-sizing/grid-lanes-contain-intrinsic-size-002.html]
+harness=FAIL
+[css/css-grid/grid-lanes/intrinsic-sizing/grid-lanes-contain-intrinsic-size-003.html]
+harness=FAIL
+[css/css-grid/grid-lanes/intrinsic-sizing/grid-lanes-contain-intrinsic-size-004.html]
+harness=FAIL
+[css/css-grid/grid-lanes/intrinsic-sizing/grid-lanes-contain-intrinsic-size-005.html]
+harness=FAIL
+[css/css-grid/grid-lanes/intrinsic-sizing/grid-lanes-contain-intrinsic-size-006.html]
 harness=FAIL
 [css/css-grid/grid-lanes/intrinsic-sizing/grid-lanes-contain-intrinsic-size-007.html]
 harness=FAIL
@@ -50540,6 +49225,8 @@ FAIL=.test 7
 [css/css-grid/grid-lanes/intrinsic-sizing/grid-lanes-contain-intrinsic-size-010.html]
 harness=FAIL
 [css/css-grid/grid-lanes/intrinsic-sizing/grid-lanes-contain-intrinsic-size-011.html]
+harness=FAIL
+[css/css-grid/grid-lanes/intrinsic-sizing/grid-lanes-contain-intrinsic-size-013.html]
 harness=FAIL
 [css/css-grid/grid-lanes/intrinsic-sizing/grid-lanes-contain-intrinsic-size-logical-001.html]
 harness=FAIL
@@ -50673,6 +49360,8 @@ harness=FAIL
 harness=FAIL
 [css/css-grid/grid-lanes/item-placement/dense-packing/column-dense-packing-multi-span-004.html]
 harness=FAIL
+[css/css-grid/grid-lanes/item-placement/dense-packing/column-dense-packing-multi-span-007.html]
+harness=FAIL
 [css/css-grid/grid-lanes/item-placement/dense-packing/column-dense-packing-multi-span-009.html]
 harness=FAIL
 [css/css-grid/grid-lanes/item-placement/dense-packing/column-dense-packing-multi-span-010.html]
@@ -50738,6 +49427,8 @@ harness=FAIL
 [css/css-grid/grid-lanes/item-placement/flow-tolerance/flow-tolerance-row-004.html]
 harness=FAIL
 [css/css-grid/grid-lanes/item-placement/flow-tolerance/row-flow-tolerance-infinite.html]
+harness=FAIL
+[css/css-grid/grid-lanes/item-placement/flow-tolerance/row-initial-flow-tolerance.html]
 harness=FAIL
 [css/css-grid/grid-lanes/item-placement/grid-lanes-item-placement-002.html]
 harness=FAIL
@@ -51635,6 +50326,8 @@ harness=FAIL
 harness=FAIL
 [css/css-grid/grid-lanes/tentative/item-placement/column-reverse-dense-packing-multi-span-004.html]
 harness=FAIL
+[css/css-grid/grid-lanes/tentative/item-placement/column-reverse-dense-packing-multi-span-005.html]
+harness=FAIL
 [css/css-grid/grid-lanes/tentative/item-placement/column-reverse-dense-packing-multi-span-006.html]
 harness=FAIL
 [css/css-grid/grid-lanes/tentative/item-placement/row-fill-reverse-definite-size-001.html]
@@ -51943,6 +50636,8 @@ harness=FAIL
 harness=FAIL
 [css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-auto-002.html]
 harness=FAIL
+[css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-auto-004.html]
+harness=FAIL
 [css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-auto-006.html]
 harness=FAIL
 [css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-auto-008.html]
@@ -51971,7 +50666,29 @@ harness=FAIL
 FAIL=Auto-fit repeat tracks with auto size and auto item placement
 [css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-auto-021.html]
 FAIL=Auto-fit repeat tracks with auto size and auto item placement
+[css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-fit-content-001.html]
+harness=FAIL
+[css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-fit-content-002.html]
+harness=FAIL
+[css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-fit-content-004.html]
+harness=FAIL
+[css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-max-content-001.html]
+harness=FAIL
+[css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-max-content-002.html]
+harness=FAIL
+[css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-max-content-004.html]
+harness=FAIL
+[css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-min-content-001.html]
+harness=FAIL
+[css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-min-content-002.html]
+harness=FAIL
+[css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-min-content-004.html]
+harness=FAIL
 [css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-minmax-001.html]
+harness=FAIL
+[css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-minmax-002.html]
+harness=FAIL
+[css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-minmax-003.html]
 harness=FAIL
 [css/css-grid/grid-lanes/track-sizing/auto-repeat/intrinsic-auto-repeat/row-auto-repeat-minmax-004.html]
 harness=FAIL
@@ -54466,6 +53183,8 @@ harness=FAIL
 [css/css-grid/subgrid/dynamic-min-content-003.html]
 harness=FAIL
 [css/css-grid/subgrid/grid-gap-001.html]
+harness=FAIL
+[css/css-grid/subgrid/grid-gap-002.html]
 harness=FAIL
 [css/css-grid/subgrid/grid-gap-003.html]
 harness=FAIL
@@ -60126,9 +58845,23 @@ harness=FAIL
 [css/css-multicol/float-with-line-after-spanner.html]
 harness=FAIL
 [css/css-multicol/getclientrects-000.html]
-harness=TIMEOUT
+FAIL=horizontal-tb ltr
+FAIL=horizontal-tb rtl
+FAIL=vertical-lr ltr
+FAIL=vertical-lr rtl
+FAIL=vertical-rl ltr
+FAIL=vertical-rl rtl
 [css/css-multicol/getclientrects-001.html]
-harness=TIMEOUT
+FAIL=horizontal-tb ltr
+FAIL=horizontal-tb rtl
+FAIL=sideways-lr ltr
+FAIL=sideways-lr rtl
+FAIL=sideways-rl ltr
+FAIL=sideways-rl rtl
+FAIL=vertical-lr ltr
+FAIL=vertical-lr rtl
+FAIL=vertical-rl ltr
+FAIL=vertical-rl rtl
 [css/css-multicol/getclientrects-002.html]
 FAIL=#0 height
 FAIL=#0 left
@@ -60591,6 +59324,10 @@ harness=FAIL
 harness=FAIL
 [css/css-multicol/multicol-rule-large-001.xht]
 harness=FAIL
+[css/css-multicol/multicol-rule-nested-balancing-001.html]
+harness=FAIL
+[css/css-multicol/multicol-rule-nested-balancing-002.html]
+harness=FAIL
 [css/css-multicol/multicol-rule-none-000.xht]
 harness=FAIL
 [css/css-multicol/multicol-rule-outset-000.xht]
@@ -60653,7 +59390,11 @@ harness=FAIL
 harness=FAIL
 [css/css-multicol/multicol-span-all-children-height-003.html]
 harness=FAIL
+[css/css-multicol/multicol-span-all-children-height-004a.html]
+harness=FAIL
 [css/css-multicol/multicol-span-all-children-height-004b.html]
+harness=FAIL
+[css/css-multicol/multicol-span-all-children-height-005.html]
 harness=FAIL
 [css/css-multicol/multicol-span-all-children-height-006.html]
 harness=FAIL
@@ -60752,7 +59493,10 @@ harness=FAIL
 [css/css-multicol/non-adjacent-spanners-001.html]
 harness=FAIL
 [css/css-multicol/offsetProps-001.html]
-harness=TIMEOUT
+FAIL=inner1
+FAIL=inner2
+FAIL=middle
+FAIL=outer
 [css/css-multicol/orthogonal-writing-mode-spanner.html]
 harness=FAIL
 [css/css-multicol/page-property-ignored.html]
@@ -61595,6 +60339,8 @@ harness=FAIL
 [css/css-overflow/overflow-clip-margin-004.html]
 harness=FAIL
 [css/css-overflow/overflow-clip-margin-006.html]
+harness=FAIL
+[css/css-overflow/overflow-clip-margin-010.html]
 harness=FAIL
 [css/css-overflow/overflow-clip-margin-011.html]
 harness=FAIL
@@ -64139,6 +62885,8 @@ FAIL=after reaching the sticking point the sticky box should be offset
 FAIL=the sticky box should not be pushed outside its containing block
 [css/css-position/sticky/position-sticky-change-top.html]
 harness=FAIL
+[css/css-position/sticky/position-sticky-child-multicolumn.html]
+harness=FAIL
 [css/css-position/sticky/position-sticky-contained-by-display-table.html]
 harness=FAIL
 [css/css-position/sticky/position-sticky-escape-scroller-001.html]
@@ -64164,6 +62912,8 @@ harness=FAIL
 [css/css-position/sticky/position-sticky-flex-item-004.html]
 harness=FAIL
 [css/css-position/sticky/position-sticky-flexbox.html]
+harness=FAIL
+[css/css-position/sticky/position-sticky-fractional-offset.html]
 harness=FAIL
 [css/css-position/sticky/position-sticky-get-bounding-client-rect.html]
 FAIL=getBoundingClientRect should be correct for sticky after script insertion
@@ -64264,6 +63014,8 @@ FAIL=the sticky box should not be pushed outside its containing block
 [css/css-position/sticky/position-sticky-root-scroller.html]
 FAIL=Sticky elements work with the root (document) scroller
 [css/css-position/sticky/position-sticky-rtl.html]
+harness=FAIL
+[css/css-position/sticky/position-sticky-scroll-reposition.html]
 harness=FAIL
 [css/css-position/sticky/position-sticky-scroll-with-clip-and-abspos.html]
 harness=FAIL
@@ -72004,10 +70756,6 @@ harness=FAIL
 harness=FAIL
 [css/css-sizing/aspect-ratio/flex-aspect-ratio-033.html]
 harness=FAIL
-[css/css-sizing/aspect-ratio/flex-aspect-ratio-034.html]
-harness=FAIL
-[css/css-sizing/aspect-ratio/flex-aspect-ratio-036.html]
-harness=FAIL
 [css/css-sizing/aspect-ratio/flex-aspect-ratio-037.html]
 harness=FAIL
 [css/css-sizing/aspect-ratio/flex-aspect-ratio-038.html]
@@ -72025,6 +70773,8 @@ harness=FAIL
 [css/css-sizing/aspect-ratio/flex-aspect-ratio-044.html]
 harness=FAIL
 [css/css-sizing/aspect-ratio/flex-aspect-ratio-045.html]
+harness=FAIL
+[css/css-sizing/aspect-ratio/flex-aspect-ratio-046.html]
 harness=FAIL
 [css/css-sizing/aspect-ratio/flex-aspect-ratio-047.html]
 harness=FAIL
@@ -72856,7 +71606,17 @@ harness=ERROR
 harness=ERROR
 [css/css-sizing/contain-intrinsic-size/auto-018.html]
 harness=ERROR
+[css/css-sizing/contain-intrinsic-size/contain-intrinsic-size-001.html]
+harness=FAIL
 [css/css-sizing/contain-intrinsic-size/contain-intrinsic-size-002.html]
+harness=FAIL
+[css/css-sizing/contain-intrinsic-size/contain-intrinsic-size-003.html]
+harness=FAIL
+[css/css-sizing/contain-intrinsic-size/contain-intrinsic-size-004.html]
+harness=FAIL
+[css/css-sizing/contain-intrinsic-size/contain-intrinsic-size-005.html]
+harness=FAIL
+[css/css-sizing/contain-intrinsic-size/contain-intrinsic-size-006.html]
 harness=FAIL
 [css/css-sizing/contain-intrinsic-size/contain-intrinsic-size-007.html]
 harness=FAIL
@@ -72885,6 +71645,8 @@ harness=FAIL
 [css/css-sizing/contain-intrinsic-size/contain-intrinsic-size-016.html]
 harness=FAIL
 [css/css-sizing/contain-intrinsic-size/contain-intrinsic-size-017.html]
+harness=FAIL
+[css/css-sizing/contain-intrinsic-size/contain-intrinsic-size-019.html]
 harness=FAIL
 [css/css-sizing/contain-intrinsic-size/contain-intrinsic-size-020.html]
 harness=FAIL
@@ -74302,9 +73064,14 @@ FAIL=.stretch 4
 FAIL=.stretch 1
 FAIL=.stretch 2
 FAIL=.stretch 4
+[css/css-sizing/stretch/flex-line-003.html]
+FAIL=.stretch 1
+FAIL=.stretch 2
+FAIL=.stretch 4
 [css/css-sizing/stretch/flex-line-004.html]
 FAIL=.stretch 1
 FAIL=.stretch 2
+FAIL=.stretch 4
 [css/css-sizing/stretch/flex-stretch-min-max-cross-001.html]
 FAIL=[data-expected-height] 1
 [css/css-sizing/stretch/flexbox-auto-minimum-001.html]
@@ -75478,6 +74245,8 @@ harness=FAIL
 harness=FAIL
 [css/css-tables/min-max-size-table-content-box.html]
 harness=FAIL
+[css/css-tables/out-of-order-elements-collapsed-border.html]
+harness=FAIL
 [css/css-tables/paint/col-change-span-bg-invalidation-001.html]
 harness=FAIL
 [css/css-tables/paint/col-change-span-bg-invalidation-002.html]
@@ -75763,7 +74532,11 @@ FAIL=table 1
 FAIL=table 2
 [css/css-tables/tentative/padding-percentage.html]
 harness=FAIL
+[css/css-tables/tentative/paint/background-image-column-collapsed.html]
+harness=FAIL
 [css/css-tables/tentative/paint/background-image-column.html]
+harness=FAIL
+[css/css-tables/tentative/paint/background-image-row-collapsed.html]
 harness=FAIL
 [css/css-tables/tentative/paint/background-image-row.html]
 harness=FAIL
@@ -87167,6 +85940,8 @@ harness=FAIL
 harness=FAIL
 [css/css-transforms/transform-box/view-box.html]
 harness=FAIL
+[css/css-transforms/transform-compound-001.html]
+harness=FAIL
 [css/css-transforms/transform-containing-block-and-scrolling-area-for-fixed.html]
 harness=FAIL
 [css/css-transforms/transform-containing-block-dynamic-1a.html]
@@ -87474,6 +86249,8 @@ harness=FAIL
 [css/css-transforms/transform3d-image-scale-002.html]
 harness=FAIL
 [css/css-transforms/transform3d-matrix3d-001.html]
+harness=FAIL
+[css/css-transforms/transform3d-matrix3d-005.html]
 harness=FAIL
 [css/css-transforms/transform3d-perspective-005.html]
 harness=FAIL
@@ -100750,9 +99527,13 @@ FAIL=Style recalculation picks up U+e2U+20acU+153initialU+e2U+20acU+9d variable 
 harness=FAIL
 [css/css-variables/variable-reference-07.html]
 harness=FAIL
+[css/css-variables/variable-reference-08.html]
+harness=FAIL
 [css/css-variables/variable-reference-09.html]
 harness=FAIL
 [css/css-variables/variable-reference-12.html]
+harness=FAIL
+[css/css-variables/variable-reference-15.html]
 harness=FAIL
 [css/css-variables/variable-reference-19.html]
 harness=FAIL
@@ -103727,16 +102508,22 @@ FAIL=getBoundingClientRect-content-visibility-hidden 3
 FAIL=x
 FAIL=y
 [css/cssom-view/getBoundingClientRect-empty-inline.html]
-harness=TIMEOUT
+FAIL=getBoundingClientRect-empty-inline
 [css/cssom-view/getBoundingClientRect-newline.html]
 FAIL=Range.getBoundingClientRect() should return the first position of the next line when the collapsed range is a newline character
 [css/cssom-view/getBoundingClientRect-scroll.html]
 FAIL=getBoundingClientRect for absolute element inside scroll container
 FAIL=getBoundingClientRect for fixed element inside scroll container
 [css/cssom-view/getBoundingClientRect-shy.html]
-harness=TIMEOUT
-[css/cssom-view/getBoundingClientRect-svg.html]
-harness=TIMEOUT
+FAIL=Collapsed soft-hyphen should be 0 width.
+FAIL=Range 0-6 should not include the hyphen.
+FAIL=Range 0-7 should include the hyphen.
+FAIL=Range 0-8 should include only the first hyphen.
+FAIL=Range 0-8 should include the hyphen.
+FAIL=Range 1-5 should not include the hyphen.
+FAIL=Range 1-7 should include the hyphen.
+FAIL=Rendered soft-hyphen in a span should have a width.
+FAIL=Rendered soft-hyphen should have a width.
 [css/cssom-view/getBoundingClientRect-zoom.html]
 FAIL=getBoundingClientRect for elements with css zoom 2
 FAIL=getBoundingClientRect for elements with css zoom 3
@@ -104277,6 +103064,8 @@ FAIL=scrollIntoView({"block":"start","inline":"center"})
 FAIL=scrollIntoView({"block":"start","inline":"end"})
 [css/cssom-view/scrollIntoView-iframes.html]
 harness=TIMEOUT
+[css/cssom-view/scrollIntoView-inline-image.html]
+FAIL=Scrolling an inline element with a large line height uses the bounding rect
 [css/cssom-view/scrollIntoView-multiple-nested.html]
 harness=TIMEOUT
 [css/cssom-view/scrollIntoView-multiple.html]
@@ -104538,7 +103327,9 @@ FAIL=scrollWidth with negative margins: display: flex; overflow: auto; direction
 FAIL=scrollWidth with negative margins: display: flex; overflow: auto; direction: ltr; flex-direction: row-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: auto; direction: ltr; flex-direction: row-reverse; flex-wrap: wrap-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: auto; direction: rtl; flex-direction: column-reverse;
+FAIL=scrollWidth with negative margins: display: flex; overflow: auto; direction: rtl; flex-direction: column-reverse; flex-wrap: wrap-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: auto; direction: rtl; flex-direction: column;
+FAIL=scrollWidth with negative margins: display: flex; overflow: auto; direction: rtl; flex-direction: column; flex-wrap: wrap-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: auto; direction: rtl; flex-direction: row;
 FAIL=scrollWidth with negative margins: display: flex; overflow: auto; direction: rtl; flex-direction: row; flex-wrap: wrap-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: clip; direction: ltr; flex-direction: column-reverse; flex-wrap: wrap-reverse;
@@ -104546,7 +103337,9 @@ FAIL=scrollWidth with negative margins: display: flex; overflow: clip; direction
 FAIL=scrollWidth with negative margins: display: flex; overflow: clip; direction: ltr; flex-direction: row-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: clip; direction: ltr; flex-direction: row-reverse; flex-wrap: wrap-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: clip; direction: rtl; flex-direction: column-reverse;
+FAIL=scrollWidth with negative margins: display: flex; overflow: clip; direction: rtl; flex-direction: column-reverse; flex-wrap: wrap-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: clip; direction: rtl; flex-direction: column;
+FAIL=scrollWidth with negative margins: display: flex; overflow: clip; direction: rtl; flex-direction: column; flex-wrap: wrap-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: clip; direction: rtl; flex-direction: row;
 FAIL=scrollWidth with negative margins: display: flex; overflow: clip; direction: rtl; flex-direction: row; flex-wrap: wrap-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: hidden; direction: ltr; flex-direction: column-reverse; flex-wrap: wrap-reverse;
@@ -104554,7 +103347,9 @@ FAIL=scrollWidth with negative margins: display: flex; overflow: hidden; directi
 FAIL=scrollWidth with negative margins: display: flex; overflow: hidden; direction: ltr; flex-direction: row-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: hidden; direction: ltr; flex-direction: row-reverse; flex-wrap: wrap-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: hidden; direction: rtl; flex-direction: column-reverse;
+FAIL=scrollWidth with negative margins: display: flex; overflow: hidden; direction: rtl; flex-direction: column-reverse; flex-wrap: wrap-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: hidden; direction: rtl; flex-direction: column;
+FAIL=scrollWidth with negative margins: display: flex; overflow: hidden; direction: rtl; flex-direction: column; flex-wrap: wrap-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: hidden; direction: rtl; flex-direction: row;
 FAIL=scrollWidth with negative margins: display: flex; overflow: hidden; direction: rtl; flex-direction: row; flex-wrap: wrap-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: scroll; direction: ltr; flex-direction: column-reverse; flex-wrap: wrap-reverse;
@@ -104562,7 +103357,9 @@ FAIL=scrollWidth with negative margins: display: flex; overflow: scroll; directi
 FAIL=scrollWidth with negative margins: display: flex; overflow: scroll; direction: ltr; flex-direction: row-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: scroll; direction: ltr; flex-direction: row-reverse; flex-wrap: wrap-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: scroll; direction: rtl; flex-direction: column-reverse;
+FAIL=scrollWidth with negative margins: display: flex; overflow: scroll; direction: rtl; flex-direction: column-reverse; flex-wrap: wrap-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: scroll; direction: rtl; flex-direction: column;
+FAIL=scrollWidth with negative margins: display: flex; overflow: scroll; direction: rtl; flex-direction: column; flex-wrap: wrap-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: scroll; direction: rtl; flex-direction: row;
 FAIL=scrollWidth with negative margins: display: flex; overflow: scroll; direction: rtl; flex-direction: row; flex-wrap: wrap-reverse;
 FAIL=scrollWidth with negative margins: display: flex; overflow: visible; direction: ltr; flex-direction: column-reverse;
@@ -105734,6 +104531,8 @@ FAIL=.a:has(:scope) .c matches expected elements on scope1
 harness=FAIL
 [css/selectors/has-focus-display-change.html]
 FAIL=:has(:focus) doesn't cause focusability to be lost
+[css/selectors/has-visited.html]
+harness=FAIL
 [css/selectors/heading-prefixed.html]
 FAIL=:heading(1) matches <h:h1> in the HTML namespace
 FAIL=:heading(2) matches <h:h2> in the HTML namespace
@@ -105990,30 +104789,6 @@ FAIL=add the class 'test' to the element inserted again before next_sibling_chil
 FAIL=add the class 'test' to the element inserted again before next_sibling_descendant
 FAIL=add the class 'test' to the element inserted again before previous_sibling_child
 FAIL=add the class 'test' to the element inserted again before previous_sibling_descendant
-FAIL=insert element div>div[test_attr] after next_sibling
-FAIL=insert element div>div[test_attr] after next_sibling_child
-FAIL=insert element div>div[test_attr] after next_sibling_descendant
-FAIL=insert element div>div[test_attr] after previous_sibling
-FAIL=insert element div>div[test_attr] after previous_sibling_child
-FAIL=insert element div>div[test_attr] after previous_sibling_descendant
-FAIL=insert element div>div[test_attr] after subject
-FAIL=insert element div>div[test_attr] before next_sibling
-FAIL=insert element div>div[test_attr] before next_sibling_child
-FAIL=insert element div>div[test_attr] before next_sibling_descendant
-FAIL=insert element div>div[test_attr] before previous_sibling_child
-FAIL=insert element div>div[test_attr] before previous_sibling_descendant
-FAIL=insert element div>div[test_attr] before subject
-FAIL=insert element div[test_attr] after next_sibling
-FAIL=insert element div[test_attr] after next_sibling_child
-FAIL=insert element div[test_attr] after next_sibling_descendant
-FAIL=insert element div[test_attr] after previous_sibling_child
-FAIL=insert element div[test_attr] after previous_sibling_descendant
-FAIL=insert element div[test_attr] after subject
-FAIL=insert element div[test_attr] before next_sibling
-FAIL=insert element div[test_attr] before next_sibling_child
-FAIL=insert element div[test_attr] before next_sibling_descendant
-FAIL=insert element div[test_attr] before previous_sibling_child
-FAIL=insert element div[test_attr] before previous_sibling_descendant
 FAIL=remove the class 'test' from the element in the tree inserted after next_sibling
 FAIL=remove the class 'test' from the element in the tree inserted after next_sibling_child
 FAIL=remove the class 'test' from the element in the tree inserted after next_sibling_descendant
@@ -106044,17 +104819,6 @@ FAIL=add .test to next_sibling_child
 FAIL=add .test to next_sibling_descendant
 FAIL=add .test to subject_child
 FAIL=add .test to subject_descendant
-FAIL=add the class 'test' again to the element in the tree inserted after next_sibling_child
-FAIL=add the class 'test' again to the element in the tree inserted after next_sibling_descendant
-FAIL=add the class 'test' again to the element in the tree inserted after subject_ancestor
-FAIL=add the class 'test' again to the element in the tree inserted after subject_parent
-FAIL=add the class 'test' again to the element in the tree inserted before next_sibling
-FAIL=add the class 'test' again to the element in the tree inserted before next_sibling_child
-FAIL=add the class 'test' again to the element in the tree inserted before next_sibling_descendant
-FAIL=add the class 'test' again to the element inserted after next_sibling_child
-FAIL=add the class 'test' again to the element inserted after next_sibling_descendant
-FAIL=add the class 'test' again to the element inserted before next_sibling_child
-FAIL=add the class 'test' again to the element inserted before next_sibling_descendant
 FAIL=add the class 'test' to the element in the tree inserted again after next_sibling
 FAIL=add the class 'test' to the element in the tree inserted again after next_sibling_child
 FAIL=add the class 'test' to the element in the tree inserted again after next_sibling_descendant
@@ -106085,47 +104849,6 @@ FAIL=add the class 'test' to the element inserted again before subject
 FAIL=add the class 'test' to the element inserted again before subject_child
 FAIL=add the class 'test' to the element inserted again before subject_descendant
 FAIL=add the class 'test' to the element inserted again before subject_parent
-FAIL=insert element div.test after next_sibling_child
-FAIL=insert element div.test after next_sibling_descendant
-FAIL=insert element div.test before next_sibling_child
-FAIL=insert element div.test before next_sibling_descendant
-FAIL=insert element div>div[test_attr] after next_sibling
-FAIL=insert element div>div[test_attr] after next_sibling_child
-FAIL=insert element div>div[test_attr] after next_sibling_descendant
-FAIL=insert element div>div[test_attr] after subject
-FAIL=insert element div>div[test_attr] after subject_ancestor
-FAIL=insert element div>div[test_attr] after subject_child
-FAIL=insert element div>div[test_attr] after subject_descendant
-FAIL=insert element div>div[test_attr] after subject_parent
-FAIL=insert element div>div[test_attr] before next_sibling
-FAIL=insert element div>div[test_attr] before next_sibling_child
-FAIL=insert element div>div[test_attr] before next_sibling_descendant
-FAIL=insert element div>div[test_attr] before subject
-FAIL=insert element div>div[test_attr] before subject_child
-FAIL=insert element div>div[test_attr] before subject_descendant
-FAIL=insert element div>div[test_attr] before subject_parent
-FAIL=insert element div[test_attr] after next_sibling
-FAIL=insert element div[test_attr] after next_sibling_child
-FAIL=insert element div[test_attr] after next_sibling_descendant
-FAIL=insert element div[test_attr] after subject
-FAIL=insert element div[test_attr] after subject_ancestor
-FAIL=insert element div[test_attr] after subject_child
-FAIL=insert element div[test_attr] after subject_descendant
-FAIL=insert element div[test_attr] after subject_parent
-FAIL=insert element div[test_attr] before next_sibling
-FAIL=insert element div[test_attr] before next_sibling_child
-FAIL=insert element div[test_attr] before next_sibling_descendant
-FAIL=insert element div[test_attr] before subject
-FAIL=insert element div[test_attr] before subject_child
-FAIL=insert element div[test_attr] before subject_descendant
-FAIL=insert element div[test_attr] before subject_parent
-FAIL=insert tree div>div.test after next_sibling_child
-FAIL=insert tree div>div.test after next_sibling_descendant
-FAIL=insert tree div>div.test after subject_ancestor
-FAIL=insert tree div>div.test after subject_parent
-FAIL=insert tree div>div.test before next_sibling
-FAIL=insert tree div>div.test before next_sibling_child
-FAIL=insert tree div>div.test before next_sibling_descendant
 FAIL=remove the class 'test' from the element in the tree inserted after next_sibling
 FAIL=remove the class 'test' from the element in the tree inserted after next_sibling_child
 FAIL=remove the class 'test' from the element in the tree inserted after next_sibling_descendant
@@ -106159,7 +104882,6 @@ FAIL=remove the class 'test' from the element inserted before subject_parent
 [css/selectors/invalidation/has-in-parent-position.html]
 FAIL=add .test to subject_child
 FAIL=add .test to subject_descendant
-FAIL=add the class 'test' again to the element in the tree inserted after subject_parent
 FAIL=add the class 'test' to the element in the tree inserted again after subject
 FAIL=add the class 'test' to the element in the tree inserted again after subject_child
 FAIL=add the class 'test' to the element in the tree inserted again after subject_descendant
@@ -106174,21 +104896,6 @@ FAIL=add the class 'test' to the element inserted again after subject_parent
 FAIL=add the class 'test' to the element inserted again before subject
 FAIL=add the class 'test' to the element inserted again before subject_child
 FAIL=add the class 'test' to the element inserted again before subject_descendant
-FAIL=insert element div>div[test_attr] after subject
-FAIL=insert element div>div[test_attr] after subject_child
-FAIL=insert element div>div[test_attr] after subject_descendant
-FAIL=insert element div>div[test_attr] after subject_parent
-FAIL=insert element div>div[test_attr] before subject
-FAIL=insert element div>div[test_attr] before subject_child
-FAIL=insert element div>div[test_attr] before subject_descendant
-FAIL=insert element div[test_attr] after subject
-FAIL=insert element div[test_attr] after subject_child
-FAIL=insert element div[test_attr] after subject_descendant
-FAIL=insert element div[test_attr] after subject_parent
-FAIL=insert element div[test_attr] before subject
-FAIL=insert element div[test_attr] before subject_child
-FAIL=insert element div[test_attr] before subject_descendant
-FAIL=insert tree div>div.test after subject_parent
 FAIL=remove the class 'test' from the element in the tree inserted after subject
 FAIL=remove the class 'test' from the element in the tree inserted after subject_child
 FAIL=remove the class 'test' from the element in the tree inserted after subject_descendant
@@ -106209,8 +104916,6 @@ FAIL=add .test to next_sibling_child
 FAIL=add .test to next_sibling_descendant
 FAIL=add .test to previous_sibling_child
 FAIL=add .test to previous_sibling_descendant
-FAIL=add the class 'test' again to the element in the tree inserted after previous_sibling
-FAIL=add the class 'test' again to the element in the tree inserted before subject
 FAIL=add the class 'test' to the element in the tree inserted again after next_sibling
 FAIL=add the class 'test' to the element in the tree inserted again after next_sibling_child
 FAIL=add the class 'test' to the element in the tree inserted again after next_sibling_descendant
@@ -106238,35 +104943,6 @@ FAIL=add the class 'test' to the element inserted again before next_sibling_desc
 FAIL=add the class 'test' to the element inserted again before previous_sibling_child
 FAIL=add the class 'test' to the element inserted again before previous_sibling_descendant
 FAIL=add the class 'test' to the element inserted again before subject
-FAIL=insert element div>div[test_attr] after next_sibling
-FAIL=insert element div>div[test_attr] after next_sibling_child
-FAIL=insert element div>div[test_attr] after next_sibling_descendant
-FAIL=insert element div>div[test_attr] after previous_sibling
-FAIL=insert element div>div[test_attr] after previous_sibling_child
-FAIL=insert element div>div[test_attr] after previous_sibling_descendant
-FAIL=insert element div>div[test_attr] after subject
-FAIL=insert element div>div[test_attr] before next_sibling
-FAIL=insert element div>div[test_attr] before next_sibling_child
-FAIL=insert element div>div[test_attr] before next_sibling_descendant
-FAIL=insert element div>div[test_attr] before previous_sibling
-FAIL=insert element div>div[test_attr] before previous_sibling_child
-FAIL=insert element div>div[test_attr] before previous_sibling_descendant
-FAIL=insert element div>div[test_attr] before subject
-FAIL=insert element div[test_attr] after next_sibling
-FAIL=insert element div[test_attr] after next_sibling_child
-FAIL=insert element div[test_attr] after next_sibling_descendant
-FAIL=insert element div[test_attr] after previous_sibling
-FAIL=insert element div[test_attr] after previous_sibling_child
-FAIL=insert element div[test_attr] after previous_sibling_descendant
-FAIL=insert element div[test_attr] after subject
-FAIL=insert element div[test_attr] before next_sibling
-FAIL=insert element div[test_attr] before next_sibling_child
-FAIL=insert element div[test_attr] before next_sibling_descendant
-FAIL=insert element div[test_attr] before previous_sibling_child
-FAIL=insert element div[test_attr] before previous_sibling_descendant
-FAIL=insert element div[test_attr] before subject
-FAIL=insert tree div>div.test after previous_sibling
-FAIL=insert tree div>div.test before subject
 FAIL=remove the class 'test' from the element in the tree inserted after next_sibling
 FAIL=remove the class 'test' from the element in the tree inserted after next_sibling_child
 FAIL=remove the class 'test' from the element in the tree inserted after next_sibling_descendant
@@ -106294,9 +104970,6 @@ FAIL=remove the class 'test' from the element inserted before next_sibling_desce
 FAIL=remove the class 'test' from the element inserted before previous_sibling_child
 FAIL=remove the class 'test' from the element inserted before previous_sibling_descendant
 FAIL=remove the class 'test' from the element inserted before subject
-[css/selectors/invalidation/has-invalidation-first-in-sibling-chain.html]
-FAIL=#subject2 invalidated after adding first sibling
-FAIL=#subject4 invalidated after adding first sibling
 [css/selectors/invalidation/has-pseudo-element-subject-child-mutation.html]
 FAIL=Initially 5px
 FAIL=Pseudo-element ::before invalidates when a matching child is added (attribute selector, child combinator)
@@ -106312,9 +104985,6 @@ FAIL=add .test to second_sibling
 FAIL=add .test to third_sibling
 FAIL=add .test to third_sibling_child
 FAIL=add .test to third_sibling_descendant
-FAIL=insert element div.test after first_sibling_child
-FAIL=insert element div.test before first_sibling_child
-FAIL=insert tree div>div.test before first_sibling
 [css/selectors/invalidation/has-unstyled.html]
 FAIL=add test to sibling_descendant
 FAIL=add test to subject_descendant
@@ -106427,12 +105097,12 @@ FAIL=Remove .child from #shadow_child:has(.descendant)
 FAIL=Remove .descendant from #shadow_descendant.grand_child
 FAIL=Remove .grand_child from #shadow_descendant
 [css/selectors/invalidation/host-has-shadow-tree-element-at-subject-position.html]
+FAIL=Add .ancestor to #shadow_child:has(.descendant)
 FAIL=Add .child to #shadow_child
 FAIL=Add .child to #shadow_child:has(.descendant)
 FAIL=Add .child to #shadow_descendant
 FAIL=Add .descendant to #shadow_child
 FAIL=Add .descendant to #shadow_descendant
-FAIL=Add .descendant to #shadow_descendant.grand_child
 FAIL=Add .grand_child to #shadow_descendant
 FAIL=Add .host_context to #host
 FAIL=Initial color
@@ -106477,85 +105147,58 @@ FAIL=[ .blue:has(~ #indirect_next:is(.p + .f_has_scope ~ .g)) ] #direct_next.cla
 FAIL=[ .blue:has(~ #indirect_next:is(.p + .f_has_scope ~ .g)) ] #previous.classList.add('f_has_scope') : check #has_scope color
 FAIL=[ .blue:has(~ #indirect_next:is(.p + .f_has_scope ~ .g)) ] #previous.classList.remove('f_has_scope') : check #has_scope color
 FAIL=[ .darkblue:has(~ #indirect_next:is(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #direct_next.classList.add('f_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .darkblue:has(~ #indirect_next:is(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #direct_next.classList.remove('f_indirect_next_child') : check #indirect_next_child color
 FAIL=[ .darkblue:has(~ #indirect_next:is(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('f_indirect_next_child') : check #indirect_next_child color
 FAIL=[ .darkblue:has(~ #indirect_next:is(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #previous.classList.add('f_indirect_next_child') : check #indirect_next_child color
-FAIL=[ .darkblue:has(~ #indirect_next:is(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .f_indirect_next_child before #direct_next) : (insertion) check #indirect_next_child color
-FAIL=[ .darkblue:has(~ #indirect_next:is(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .f_indirect_next_child before #previous) : (insertion) check #indirect_next_child color
-FAIL=[ .darkblue:has(~ #indirect_next:is(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #direct_next) : (removal) check #indirect_next_child color
-FAIL=[ .darkblue:has(~ #indirect_next:is(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #previous) : (removal) check #indirect_next_child color
+FAIL=[ .darkblue:has(~ #indirect_next:is(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #previous.classList.remove('f_indirect_next_child') : check #indirect_next_child color
 FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #child_previous.classList.add('c_indirect_next') : check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #child_previous.classList.remove('c_indirect_next') : check #indirect_next color
 FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #parent_previous.classList.add('c_indirect_next') : check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #parent_previous.classList.remove('c_indirect_next') : check #indirect_next color
 FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #previous.classList.add('c_indirect_next') : check #indirect_next color
-FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #child_previous) : (insertion) check #indirect_next color
-FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #parent_previous) : (insertion) check #indirect_next color
-FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #previous) : (insertion) check #indirect_next color
-FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #child_previous) : (removal) check #indirect_next color
-FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #parent_previous) : (removal) check #indirect_next color
-FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #previous) : (removal) check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:is(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #previous.classList.remove('c_indirect_next') : check #indirect_next color
 FAIL=[ .darkred:has(#descendant:is(.a_indirect_next .b)) ~ #indirect_next ] #child.classList.add('a_indirect_next') : check #indirect_next color
 FAIL=[ .darkred:has(#descendant:is(.a_indirect_next .b)) ~ #indirect_next ] #has_scope.classList.add('a_indirect_next') : check #indirect_next color
-FAIL=[ .darkred:has(#descendant:is(.a_indirect_next .b)) ~ #indirect_next ] #parent.classList.add('a_indirect_next') : check #indirect_next color
 FAIL=[ .green:has(#descendant:is(.p + .c_has_scope ~ .d .e)) ] #child_previous.classList.add('c_has_scope') : check #has_scope color
 FAIL=[ .green:has(#descendant:is(.p + .c_has_scope ~ .d .e)) ] #child_previous.classList.remove('c_has_scope') : check #has_scope color
 FAIL=[ .green:has(#descendant:is(.p + .c_has_scope ~ .d .e)) ] #parent_previous.classList.add('c_has_scope') : check #has_scope color
 FAIL=[ .green:has(#descendant:is(.p + .c_has_scope ~ .d .e)) ] #parent_previous.classList.remove('c_has_scope') : check #has_scope color
 FAIL=[ .green:has(#descendant:is(.p + .c_has_scope ~ .d .e)) ] #previous.classList.add('c_has_scope') : check #has_scope color
 FAIL=[ .green:has(#descendant:is(.p + .c_has_scope ~ .d .e)) ] #previous.classList.remove('c_has_scope') : check #has_scope color
-FAIL=[ .greenyellow:has(~ #indirect_next:is(.h_indirect_next .i)) ~ #indirect_next ] #parent.classList.add('h_indirect_next') : check #indirect_next color
-FAIL=[ .ivory:has(~ #indirect_next:is(.h_descendant .i)) #descendant ] #parent.classList.add('h_descendant') : check #descendant color
-FAIL=[ .khaki:has(~ #indirect_next:is(.h_indirect_next_child .i)) ~ #indirect_next #indirect_next_child ] #parent.classList.add('h_indirect_next_child') : check #indirect_next_child color
 FAIL=[ .lightblue:has(~ #indirect_next:is(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #direct_next.classList.add('f_indirect_next') : check #indirect_next color
+FAIL=[ .lightblue:has(~ #indirect_next:is(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #direct_next.classList.remove('f_indirect_next') : check #indirect_next color
 FAIL=[ .lightblue:has(~ #indirect_next:is(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #has_scope.classList.add('f_indirect_next') : check #indirect_next color
 FAIL=[ .lightblue:has(~ #indirect_next:is(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #previous.classList.add('f_indirect_next') : check #indirect_next color
-FAIL=[ .lightblue:has(~ #indirect_next:is(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .f_indirect_next before #direct_next) : (insertion) check #indirect_next color
-FAIL=[ .lightblue:has(~ #indirect_next:is(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .f_indirect_next before #previous) : (insertion) check #indirect_next color
-FAIL=[ .lightblue:has(~ #indirect_next:is(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .invalid before #direct_next) : (removal) check #indirect_next color
-FAIL=[ .lightblue:has(~ #indirect_next:is(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .invalid before #previous) : (removal) check #indirect_next color
+FAIL=[ .lightblue:has(~ #indirect_next:is(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #previous.classList.remove('f_indirect_next') : check #indirect_next color
 FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] #child_previous.classList.add('c_descendant') : check #descendant color
+FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] #child_previous.classList.remove('c_descendant') : check #descendant color
 FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] #parent_previous.classList.add('c_descendant') : check #descendant color
+FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] #parent_previous.classList.remove('c_descendant') : check #descendant color
 FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] #previous.classList.add('c_descendant') : check #descendant color
-FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #child_previous) : (insertion) check #descendant color
-FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #parent_previous) : (insertion) check #descendant color
-FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #previous) : (insertion) check #descendant color
-FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #child_previous) : (removal) check #descendant color
-FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #parent_previous) : (removal) check #descendant color
-FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #previous) : (removal) check #descendant color
+FAIL=[ .lightgreen:has(#descendant:is(.p + .c_descendant ~ .d .e)) #descendant ] #previous.classList.remove('c_descendant') : check #descendant color
 FAIL=[ .orange:has(#descendant:is(:is(.m, .n) .o)) ] #child.classList.add('m') : check #has_scope color
 FAIL=[ .orange:has(#descendant:is(:is(.m, .n) .o)) ] #child.classList.add('n') : check #has_scope color
-FAIL=[ .orangered:has(#descendant:is(.a_descendant .b)) #descendant ] #child.classList.add('a_descendant') : check #descendant color
-FAIL=[ .orangered:has(#descendant:is(.a_descendant .b)) #descendant ] #has_scope.classList.add('a_descendant') : check #descendant color
-FAIL=[ .orangered:has(#descendant:is(.a_descendant .b)) #descendant ] #parent.classList.add('a_descendant') : check #descendant color
 FAIL=[ .orchid:has(~ #indirect_next:is(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] #parent_previous.classList.add('j_indirect_next') : check #indirect_next color
-FAIL=[ .orchid:has(~ #indirect_next:is(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] insert/remove .invalid before #parent_previous) : (removal) check #indirect_next color
-FAIL=[ .orchid:has(~ #indirect_next:is(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] insert/remove .j_indirect_next before #parent_previous) : (insertion) check #indirect_next color
+FAIL=[ .orchid:has(~ #indirect_next:is(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] #parent_previous.classList.remove('j_indirect_next') : check #indirect_next color
 FAIL=[ .pink:has(#descendant:is(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #child.classList.add('a_indirect_next_child') : check #indirect_next_child color
 FAIL=[ .pink:has(#descendant:is(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('a_indirect_next_child') : check #indirect_next_child color
-FAIL=[ .pink:has(#descendant:is(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #parent.classList.add('a_indirect_next_child') : check #indirect_next_child color
 FAIL=[ .plum:has(~ #indirect_next:is(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] #parent_previous.classList.add('j_indirect_next_child') : check #indirect_next_child color
-FAIL=[ .plum:has(~ #indirect_next:is(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #parent_previous) : (removal) check #indirect_next_child color
-FAIL=[ .plum:has(~ #indirect_next:is(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] insert/remove .j_indirect_next_child before #parent_previous) : (insertion) check #indirect_next_child color
+FAIL=[ .plum:has(~ #indirect_next:is(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] #parent_previous.classList.remove('j_indirect_next_child') : check #indirect_next_child color
 FAIL=[ .purple:has(~ #indirect_next:is(.p + .j_has_scope ~ .k .l)) ] #parent_previous.classList.add('j_has_scope') : check #has_scope color
 FAIL=[ .purple:has(~ #indirect_next:is(.p + .j_has_scope ~ .k .l)) ] #parent_previous.classList.remove('j_has_scope') : check #has_scope color
 FAIL=[ .red:has(#descendant:is(.a_has_scope .b)) ] #child.classList.add('a_has_scope') : check #has_scope color
 FAIL=[ .skyblue:has(~ #indirect_next:is(.p + .f_descendant ~ .g)) #descendant ] #direct_next.classList.add('f_descendant') : check #descendant color
-FAIL=[ .skyblue:has(~ #indirect_next:is(.p + .f_descendant ~ .g)) #descendant ] #has_scope.classList.add('f_descendant') : check #descendant color
+FAIL=[ .skyblue:has(~ #indirect_next:is(.p + .f_descendant ~ .g)) #descendant ] #direct_next.classList.remove('f_descendant') : check #descendant color
 FAIL=[ .skyblue:has(~ #indirect_next:is(.p + .f_descendant ~ .g)) #descendant ] #previous.classList.add('f_descendant') : check #descendant color
-FAIL=[ .skyblue:has(~ #indirect_next:is(.p + .f_descendant ~ .g)) #descendant ] insert/remove .f_descendant before #direct_next) : (insertion) check #descendant color
-FAIL=[ .skyblue:has(~ #indirect_next:is(.p + .f_descendant ~ .g)) #descendant ] insert/remove .f_descendant before #previous) : (insertion) check #descendant color
-FAIL=[ .skyblue:has(~ #indirect_next:is(.p + .f_descendant ~ .g)) #descendant ] insert/remove .invalid before #direct_next) : (removal) check #descendant color
-FAIL=[ .skyblue:has(~ #indirect_next:is(.p + .f_descendant ~ .g)) #descendant ] insert/remove .invalid before #previous) : (removal) check #descendant color
+FAIL=[ .skyblue:has(~ #indirect_next:is(.p + .f_descendant ~ .g)) #descendant ] #previous.classList.remove('f_descendant') : check #descendant color
 FAIL=[ .violet:has(~ #indirect_next:is(.p + .j_descendant ~ .k .l)) #descendant ] #parent_previous.classList.add('j_descendant') : check #descendant color
-FAIL=[ .violet:has(~ #indirect_next:is(.p + .j_descendant ~ .k .l)) #descendant ] insert/remove .invalid before #parent_previous) : (removal) check #descendant color
-FAIL=[ .violet:has(~ #indirect_next:is(.p + .j_descendant ~ .k .l)) #descendant ] insert/remove .j_descendant before #parent_previous) : (insertion) check #descendant color
+FAIL=[ .violet:has(~ #indirect_next:is(.p + .j_descendant ~ .k .l)) #descendant ] #parent_previous.classList.remove('j_descendant') : check #descendant color
 FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #child_previous.classList.add('c_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #child_previous.classList.remove('c_indirect_next_child') : check #indirect_next_child color
 FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #parent_previous.classList.add('c_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #parent_previous.classList.remove('c_indirect_next_child') : check #indirect_next_child color
 FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #previous.classList.add('c_indirect_next_child') : check #indirect_next_child color
-FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #child_previous) : (insertion) check #indirect_next_child color
-FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #parent_previous) : (insertion) check #indirect_next_child color
-FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #previous) : (insertion) check #indirect_next_child color
-FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #child_previous) : (removal) check #indirect_next_child color
-FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #parent_previous) : (removal) check #indirect_next_child color
-FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #previous) : (removal) check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:is(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #previous.classList.remove('c_indirect_next_child') : check #indirect_next_child color
 [css/selectors/invalidation/is-pseudo-containing-sibling-relationship-in-has.html]
 FAIL=Initially red
 [css/selectors/invalidation/is-where-pseudo-containing-hard-pseudo-and-never-matching.html]
@@ -106563,15 +105206,6 @@ FAIL=subject1 color after focus is red
 FAIL=subject2 color after focus is orangered
 FAIL=subject3 color after focus is darkred
 FAIL=subject4 color after focus is pink
-[css/selectors/invalidation/is-where-pseudo-containing-hard-pseudo.html]
-FAIL=subject1 is orangered when .parent added to parent
-FAIL=subject2 is darkred when .other-match added
-FAIL=subject2 is pink when .parent added to parent
-FAIL=subject2 is pink when .parent removed from parent
-FAIL=subject3 is lightgreen when .parent added to parent
-FAIL=subject4 is darkgreen when .other-match added
-FAIL=subject4 is yellowgreen when .parent added to parent
-FAIL=subject4 is yellowgreen when .parent removed from parent
 [css/selectors/invalidation/is.html]
 FAIL=Invalidate nested :is().
 [css/selectors/invalidation/lang-pseudo-class-in-has-multiple-document-elements.html]
@@ -106612,28 +105246,23 @@ FAIL=Invalidate nested :is() inside :not().
 [css/selectors/invalidation/not-pseudo-containing-complex-in-has.html]
 FAIL=[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #direct_next.classList.add('f_has_scope') : check #has_scope color
 FAIL=[ .blue:has(~ #indirect_next:not(.p + .f_has_scope ~ .g)) ] #previous.classList.add('f_has_scope') : check #has_scope color
+FAIL=[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #direct_next.classList.add('f_indirect_next_child') : check #indirect_next_child color
 FAIL=[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #direct_next.classList.remove('f_indirect_next_child') : check #indirect_next_child color
 FAIL=[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('darkblue') : check #indirect_next_child color
-FAIL=[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('f_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('f_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('darkblue') : check #indirect_next_child color
 FAIL=[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] #previous.classList.remove('f_indirect_next_child') : check #indirect_next_child color
-FAIL=[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .f_indirect_next_child before #direct_next) : (removal) check #indirect_next_child color
-FAIL=[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .f_indirect_next_child before #previous) : (removal) check #indirect_next_child color
-FAIL=[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #direct_next) : (insertion) check #indirect_next_child color
-FAIL=[ .darkblue:has(~ #indirect_next:not(.p + .f_indirect_next_child ~ .g)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #previous) : (insertion) check #indirect_next_child color
+FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #child_previous.classList.add('c_indirect_next') : check #indirect_next color
 FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #child_previous.classList.remove('c_indirect_next') : check #indirect_next color
 FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #has_scope.classList.add('darkgreen') : check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #has_scope.classList.remove('darkgreen') : check #indirect_next color
 FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #parent_previous.classList.remove('c_indirect_next') : check #indirect_next color
+FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #previous.classList.add('c_indirect_next') : check #indirect_next color
 FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] #previous.classList.remove('c_indirect_next') : check #indirect_next color
-FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #child_previous) : (removal) check #indirect_next color
-FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #parent_previous) : (removal) check #indirect_next color
-FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .c_indirect_next before #previous) : (removal) check #indirect_next color
-FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #child_previous) : (insertion) check #indirect_next color
-FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #parent_previous) : (insertion) check #indirect_next color
-FAIL=[ .darkgreen:has(#descendant:not(.p + .c_indirect_next ~ .d .e)) ~ #indirect_next ] insert/remove .invalid before #previous) : (insertion) check #indirect_next color
-FAIL=[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #child.classList.remove('a_indirect_next') : check #indirect_next color
+FAIL=[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #child.classList.add('a_indirect_next') : check #indirect_next color
+FAIL=[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #has_scope.classList.add('a_indirect_next') : check #indirect_next color
 FAIL=[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #has_scope.classList.add('darkred') : check #indirect_next color
-FAIL=[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #has_scope.classList.remove('a_indirect_next') : check #indirect_next color
-FAIL=[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #parent.classList.remove('a_indirect_next') : check #indirect_next color
+FAIL=[ .darkred:has(#descendant:not(.a_indirect_next .b)) ~ #indirect_next ] #has_scope.classList.remove('darkred') : check #indirect_next color
 FAIL=[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #child_previous.classList.add('c_has_scope') : check #has_scope color
 FAIL=[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #child_previous.classList.remove('c_has_scope') : check #has_scope color
 FAIL=[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #parent_previous.classList.add('c_has_scope') : check #has_scope color
@@ -106641,70 +105270,47 @@ FAIL=[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #parent_previous
 FAIL=[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #previous.classList.add('c_has_scope') : check #has_scope color
 FAIL=[ .green:has(#descendant:not(.p + .c_has_scope ~ .d .e)) ] #previous.classList.remove('c_has_scope') : check #has_scope color
 FAIL=[ .greenyellow:has(~ #indirect_next:not(.h_indirect_next .i)) ~ #indirect_next ] #has_scope.classList.add('greenyellow') : check #indirect_next color
-FAIL=[ .greenyellow:has(~ #indirect_next:not(.h_indirect_next .i)) ~ #indirect_next ] #parent.classList.remove('h_indirect_next') : check #indirect_next color
-FAIL=[ .ivory:has(~ #indirect_next:not(.h_descendant .i)) #descendant ] #has_scope.classList.add('ivory') : check #descendant color
-FAIL=[ .ivory:has(~ #indirect_next:not(.h_descendant .i)) #descendant ] #parent.classList.remove('h_descendant') : check #descendant color
+FAIL=[ .greenyellow:has(~ #indirect_next:not(.h_indirect_next .i)) ~ #indirect_next ] #has_scope.classList.remove('greenyellow') : check #indirect_next color
 FAIL=[ .khaki:has(~ #indirect_next:not(.h_indirect_next_child .i)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('khaki') : check #indirect_next_child color
-FAIL=[ .khaki:has(~ #indirect_next:not(.h_indirect_next_child .i)) ~ #indirect_next #indirect_next_child ] #parent.classList.remove('h_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .khaki:has(~ #indirect_next:not(.h_indirect_next_child .i)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('khaki') : check #indirect_next_child color
+FAIL=[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #direct_next.classList.add('f_indirect_next') : check #indirect_next color
 FAIL=[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #direct_next.classList.remove('f_indirect_next') : check #indirect_next color
+FAIL=[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #has_scope.classList.add('f_indirect_next') : check #indirect_next color
 FAIL=[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #has_scope.classList.add('lightblue') : check #indirect_next color
-FAIL=[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #has_scope.classList.remove('f_indirect_next') : check #indirect_next color
+FAIL=[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #has_scope.classList.remove('lightblue') : check #indirect_next color
 FAIL=[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] #previous.classList.remove('f_indirect_next') : check #indirect_next color
-FAIL=[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .f_indirect_next before #direct_next) : (removal) check #indirect_next color
-FAIL=[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .f_indirect_next before #previous) : (removal) check #indirect_next color
-FAIL=[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .invalid before #direct_next) : (insertion) check #indirect_next color
-FAIL=[ .lightblue:has(~ #indirect_next:not(.p + .f_indirect_next ~ .g)) ~ #indirect_next ] insert/remove .invalid before #previous) : (insertion) check #indirect_next color
+FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #child_previous.classList.add('c_descendant') : check #descendant color
 FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #child_previous.classList.remove('c_descendant') : check #descendant color
-FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #has_scope.classList.add('lightgreen') : check #descendant color
+FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #parent_previous.classList.add('c_descendant') : check #descendant color
 FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #parent_previous.classList.remove('c_descendant') : check #descendant color
+FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #previous.classList.add('c_descendant') : check #descendant color
 FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] #previous.classList.remove('c_descendant') : check #descendant color
-FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #child_previous) : (removal) check #descendant color
-FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #parent_previous) : (removal) check #descendant color
-FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .c_descendant before #previous) : (removal) check #descendant color
-FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #child_previous) : (insertion) check #descendant color
-FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #parent_previous) : (insertion) check #descendant color
-FAIL=[ .lightgreen:has(#descendant:not(.p + .c_descendant ~ .d .e)) #descendant ] insert/remove .invalid before #previous) : (insertion) check #descendant color
 FAIL=[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #child.classList.add('m') : check #has_scope color
 FAIL=[ .orange:has(#descendant:not(.m:not(.n) .o)) ] #child.classList.remove('n') : check #has_scope color
-FAIL=[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #child.classList.remove('a_descendant') : check #descendant color
-FAIL=[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #has_scope.classList.add('orangered') : check #descendant color
-FAIL=[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #has_scope.classList.remove('a_descendant') : check #descendant color
-FAIL=[ .orangered:has(#descendant:not(.a_descendant .b)) #descendant ] #parent.classList.remove('a_descendant') : check #descendant color
 FAIL=[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] #has_scope.classList.add('orchid') : check #indirect_next color
+FAIL=[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] #has_scope.classList.remove('orchid') : check #indirect_next color
 FAIL=[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] #parent_previous.classList.remove('j_indirect_next') : check #indirect_next color
-FAIL=[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] insert/remove .invalid before #parent_previous) : (insertion) check #indirect_next color
-FAIL=[ .orchid:has(~ #indirect_next:not(.p + .j_indirect_next ~ .k .l)) ~ #indirect_next ] insert/remove .j_indirect_next before #parent_previous) : (removal) check #indirect_next color
-FAIL=[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #child.classList.remove('a_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #child.classList.add('a_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('a_indirect_next_child') : check #indirect_next_child color
 FAIL=[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('pink') : check #indirect_next_child color
-FAIL=[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('a_indirect_next_child') : check #indirect_next_child color
-FAIL=[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #parent.classList.remove('a_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .pink:has(#descendant:not(.a_indirect_next_child .b)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('pink') : check #indirect_next_child color
 FAIL=[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('plum') : check #indirect_next_child color
+FAIL=[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('plum') : check #indirect_next_child color
 FAIL=[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] #parent_previous.classList.remove('j_indirect_next_child') : check #indirect_next_child color
-FAIL=[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #parent_previous) : (insertion) check #indirect_next_child color
-FAIL=[ .plum:has(~ #indirect_next:not(.p + .j_indirect_next_child ~ .k .l)) ~ #indirect_next #indirect_next_child ] insert/remove .j_indirect_next_child before #parent_previous) : (removal) check #indirect_next_child color
 FAIL=[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] #parent_previous.classList.add('j_has_scope') : check #has_scope color
 FAIL=[ .purple:has(~ #indirect_next:not(.p + .j_has_scope ~ .k .l)) ] #parent_previous.classList.remove('j_has_scope') : check #has_scope color
 FAIL=[ .red:has(#descendant:not(.a_has_scope .b)) ] #child.classList.add('a_has_scope') : check #has_scope color
-FAIL=[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #direct_next.classList.remove('f_descendant') : check #descendant color
-FAIL=[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #has_scope.classList.add('skyblue') : check #descendant color
-FAIL=[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #has_scope.classList.remove('f_descendant') : check #descendant color
-FAIL=[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #previous.classList.remove('f_descendant') : check #descendant color
-FAIL=[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] insert/remove .f_descendant before #direct_next) : (removal) check #descendant color
-FAIL=[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] insert/remove .f_descendant before #previous) : (removal) check #descendant color
-FAIL=[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] #has_scope.classList.add('violet') : check #descendant color
+FAIL=[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #direct_next.classList.add('f_descendant') : check #descendant color
+FAIL=[ .skyblue:has(~ #indirect_next:not(.p + .f_descendant ~ .g)) #descendant ] #previous.classList.add('f_descendant') : check #descendant color
+FAIL=[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] #parent_previous.classList.add('j_descendant') : check #descendant color
 FAIL=[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] #parent_previous.classList.remove('j_descendant') : check #descendant color
-FAIL=[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] insert/remove .invalid before #parent_previous) : (insertion) check #descendant color
-FAIL=[ .violet:has(~ #indirect_next:not(.p + .j_descendant ~ .k .l)) #descendant ] insert/remove .j_descendant before #parent_previous) : (removal) check #descendant color
+FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #child_previous.classList.add('c_indirect_next_child') : check #indirect_next_child color
 FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #child_previous.classList.remove('c_indirect_next_child') : check #indirect_next_child color
 FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.add('yellowgreen') : check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #has_scope.classList.remove('yellowgreen') : check #indirect_next_child color
 FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #parent_previous.classList.remove('c_indirect_next_child') : check #indirect_next_child color
+FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #previous.classList.add('c_indirect_next_child') : check #indirect_next_child color
 FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] #previous.classList.remove('c_indirect_next_child') : check #indirect_next_child color
-FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #child_previous) : (removal) check #indirect_next_child color
-FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #parent_previous) : (removal) check #indirect_next_child color
-FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .c_indirect_next_child before #previous) : (removal) check #indirect_next_child color
-FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #child_previous) : (insertion) check #indirect_next_child color
-FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #parent_previous) : (insertion) check #indirect_next_child color
-FAIL=[ .yellowgreen:has(#descendant:not(.p + .c_indirect_next_child ~ .d .e)) ~ #indirect_next #indirect_next_child ] insert/remove .invalid before #previous) : (insertion) check #indirect_next_child color
 [css/selectors/invalidation/nth-child-in-shadow-root.html]
 harness=FAIL
 [css/selectors/invalidation/nth-child-of-attr.html]
