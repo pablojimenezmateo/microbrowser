@@ -67,6 +67,21 @@ struct FontRequest {
   // CSS numeric weights: 400 is normal, 700 is bold.
   int weight = 400;
   bool italic = false;
+  // `letter-spacing` and `word-spacing`, in pixels: extra advance after every glyph, and extra
+  // advance after every word-separator character on top of it.
+  //
+  // Here rather than in a parameter of their own because these two travel everywhere a font does
+  // -- measurement, painting, and the display list that crosses to the compositor -- and a run
+  // measured with spacing and painted without it is a line that overflows by exactly the spacing.
+  // One struct is what makes the two answers unable to disagree, which is the argument
+  // `TextRenderer::MeasureRun` already makes for measuring through the same splitter it paints
+  // through.
+  //
+  // They are deliberately *not* part of the shaped-run cache key: shaping does not depend on them,
+  // and keying on them would miss the cache once per distinct spacing for a run whose glyphs are
+  // identical. They are applied when the run is placed.
+  float letter_spacing = 0.0f;
+  float word_spacing = 0.0f;
 
   friend bool operator==(const FontRequest&, const FontRequest&) = default;
 };

@@ -392,35 +392,52 @@ void PaintInlineBackground(const Box& box, gfx::FloatPoint offset, float paint_o
     return;
   }
   const float font_size = style.font_size;
-  const float pad_l = style.padding.left.Resolve(font_size);
-  const float pad_r = style.padding.right.Resolve(font_size);
-  const float pad_t = style.padding.top.Resolve(font_size);
-  const float pad_b = style.padding.bottom.Resolve(font_size);
+  const css::Edges borders = style.UsedBorderWidths();
+  // The background of an inline box fills its *border* box, so the inflation is padding plus
+  // border on each side -- the same two amounts inline layout reserved on the line. They have to
+  // be the same two, or the colour lands beside the space it was given rather than in it.
+  const float lead = style.padding.left.Resolve(font_size) + borders.left.Resolve(font_size);
+  const float trail = style.padding.right.Resolve(font_size) + borders.right.Resolve(font_size);
+  const float above = style.padding.top.Resolve(font_size) + borders.top.Resolve(font_size);
+  const float below = style.padding.bottom.Resolve(font_size) + borders.bottom.Resolve(font_size);
 
-  const auto paint_rect = [&](gfx::FloatRect rect) {
-    rect.x -= pad_l;
-    rect.y -= pad_t;
-    rect.width += pad_l + pad_r;
-    rect.height += pad_t + pad_b;
+  // An inline box that wraps is several fragments, and its horizontal edges belong to the ends of
+  // the *box* rather than to the ends of each line: the start edge on the first fragment, the end
+  // edge on the last, nothing in between (CSS 2.1 §8.1). Painting both on every fragment is what
+  // put `padding-left: 50px` fifty pixels to the *left* of the text on every line, including the
+  // ones that were not the beginning of anything. The vertical pair is on every fragment, because
+  // each fragment has a top and a bottom of its own.
+  //
+  // Two passes because "the last one" is not known until the walk is over, and the walk is over a
+  // subtree rather than a list.
+  std::vector<gfx::FloatRect> rects;
+  box.ForEachDescendant([&](const Box& desc) {
+    if (desc.GetKind() == Box::Kind::Text) {
+      for (const TextFragment& fragment : desc.Fragments()) {
+        rects.push_back(fragment.rect);
+      }
+    } else if (desc.IsAtomicInline()) {
+      rects.push_back(desc.Geometry().BorderBox());
+    }
+  });
+
+  for (std::size_t i = 0; i < rects.size(); ++i) {
+    const float start = i == 0 ? lead : 0.0f;
+    const float end = i + 1 == rects.size() ? trail : 0.0f;
+    gfx::FloatRect rect = rects[i];
+    rect.x -= start;
+    rect.y -= above;
+    rect.width += start + end;
+    rect.height += above + below;
     rect.x += offset.x;
     rect.y += offset.y;
     if (rect.IsEmpty()) {
-      return;
+      continue;
     }
     gfx::Path path;
     path.AddRect(rect);
     out.FillPath(path, fill);
-  };
-
-  box.ForEachDescendant([&](const Box& desc) {
-    if (desc.GetKind() == Box::Kind::Text) {
-      for (const TextFragment& fragment : desc.Fragments()) {
-        paint_rect(fragment.rect);
-      }
-    } else if (desc.IsAtomicInline()) {
-      paint_rect(desc.Geometry().BorderBox());
-    }
-  });
+  }
 }
 
 // Where a box's descendants are measured against when they are pinned rather

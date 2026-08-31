@@ -114,7 +114,11 @@ budget: CustomProperties header_lines=70 public_methods=8 members=1
 # `text-wrap-mode`), which is what CSS Text 4 made it and what the suite tests: `pre-line` and
 # `break-spaces` are combinations of the two halves rather than values of one enum, so a single
 # field could not spell them.
-budget: ComputedStyle    header_lines=365 public_methods=27 members=42
+# 42 -> 44 for `letter-spacing` and `word-spacing`. Two lengths rather than one pair on a
+# sub-struct: they inherit separately, they are set by separate declarations, and the one place
+# both are read (`FontRequestFor`) reads them as two numbers. A struct holding them would be a
+# name for nothing.
+budget: ComputedStyle    header_lines=365 public_methods=27 members=44
 budget: TransformOperation header_lines=50 public_methods=2 members=9
 budget: TransformList    header_lines=60 public_methods=4 members=1
 budget: Length           header_lines=40 public_methods=8 members=3

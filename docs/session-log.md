@@ -7568,3 +7568,81 @@ tree that does not.
 all", the `cellspacing`/`border-spacing` sentence, and `src/layout`'s "line boxes with a shared
 baseline". E1 deliberately did not touch the file to avoid conflicting with five sibling
 worktrees. Fixing all three is one pass and belongs to whoever finishes the merge.
+
+## Inline boxes have horizontal edges, and text has letter- and word-spacing · 2026-08-31
+
+Picked up from the 2026-08-18 handoff. **Its steps 1 and 2 cannot be done: `wpt/H6` and `wpt/O4`
+no longer exist in this repository.** Neither `ca206a0` nor `b07e805` is a valid object
+(`git cat-file -t` says so), the branches are gone, and `git fsck --lost-found` does not turn them
+up. Whatever those two agents found is lost; anything wanting it has to be redone from the task
+ledger. Steps 3-5 -- re-record, annotate, sanitizers -- remain, and step 3 is what this session
+started on.
+
+**The first honest reftest run over the merged tree found 123 unexpected results, and looking at
+one of them found a hole in the box model.** 105 were improvements the merge had never recorded;
+17 were failures. Three of the 17 were a `text-indent` cluster, and
+`--reftest-artifacts` answered it in one picture: `css/CSS2/text/text-indent-wrap-002`'s *reference*
+renders `margin-left: 100px` on a `<span>` flush against the left edge.
+
+**Horizontal margin, border and padding on a non-replaced inline box did nothing at all.** Not a
+rounding difference -- `<span style="margin-left:100px">` began at the same x as a bare one, and
+`padding-left: 50px` painted its background fifty pixels to the *left* of the text, off the front
+of the line. `LayoutInlineChildren`'s walk recursed *through* an inline box to reach the text
+inside it and never emitted anything for the box itself, so all three properties were invisible to
+line layout; the background painter meanwhile inflated *every* fragment by the padding on *both*
+sides, which is wrong on any inline that wraps and was the only reason padding was visible at all.
+
+The fix is a run entry with a null box and an advance, emitted on the way into an inline box and on
+the way out (CSS 2.1 §8.1: start edge on the first fragment, end edge on the last, nothing in
+between). Painting inflates the first rect by the start edge and the last by the end edge.
+
+**And it exposed that a bidi line was already losing its `text-indent`.** `ReorderLineForBidi`
+re-lays a line from `line_left` -- the band's edge -- so anything that moved the pen before the
+first item was silently deleted on any line the reorder touched. It takes `line.front().x` now,
+which is where the line actually started.
+
+**The measurement is the part worth arguing about, and it is not flattering.** Against the tree this
+session started from, the whole reftest half went **8018 passing -> 7962, a net loss of 56 files.**
+Every one of the new failures is honest -- but "honest" is not the same as "better on the plan's
+metric", and this is the first change recorded here where those two disagree. The cause is one
+shape, seen three times now (canvas in the 2026-08-18 entry, and again here):
+
+    two broken pages agreeing is a passing reftest, and fixing one of them breaks it.
+
+`css/CSS2/text/letter-spacing-007.xht` compares `letter-spacing: 96px` against `margin-left: 96px`.
+Both were ignored, both rows rendered `xx`, the file passed. Making the margin work broke it.
+
+**So `letter-spacing` and `word-spacing` were implemented in the same session**, because the largest
+exposed cluster was theirs -- 192 files reference the two properties and neither existed
+(`grep letter_spacing src/` was empty). They are two lengths on `ComputedStyle`, resolved in
+`FontRequestFor` -- the one function both measurement and paint get a font through, which is what
+makes the two answers unable to disagree -- and applied to an already-shaped run in
+`TextRenderer::WithSpacing`. **Deliberately not in the shaped-run cache key**: shaping does not
+depend on either, and keying on them would miss the cache once per distinct spacing for identical
+glyphs. Percentages are legal on both (css-text-4) and resolve against the element's own font size.
+
+That recovered 17 of the exposed files. It did **not** recover the aggregate: letter-spacing alone,
+measured with the inline-edge change reverted, is itself **8018 -> 7980**. The same trap one level
+down -- a directory of tests that were passing because neither half of each comparison worked.
+
+**What the remaining 65 new failures are, and none of them is a defect in this change:**
+
+| cluster | files | what is actually missing |
+|---|--:|---|
+| `css-text/text-autospace/` | 12 | `text-autospace`, unimplemented |
+| `CSS2/bidi-text/`, `CSS2/bidi-00[567]`, `CSS2/box` | 16 | inline edges are dropped on a line the bidi reorder touches -- they are a pure `x` advance and produce no `LineItem`, so the reorder cannot carry them. The bidi box model (CSS 2.1 §9.4.2) is the real feature |
+| `css-writing-modes/line-box-height-v*` | 14 | `writing-mode`, unimplemented -- `border-left` is a *block*-direction edge in `vertical-lr` and must not advance the line |
+| `css-text/letter-spacing`, `word-spacing` | 10 | cursive joining, ligatures, and percentage inheritance: a percentage should be absolutized at computed-value time so `<small>` inherits pixels, not a percentage of its own smaller font |
+| `css-grid/grid-lanes/` | 7 | grid, unimplemented -- `<item>` falls back to `display: inline` and now has edges |
+| `CSS2/cascade/inherit-computed-001` | 1 | `border: inherit` does not compute the same as `border: medium solid`. A real bug, newly visible |
+
+**The process lesson, and it is a correction to how this repo has been reading its own numbers.**
+`--reftest-artifacts` is what turned "49221 pixels differ" into "the reference has no left margin",
+in one second of looking. Nothing else available would have said which *side* was wrong -- a pixel
+count is symmetric, and the count alone would have sent this session hunting a regression in
+`text-indent`, which was correct. **Before treating a reftest failure as a regression, look at
+which page is wrong.** Half the time here it was the reference.
+
+**Left undone from the handoff**, and a resuming session should take these in order: the full
+re-record (this session recorded `css/` only), `firefox-gap.py --annotate-tasks` on `main`, and the
+ASan/UBSan sweep that nobody has run since the six-way merge.

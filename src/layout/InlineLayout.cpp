@@ -113,6 +113,16 @@ struct RunItem {
   // edge. Inherited by everything inside it, because that box is what gets placed.
   const css::ComputedStyle* group = nullptr;
   css::VerticalAlign edge = css::VerticalAlign::Baseline;
+  // A non-replaced inline box's own horizontal edge, in pixels, with `box` null: the sum of
+  // margin, border and padding on the side the run is entering or leaving it by (CSS 2.1 §8.1).
+  // It advances the line and generates nothing, which is why it is a run entry rather than a
+  // LineItem -- a LineItem is a rectangle hung from a baseline and an edge has no baseline.
+  //
+  // Emitted once per box rather than once per fragment: an inline box that wraps carries its
+  // start edge on the first line and its end edge on the last, and nothing in between. Walking
+  // *into* the box in document order is exactly that position, which is why the run walk is
+  // where this belongs and the line loop cannot compute it.
+  float advance = 0.0f;
 };
 
 // The part of `vertical-align` that is a shift of this box's baseline away from its parent's, up
@@ -267,7 +277,14 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
     // is one bidi paragraph, and reordering each span separately would leave the
     // spans in logical order with their insides reversed -- which is a different
     // wrong answer from no bidi at all.
-    ReorderLineForBidi(line, box.Style().direction, *measurer_, line_left);
+    //
+    // The line starts where its first item was *put*, not at the band's left edge. They differ by
+    // everything that moved the pen before any item was pushed -- `text-indent`, and the leading
+    // horizontal edge of an inline box the line opens inside -- and re-laying from `line_left`
+    // silently deleted both on any line the reorder touched. The items are still in logical order
+    // here, and they were assigned increasing `x` whatever the paragraph's direction, so the first
+    // one carries the smallest.
+    ReorderLineForBidi(line, box.Style().direction, *measurer_, line.front().x);
 
     // Alignment is a shift of the whole finished line, applied here because
     // this is the first moment the line's used width is known. `justify` is
@@ -358,6 +375,30 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
     return style.vertical_align == css::VerticalAlign::Top ||
            style.vertical_align == css::VerticalAlign::Bottom;
   };
+  // Margin, border and padding on one horizontal side of a non-replaced inline box. All three
+  // apply to one (CSS 2.1 §8.1) -- it is the *vertical* ones that do not affect line height --
+  // and none of them did anything here until this landed: `<span style="margin-left: 100px">`
+  // started at the same x as its bare sibling, which is `css/CSS2/text/text-indent-wrap-001`'s
+  // reference exactly, and made that test pass only while `text-indent` was broken too.
+  //
+  // Percentages are of the containing block's width for margin *and* padding (§8.3, §8.4), which
+  // is `content_width` here.
+  const auto horizontal_edge = [&](const css::ComputedStyle& style, bool start) {
+    const css::Edges borders = style.UsedBorderWidths();
+    const css::Length& margin = start ? style.margin.left : style.margin.right;
+    const css::Length& padding = start ? style.padding.left : style.padding.right;
+    const css::Length& border = start ? borders.left : borders.right;
+    // `margin: auto` on an inline box computes to zero (§10.3.1), which is what Resolve of an
+    // auto length would answer anyway; saying so here keeps the reader from checking.
+    return (margin.IsAuto() ? 0.0f : margin.Used(content_width, style.font_size)) +
+           padding.Used(content_width, style.font_size) + border.Resolve(style.font_size);
+  };
+  // Only a box that came from an element. An anonymous inline wrapper carries a *copy* of its
+  // parent's style, so applying its margins would apply the parent's a second time -- the same
+  // trap the background painter documents two files away.
+  const auto has_own_edges = [](const Box& node) {
+    return node.GetKind() == Box::Kind::Inline && node.Origin() != nullptr;
+  };
   const auto collect = [&](Box& node, const css::ComputedStyle* node_align, float ancestor_shift,
                            const css::ComputedStyle* group, css::VerticalAlign edge,
                            auto& self) -> void {
@@ -381,9 +422,23 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
         // An edge-aligned inline box starts a group, and the shift accumulated above it stops
         // applying: what is inside it is positioned against *its* baseline, and where that baseline
         // ends up is decided against the finished line box rather than against anything here.
+        const bool edges = has_own_edges(*child);
+        if (edges) {
+          run.push_back(RunItem{.advance = horizontal_edge(child->Style(), true)});
+        }
         self(*child, &child->Style(), 0.0f, &child->Style(), child->Style().vertical_align, self);
+        if (edges) {
+          run.push_back(RunItem{.advance = horizontal_edge(child->Style(), false)});
+        }
       } else {
+        const bool edges = has_own_edges(*child);
+        if (edges) {
+          run.push_back(RunItem{.advance = horizontal_edge(child->Style(), true)});
+        }
         self(*child, &child->Style(), ancestor_shift + here, group, edge, self);
+        if (edges) {
+          run.push_back(RunItem{.advance = horizontal_edge(child->Style(), false)});
+        }
       }
     }
   };
@@ -432,6 +487,13 @@ float LayoutEngine::LayoutInlineChildren(Box& box, float content_left, float con
 
   for (const RunItem& entry : run) {
     Box* item = entry.box;
+    if (item == nullptr) {
+      // An inline box's own horizontal edge. It moves the pen and puts nothing on the line, so it
+      // does not start one either: an edge alone at the end of a paragraph must not produce a
+      // trailing empty line box, and `line.empty()` stays the test for whether anything is there.
+      x += entry.advance;
+      continue;
+    }
     if (item->GetKind() == Box::Kind::LineBreak) {
       // A zero-width item first, so the line has this element's height even
       // when nothing else is on it -- which is what makes two `<br>`s in a row

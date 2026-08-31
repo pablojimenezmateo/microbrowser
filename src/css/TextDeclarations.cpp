@@ -288,6 +288,25 @@ bool ApplyTextDeclaration(std::string_view property, std::string_view value,
     return true;
   }
 
+  if (property == "letter-spacing" || property == "word-spacing") {
+    // `normal` is the initial value of both and computes to no extra advance. Spelling it as a zero
+    // length rather than a keyword is what lets the used value be one `Resolve` at the point a font
+    // is asked for, with no third state for the two call sites to disagree about.
+    Length spacing;
+    if (value != "normal") {
+      const std::optional<Length> length = ParseLength(value, context, style.root_font_size);
+      // A percentage is legal on both (css-text-4) and is a fraction of *this element's* font size,
+      // which is the basis `FontRequestFor` hands `Used`. `auto` is a length this parser produces
+      // and neither property has such a value.
+      if (!length.has_value() || length->IsAuto()) {
+        return false;
+      }
+      spacing = *length;
+    }
+    (property == "letter-spacing" ? style.letter_spacing : style.word_spacing) = spacing;
+    return true;
+  }
+
   if (property == "tab-size") {
     if (const std::optional<float> number = ParseNumber(value)) {
       if (*number < 0.0f) {

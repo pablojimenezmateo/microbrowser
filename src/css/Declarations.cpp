@@ -46,6 +46,8 @@ void InheritInto(const ComputedStyle& parent, ComputedStyle& child, bool with_cu
   child.word_break = parent.word_break;
   child.overflow_wrap = parent.overflow_wrap;
   child.text_indent = parent.text_indent;
+  child.letter_spacing = parent.letter_spacing;
+  child.word_spacing = parent.word_spacing;
   child.tab_size = parent.tab_size;
   child.visibility = parent.visibility;
   child.pointer_events = parent.pointer_events;

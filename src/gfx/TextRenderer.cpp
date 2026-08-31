@@ -3,6 +3,7 @@
 #include <hb.h>
 
 #include <bit>
+#include <optional>
 #include <utility>
 
 #include "util/PerformanceCounters.h"
@@ -20,6 +21,50 @@ using util::PerfCounterId;
 // bucket far more often than the hash's width suggests.
 void MixInto(std::size_t& hash, std::size_t value) {
   hash ^= value + 0x9e3779b97f4a7c15ULL + (hash << 6) + (hash >> 2);
+}
+
+// `letter-spacing` and `word-spacing`, applied to an already-shaped run.
+//
+// After shaping rather than before it, because neither property changes which glyphs a font
+// produces -- a ligature is still a ligature -- and applying them here is what keeps the shaped-run
+// cache keyed on the text and the face alone.
+//
+// **Per glyph rather than per character**, which is the approximation this makes and the reason it
+// is written down: a ligature is one glyph covering two characters and gets one letter-space, where
+// the property is defined between typographic character units. Every engine that applies spacing
+// after shaping has the same behaviour, and the alternative -- suppressing ligatures whenever
+// spacing is set -- is a larger decision than this function.
+//
+// The space goes *after* each glyph, including the last. That is what CSS 2.1 specifies and what
+// makes `letter-spacing: 96px` on Ahem `xx` measure 96 wider than two glyphs; the css/CSS2/text
+// reftests compare exactly that against a `margin-left` of the same length.
+// How much one glyph gains. Split out so that measuring can add up the extra width without
+// building a spaced copy of the run: measurement runs once per text run per layout, and a vector
+// of glyphs allocated only to read one float off it is the shape this repo's performance notes
+// keep finding.
+float SpacingFor(const PositionedGlyph& glyph, std::string_view text, float letter, float word) {
+  // A word separator is U+0020 in the source, found through the cluster the glyph came from --
+  // which is the only link back from a glyph to its text and the reason `cluster` is carried.
+  const bool separator = word != 0.0f && glyph.cluster < text.size() && text[glyph.cluster] == ' ';
+  return separator ? letter + word : letter;
+}
+
+float SpacingWidth(const ShapedRun& run, std::string_view text, float letter, float word) {
+  float extra = 0.0f;
+  for (const PositionedGlyph& glyph : run.glyphs) {
+    extra += SpacingFor(glyph, text, letter, word);
+  }
+  return extra;
+}
+
+ShapedRun WithSpacing(const ShapedRun& run, std::string_view text, float letter, float word) {
+  ShapedRun spaced = run;
+  for (PositionedGlyph& glyph : spaced.glyphs) {
+    const float extra = SpacingFor(glyph, text, letter, word);
+    glyph.x_advance += extra;
+    spaced.width += extra;
+  }
+  return spaced;
 }
 
 }  // namespace
@@ -160,7 +205,12 @@ void TextRenderer::DrawRun(Painter& painter, std::string_view text, const FontRe
   struct Placed {
     Font* font = nullptr;
     const ShapedRun* run = nullptr;
+    // Owns the spaced copy when there is one, and is empty on every run with no spacing on it --
+    // which is essentially every run on the web. `run` points into it when it is used, so the two
+    // must live in the same element and neither may be reordered out from under the other.
+    std::optional<ShapedRun> spaced;
   };
+  const bool has_spacing = request.letter_spacing != 0.0f || request.word_spacing != 0.0f;
   std::vector<Placed> placed;
   for (const CoveragePiece& piece : SplitByCoverage(text, request)) {
     if (piece.font == nullptr) {
@@ -170,7 +220,19 @@ void TextRenderer::DrawRun(Painter& painter, std::string_view text, const FontRe
     if (run == nullptr) {
       continue;
     }
-    placed.push_back({piece.font, run});
+    placed.push_back(Placed{piece.font, run, std::nullopt});
+    if (has_spacing) {
+      placed.back().spaced =
+          WithSpacing(*run, piece.text, request.letter_spacing, request.word_spacing);
+    }
+  }
+  // In a second pass, because a `push_back` that reallocates moves every `spaced` it already holds
+  // and would leave a pointer taken in the first pass aimed at freed storage. The vector is final
+  // here and the addresses are stable.
+  for (Placed& piece : placed) {
+    if (piece.spaced.has_value()) {
+      piece.run = &*piece.spaced;
+    }
   }
   float pen = origin.x;
   if (right_to_left) {
@@ -203,6 +265,11 @@ float TextRenderer::MeasureRun(std::string_view text, const FontRequest& request
     }
     if (const ShapedRun* run = LookupWithFont(piece.text, *piece.font, right_to_left)) {
       width += run->width;
+      // The same two properties the paint path applies, added glyph by glyph through the same
+      // function. Measuring without them is a line whose text overflows it by exactly the spacing.
+      if (request.letter_spacing != 0.0f || request.word_spacing != 0.0f) {
+        width += SpacingWidth(*run, piece.text, request.letter_spacing, request.word_spacing);
+      }
     }
   }
   return width;

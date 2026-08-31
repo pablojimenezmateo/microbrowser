@@ -61,6 +61,15 @@ gfx::FontRequest FontRequestFor(const css::ComputedStyle& style) {
   request.size = style.font_size;
   request.weight = static_cast<int>(style.font_weight);
   request.italic = style.font_style == css::FontStyle::Italic;
+  // Resolved here rather than in the cascade because both are lengths in `em`, and `em` on these
+  // two is this element's own font size -- which is the number two lines above. Resolving at the
+  // one point a font is asked for is also what keeps measurement and paint from ever seeing
+  // different values.
+  // A percentage on either is a fraction of this element's own font size (css-text-4), so the
+  // basis and the em base are the same number -- which is why this is `Used` with `font_size`
+  // twice rather than a `Resolve` that would answer zero for a percentage.
+  request.letter_spacing = style.letter_spacing.Used(style.font_size, style.font_size);
+  request.word_spacing = style.word_spacing.Used(style.font_size, style.font_size);
   return request;
 }
 

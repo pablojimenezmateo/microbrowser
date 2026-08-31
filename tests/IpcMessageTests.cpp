@@ -229,8 +229,9 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
     // float maximum overflows FreeType's 26.6 conversion rather than producing
     // very large text, and a weight outside the CSS range makes the
     // nearest-weight search meaningless.
-    const auto family_frame = [](std::uint32_t families, float size, int weight,
-                                 std::uint8_t italic, float advance, float x) {
+    const auto spaced_frame = [](std::uint32_t families, float size, int weight,
+                                 std::uint8_t italic, float advance, float x, float letter,
+                                 float word) {
       ipc::ByteWriter writer;
       writer.WriteU32(ipc::kProtocolVersion);
       writer.WriteU8(1);   // PaintFrame
@@ -252,15 +253,26 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
       writer.WriteF32(size);
       writer.WriteI32(weight);
       writer.WriteU8(italic);
+      writer.WriteF32(letter);
+      writer.WriteF32(word);
       writer.WriteString("run");
       writer.WriteU32(0);  // damage rect count
       writer.WriteI32(0);  // scroll delta x
       writer.WriteI32(0);  // scroll delta y
       return writer.Take();
     };
+    const auto family_frame = [&spaced_frame](std::uint32_t families, float size, int weight,
+                                              std::uint8_t italic, float advance, float x) {
+      return spaced_frame(families, size, weight, italic, advance, x, 0.0f, 0.0f);
+    };
     const auto text_frame = [&family_frame](float size, int weight, std::uint8_t italic,
                                             float advance, float x) {
       return family_frame(1, size, weight, italic, advance, x);
+    };
+    // `letter-spacing` and `word-spacing` are the two fields on this struct that may legitimately
+    // be *negative*, so the bound is on magnitude and on finiteness rather than on sign.
+    const auto spacing_frame = [&spaced_frame](float letter, float word) {
+      return spaced_frame(1, 16.0f, 400, 0, 10.0f, 1.0f, letter, word);
     };
 
     Expect(ipc::DeserializeEngineToUi(text_frame(16.0f, 400, 0, 10.0f, 1.0f)).has_value(),
@@ -289,6 +301,12 @@ void RegisterIpcMessageTests(std::vector<TestCase>& tests) {
               "a font stack one past the bound"},
              {family_frame(4, 16.0f, 400, 0, 10.0f, 1.0f),
               "a font stack claiming more families than the frame carries"},
+             {spacing_frame(std::numeric_limits<float>::quiet_NaN(), 0.0f),
+              "a NaN letter-spacing"},
+             {spacing_frame(0.0f, std::numeric_limits<float>::infinity()),
+              "an infinite word-spacing"},
+             {spacing_frame(1e30f, 0.0f), "a letter-spacing past the bound"},
+             {spacing_frame(0.0f, -1e30f), "a word-spacing past the bound the negative way"},
          }) {
       Expect(!ipc::DeserializeEngineToUi(bytes).has_value(),
              std::string("the decoder accepted ") + why);

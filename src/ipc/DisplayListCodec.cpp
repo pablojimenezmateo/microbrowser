@@ -257,6 +257,8 @@ void WriteFontRequest(ByteWriter& writer, const gfx::FontRequest& font) {
   writer.WriteF32(font.size);
   writer.WriteI32(font.weight);
   writer.WriteU8(font.italic ? 1 : 0);
+  writer.WriteF32(font.letter_spacing);
+  writer.WriteF32(font.word_spacing);
 }
 
 bool ReadFontRequest(ByteReader& reader, gfx::FontRequest& out) {
@@ -291,6 +293,20 @@ bool ReadFontRequest(ByteReader& reader, gfx::FontRequest& out) {
     return false;
   }
   out.italic = italic != 0;
+  out.letter_spacing = reader.ReadF32();
+  out.word_spacing = reader.ReadF32();
+  if (!reader.Ok()) {
+    return false;
+  }
+  // Bounded on both sides, and negative is legal: `letter-spacing: -1px` is a real declaration.
+  // What is refused is a non-finite value -- which would make every advance downstream NaN and the
+  // run's width with it -- and a magnitude no layout could have produced. The ceiling is the font
+  // size's, because a spacing is a length beside a glyph and nothing on a page is larger than the
+  // largest glyph this seam already accepts.
+  if (!std::isfinite(out.letter_spacing) || !std::isfinite(out.word_spacing) ||
+      std::abs(out.letter_spacing) > kMaxFontSize || std::abs(out.word_spacing) > kMaxFontSize) {
+    return false;
+  }
   return true;
 }
 

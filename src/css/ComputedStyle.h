@@ -457,6 +457,12 @@ struct ComputedStyle {
   WordBreak word_break = WordBreak::Normal;
   OverflowWrap overflow_wrap = OverflowWrap::Normal;
   TextIndent text_indent;
+  // `letter-spacing` and `word-spacing`. `normal` is the initial value of both and is stored as a
+  // zero length, which is what it computes to: neither property's `normal` means "the font's own
+  // idea of it" in a way this engine could act on differently from zero -- word-spacing's normal is
+  // the space glyph's own advance, which the shaper already produced.
+  Length letter_spacing;
+  Length word_spacing;
   TabSize tab_size;
   Float css_float = Float::None;
   Clear clear = Clear::None;

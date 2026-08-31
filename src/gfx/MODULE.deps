@@ -109,3 +109,9 @@ budget: FontCatalog header_lines=175 public_methods=18 members=7
 # measuring use, so that the two cannot disagree about where a fallback began.
 budget: TextRenderer   header_lines=80 public_methods=12 members=6
 budget: AffineTransform header_lines=70 public_methods=22 members=6
+
+# The font a run is asked for, plus the two spacing properties that travel with it. It has no
+# budget before now because it was four fields nobody had reason to add to; `letter-spacing` and
+# `word-spacing` are the reason, and they are here rather than in a parameter because a run
+# measured with spacing and painted without it overflows its line by exactly the spacing.
+budget: FontRequest      header_lines=35 public_methods=0  members=6
