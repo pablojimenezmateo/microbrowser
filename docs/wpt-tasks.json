@@ -2403,10 +2403,11 @@
         "F9"
       ],
       "target": "",
-      "status": "not_started",
-      "agent": "",
+      "status": "in_progress",
+      "agent": "wpt-f10",
       "adr": "0040",
-      "notes": "The eight, from the two verification runs of 2026-08-17 (the membership differs between runs; the union is larger than eight):\n\n- `css/css-text/text-spacing-trim/` -- seven of the eight, and one cause. Every test in that directory is an `@font-face` against `/fonts/noto/cjk/*.otf`, which this browser does not load, so both sides render in a system fallback and agree or disagree depending on what else the machine is doing. Measured at three concurrencies: 42 passes at `--jobs 1`, 41 at 12, **49 at 64**. The pass count rises with oversubscription, which is the `--jobs` lesson of 2026-08-16 in the pixel half -- and note that none of them is a *blank* pair, so `IsBlank` does not catch this one.\n- `css/css-backgrounds/animations/background-color-animation-offset-position-not-stuck.html` -- an animation reftest, so it samples a clock.\n- `css/css-display/display-none-inline-img.html` and `css/selectors/selector-placeholder-shown-type-change-002.html` -- appeared in the second run only; both look like an image arriving or not.\n\nRun alone with `--retries 0`, `text-spacing-trim-001.html?class=chws,vrl` fails five times out of five and agrees with what is recorded. It only flips under load."
+      "notes": "The eight, from the two verification runs of 2026-08-17 (the membership differs between runs; the union is larger than eight):\n\n- `css/css-text/text-spacing-trim/` -- seven of the eight, and one cause. Every test in that directory is an `@font-face` against `/fonts/noto/cjk/*.otf`, which this browser does not load, so both sides render in a system fallback and agree or disagree depending on what else the machine is doing. Measured at three concurrencies: 42 passes at `--jobs 1`, 41 at 12, **49 at 64**. The pass count rises with oversubscription, which is the `--jobs` lesson of 2026-08-16 in the pixel half -- and note that none of them is a *blank* pair, so `IsBlank` does not catch this one.\n- `css/css-backgrounds/animations/background-color-animation-offset-position-not-stuck.html` -- an animation reftest, so it samples a clock.\n- `css/css-display/display-none-inline-img.html` and `css/selectors/selector-placeholder-shown-type-change-002.html` -- appeared in the second run only; both look like an image arriving or not.\n\nRun alone with `--retries 0`, `text-spacing-trim-001.html?class=chws,vrl` fails five times out of five and agrees with what is recorded. It only flips under load.",
+      "claimed": "2026-08-31"
     },
     {
       "id": "O1",
