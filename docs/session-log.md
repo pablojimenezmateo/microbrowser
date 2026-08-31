@@ -8004,3 +8004,122 @@ reports TIMEOUT only inside a full-area run and passes alone — load-dependent,
 that now pass outright. That number is comparable with the one in the entry above it — both were
 generated from the same 157.0a1 cache — and neither is comparable with anything committed before
 2026-08-31.
+
+## WPT task E2 — css/css-flexbox · 2026-09-01
+
+**Status:** in_progress — the area moved a long way and the check is not met.
+**Check** (`docs/wpt-tasks.json`: "css/css-flexbox/ >= 80%"): **not met.**
+`microbrowser_wpt css/css-flexbox/` printed
+
+```
+1370 tests in 11534 ms: 4704 subtests, 1614 passed (34.3%), 0 crashes, 4 timeouts, 0 disabled
+1001 reftests: 344 passed (34.4%), 12 of those with both pages blank
+```
+
+from a baseline of `4704 subtests, 768 passed (16.3%)` and `1001 reftests: 318 passed (31.8%)`.
+In files -- the unit this plan is ranked by -- `css/css-flexbox`'s Firefox gap went **842 -> 807**
+and the files we pass in it went **434 -> 469**. Suite-wide, **all 20,998 reftests report
+`0 unexpected` and 8,380 of them pass**, against the 8,005 task F10 recorded the day before.
+
+**Landed:** *The named colours are all 148, and a missing one was a layout bug* ·
+*A statically positioned body is an offsetParent that is not a reference* ·
+*align-content had no free space to distribute, and `start` is not `flex-start`* ·
+*`safe` carries a positional keyword and nothing else* · *Re-record css/*
+
+**The expectation diff.** `css/css-flexbox/`: 929 listed files -> 894, 4,622 lines -> 3,750;
+**55 files left the failure list entirely** and 20 arrived, 16 of them reftests. Across the whole
+of `css/`: 66 left, 77 arrived, 71 of those reftests, 91,627 lines -> 90,222.
+
+**Found:**
+
+**Two of the four largest causes in this area were not flexbox.** That is the transferable part.
+
+- **The named-colour table was 22 of the 148 CSS Color 4 keywords**, and the cost was not a wrong
+  colour. A declaration whose *value* does not parse is dropped, so `border: 2px solid limegreen`
+  contributed **no border**, and every box wearing one was 4px smaller than the page said. That is
+  a layout difference and it is invisible until something lines those boxes up:
+  `flexbox-flex-direction-column.htm` has always laid its nine cells out at 38px where the
+  specification says 40, and *matched its reference anyway* -- both sides lost the same 2px. It
+  only started failing once `align-content` had free space to distribute, at which point the new
+  code was the obvious suspect and was not the cause.
+- **`offsetLeft` subtracted the body's padding edge.** CSSOM-View's step says to, and
+  `css/cssom-view/offsetTopLeft-border-box.html` pins it for a *positioned* container; the body is
+  the exception every engine ships. The whole `check-layout-th.js` corpus is written against that
+  -- `data-offset-x="8"` for a subject not wrapped in a positioned container is the UA sheet's body
+  margin -- so seven `align-content-*` files were failing on nothing but 8px after the layout under
+  them was already right.
+
+**The rule those two suggest, and it is a different one from E3's:** when a *reftest* fails, the
+question "did we regress?" is not answerable from the pass count, because a reference that fails to
+render matches a test that also rendered nothing. `--reftest-artifacts` answered it in one second
+in both directions: the picture showed the reference's green stripe *present* and the test's
+columns separated by red, which is a 2px-per-box layout difference and not a paint difference.
+Suite-wide, the blank-page passes went **757 -> 633** in the colour change alone.
+
+**What was actually flexbox, in the order it was worth:**
+
+- `align-content` was handed a **hard-coded zero** free space, so every value of the property drew
+  the same picture. Six of the seven `align-content-*` files went to 100%.
+- A *single-line* container is `flex-wrap: nowrap`, not "happened to produce one line". The §9.4
+  rule that gives it the container's whole cross size was keyed on the line count (so it pre-empted
+  `align-content` in a wrapping container that fitted on one line) and was row-only (so a nowrap
+  column never got it).
+- **`start` is not `flex-start`.** `flex-start` names the flex-relative edge, which `row-reverse`
+  and `wrap-reverse` invert; `start` names the writing mode's, which nothing in flexbox moves. They
+  were one enumerator. Two new ones, and `wrap-reverse` now inverts the edge an *item* aligns to
+  within its line as well as the lines themselves.
+- A column item with `width: auto` is **fit-content**, not "as wide as the container". Laying it
+  out against the container made every line the container's full width, so a column never wrapped
+  into lines of differing cross size -- `align-content` had nothing to distribute even once it
+  could.
+- An **abspos child takes its static position from the container** (§4.1): where it would sit if it
+  were the sole flex item, so `justify-content` and `align-self` place it. `abspos/` is 51 of this
+  area's gap files and its three largest harness files are 493 subtests between them.
+
+**One bug was exposed rather than introduced, and it is the interesting one.** `ForcedSize` now
+carries whether its height is *definite*. Only a flex container with a definite main size hands one
+down (§9.8); an auto-height column's item height is whatever its own content produced, and forcing
+it as definite made a nested column flexbox resolve a child's `height: 50%` against it and shrink
+two children to 2/3 and 1/3 of a height they had themselves decided
+(`percentage-heights-008.html`). Nothing had ever taken that path because the §9.4 rule above never
+fired for a column.
+
+**Left, ranked and measured.** The area's remaining reftest failures are three families and a tail:
+
+- **baseline alignment** -- `align-items: baseline` is flex-start with a comment saying so, and a
+  box's baseline is a property of its first line box, which inline layout does not expose.
+  `flexbox-align-self-baseline-horiz` 7 files, `flexbox-baseline-*` 6, `flex-order-last-baseline` 2,
+  `align-baseline` 1, plus `alignment/flex-align-baseline-flex-002.html` at 48 subtests.
+- **the automatic minimum size** (`min-width`/`min-height: auto` on a flex item resolving to the
+  content-based minimum, §4.5). `min_width` is stored as `Length::Pixels(0)` and `auto` is not a
+  state it can hold, so this is a `ComputedStyle` change before it is a layout one.
+  `flex-minimum-height-flex-items` 21 files, `flex-minimum-width-flex-items` 15,
+  `flexbox-min-width-auto` 8, `flexbox-min-height-auto` 4.
+- **aspect-ratio on flex items** -- `flex-aspect-ratio-img-column` 16, `-row` 15,
+  `aspect-ratio-intrinsic-size` 14.
+- and `flexbox-writing-mode` 12, which is E9's.
+
+**Also seen, not chased.** `css/css-backgrounds/animations/background-color-animation-offset-position-not-stuck.html`
+is the "one animation" the expectations README names as F10's remaining intermittent: three runs in
+isolation gave FAIL, FAIL, PASS. It is left recorded as FAIL, which is both the majority and what
+was committed before this session.
+
+**A process warning, and it cost two hours.** `--update-expectations html/` on a machine that had
+already been running the suite for two hours added **111 files of which 94 were `harness=TIMEOUT`
+on `html/editing/dnd/` variants** -- a directory nothing in this session touches. It was reverted
+rather than committed, and `html/`'s nine genuinely-changed reftest lines were written by hand
+instead. Two things follow. First, the baseline document's "re-record at low concurrency or not at
+all" is about *this*, and a re-record late in a long session is the case it means. Second, **the
+reftest half is the cheap and reliable way to find what a cross-cutting change moved**:
+`--reftests-only --areas tests/wpt/areas.txt` covers all 20,998 files in 90 seconds and names them,
+where a testharness sweep of the same areas did not finish `html/` in 100 minutes.
+
+**And `--update-expectations` gives every test its full deadline** ("--known-timeout-budget ignored:
+this run records or summarises"), which is why a record run of `css/` takes 420s where the verify of
+the same area takes 124s. That is correct -- a recording must not be shortened -- but it means the
+subtest denominators of the two runs are not comparable, and the record's is the one to quote.
+
+**`html/rendering/` and `dom/nodes/` are still stale from the 2026-08-18 merge**, as the entry above
+this one recorded, and this session did not change that. `html/` uses `check-layout-th.js` in 63
+files (38 of them in `html/rendering/`), so the `offsetLeft` fix in this session almost certainly
+moved some of them in the right direction and they are still recorded as failing.
