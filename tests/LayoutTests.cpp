@@ -1735,6 +1735,23 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     ExpectEqString(texts[1]->Text(), "est", "the rest of the em's text follows");
   });
 
+  AddTest(tests, "Layout/FirstLetterDoesNotApplyToAFlexOrGridContainer", [] {
+    // CSS Grid s3 and CSS Flexbox s4. The reason is the box tree rather than the selector: such a
+    // container's children are items, and splitting the first of them would make two items of one.
+    //
+    // Flex only, because `display: grid` does not parse yet -- `ApplyDeclaration` refuses it so that
+    // `@supports (display: grid)` answers an honest false (ADR 0012), which means a grid container
+    // is a block today and there is no way to write the grid half of this test. The rule is in the
+    // code for both, and the day `display: grid` lands this loop gains two entries.
+    for (const std::string_view display : {"flex", "inline-flex"}) {
+      const LaidOut result = Run("<div>Test</div>", "div { display: " + std::string(display) +
+                                                        " } div:first-letter { color: green }");
+      const std::vector<const Box*> texts = TextBoxes(*result.root);
+      Expect(texts.size() == 1, "no first letter is split out of an item container");
+      ExpectEqString(texts[0]->Text(), "Test", "and the run is left whole");
+    }
+  });
+
   AddTest(tests, "Layout/FirstLetterIsNotAppliedWithoutARule", [] {
     // The gate that keeps this off every block on every page: no rule names the pseudo, so no text
     // box is split and no cascade lookup happens.

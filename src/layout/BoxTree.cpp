@@ -493,7 +493,21 @@ std::unique_ptr<Box> LayoutEngine::BuildFor(const dom::Node& node,
   // CSS 2.1 s5.12.2. A block container only -- an inline box's first letter belongs to the block
   // that contains it -- and only when some rule actually said `::first-letter`, which
   // `AnyRuleTargets` answers from a flag rather than from a cascade walk per block.
-  if (kind != Box::Kind::Inline && resolver_->AnyRuleTargets(css::PseudoElement::FirstLetter)) {
+  //
+  // **Not a flex or grid container.** CSS Grid s3 and CSS Flexbox s4 both say the pseudo does not
+  // apply to one, and the reason is the box tree rather than the selector: such a container's
+  // children are items, and splitting the first of them in two would make two items out of one.
+  // `css/css-grid/grid-model/grid-container-ignores-first-letter-001.html` is the file that says so
+  // -- it puts `line-height: 100px` on the pseudo and asserts the item is still 20px tall.
+  //
+  // The grid half of the test is unreachable today: `ApplyDeclaration` refuses `display: grid` so
+  // that `@supports (display: grid)` answers an honest false, so a grid container is a block and
+  // takes the flex clause's fate only when someone writes `display: flex`. It is stated for both
+  // anyway, because the day the display value lands is not the day anyone will think of this.
+  const bool item_container = style.IsFlexContainer() || style.display == css::Display::Grid ||
+                              style.display == css::Display::InlineGrid;
+  if (kind != Box::Kind::Inline && !item_container &&
+      resolver_->AnyRuleTargets(css::PseudoElement::FirstLetter)) {
     bool matched = false;
     const css::ComputedStyle first_letter = resolver_->StyleForPseudo(
         element, css::PseudoElement::FirstLetter, style, &matched);
