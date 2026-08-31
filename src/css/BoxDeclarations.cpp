@@ -34,13 +34,27 @@ namespace {
 // (let the item overflow the start edge), nothing here can do it, and a value
 // that parsed into the wrong behaviour is worse than one that does not parse
 // (ADR 0012).
-std::string_view StripSafe(std::string_view value) {
+// Only a *positional* keyword may carry it, which is why this is a list rather
+// than "whatever parses": `safe stretch`, `safe normal`, `safe baseline` and
+// `safe space-between` are all invalid, and three
+// `css/css-align/**/parse-*-004.html` files assert exactly that.
+bool IsPositionalAlignment(std::string_view value) {
+  return value == "center" || value == "start" || value == "end" ||
+         value == "flex-start" || value == "flex-end" || value == "self-start" ||
+         value == "self-end" || value == "left" || value == "right";
+}
+
+// Strips the prefix and says whether there was one, so the caller can hold the
+// rest to the positional-keyword rule above.
+std::string_view StripSafe(std::string_view value, bool* had_safe) {
   constexpr std::string_view kSafe = "safe ";
+  *had_safe = false;
   if (value.size() > kSafe.size() && value.substr(0, kSafe.size()) == kSafe) {
     std::string_view rest = value.substr(kSafe.size());
     while (!rest.empty() && rest.front() == ' ') {
       rest.remove_prefix(1);
     }
+    *had_safe = true;
     return rest;
   }
   return value;
@@ -50,7 +64,11 @@ std::string_view StripSafe(std::string_view value) {
 // spellings of the CSS Box Alignment module are accepted alongside the flexbox
 // ones: a page writes `start` as often as `flex-start`.
 std::optional<Distribution> ParseDistribution(std::string_view raw) {
-  const std::string_view value = StripSafe(raw);
+  bool had_safe = false;
+  const std::string_view value = StripSafe(raw, &had_safe);
+  if (had_safe && !IsPositionalAlignment(value)) {
+    return std::nullopt;
+  }
   if (value == "flex-start" || value == "normal") {
     return Distribution::FlexStart;
   }
@@ -85,7 +103,11 @@ std::optional<Distribution> ParseDistribution(std::string_view raw) {
 }
 
 std::optional<Alignment> ParseAlignment(std::string_view raw) {
-  const std::string_view value = StripSafe(raw);
+  bool had_safe = false;
+  const std::string_view value = StripSafe(raw, &had_safe);
+  if (had_safe && !IsPositionalAlignment(value)) {
+    return std::nullopt;
+  }
   if (value == "auto") {
     return Alignment::Auto;
   }
