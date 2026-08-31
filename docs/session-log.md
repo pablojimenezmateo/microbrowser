@@ -7923,3 +7923,84 @@ closed.
 which under a sanitizer build is very long; the 24 unit shards were run to completion under both
 ASan and UBSan with no failures and no sanitizer reports, and the WPT shard was stopped. Nobody has
 run that shard since the six-way merge, and this session did not change that.
+
+## WPT task E3 — grid · 2026-08-31
+
+**Status:** in_progress — the area was **unblocked, not implemented**.
+**Check** (`docs/wpt-tasks.json`: "css/css-grid/ >= 60%"): **not met.**
+`microbrowser_wpt css/css-grid/` printed
+
+```
+2253 tests in 11092 ms: 11496 subtests, 782 passed (6.8%), 0 crashes, 33 timeouts, 0 disabled
+0 unexpected results
+```
+
+from a baseline of `8268 subtests, 656 passed (7.9%), 325 timeouts`. The rate went **down** and
+that is the measurement working — see below.
+
+**Landed:** *`document.fonts.ready` exists, and 1,380 test files stop timing out* ·
+*::first-letter does not apply to a flex or grid container* · *Record the unblock*
+
+**Found:**
+
+**The largest thing wrong with `css/css-grid/` was not grid.** 292 of its 326 timing-out files
+begin
+
+```html
+<body onload="document.fonts.ready.then(() => { checkLayout('.grid'); })">
+```
+
+`document.fonts` was undefined, so the handler threw before reaching `checkLayout`, `done()` was
+never called, and the file reported **no subtests at all**. Suite-wide that pattern is 714 files.
+Implementing the readiness half took an afternoon; implementing grid would not have made one of
+those files countable, because a blocked file's subtests are in no denominator in either direction.
+`grep -c 'document\.fonts'` over the area's timing-out files predicted 292 and the run delivered
+exactly 292.
+
+**This is the third time the same shape has been the answer** — the 2026-08-14 worker global, the
+`.py` handler table, and now this. The rule those three suggest: **when an area's `blocked` count
+is most of its harness files, grep the blocked files for a common first line before reading any
+failure as a specification gap.** One `--verbose` run on a single blocked file was enough here;
+the resources all returned 200 and the page still never reported, which is what says the cause is
+in the page's own first statement rather than in the server.
+
+**The subtest rate fell and the browser improved.** 7.9% → 6.8%, because 3,228 assertions that had
+never been in a denominator entered one and most of them fail on grid. `docs/wpt-plan.md`'s §The
+target argues exactly this in the abstract; this is it with a number. The honest figures are the
+file counts: **1,380 files stopped timing out**, **75 now pass outright**, and the area's `blocked`
+count went **305 → 33** with `feature` **187 → 455**. The gap itself barely moved, 1,102 → 1,098 —
+what changed is that 272 files are now measurable rather than invisible.
+
+**The expectation diff adds 4,198 lines to `css.txt` and that is the deliverable, not a
+regression.** A blocked file carried one `harness=TIMEOUT` line covering every subtest in it;
+unblocked, each failing subtest becomes a line. One deletion becomes N additions while the browser
+strictly improves. Judging this diff by the usual "a good session deletes lines" rule would get it
+exactly backwards.
+
+**Grid's first step is in the cascade, not in layout, and nothing said so.**
+`ApplyDeclaration` **refuses `display: grid` and `display: inline-grid`** — the `else` branch in
+`src/css/Declarations.cpp` that exists so `@supports (display: grid)` answers an honest false
+(ADR 0012). So every grid container in every one of these tests is a *block* today, and the 782
+passing subtests are passing by that accident. Whoever writes the track sizing algorithm has to
+flip that first, and doing so will make a large number of currently-passing subtests fail before it
+makes them pass. Budget for that. `docs/roadmap-sessions.json` session 39 has the rest of the
+handoff, written when the value types landed (`e3b07c2`), and it is still accurate.
+
+**A regression from this session's own earlier task was hiding behind the timeout.**
+`grid-container-ignores-first-letter-001.html` had been a TIMEOUT since long before `::first-letter`
+existed, so when the E1 work added the pseudo, the file could not report that it had broken. Two
+specifications say the pseudo does not apply to a flex or grid container (CSS Grid §3, CSS Flexbox
+§4), and the reason is the box tree rather than the selector: those children are *items*, and
+splitting the first of them makes two items out of one. Firefox passes the file 12 of 12.
+**A blocked file cannot regress, and cannot tell you that it did.**
+
+**Also seen, not chased.** `html/canvas/color.window.html` reports two `color(srgb ...)`
+serialization subtests as regressions; I stashed this session's `src/` changes, rebuilt and got the
+same one unexpected result, so it is pre-existing. `html/canvas/element/text/2d.text.draw.space.basic.html`
+reports TIMEOUT only inside a full-area run and passes alone — load-dependent, like the
+`css/selectors/focus-visible-*` pair the previous entry names.
+
+**`docs/wpt-firefox-gap.md` moved 34.2% → 34.4%**, +75 testharness files, which is the 75 files
+that now pass outright. That number is comparable with the one in the entry above it — both were
+generated from the same 157.0a1 cache — and neither is comparable with anything committed before
+2026-08-31.

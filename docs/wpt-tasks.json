@@ -81,9 +81,9 @@
       "status": "not_started",
       "order": 1,
       "firefox_gap": {
-        "files": 8077,
-        "blocked": 438,
-        "feature": 807,
+        "files": 8005,
+        "blocked": 60,
+        "feature": 1113,
         "reftest": 6832
       }
     },
@@ -93,9 +93,9 @@
       "status": "not_started",
       "order": 2,
       "firefox_gap": {
-        "files": 4787,
-        "blocked": 1221,
-        "feature": 1840,
+        "files": 4785,
+        "blocked": 266,
+        "feature": 2793,
         "reftest": 1726
       }
     },
@@ -118,8 +118,8 @@
       "order": 3,
       "firefox_gap": {
         "files": 3024,
-        "blocked": 1982,
-        "feature": 1038,
+        "blocked": 1980,
+        "feature": 1040,
         "reftest": 4
       }
     },
@@ -154,8 +154,8 @@
       "order": 9,
       "firefox_gap": {
         "files": 352,
-        "blocked": 34,
-        "feature": 124,
+        "blocked": 32,
+        "feature": 126,
         "reftest": 194
       }
     },
@@ -846,8 +846,8 @@
       "firefox_gap": {
         "files": 3094,
         "harness_files": 25,
-        "blocked": 2,
-        "feature": 23,
+        "blocked": 0,
+        "feature": 25,
         "reftest_files": 3069,
         "we_pass": 3053,
         "reftests_firefox_passes": 6085
@@ -872,12 +872,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.2%",
       "firefox_gap": {
-        "files": 843,
-        "harness_files": 225,
-        "blocked": 4,
+        "files": 842,
+        "harness_files": 224,
+        "blocked": 3,
         "feature": 221,
         "reftest_files": 618,
-        "we_pass": 433,
+        "we_pass": 434,
         "reftests_firefox_passes": 931
       }
     },
@@ -895,16 +895,16 @@
       "status": "in_progress",
       "agent": "wpt-e3",
       "adr": "",
-      "notes": "roadmap-sessions.json session 39 is in_progress.",
+      "notes": "2026-08-31 (wpt-e3): the area was UNBLOCKED, not implemented. The check is \"css/css-grid/ >= 60%\" and the run prints \"2253 tests in 11092 ms: 11496 subtests, 782 passed (6.8%)\", so it is NOT met. What landed is `document.fonts.ready`: 292 of this area's 326 timing-out files begin `<body onload=\"document.fonts.ready.then(...)\">` and reported no subtests at all because the handler threw. Timeouts 325 -> 33, reported subtests 8,268 -> 11,496, and the area's `blocked` count 305 -> 33 with `feature` 187 -> 455 -- the gap barely moved (1,102 -> 1,098) and its composition changed completely, which is the point. GRID ITSELF IS UNSTARTED AND THE FIRST STEP IS NOT LAYOUT: `ApplyDeclaration` REFUSES `display: grid` and `display: inline-grid` outright (src/css/Declarations.cpp, the else branch that keeps `@supports (display: grid)` honest), so every grid container in every one of these tests is currently a block and the 782 passing subtests are passing by that accident. The value types landed 2026-08-06 as e3b07c2 -- css::GridTrack, css::GridPlacement, css::GridStyle, Display::Grid/InlineGrid -- and roadmap-sessions.json session 39 has a detailed handoff listing what is left: declaration parsing (grid-template-columns/rows with repeat()/minmax(), the gaps, grid-column/grid-row, the alignment properties, grid-auto-*), the track sizing algorithm, auto-placement with implicit tracks, and item layout. Named lines, named areas, subgrid and auto-fit/auto-fill are out of scope per ADR 0014 s6. See docs/session-log.md, entry \"WPT task E3\".",
       "ceiling_source": "firefox",
       "firefox_ceiling": "89.4%",
       "firefox_gap": {
-        "files": 1102,
-        "harness_files": 492,
-        "blocked": 305,
-        "feature": 187,
+        "files": 1098,
+        "harness_files": 488,
+        "blocked": 33,
+        "feature": 455,
         "reftest_files": 610,
-        "we_pass": 255,
+        "we_pass": 259,
         "reftests_firefox_passes": 840
       },
       "claimed": "2026-08-31"
@@ -927,8 +927,8 @@
       "firefox_gap": {
         "files": 433,
         "harness_files": 79,
-        "blocked": 8,
-        "feature": 71,
+        "blocked": 7,
+        "feature": 72,
         "reftest_files": 354,
         "we_pass": 149,
         "reftests_firefox_passes": 479
@@ -1008,8 +1008,8 @@
       "firefox_gap": {
         "files": 3094,
         "harness_files": 25,
-        "blocked": 2,
-        "feature": 23,
+        "blocked": 0,
+        "feature": 25,
         "reftest_files": 3069,
         "we_pass": 3053,
         "reftests_firefox_passes": 6085
@@ -1031,12 +1031,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "90.3%",
       "firefox_gap": {
-        "files": 909,
-        "harness_files": 144,
-        "blocked": 98,
-        "feature": 46,
+        "files": 844,
+        "harness_files": 79,
+        "blocked": 0,
+        "feature": 79,
         "reftest_files": 765,
-        "we_pass": 632,
+        "we_pass": 697,
         "reftests_firefox_passes": 1217
       },
       "claimed": "2026-08-18"
@@ -1086,8 +1086,8 @@
       "firefox_gap": {
         "files": 173,
         "harness_files": 79,
-        "blocked": 2,
-        "feature": 77,
+        "blocked": 0,
+        "feature": 79,
         "reftest_files": 94,
         "we_pass": 83,
         "reftests_firefox_passes": 144
@@ -1109,12 +1109,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "74.2%",
       "firefox_gap": {
-        "files": 76,
-        "harness_files": 11,
-        "blocked": 3,
+        "files": 74,
+        "harness_files": 9,
+        "blocked": 1,
         "feature": 8,
         "reftest_files": 65,
-        "we_pass": 76,
+        "we_pass": 78,
         "reftests_firefox_passes": 133
       }
     },
@@ -1257,12 +1257,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "78.5%",
       "firefox_gap": {
-        "files": 337,
-        "harness_files": 306,
+        "files": 335,
+        "harness_files": 304,
         "blocked": 17,
-        "feature": 289,
+        "feature": 287,
         "reftest_files": 31,
-        "we_pass": 842,
+        "we_pass": 844,
         "reftests_firefox_passes": 114
       },
       "claimed": "2026-08-18"
@@ -1285,8 +1285,8 @@
       "firefox_gap": {
         "files": 1939,
         "harness_files": 1921,
-        "blocked": 957,
-        "feature": 964,
+        "blocked": 7,
+        "feature": 1914,
         "reftest_files": 18,
         "we_pass": 37,
         "reftests_firefox_passes": 55
@@ -1310,8 +1310,8 @@
       "firefox_gap": {
         "files": 812,
         "harness_files": 622,
-        "blocked": 242,
-        "feature": 380,
+        "blocked": 237,
+        "feature": 385,
         "reftest_files": 190,
         "we_pass": 262,
         "reftests_firefox_passes": 437
@@ -1554,8 +1554,8 @@
       "firefox_gap": {
         "files": 324,
         "harness_files": 320,
-        "blocked": 81,
-        "feature": 239,
+        "blocked": 79,
+        "feature": 241,
         "reftest_files": 4,
         "we_pass": 55,
         "reftests_firefox_passes": 11
@@ -2122,8 +2122,8 @@
       "firefox_gap": {
         "files": 305,
         "harness_files": 111,
-        "blocked": 10,
-        "feature": 101,
+        "blocked": 8,
+        "feature": 103,
         "reftest_files": 194,
         "we_pass": 160,
         "reftests_firefox_passes": 327
