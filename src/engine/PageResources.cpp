@@ -91,8 +91,22 @@ SubresourceRequest RequestFor(const dom::Element& element, std::string url) {
   return request;
 }
 
+// Whether this element's `type` says the thing it carries is CSS. HTML's rule for both `<style>`
+// and `<link rel=stylesheet>`: an absent or empty `type` is CSS, and anything else must be an
+// **ASCII** case-insensitive match for `text/css`.
+//
+// ASCII is the whole content of it. `text/cſs` -- with U+017F LATIN SMALL LETTER LONG S, which full
+// Unicode case folding maps to `s` -- must be rejected, and it is what
+// `update-style-block-ascii-case-insensitive.html` and its `<link>` twin are for. Until this
+// existed the attribute was not read at all and every `<style>` was CSS whatever it claimed, which
+// stayed invisible while `content: "FAIL"` generated no box.
+bool HasCssType(const dom::Element& element) {
+  const std::string* type = element.GetAttribute("type");
+  return type == nullptr || type->empty() || util::EqualsAsciiCaseInsensitive(*type, "text/css");
+}
+
 bool IsLinkedStyleSheet(const dom::Element& link) {
-  if (link.TagName() != "link") {
+  if (link.TagName() != "link" || !HasCssType(link)) {
     return false;
   }
   // `rel` is a space-separated set of tokens, and a sheet is only a sheet
@@ -159,6 +173,9 @@ bool Page::CollectShadowStyleSheets() {
       const auto& element = static_cast<const dom::Element&>(node);
       std::optional<std::string> text;
       if (element.TagName() == "style") {
+        if (!HasCssType(element)) {
+          return;
+        }
         text = DirectText(element);
       } else if (IsLinkedStyleSheet(element)) {
         if (const std::string* linked = element.LinkedStyleSheetText()) {
@@ -203,7 +220,8 @@ bool Page::CollectShadowStyleSheets() {
       // Only this root's own `<style>` elements. A nested shadow root inside it
       // has its own scope, and it is reached when the walk gets to its host.
       root->ForEachDescendant([&found, root](const dom::Node& inner) {
-        if (inner.IsElement() && static_cast<const dom::Element&>(inner).TagName() == "style") {
+        if (inner.IsElement() && static_cast<const dom::Element&>(inner).TagName() == "style" &&
+            HasCssType(static_cast<const dom::Element&>(inner))) {
           found.emplace_back(root, DirectText(static_cast<const dom::Element&>(inner)));
         }
       });
@@ -247,6 +265,9 @@ void Page::CollectStyleSheets() {
     }
     const auto& element = static_cast<const dom::Element&>(node);
     if (element.TagName() == "style") {
+      if (!HasCssType(element)) {
+        return;
+      }
       const std::string text = DirectText(element);
       // `style-src` governs an inline sheet exactly as `script-src` governs an
       // inline script, and a refused sheet is not applied rather than applied
