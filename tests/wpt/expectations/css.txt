@@ -1147,8 +1147,6 @@ harness=FAIL
 harness=FAIL
 [css/CSS2/cascade/specificity-008.xht]
 harness=FAIL
-[css/CSS2/cascade/specificity-011.xht]
-harness=FAIL
 [css/CSS2/colors/color-129.xht]
 harness=FAIL
 [css/CSS2/colors/color-174.xht]
@@ -2222,41 +2220,11 @@ harness=FAIL
 harness=FAIL
 [css/CSS2/fonts/shand-font-003.xht]
 harness=FAIL
-[css/CSS2/generated-content/after-content-display-001.xht]
-harness=FAIL
-[css/CSS2/generated-content/after-content-display-002.xht]
-harness=FAIL
-[css/CSS2/generated-content/after-content-display-003.xht]
-harness=FAIL
-[css/CSS2/generated-content/after-content-display-005.xht]
-harness=FAIL
 [css/CSS2/generated-content/after-content-display-006.xht]
-harness=FAIL
-[css/CSS2/generated-content/after-content-display-007.xht]
-harness=FAIL
-[css/CSS2/generated-content/after-content-display-008.xht]
-harness=FAIL
-[css/CSS2/generated-content/after-content-display-009.xht]
-harness=FAIL
-[css/CSS2/generated-content/after-content-display-010.xht]
-harness=FAIL
-[css/CSS2/generated-content/after-content-display-011.xht]
-harness=FAIL
-[css/CSS2/generated-content/after-content-display-014.xht]
-harness=FAIL
-[css/CSS2/generated-content/after-content-display-015.xht]
 harness=FAIL
 [css/CSS2/generated-content/after-content-display-017.xht]
 harness=FAIL
-[css/CSS2/generated-content/after-content-display-018.xht]
-harness=FAIL
-[css/CSS2/generated-content/after-inheritable-001.xht]
-harness=FAIL
 [css/CSS2/generated-content/after-inheritable-002.xht]
-harness=FAIL
-[css/CSS2/generated-content/after-location-001.xht]
-harness=FAIL
-[css/CSS2/generated-content/before-after-002.xht]
 harness=FAIL
 [css/CSS2/generated-content/before-after-011.xht]
 harness=FAIL
@@ -2280,45 +2248,11 @@ harness=FAIL
 harness=FAIL
 [css/CSS2/generated-content/before-after-table-whitespace-001.xht]
 harness=FAIL
-[css/CSS2/generated-content/before-content-display-001.xht]
-harness=FAIL
-[css/CSS2/generated-content/before-content-display-002.xht]
-harness=FAIL
-[css/CSS2/generated-content/before-content-display-003.xht]
-harness=FAIL
-[css/CSS2/generated-content/before-content-display-005.xht]
-harness=FAIL
 [css/CSS2/generated-content/before-content-display-006.xht]
-harness=FAIL
-[css/CSS2/generated-content/before-content-display-007.xht]
-harness=FAIL
-[css/CSS2/generated-content/before-content-display-008.xht]
-harness=FAIL
-[css/CSS2/generated-content/before-content-display-009.xht]
-harness=FAIL
-[css/CSS2/generated-content/before-content-display-010.xht]
-harness=FAIL
-[css/CSS2/generated-content/before-content-display-011.xht]
-harness=FAIL
-[css/CSS2/generated-content/before-content-display-014.xht]
-harness=FAIL
-[css/CSS2/generated-content/before-content-display-015.xht]
 harness=FAIL
 [css/CSS2/generated-content/before-content-display-017.xht]
 harness=FAIL
-[css/CSS2/generated-content/before-content-display-018.xht]
-harness=FAIL
-[css/CSS2/generated-content/before-inheritable-001.xht]
-harness=FAIL
 [css/CSS2/generated-content/before-inheritable-002.xht]
-harness=FAIL
-[css/CSS2/generated-content/before-location-001.xht]
-harness=FAIL
-[css/CSS2/generated-content/bidi-generated-content-001.xht]
-harness=FAIL
-[css/CSS2/generated-content/bidi-generated-content-002.xht]
-harness=FAIL
-[css/CSS2/generated-content/content-003.xht]
 harness=FAIL
 [css/CSS2/generated-content/content-004.xht]
 harness=FAIL
@@ -2540,8 +2474,6 @@ harness=FAIL
 harness=FAIL
 [css/CSS2/generated-content/content-171.xht]
 harness=FAIL
-[css/CSS2/generated-content/content-172.xht]
-harness=FAIL
 [css/CSS2/generated-content/content-173.xht]
 harness=FAIL
 [css/CSS2/generated-content/content-174.xht]
@@ -2587,16 +2519,6 @@ harness=FAIL
 [css/CSS2/generated-content/content-counter-016.xht]
 harness=FAIL
 [css/CSS2/generated-content/content-inherit-002.xht]
-harness=FAIL
-[css/CSS2/generated-content/content-newline-001.xht]
-harness=FAIL
-[css/CSS2/generated-content/content-white-space-001.xht]
-harness=FAIL
-[css/CSS2/generated-content/content-white-space-002.xht]
-harness=FAIL
-[css/CSS2/generated-content/content-white-space-003.xht]
-harness=FAIL
-[css/CSS2/generated-content/content-white-space-004.xht]
 harness=FAIL
 [css/CSS2/generated-content/counters-hidden-000.xht]
 harness=FAIL
@@ -4136,8 +4058,6 @@ harness=FAIL
 harness=FAIL
 [css/CSS2/normal-flow/block-in-inline-insert-016a.xht]
 harness=FAIL
-[css/CSS2/normal-flow/block-in-inline-insert-016b.xht]
-harness=FAIL
 [css/CSS2/normal-flow/block-in-inline-insert-017.xht]
 harness=FAIL
 [css/CSS2/normal-flow/block-in-inline-margins-002a.xht]
@@ -5281,8 +5201,6 @@ harness=FAIL
 harness=FAIL
 [css/CSS2/selectors/attribute-value-selector-006.xht]
 harness=FAIL
-[css/CSS2/selectors/before-after-selector-001.xht]
-harness=FAIL
 [css/CSS2/selectors/before-first-letter-selector-001.xht]
 harness=FAIL
 [css/CSS2/selectors/class-selector-001.xht]
@@ -5332,8 +5250,6 @@ harness=FAIL
 [css/CSS2/selectors/first-letter-quote-006.xht]
 harness=FAIL
 [css/CSS2/selectors/first-letter-selector-000.xht]
-harness=FAIL
-[css/CSS2/selectors/first-letter-selector-004.xht]
 harness=FAIL
 [css/CSS2/selectors/first-letter-selector-028.xht]
 harness=FAIL
@@ -5392,8 +5308,6 @@ harness=FAIL
 [css/CSS2/selectors/pseudo-002.xht]
 harness=FAIL
 [css/CSS2/selectors/pseudo-007.xht]
-harness=FAIL
-[css/CSS2/selectors/pseudo-008.xht]
 harness=FAIL
 [css/CSS2/selectors/pseudo-014.xht]
 harness=FAIL
@@ -6162,10 +6076,6 @@ harness=FAIL
 harness=FAIL
 [css/CSS2/syntax/escaped-ident-spaces-007.xht]
 harness=FAIL
-[css/CSS2/syntax/escaped-newline-001.xht]
-harness=FAIL
-[css/CSS2/syntax/escapes-000.xht]
-harness=FAIL
 [css/CSS2/syntax/escapes-002.xht]
 harness=FAIL
 [css/CSS2/syntax/escapes-014.xht]
@@ -6236,11 +6146,7 @@ harness=FAIL
 harness=FAIL
 [css/CSS2/syntax/quoted-keywords-002.xht]
 harness=FAIL
-[css/CSS2/syntax/quoted-string-001.xht]
-harness=FAIL
 [css/CSS2/syntax/quoted-string-002.xht]
-harness=FAIL
-[css/CSS2/syntax/quoted-string-003.xht]
 harness=FAIL
 [css/CSS2/syntax/quoted-string-004.xht]
 harness=FAIL
@@ -7209,8 +7115,6 @@ harness=FAIL
 [css/CSS2/text/white-space-collapsing-bidi-002.xht]
 harness=FAIL
 [css/CSS2/text/white-space-collapsing-bidi-003.xht]
-harness=FAIL
-[css/CSS2/text/white-space-generated-content-before-001.xht]
 harness=FAIL
 [css/CSS2/text/white-space-mixed-001.xht]
 harness=FAIL
@@ -21582,6 +21486,11 @@ FAIL=Identical root with further proximity is not ignored
 FAIL=Most proximate match wins under multiple scoping roots
 FAIL=Proximity wins over order of appearance
 FAIL=Specificity wins over proximity
+# Needs `@scope`, which this browser does not have. Was passing because a `content` string
+# generated no box, so the scoped and unscoped rules rendered the same nothing. **Firefox
+# passes**: a real gap, and it names the feature.
+[css/css-cascade/scope-pseudo-element.html]
+harness=FAIL
 [css/css-cascade/scope-shadow-sharing.html]
 harness=FAIL
 [css/css-cascade/scope-shadow.html]
@@ -29523,8 +29432,6 @@ FAIL=display:contents element as inherit parent - explicit inheritance
 harness=FAIL
 [css/css-display/display-contents-dynamic-before-after-001.html]
 harness=FAIL
-[css/css-display/display-contents-dynamic-before-after-first-letter-001.html]
-harness=FAIL
 [css/css-display/display-contents-dynamic-fieldset-legend-001.html]
 harness=FAIL
 [css/css-display/display-contents-dynamic-flex-001-inline.html]
@@ -29649,6 +29556,9 @@ FAIL=computed display on <svg style="display: math block;">
 FAIL=computed display on ::before and ::after for <div class="inline">
 FAIL=computed display on ::before and ::after for <math class="block">
 FAIL=computed display on ::before and ::after for <mrow class="block">
+# `display: math` on a pseudo-element. Firefox fails this too.
+[css/css-display/display-math-on-pseudo-elements-002.html]
+harness=FAIL
 [css/css-display/display-none-inline-img.html]
 harness=FAIL
 [css/css-display/display-with-float-dynamic.html]
@@ -34145,10 +34055,6 @@ harness=FAIL
 [css/css-flexbox/flexbox-whitespace-handling-001a.xhtml]
 harness=FAIL
 [css/css-flexbox/flexbox-whitespace-handling-001b.xhtml]
-harness=FAIL
-[css/css-flexbox/flexbox-with-pseudo-elements-001.html]
-harness=FAIL
-[css/css-flexbox/flexbox-with-pseudo-elements-002.html]
 harness=FAIL
 [css/css-flexbox/flexbox-with-pseudo-elements-003.html]
 harness=FAIL
@@ -39041,6 +38947,13 @@ harness=FAIL
 [css/css-fonts/font-synthesis-06.html]
 harness=FAIL
 [css/css-fonts/font-synthesis-08.html]
+harness=FAIL
+# The test is *designed* to say so: `@supports not (font-synthesis-position: none)` sets
+# `content: "font-synthesis-position is unsupported!"`, and we honestly do not support the
+# property. Before string `content` existed the shout generated no box, so an unsupported
+# property looked supported. This line is the test working. **Firefox passes** -- it has the
+# property.
+[css/css-fonts/font-synthesis-position-001.html]
 harness=FAIL
 [css/css-fonts/font-synthesis-small-caps-first-letter.html]
 harness=FAIL
@@ -57257,6 +57170,9 @@ harness=FAIL
 [css/css-multicol/column-height-029.html]
 harness=FAIL
 [css/css-multicol/column-height-030.html]
+harness=FAIL
+# `::column`. Firefox fails this too.
+[css/css-multicol/column-pseudo-background-color.html]
 harness=FAIL
 [css/css-multicol/column-rule-001.html]
 harness=FAIL
@@ -77626,8 +77542,6 @@ harness=FAIL
 harness=FAIL
 [css/css-text/white-space/break-spaces-with-word-break-001.html]
 harness=FAIL
-[css/css-text/white-space/control-chars-000.html]
-harness=FAIL
 [css/css-text/white-space/control-chars-001.html]
 harness=FAIL
 [css/css-text/white-space/control-chars-002.html]
@@ -77687,34 +77601,6 @@ harness=FAIL
 [css/css-text/white-space/control-chars-01F.html]
 harness=FAIL
 [css/css-text/white-space/control-chars-07F.html]
-harness=FAIL
-[css/css-text/white-space/control-chars-080.html]
-harness=FAIL
-[css/css-text/white-space/control-chars-081.html]
-harness=FAIL
-[css/css-text/white-space/control-chars-082.html]
-harness=FAIL
-[css/css-text/white-space/control-chars-083.html]
-harness=FAIL
-[css/css-text/white-space/control-chars-084.html]
-harness=FAIL
-[css/css-text/white-space/control-chars-085.html]
-harness=FAIL
-[css/css-text/white-space/control-chars-086.html]
-harness=FAIL
-[css/css-text/white-space/control-chars-087.html]
-harness=FAIL
-[css/css-text/white-space/control-chars-088.html]
-harness=FAIL
-[css/css-text/white-space/control-chars-089.html]
-harness=FAIL
-[css/css-text/white-space/control-chars-08A.html]
-harness=FAIL
-[css/css-text/white-space/control-chars-08B.html]
-harness=FAIL
-[css/css-text/white-space/control-chars-08C.html]
-harness=FAIL
-[css/css-text/white-space/control-chars-08D.html]
 harness=FAIL
 [css/css-text/white-space/control-chars-08E.html]
 harness=FAIL
@@ -77958,8 +77844,6 @@ harness=FAIL
 harness=FAIL
 [css/css-text/white-space/text-wrap-balance-005.html]
 harness=FAIL
-[css/css-text/white-space/text-wrap-balance-before-after-002.html]
-harness=FAIL
 [css/css-text/white-space/text-wrap-balance-float-001.html]
 harness=FAIL
 [css/css-text/white-space/text-wrap-balance-float-002.html]
@@ -78170,8 +78054,6 @@ harness=FAIL
 [css/css-text/white-space/white-space-intrinsic-size-022.html]
 harness=FAIL
 [css/css-text/white-space/white-space-intrinsic-size-023.html]
-harness=FAIL
-[css/css-text/white-space/white-space-intrinsic-size-025.html]
 harness=FAIL
 [css/css-text/white-space/white-space-letter-spacing-001.html]
 harness=FAIL
@@ -87421,8 +87303,6 @@ harness=FAIL
 harness=FAIL
 [css/css-ui/text-overflow-023.html]
 harness=TIMEOUT
-[css/css-ui/text-overflow-024.html]
-harness=FAIL
 [css/css-ui/text-overflow-025.html]
 harness=FAIL
 [css/css-ui/text-overflow-026.html]
@@ -87932,6 +87812,12 @@ harness=FAIL
 [css/css-values/attr-namespace-non-existing.html]
 harness=FAIL
 [css/css-values/attr-namespace-valid.xhtml]
+harness=FAIL
+# `attr()` in `content`, with a fallback. Refused rather than approximated (ADR 0012), so
+# nothing renders where the fallback should. **Firefox passes.** `attr()` is the largest single
+# cause left in css/CSS2/generated-content (83 files) and is the next task in this area; the
+# design question it raises is written up in docs/session-log.md.
+[css/css-values/attr-notype-fallback.html]
 harness=FAIL
 [css/css-values/attr-null-namespace.xhtml]
 FAIL=Attribute in null-namespace is substituted
@@ -99576,6 +99462,11 @@ harness=FAIL
 harness=FAIL
 [css/css-writing-modes/wm-propagation-001.html]
 harness=FAIL
+# Writing-mode propagation from `html` to the viewport, over `html::before`/`::after` content.
+# Vertical writing modes are a coordinate system this browser does not have (plan task E9).
+# **Firefox passes.**
+[css/css-writing-modes/wm-propagation-002.html]
+harness=FAIL
 [css/css-writing-modes/wm-propagation-body-032.html]
 harness=FAIL
 [css/css-writing-modes/wm-propagation-body-033.html]
@@ -101073,9 +100964,7 @@ FAIL=CSSStyleRule: selectorText value: |p| isMatch: false
 FAIL=CSSStyleRule: selectorText value: |svg|*.style1  | isMatch: true
 [css/cssom/CSSStyleRule-set-selectorText.html]
 FAIL=CSSStyleRule: Invalid CSS selector: :gibberish
-FAIL=CSSStyleRule: selectorText value: |::first-letter| isMatch: false
 FAIL=CSSStyleRule: selectorText value: |::first-line| isMatch: false
-FAIL=CSSStyleRule: selectorText value: |:first-letter| isMatch: false
 FAIL=CSSStyleRule: selectorText value: |:first-line| isMatch: false
 FAIL=CSSStyleRule: selectorText value: |:lang(tr-AZ)| isMatch: false
 FAIL=CSSStyleRule: selectorText value: |:lang(zh-CN)| isMatch: true
@@ -103141,10 +103030,6 @@ FAIL=Test that :modal matches the fullscreen element
 FAIL=a term (DimensionToken path) is clamped to INT_MAX
 FAIL=b term (NumberToken path) is clamped to INT_MAX
 FAIL=b term following an a coefficient is clamped to INT_MAX
-[css/selectors/nth-child-of-pseudo.html]
-harness=FAIL
-[css/selectors/nth-of-selector-before.html]
-harness=FAIL
 [css/selectors/nth-of-type-namespace.html]
 FAIL=:nth-of-type selectors matching takes element namespace into account (http://dummy1/)
 FAIL=:nth-of-type selectors matching takes element namespace into account (http://dummy2/)

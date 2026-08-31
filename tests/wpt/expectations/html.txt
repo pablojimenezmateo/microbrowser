@@ -20599,10 +20599,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [html/rendering/the-details-element/auto-expand-details-text-fragment.html]
 FAIL=Verifies that the target page has scrolled as a result of a ScrollToTextFragment navigation.
-[html/rendering/the-details-element/details-after.html]
-harness=FAIL
-[html/rendering/the-details-element/details-before.html]
-harness=FAIL
 [html/rendering/the-details-element/details-blockification.html]
 FAIL=Summary and content should have display:block computed value
 [html/rendering/the-details-element/details-content-pseudo-attr.html]
@@ -21153,8 +21149,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [html/semantics/document-metadata/the-link-element/link-style-error-quirks.html]
 harness=TIMEOUT
-[html/semantics/document-metadata/the-link-element/link-type-attribute.html]
-harness=FAIL
 [html/semantics/document-metadata/the-link-element/stylesheet-bad-mime-type.html]
 harness=TIMEOUT
 [html/semantics/document-metadata/the-link-element/stylesheet-change-href.html]
@@ -29429,6 +29423,13 @@ harness=TIMEOUT
 harness=TIMEOUT
 [html/semantics/permission-element/geolocation-element/permission-element-with-comment.tentative.html]
 harness=FAIL
+# The six `permission-element` files below assert that `::before`/`::after` do *not* generate
+# content inside a `<permission>` element. There is no such element here, so the content
+# renders. Firefox fails all six too, and they are `.tentative`.
+[html/semantics/permission-element/geolocation-element/pseudo-elements-in-div.tentative.html]
+harness=FAIL
+[html/semantics/permission-element/geolocation-element/pseudo-elements.tentative.html]
+harness=FAIL
 [html/semantics/permission-element/granted-selector.https.html]
 FAIL=Geolocation element should not have the granted selector when the       permission is not granted.
 [html/semantics/permission-element/install/bounded-css-properties.tentative.html]
@@ -29466,6 +29467,10 @@ FAIL=Install element is not focusable by script without user activation
 harness=TIMEOUT
 [html/semantics/permission-element/install/parent-mask.tentative.html]
 harness=TIMEOUT
+[html/semantics/permission-element/install/pseudo-elements-in-div.tentative.html]
+harness=FAIL
+[html/semantics/permission-element/install/pseudo-elements.tentative.html]
+harness=FAIL
 [html/semantics/permission-element/install/sandbox-not-allowed.tentative.html]
 harness=TIMEOUT
 [html/semantics/permission-element/microphone/idlharness.tentative.window.html]
@@ -29511,6 +29516,10 @@ harness=FAIL
 [html/semantics/permission-element/permission-icon/icon-slotted-pseudo-element.html]
 harness=FAIL
 [html/semantics/permission-element/permission-icon/icon-unique-per-type-reftest.html]
+harness=FAIL
+[html/semantics/permission-element/pseudo-elements-in-div.tentative.html]
+harness=FAIL
+[html/semantics/permission-element/pseudo-elements.tentative.html]
 harness=FAIL
 [html/semantics/permission-element/roles.tentative.html]
 FAIL=geolocation element has button role
