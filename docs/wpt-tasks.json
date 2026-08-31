@@ -1302,8 +1302,8 @@
       "check": "An ADR exists and svg/ has a target in this file.",
       "depends": [],
       "target": "98%",
-      "status": "not_started",
-      "agent": null,
+      "status": "in_progress",
+      "agent": "wpt-f7",
       "adr": "",
       "notes": "",
       "ceiling_source": "firefox",
@@ -1316,7 +1316,8 @@
         "reftest_files": 191,
         "we_pass": 264,
         "reftests_firefox_passes": 437
-      }
+      },
+      "claimed": "2026-09-01"
     },
     {
       "id": "F8",
