@@ -579,8 +579,24 @@ RenderedPage RenderPage(microbrowser::platform::SystemFontProvider& fonts, const
   RenderedPage page;
   const auto deadline =
       std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+  // `IsLoading` rather than `IsDocumentLoading`, and the third clause is the
+  // one that matters: an `@font-face` download is **not** part of the
+  // navigation, so a page whose document has finished is rasterizable while its
+  // web font is still on the wire. That is a race, and a reftest is where a
+  // race becomes a wrong answer -- the test and the reference are two separate
+  // loads, so the font can arrive for one of them and not the other and the
+  // comparison is then between two different fonts. It is what made
+  // `css/css-text/text-spacing-trim/` flip between runs of the same binary
+  // (task F10): every test in that directory loads a subsetted Noto CJK face,
+  // and the pass count moved with the machine's load rather than with the
+  // browser.
+  //
+  // TD-0031 took fonts *out* of the snapshot tool's load loop because youtube's
+  // gstatic fetches hang; that reasoning does not reach here. Every byte a
+  // reftest asks for comes from our own server two processes away, and this
+  // wait is bounded by the same deadline the rest of the load already spends.
   PumpUntil(engine, channel.Ui(), &page.display_list, deadline,
-            [&] { return !engine.IsDocumentLoading() && !engine.HasInFlightScriptFetches(); });
+            [&] { return !engine.IsLoading(); });
   while (std::optional<microbrowser::ipc::EngineToUi> message = channel.Ui().TryReceive()) {
     if (auto* paint = std::get_if<microbrowser::ipc::PaintFrameMessage>(&*message)) {
       page.display_list = std::move(paint->display_list);
