@@ -25,6 +25,7 @@ records which version produced it. Fetch them with:
     curl -O https://www.unicode.org/Public/15.1.0/ucd/EastAsianWidth.txt
     curl -O https://www.unicode.org/Public/15.1.0/ucd/BidiBrackets.txt
     curl -O https://www.unicode.org/Public/15.1.0/ucd/BidiMirroring.txt
+    curl -O https://www.unicode.org/Public/15.1.0/ucd/UnicodeData.txt
     curl -O https://www.unicode.org/Public/15.1.0/ucd/extracted/DerivedBidiClass.txt   # into extracted/
 """
 
@@ -200,7 +201,59 @@ def mirror_pairs(path):
     return pairs
 
 
+# The five General_Category values CSS 2.1 s5.12.2 names for `::first-letter`: punctuation that
+# precedes or follows the first letter is part of it. Ps/Pe are the open and close brackets, Pi/Pf
+# the initial and final quotes, Po everything else -- and the fifth, Pd (the dashes), is deliberately
+# **not** on the list, which is the reason to read this set from the UCD rather than guess it: an
+# em dash before a letter is not part of the first letter and a quote is.
+FIRST_LETTER_PUNCTUATION = {"Ps", "Pe", "Pi", "Pf", "Po"}
+
+# Zs, the space separators. `::first-letter` skips leading white space on its way to the first
+# letter and does *not* include it, and `css/css-backgrounds/first-letter-space-not-selected.html`
+# is the test that says so -- it paints the pseudo red and asserts no red, over U+00A0, U+2002,
+# U+2003 and U+2009. ASCII space is not enough: those four are exactly the ones the whitespace
+# collapse pass leaves alone, so they are the ones that reach layout.
+SPACE_SEPARATOR = {"Zs"}
+
+
+def categories_in(path, keep):
+    """UnicodeData.txt: the code points whose General_Category is one of `keep`, as merged ranges.
+
+    UnicodeData.txt is per code point rather than per range, except for the blocks it writes as a
+    `<..., First>` / `<..., Last>` pair. None of those blocks is punctuation or a space today, but
+    the pairs are honoured anyway: a version that added one would otherwise contribute a single code
+    point and the error would be 20,000 characters wide and completely silent.
+    """
+    codes = []
+    pending_first = None
+    for line in path.read_text(encoding="utf-8").splitlines():
+        fields = line.split(";")
+        if len(fields) < 3:
+            continue
+        code, name, category = int(fields[0], 16), fields[1], fields[2]
+        if name.endswith(", First>"):
+            pending_first = (code, category)
+            continue
+        if name.endswith(", Last>") and pending_first is not None:
+            first, first_category = pending_first
+            pending_first = None
+            if first_category in keep:
+                codes.extend(range(first, code + 1))
+            continue
+        if category in keep:
+            codes.append(code)
+    merged = []
+    for code in codes:
+        if merged and merged[-1][1] + 1 == code:
+            merged[-1] = (merged[-1][0], code)
+        else:
+            merged.append((code, code))
+    return merged
+
+
 bidi = bidi_classes(ucd / "extracted" / "DerivedBidiClass.txt")
+punctuation = categories_in(ucd / "UnicodeData.txt", FIRST_LETTER_PUNCTUATION)
+spaces = categories_in(ucd / "UnicodeData.txt", SPACE_SEPARATOR)
 mirrors = mirror_pairs(ucd / "BidiMirroring.txt")
 brackets = bracket_pairs(ucd / "BidiBrackets.txt")
 
@@ -225,6 +278,29 @@ out.write("constexpr WidthRange kWideRanges[] = {\n")
 for first, last, value in width:
     out.write("    {0x%X, 0x%X, EastAsianWidth::%s},\n"
               % (first, last, {"W": "Wide", "F": "Fullwidth", "H": "Halfwidth"}[value]))
+out.write("};\n\n")
+
+out.write("// General_Category in {Ps, Pe, Pi, Pf, Po} -- the punctuation CSS 2.1 s5.12.2 includes in\n")
+out.write("// `::first-letter` when it precedes or follows the first letter. The dashes (Pd) are not on\n")
+out.write("// that list and are not in this table, which is why it is read from the UCD rather than\n")
+out.write("// written by hand: `\"--T\"` begins with a first letter of `T` and `\"T` with one of `\"T`.\n")
+out.write("//\n")
+out.write("// %d ranges, from UnicodeData.txt.\n" % len(punctuation))
+out.write("constexpr CodePointRange kFirstLetterPunctuationRanges[] = {\n")
+for first, last in punctuation:
+    out.write("    {0x%X, 0x%X},\n" % (first, last))
+out.write("};\n\n")
+
+out.write("// General_Category Zs, the space separators. `::first-letter` skips these on its way to\n")
+out.write("// the first letter and leaves them out of the pseudo, which is what\n")
+out.write("// css/css-backgrounds/first-letter-space-not-selected.html asserts over U+00A0, U+2002,\n")
+out.write("// U+2003 and U+2009 -- the four that survive whitespace collapsing and therefore the four\n")
+out.write("// that reach layout.\n")
+out.write("//\n")
+out.write("// %d ranges, from UnicodeData.txt.\n" % len(spaces))
+out.write("constexpr CodePointRange kSpaceSeparatorRanges[] = {\n")
+for first, last in spaces:
+    out.write("    {0x%X, 0x%X},\n" % (first, last))
 out.write("};\n")
 out.close()
 

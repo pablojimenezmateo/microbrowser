@@ -42,4 +42,27 @@ EastAsianWidth WidthOf(std::uint32_t code_point);
 // the table rather than one boolean.
 bool IsDoubleWidth(std::uint32_t code_point);
 
+// Whether this code point is punctuation that CSS 2.1 s5.12.2 folds into `::first-letter`: the
+// General_Category values Ps, Pe, Pi, Pf and Po -- brackets, quotes and the rest -- when they
+// precede or follow the first letter.
+//
+// A character-property question, so it is answered here rather than in `src/layout`, which is what
+// keeps the *set* out of the box tree: the dashes (Pd) are pointedly not in it, so `"T` has a first
+// letter of `"T` and `--T` has one of `T`, and a layout pass guessing at that from a handful of
+// ASCII characters would be right for 5 of the 339 code points the suite tests.
+//
+// The five classes are **CSS 2.1's** list, not CSS Pseudo-Elements 4's, which widened it to the
+// whole `P*` category. The difference is exactly Pd and Pc -- `-T` has a first letter of `-` under
+// this rule and of `-T` under the newer one -- and CSS 2.1 is what the 339 files of
+// `css/CSS2/selectors/` are written against. No test in the checkout exercises the newer rule
+// (`grep -rl first-letter third_party/wpt/css/css-pseudo/` is empty), so widening it today would be
+// a change with nothing to check it.
+bool IsFirstLetterPunctuation(std::uint32_t code_point);
+
+// Whether this code point is a space separator (General_Category Zs). The companion to the above:
+// `::first-letter` skips leading spaces on its way to the first letter and leaves them *outside*
+// the pseudo, and the four that matter -- U+00A0, U+2002, U+2003, U+2009 -- are exactly the ones
+// whitespace collapsing does not touch, so an ASCII-only test never sees them.
+bool IsSpaceSeparator(std::uint32_t code_point);
+
 }  // namespace microbrowser::text
