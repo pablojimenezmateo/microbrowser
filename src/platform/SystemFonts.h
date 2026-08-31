@@ -55,7 +55,8 @@ class SystemFontProvider : public gfx::FontProvider {
   // would be a face load per character.
   gfx::Font* FontForCodePoint(const gfx::FontRequest& request, char32_t code_point) override;
 
-  // A page's own `@font-face`, into the same catalog the system fonts land in.
+  // A page's own `@font-face`, into the same catalog the system fonts land in,
+  // and it drops `resolved_` for the reason the definition gives.
   //
   // Forwarded rather than inherited-by-default, and the bug it fixes is worth the
   // sentence: `FontProvider::RegisterWebFont` returns false so that a provider with
@@ -63,9 +64,7 @@ class SystemFontProvider : public gfx::FontProvider {
   // real binary uses. Without this override, `@font-face` worked in the tests --
   // which build a `FontCatalog` directly -- and in nothing else.
   bool RegisterWebFont(std::string family, int weight, bool italic,
-                       std::vector<std::byte> bytes) override {
-    return catalog_.RegisterWebFont(std::move(family), weight, italic, std::move(bytes));
-  }
+                       std::vector<std::byte> bytes) override;
 
   std::size_t IndexedFaces() const { return index_.size(); }
   std::size_t LoadedFaces() const { return catalog_.FaceCount(); }

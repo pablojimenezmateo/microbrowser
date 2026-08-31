@@ -210,6 +210,29 @@ bool SystemFontProvider::Load(Indexed& entry) {
 }
 
 
+bool SystemFontProvider::RegisterWebFont(std::string family, int weight, bool italic,
+                                         std::vector<std::byte> bytes) {
+  // `resolved_` is dropped here for the same reason `Load` drops it, and the
+  // comment there -- "a newly loaded face can beat an answer already given, and
+  // this is the only event that can" -- stopped being true the day `@font-face`
+  // landed. A face arriving from the network is the other event.
+  //
+  // What it cost to forget is not a stale measurement: it is a web font that
+  // never applies at all. A page laid out before its face arrives asks for
+  // `chws-font`, gets the fallback, and the answer is remembered; the relayout
+  // the arriving font triggers then asks the same question and is handed the
+  // same stale answer. Whether a page's own font takes effect was therefore a
+  // race between the fetch and the first layout -- which is what made
+  // `css/css-text/text-spacing-trim/` render one of two pictures across runs of
+  // the same binary, and seven of the eight reftests task F10 had to name.
+  //
+  // Before the registration rather than after, so a `Register` that fails
+  // part-way cannot leave behind an answer computed with a face that is not
+  // there.
+  resolved_.clear();
+  return catalog_.RegisterWebFont(std::move(family), weight, italic, std::move(bytes));
+}
+
 gfx::Font* SystemFontProvider::FontForCodePoint(const gfx::FontRequest& request,
                                                 char32_t code_point) {
   gfx::Font* preferred = FontFor(request);

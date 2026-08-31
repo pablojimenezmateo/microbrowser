@@ -15,6 +15,7 @@
 #include "gfx/FontCatalog.h"
 #include "ipc/InProcessTransport.h"
 #include "ipc/Message.h"
+#include "platform/SystemFonts.h"
 #include "support/DriveLoop.h"
 #include "support/ScriptedTransport.h"
 #include "support/SyntheticFont.h"
@@ -233,6 +234,40 @@ void RegisterWebFontTests(std::vector<TestCase>& tests) {
         "@font-face { font-family: S; src: url(/all.ttf) }"
         "</style></head><body><p>x</p></body></html>");
     ExpectEqInt(static_cast<long long>(session.RequestsFor("/all.ttf")), 1, "fetched");
+  });
+
+  AddTest(tests, "WebFont/ARegistrationInvalidatesTheResolveCache", [] {
+    // `SystemFontProvider` remembers what a font stack resolved to, because
+    // resolving one is three passes over every font file on the machine and
+    // layout asks per text run. That cache was dropped only when a face was
+    // *loaded from the index*, and its comment said that was "the only event
+    // that can" change an answer. A face arriving from the network is the
+    // other event, and it was missed.
+    //
+    // The consequence is not a stale measurement, it is a web font that never
+    // applies: a page laid out before its `@font-face` arrives asks for
+    // `Web`, gets the fallback, and caches it -- and the relayout the arriving
+    // font triggers then asks the same question and is handed the same answer.
+    // Whether a page's font takes effect is then a race between the fetch and
+    // the first layout, which is what made `css/css-text/text-spacing-trim/`
+    // render one of two pictures across runs of the same binary (task F10).
+    //
+    // Built directly rather than through a Session, because the whole bug is
+    // that this class overrides `RegisterWebFont` and the tests that cover
+    // `@font-face` use a `gfx::FontCatalog`, which does not.
+    gfx::FontLibrary library;
+    platform::SystemFontProvider provider{library};
+
+    gfx::FontRequest request;
+    request.families = {"WebOnly"};
+    request.size = 16.0f;
+    Expect(provider.FontFor(request) == nullptr,
+           "nothing is registered under that family yet");
+
+    Expect(provider.RegisterWebFont("WebOnly", 400, false, BuildSyntheticFont()),
+           "and the face registers");
+    Expect(provider.FontFor(request) != nullptr,
+           "so the same request now finds it rather than the remembered miss");
   });
 
   AddTest(tests, "WebFont/AFaceWithNoDecodableSourceIsNotFetched", [] {
