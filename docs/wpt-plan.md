@@ -606,9 +606,13 @@ them; this document — the subtest table — still does not, and that is a
 decision rather than an omission. **A reftest has no subtests.** Putting one in
 a table whose columns are "subtests reported" and "subtests passed" adds a row
 of 0/0 and moves nothing, and the question a reftest answers is a file-level one,
-which is the other document's whole unit. `ctest` still excludes them too, for a
-reason that has also changed: not cost, but that eight of the 20,998 are
-intermittent (task F10).
+which is the other document's whole unit. **`ctest` runs them as of 2026-08-31**
+(task F10): the eight that were intermittent were nine, and seven of them were
+one bug in the browser rather than anything about the suite --
+`SystemFontProvider` remembered what a font stack resolved to and never forgot
+it when an `@font-face` arrived, so whether a web font applied at all was a race
+between the fetch and the first layout. `--reftests-only` is 0 unexpected on two
+consecutive runs and `--testharness-only` is gone from the registration.
 
 **And the cost estimate this paragraph used to carry was wrong by two orders of
 magnitude**, which is worth more than the decision it justified. It said "about
@@ -943,7 +947,7 @@ in these areas failing for a *harness* reason.
 | F7 | `svg/` — triage first: this browser renders SVG as an image, and the suite tests it as a document. Decide the scope in an ADR before writing code | — | ADR + a number |
 | F8 | Image formats — WebP and AVIF decoders (ADR 0023 counted them); `png/` and the image parts of `css-images` | — | fuzzers + 80% of `png/` |
 | F9 | **Harness:** reftests enter the measurement at all — record them in `tests/wpt/expectations/`, count them in the baseline | F2 | **done 2026-08-17** |
-| F10 | **Harness:** the reftest *gate* — name the eight intermittents, then drop `--testharness-only` from the `ctest` registration | F9 | two clean `--reftests-only` runs |
+| F10 | **Harness:** the reftest *gate* — name the eight intermittents, then drop `--testharness-only` from the `ctest` registration | F9 | **done 2026-08-31** · seven of the eight were one font-cache bug; 7,963 → 8,005 files |
 
 **F6 was one task over two features until 2026-08-17, and the split is worth
 more than either half.** `html/canvas/` is 2,654 gap files; **1,921 of them are
@@ -1222,7 +1226,7 @@ Four to six agents, sustainably. The graph is now the ranked order of §2, not
 the milestone letters:
 
 ```
-  gate 0   F2 ─▶ F9 ─▶ F10          B6
+  gate 0   F2 ─▶ F9 ─▶ F10          B6      (F2, F9, F10 done)
           (fuzzy) (recorded) (gated)  (summary state)
             done     done      open        open
               │  half the suite entered the measurement here, and layout is #1
@@ -1248,9 +1252,14 @@ serialising on:
 - **F2 before F9, and F9 before ranking anything in M-E.** ~~Pending.~~ **Both
   landed 2026-08-17**, and this was the one edge that gated the *plan* rather
   than a task: M-E went from 3rd of 11 to 1st by a factor of two, and `css/CSS2/`
-  from 40 files to 3,907. The edge that replaces it is **F9 before F10** — the
-  reftest results are recorded, the `ctest` gate does not yet compare them, and
-  eight of the 20,998 are intermittent.
+  from 40 files to 3,907. The edge that replaced it, **F9 before F10**, is
+  discharged too: the gate compares reftests as of 2026-08-31, and the eight
+  intermittents turned out to be nine with a single cause under seven of them.
+  **The lesson is the one this section keeps re-learning:** the ledger's note on
+  those eight said the browser "does not load" the fonts in question, and every
+  clause of that was wrong — it loaded them and then never used them. An
+  intermittent is a measurement, not an explanation, and the explanation here was
+  thirty renders of one page and a hash.
 - ~~**H9 (an https origin) before H8, and before anything with `.https.` in its
   name.**~~ **Landed 2026-08-18.** 1,268 files in scope rather than the ~2,000
   gap files estimated, and the edge is discharged: H8 and every `.https.` test

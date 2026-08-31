@@ -7646,3 +7646,90 @@ which page is wrong.** Half the time here it was the reference.
 **Left undone from the handoff**, and a resuming session should take these in order: the full
 re-record (this session recorded `css/` only), `firefox-gap.py --annotate-tasks` on `main`, and the
 ASan/UBSan sweep that nobody has run since the six-way merge.
+
+## F10 — the reftest gate · 2026-08-31
+
+**Status:** done
+**Check:** `microbrowser_wpt --reftests-only` twice in a row printed
+`20998 reftests: 8005 passed (38.1%), 706 of those with both pages blank` and
+`0 unexpected results`, exit 0, both times; `--testharness-only` is gone from the ctest
+registration in `CMakeLists.txt`. The full `ctest -R microbrowser_wpt` result is in **Left**.
+**Landed:** "A web font that arrives after the first layout is applied, rather than remembered as
+absent"; "A reftest is rasterized after its web fonts arrive, not after its document does";
+"Re-record the reftest half against the fixed font cache, and look twice before writing a
+disagreement down"; "Reftests are in the ctest gate: --testharness-only is gone".
+
+**Found — seven of the eight intermittents were one bug, and it was in the browser.**
+The ledger described `css/css-text/text-spacing-trim/` as "an `@font-face` against
+`/fonts/noto/cjk/*.otf`, which this browser does not load, so both sides render in a system
+fallback". Every clause of that is wrong. The fonts are in the checkout, the server serves them,
+`@font-face` has worked since `9ba34ee`, and `gfx.web_fonts_registered` reads 2 on every load of
+the test that flipped. What varied was whether the registered font was ever *used*.
+
+`platform::SystemFontProvider` memoises what a font stack resolves to — `FontFor` is three passes
+over every font file on the machine and layout asks per text run, which is the 227-seconds-of-259
+lesson from 2026-08-06. The cache is dropped in `Load`, whose comment says a newly loaded face "can
+beat an answer already given, and this is the only event that can". That stopped being true the day
+`@font-face` landed and nobody went back. So: a page lays out once before its font arrives, which
+caches `chws-font -> <the fallback>`; the font arrives, relayout runs, every run asks the same
+question and is handed the same stale answer, and **the web font never applies at all**. Whether it
+does is a race between the fetch and the first layout.
+
+The measurement that found it, and it is the transferable part: render the *same page* thirty times
+with `microbrowser_snapshot` and hash the PPMs. 28 came out one way and 2 the other. `-v` on one of
+each named the fault in one line — `Text 8.0,27.0 w=24.0 "国）"` against
+`Text 8.0,32.0 w=40.0 "国）"`. Two widths and two baselines for the same text at the same font size
+is a different *face*, not a different layout, and there is only one way a face gets picked. After
+the fix, 30 of 30 identical, and that directory is byte-identical across six runs at `--jobs 1` and
+`--jobs 24` where it had not been stable across any two.
+
+**The eighth was the runner, and it is the same sentence one layer up.** `RenderPage` waited on
+`!IsDocumentLoading() && !HasInFlightScriptFetches()`, and an `@font-face` download is in neither:
+`Engine::IsLoading` has a third clause, `font_fetches_`. A reftest is two separate loads, so a font
+could arrive for one of them and not the other, and the comparison was then between two fonts.
+TD-0031 took fonts out of the *snapshot tool's* loop because youtube's gstatic fetches hang; that
+reasoning does not reach a runner whose bytes come from our own server two processes away, and the
+wait is bounded by the deadline the load already spends. It cost nothing measurable: 90.4s before,
+91.0s after, over 20,998 tests.
+
+**A ninth appeared, and it was the retry policy writing a coin toss down.** After the re-record, two
+verification runs both reported one unexpected result — the same file,
+`css/css-transitions/render-blocking/no-transition-from-ua-to-blocking-stylesheet.html`, which had
+been recorded FAIL by the recording run. It passes 150 times out of 150 in isolation and 10 of 10
+in an oversubscribed directory run. `finish()` in `tools/wpt/main.cpp` re-ran a disagreement before
+*reporting* it and not before *writing it down* (`disagrees` carried `&& !options.update_expectations`),
+so a single flip during the one run that writes became the expectation, and the next run was red at
+a file nobody had touched. The TIMEOUT case was already exempted for exactly this reason and the
+comment there makes the whole argument. The guard is gone. **Cost is proportional to what moved,
+not to the size of the area**: this re-record had 58 disagreements out of 20,998 tests.
+
+**What the numbers did.** 7,963 -> 8,005 passing reftest files, +42, all pages whose own web font
+now applies. 102 expectation lines deleted, 14 added. Two of the additions are the shape this log
+keeps recording: `css/css-fonts/variations/font-opentype-collections.html` reported OK because
+*neither* of the two fonts it compares was ever applied, and now honestly says NOTRUN, because
+`ttcf` is refused on purpose (`src/gfx/SfntContainer.cpp` says so); and `css/css-fonts/system-ui-ar`
+and `-ur` are `rel=mismatch` reftests that now render the same. Two broken pages agreeing is a
+passing reftest, and fixing one of them breaks it — the third separate occurrence in this file.
+
+**Left:**
+
+- **`resource-timing/` is 6 unexpected on the testharness half and it is not this session's.** It is
+  one of the seven areas `CLAUDE.md` names as unmeasured since the 2026-08-15 merge, and the
+  failures are TIMEOUT-flips in both directions, which is what a stale record looks like. It is now
+  in a gate that runs reftests too, so whoever re-records it should do the whole area rather than
+  `--testharness-only`.
+- The other areas whose tests load a web font were checked against the fixed binary and are 0
+  unexpected: `css/css-text/`, `css/css-writing-modes/`, `css/css-text-decor/`, `css/css-ui/`,
+  `css/css-values/`, `css/css-variables/`, `css/cssom/`, `css/css-conditional/`,
+  `css/css-overflow/`, `css/css-syntax/`, `css/css-cascade/`, `css/css-transitions/`,
+  `css/css-animations/`. `css/css-fonts/` moved and was re-recorded.
+- **A candidate task nobody has filed: OpenType collections.** `ttcf` is refused by
+  `SfntContainerIsSane` and the refusal is deliberate, but it is now visible in the suite rather
+  than hidden behind a fallback that agreed with itself. It belongs to K3 (`css/css-fonts/`, 320
+  gap files).
+- **`--jobs` still moves reftest results and it is no longer the fonts.** The residual sensitivity
+  after this session is small enough that four full runs agreed exactly, but the mechanism that made
+  `text-spacing-trim` pass *more* under oversubscription was the font race, and that is gone. If a
+  reftest count moves with load again, it is a new cause.
+- Still undone from the 2026-08-18 handoff and untouched here: the full **testharness** re-record,
+  and the ASan/UBSan sweep nobody has run since the six-way merge.

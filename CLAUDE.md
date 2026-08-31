@@ -171,8 +171,10 @@ files to **3,907**, the largest single task in the tree. The aggregate went 11.6
 Firefox passes**, which is not a change in the browser: it is half the suite entering the
 measurement. **E1, F6, O1, O2 and O4 depend on nothing** and are 5,574 files between them.
 
-What is left of gate 0 is B6 (a committed summary state) and the new F10 (reftests in the `ctest`
-gate — eight of the 20,998 are intermittent, so the gate would be a coin toss).
+**Gate 0 is B6 and nothing else** as of 2026-08-31: F10 landed, so `ctest` runs the pixel half
+too. What kept it out was eight intermittents; they were nine, and seven of them were one bug in
+the browser — a font-stack resolve cache that was never dropped when an `@font-face` arrived, so
+whether a web font applied at all was a race between the fetch and the first layout.
 Two of the four rows below have since landed. Keep the table for the caveats under it, which still
 hold.
 
@@ -767,10 +769,17 @@ week. **7,394 pass, and 757 of those are two blank pages agreeing** — a refere
 load renders white and matches any test that also drew nothing. The runner counts them rather than
 deducting them (wptrunner compares screenshots without asking what is on them, and an invented rule
 would make the two sides incomparable), and `microbrowser_wpt --reftests-only` closes with the
-figure. **Eight of the 20,998 are intermittent**, which is why reftests are still not in the
-`ctest` gate (task F10) — seven are `@font-face` tests whose font this browser never loads, and
-under `--jobs 64` that directory *passes more* than under `--jobs 1`, which is the oversubscription
-lesson in the pixel half.
+figure. **8,005 pass as of 2026-08-31 and they are in the `ctest` gate** (task F10). The eight
+intermittents that had kept them out were nine, and the note describing them was wrong in every
+clause: it said the `css/css-text/text-spacing-trim/` fonts were ones "this browser never loads",
+and in fact it loaded them and then never *used* them — `platform::SystemFontProvider` memoises
+what a font stack resolves to and dropped that cache only when a face was loaded from the system
+index, never when one arrived from the network. A page laid out before its font arrived cached the
+fallback, and the relayout the font triggered was handed the same answer. That is also why the
+directory *passed more* under `--jobs 64` than under `--jobs 1`, which had been read as an
+oversubscription lesson and was a font race. **An intermittent is a measurement, not an
+explanation:** thirty renders of one page and `md5sum` found this in a minute where three sessions
+of reading the pass count had not.
 
 **A reftest has a tolerance and can leave a picture (task F2, 2026-08-17), and the picture is the
 half that matters.** `<meta name=fuzzy>` is read at enumeration time and applied by a transcription
