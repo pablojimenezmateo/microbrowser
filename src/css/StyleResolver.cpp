@@ -417,6 +417,7 @@ void StyleResolver::AddStyleSheet(const StyleSheet& sheet, Origin origin,
       entry.scope = scope;
       entry.specificity = selector.ComputeSpecificity();
       entry.order = next_order_++;
+      targets_pseudo_[static_cast<std::size_t>(selector.SubjectPseudoElement())] = true;
 
       const auto position = static_cast<std::uint32_t>(rules_.size());
       const Bucket bucket = BucketFor(selector);
@@ -778,10 +779,18 @@ ComputedStyle StyleResolver::StyleFor(const dom::Element& element,
   return style;
 }
 
+bool StyleResolver::AnyRuleTargets(PseudoElement which) const {
+  return targets_pseudo_[static_cast<std::size_t>(which)];
+}
+
 ComputedStyle StyleResolver::StyleForPseudo(const dom::Element& element, PseudoElement which,
-                                            const ComputedStyle& originating) const {
+                                            const ComputedStyle& originating,
+                                            bool* out_matched) const {
   ComputedStyle style;
   InheritInto(originating, style);
+  if (out_matched != nullptr) {
+    *out_matched = false;
+  }
   if (which == PseudoElement::None) {
     return style;
   }
@@ -805,6 +814,12 @@ ComputedStyle StyleResolver::StyleForPseudo(const dom::Element& element, PseudoE
     }
     if (!ScopeAdmits(entry, element, element_scope)) {
       continue;
+    }
+    if (out_matched != nullptr) {
+      // The rule named this pseudo on this element. Set here rather than from
+      // `ordered` being non-empty, because `div::first-letter {}` matches and
+      // contributes no declaration, and it is still a match.
+      *out_matched = true;
     }
     for (const Declaration& declaration : entry.declarations) {
       ordered.push_back(Candidate{&declaration, entry.origin, entry.specificity, entry.order});

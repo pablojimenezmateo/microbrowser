@@ -242,7 +242,15 @@ inline constexpr std::size_t kMaxHasCandidates = 100000;
 // Which generated box a selector's subject names, if any. `None` is an ordinary
 // element rule; `Before`/`After` are `::before`/`::after`. Layout asks, and the
 // cascade filters on it so a `div::before` rule never paints the `div`.
-enum class PseudoElement : std::uint8_t { None, Before, After };
+//
+// `FirstLetter` is the third and is a different kind of thing from the first
+// two: it styles no *new* content, it re-styles the leading characters of text
+// that is already there, so layout splits an existing text box rather than
+// inventing one. It is here rather than in a second enum because the question
+// the cascade asks -- "which of a rule's declarations belong to this element
+// and which to something else it originates" -- is the same question for all
+// three, and one filter that answers it is one place to get it right.
+enum class PseudoElement : std::uint8_t { None, Before, After, FirstLetter };
 
 // A full selector: compounds, leftmost first.
 struct Selector {

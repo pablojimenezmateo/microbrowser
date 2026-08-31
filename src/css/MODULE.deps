@@ -148,7 +148,12 @@ budget: FlexStyle        header_lines=50  public_methods=2  members=12
 # resize would be wrong — the same reason @media re-parses on SetViewport.
 # +3 members for the TD-0021 computed-style cache (map, next id, generation stamp).
 # header_lines cover StyleFor's provenance parameters and the cache comment.
-budget: StyleResolver header_lines=200 public_methods=22 members=10
+# +1 method and +1 member for `::first-letter` (CSS 2.1 s5.12.2). The member is a bit per
+# PseudoElement saying whether any rule has ever named it, and the method is the question. It is
+# here rather than in layout because it is a property of *the cascade* -- the same argument the
+# invalidation index above is made from -- and it is what keeps the feature off the cost of every
+# block box on every page whose sheets never mention it, which is nearly all of them.
+budget: StyleResolver header_lines=200 public_methods=23 members=11
 # The index itself. Two members and they are the two answers ADR 0016 §3
 # separates: what any rule depends on, and what a rule that can move a box
 # depends on. Collapsing them loses "a hover that changes only colour does not

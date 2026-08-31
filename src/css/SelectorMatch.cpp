@@ -155,6 +155,9 @@ PseudoElement Selector::SubjectPseudoElement() const {
       if (part.name == "after") {
         return PseudoElement::After;
       }
+      if (part.name == "first-letter") {
+        return PseudoElement::FirstLetter;
+      }
     }
   }
   return PseudoElement::None;

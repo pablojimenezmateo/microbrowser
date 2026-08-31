@@ -1679,6 +1679,82 @@ void RegisterLayoutTests(std::vector<TestCase>& tests) {
     }
     ExpectEqInt(white_fills, 1, "host background once, not again on anonymous wrappers");
   });
+
+  // CSS 2.1 s5.12.2. The suite's own references write the expected tree by hand as a `<span>` around
+  // the first letter, so these assert the same shape: a text box holding exactly the prefix, and a
+  // second holding the rest.
+  AddTest(tests, "Layout/FirstLetterSplitsTheLeadingCharacter", [] {
+    const LaidOut result =
+        Run("<div>Test</div>", "div:first-letter { color: green }");
+    const std::vector<const Box*> texts = TextBoxes(*result.root);
+    Expect(texts.size() == 2, "the run is split in two");
+    ExpectEqString(texts[0]->Text(), "T", "the first letter is its own text box");
+    ExpectEqString(texts[1]->Text(), "est", "and the rest follows it");
+    Expect(texts[0]->Style().color == gfx::Color::Rgb(0, 0x80, 0),
+           "the first letter takes the pseudo-element's declarations");
+  });
+
+  AddTest(tests, "Layout/FirstLetterTakesPunctuationOnBothSides", [] {
+    // The 339 `first-letter-punctuation-*` files of css/CSS2/selectors are this one assertion over
+    // the whole of Ps/Pe/Pi/Pf/Po; the ASCII pair stands in for the table here.
+    const LaidOut result =
+        Run("<div>)T)est</div>", "div:first-letter { color: green }");
+    const std::vector<const Box*> texts = TextBoxes(*result.root);
+    Expect(texts.size() == 2, "the run is split in two");
+    ExpectEqString(texts[0]->Text(), ")T)", "punctuation before and after the letter comes with it");
+    ExpectEqString(texts[1]->Text(), "est", "and the rest follows it");
+  });
+
+  AddTest(tests, "Layout/FirstLetterTreatsADashAsTheLetterItself", [] {
+    // Pd is not one of the five categories CSS 2.1 s5.12.2 names, so a leading dash is not
+    // punctuation the pseudo skips past on its way to a letter -- it *is* the first typographic
+    // letter unit, and the `T` behind it is not in the pseudo at all. That asymmetry with the quote
+    // above is the whole reason the set is read from the UCD rather than guessed at from ASCII.
+    const LaidOut result = Run("<div>-Test</div>", "div:first-letter { color: green }");
+    const std::vector<const Box*> texts = TextBoxes(*result.root);
+    Expect(texts.size() == 2, "the run is still split in two");
+    ExpectEqString(texts[0]->Text(), "-", "the dash is the first letter and stands alone");
+    ExpectEqString(texts[1]->Text(), "Test", "the letter behind it is not in the pseudo");
+  });
+
+  AddTest(tests, "Layout/FirstLetterSkipsALeadingQuote", [] {
+    // Pi is one of the five, so the quote is skipped over, the `T` is the letter, and both are in.
+    const LaidOut result = Run("<div>\xe2\x80\x9cTest</div>", "div:first-letter { color: green }");
+    const std::vector<const Box*> texts = TextBoxes(*result.root);
+    Expect(texts.size() == 2, "the run is split in two");
+    ExpectEqString(texts[0]->Text(), "\xe2\x80\x9cT", "the quote comes with the letter behind it");
+    ExpectEqString(texts[1]->Text(), "est", "and the rest follows");
+  });
+
+  AddTest(tests, "Layout/FirstLetterDescendsIntoAnInlineBox", [] {
+    const LaidOut result =
+        Run("<div><em>Test</em>ing</div>", "div:first-letter { color: green }");
+    const std::vector<const Box*> texts = TextBoxes(*result.root);
+    Expect(texts.size() == 3, "the text inside the em is what gets split");
+    ExpectEqString(texts[0]->Text(), "T", "the first letter is inside the inline box");
+    ExpectEqString(texts[1]->Text(), "est", "the rest of the em's text follows");
+  });
+
+  AddTest(tests, "Layout/FirstLetterIsNotAppliedWithoutARule", [] {
+    // The gate that keeps this off every block on every page: no rule names the pseudo, so no text
+    // box is split and no cascade lookup happens.
+    const LaidOut result = Run("<div>Test</div>", "div { color: green }");
+    const std::vector<const Box*> texts = TextBoxes(*result.root);
+    Expect(texts.size() == 1, "nothing is split when no rule says ::first-letter");
+    ExpectEqString(texts[0]->Text(), "Test", "and the run is left whole");
+  });
+
+  AddTest(tests, "Layout/FirstLetterRuleDoesNotStyleTheElement", [] {
+    // `div:first-letter { color }` styles the pseudo and not the div, which is the cascade filter
+    // rather than the layout split -- and before the pseudo existed the selector failed to parse,
+    // which had the same visible effect for the opposite reason.
+    const LaidOut result =
+        Run("<div>Test</div>", "div { color: black } div:first-letter { color: green }");
+    const Box* div = FindBox(*result.root, "div");
+    Expect(div != nullptr, "the div exists");
+    Expect(div->Style().color == gfx::Color::Rgb(0, 0, 0),
+           "the originating element keeps its own colour");
+  });
 }
 
 }  // namespace microbrowser::tests

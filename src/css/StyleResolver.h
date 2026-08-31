@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -146,12 +147,27 @@ class StyleResolver {
                          std::uint64_t parent_style_id = 0,
                          std::uint64_t* out_style_id = nullptr) const;
 
-  // The style of `element::before` or `element::after`. Inheritance is from the
-  // originating element's computed style; there is no style attribute and no
-  // presentational hint on a generated box. Returns a style with
-  // `content: normal` when nothing matched -- layout treats that as "no box".
+  // The style of `element::before`, `element::after` or `element::first-letter`.
+  // Inheritance is from the originating element's computed style; there is no
+  // style attribute and no presentational hint on a generated box. Returns a
+  // style with `content: normal` when nothing matched -- layout treats that as
+  // "no box".
+  //
+  // `out_matched`, when given, says whether any rule actually named this pseudo
+  // on this element. `::before` does not need it (`content` is the signal, and
+  // a `::before` with no `content` generates nothing), but `::first-letter` has
+  // no such property: every declaration on it is optional, so "nothing matched"
+  // and "matched and changed nothing" are indistinguishable from the style
+  // alone -- and the difference decides whether layout splits a text box.
   ComputedStyle StyleForPseudo(const dom::Element& element, PseudoElement which,
-                               const ComputedStyle& originating) const;
+                               const ComputedStyle& originating,
+                               bool* out_matched = nullptr) const;
+
+  // Whether any rule in this cascade has `which` as its subject pseudo-element.
+  // Answered from a flag set as sheets are added, so a page whose sheets never
+  // say `::first-letter` -- which is nearly all of them -- costs one bool test
+  // per block box rather than a cascade walk per block box.
+  bool AnyRuleTargets(PseudoElement which) const;
 
   // Computes styles for the whole document, in tree order, and hands each one
   // to `visit(element, style)`.
@@ -251,6 +267,10 @@ class StyleResolver {
   void CandidateRules(const dom::Element& element, std::vector<std::uint32_t>& out) const;
 
   std::vector<Entry> rules_;
+  // One bit per PseudoElement: has any rule ever named it as its subject. See
+  // AnyRuleTargets -- this is what keeps `::first-letter` off the cost of every
+  // block on every page that does not use it.
+  std::array<bool, 4> targets_pseudo_{};
   RuleIndex index_;
   StyleInvalidation invalidation_;
   const StyleAdjuster* adjuster_ = nullptr;

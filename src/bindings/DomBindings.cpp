@@ -46,6 +46,16 @@ std::uint64_t NextOwnerSerial() {
 
 bool MatchesAny(const dom::Element& element, const std::vector<css::Selector>& selectors) {
   for (const css::Selector& selector : selectors) {
+    // A selector whose subject is a pseudo-element matches no *element*, ever. `css::Selector`
+    // deliberately does not say so -- it answers "does this element originate the box this rule
+    // styles", which is the cascade's question and the reason `div::before` has to match the div --
+    // so the DOM's question is answered here, at the one place every query reaches the matcher.
+    // Without it `querySelector("#x:first-letter")` returns the `#x` element, which is
+    // `dom/nodes/ParentNode-querySelector-All.html`'s assertion and was already wrong for
+    // `::before` before `::first-letter` existed to make it visible.
+    if (selector.SubjectPseudoElement() != css::PseudoElement::None) {
+      continue;
+    }
     if (selector.Matches(element)) {
       return true;
     }

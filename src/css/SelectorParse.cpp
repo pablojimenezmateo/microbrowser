@@ -446,7 +446,7 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
           }
           if (i + 2 < to && tokens[i + 2].kind == Token::Kind::Ident) {
             const std::string name = Lowered(tokens[i + 2].value);
-            if (name == "before" || name == "after") {
+            if (name == "before" || name == "after" || name == "first-letter") {
               // Only on the subject compound, and only once: `div::before::after`
               // and `div::before span` are invalid. Enforced when the compound is
               // finished, by rejecting a non-subject that carries one.
@@ -629,7 +629,8 @@ std::vector<Selector> ParseSelectors(const std::vector<Token>& tokens, std::size
           // than only on the element -- and that is the same thing `:has()`
           // needs, so they share one field of the match context.
           part.kind = SelectorPart::Kind::Scope;
-        } else if (part.name == "before" || part.name == "after") {
+        } else if (part.name == "before" || part.name == "after" ||
+                   part.name == "first-letter") {
           part.kind = SelectorPart::Kind::PseudoElement;
         } else {
           part.kind = SelectorPart::Kind::PseudoClass;
