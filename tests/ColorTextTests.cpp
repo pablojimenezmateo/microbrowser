@@ -115,6 +115,31 @@ void RegisterColorTextTests(std::vector<TestCase>& tests) {
     ExpectColor("rgb(1 2 3", "-");
     ExpectColor("rgb(1 2 3) extra", "-");
   });
+
+  AddTest(tests, "ColorText/EveryNamedColourInTheSpecificationIsKnown", [] {
+    // The table was 22 of the 148 CSS Color 4 keywords, and the cost of the
+    // missing 126 was not a wrong colour: a declaration whose value does not
+    // parse is *dropped*, so `border: 2px solid limegreen` contributed no
+    // border and every box wearing one was 4px smaller than the page said.
+    // Layout, not paint, and invisible until something lines those boxes up.
+    ExpectColor("limegreen", "50,205,50,255");
+    ExpectColor("lightgreen", "144,238,144,255");
+    ExpectColor("lightgray", "211,211,211,255");
+    ExpectColor("lightgrey", "211,211,211,255");
+    ExpectColor("pink", "255,192,203,255");
+    ExpectColor("rebeccapurple", "102,51,153,255");
+    // The lookup bisects now, so the ends of the table are worth naming.
+    ExpectColor("aliceblue", "240,248,255,255");
+    ExpectColor("yellowgreen", "154,205,50,255");
+    // Case-insensitive, and still refusing what is not a colour -- a name
+    // lookup that answered black would be the silent failure the file's own
+    // comment forbids.
+    ExpectColor("LimeGreen", "50,205,50,255");
+    ExpectColor("transparent", "0,0,0,0");
+    ExpectColor("notacolour", "-");
+    ExpectColor("limegreenish", "-");
+    ExpectColor("limegree", "-");
+  });
 }
 
 }  // namespace microbrowser::tests
