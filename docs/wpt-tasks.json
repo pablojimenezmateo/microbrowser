@@ -57,10 +57,10 @@
       "status": "not_started",
       "order": 7,
       "firefox_gap": {
-        "files": 711,
+        "files": 706,
         "blocked": 114,
-        "feature": 496,
-        "reftest": 101
+        "feature": 493,
+        "reftest": 99
       }
     },
     {
@@ -69,10 +69,10 @@
       "status": "not_started",
       "order": 5,
       "firefox_gap": {
-        "files": 974,
-        "blocked": 212,
-        "feature": 481,
-        "reftest": 281
+        "files": 916,
+        "blocked": 187,
+        "feature": 484,
+        "reftest": 245
       }
     },
     {
@@ -81,10 +81,10 @@
       "status": "not_started",
       "order": 1,
       "firefox_gap": {
-        "files": 9285,
-        "blocked": 773,
-        "feature": 710,
-        "reftest": 7802
+        "files": 8077,
+        "blocked": 438,
+        "feature": 807,
+        "reftest": 6832
       }
     },
     {
@@ -93,10 +93,10 @@
       "status": "not_started",
       "order": 2,
       "firefox_gap": {
-        "files": 5281,
-        "blocked": 1226,
-        "feature": 2301,
-        "reftest": 1754
+        "files": 4787,
+        "blocked": 1221,
+        "feature": 1840,
+        "reftest": 1726
       }
     },
     {
@@ -105,8 +105,8 @@
       "status": "not_started",
       "order": 6,
       "firefox_gap": {
-        "files": 812,
-        "blocked": 297,
+        "files": 813,
+        "blocked": 298,
         "feature": 507,
         "reftest": 8
       }
@@ -117,8 +117,8 @@
       "status": "not_started",
       "order": 3,
       "firefox_gap": {
-        "files": 3023,
-        "blocked": 1981,
+        "files": 3024,
+        "blocked": 1982,
         "feature": 1038,
         "reftest": 4
       }
@@ -141,9 +141,9 @@
       "status": "not_started",
       "order": 8,
       "firefox_gap": {
-        "files": 552,
+        "files": 551,
         "blocked": 298,
-        "feature": 252,
+        "feature": 251,
         "reftest": 2
       }
     },
@@ -153,10 +153,10 @@
       "status": "not_started",
       "order": 9,
       "firefox_gap": {
-        "files": 367,
-        "blocked": 41,
-        "feature": 129,
-        "reftest": 197
+        "files": 352,
+        "blocked": 34,
+        "feature": 124,
+        "reftest": 194
       }
     },
     {
@@ -165,8 +165,8 @@
       "status": "not_started",
       "order": 11,
       "firefox_gap": {
-        "files": 316,
-        "blocked": 142,
+        "files": 317,
+        "blocked": 143,
         "feature": 173,
         "reftest": 1
       }
@@ -189,10 +189,10 @@
       "status": "not_started",
       "order": 4,
       "firefox_gap": {
-        "files": 1433,
-        "blocked": 564,
-        "feature": 811,
-        "reftest": 58
+        "files": 1436,
+        "blocked": 567,
+        "feature": 812,
+        "reftest": 57
       }
     }
   ],
@@ -333,7 +333,7 @@
         "blocked": 86,
         "feature": 252,
         "reftest_files": 3,
-        "we_pass": 232,
+        "we_pass": 231,
         "reftests_firefox_passes": 4
       }
     },
@@ -358,7 +358,7 @@
         "blocked": 86,
         "feature": 252,
         "reftest_files": 3,
-        "we_pass": 232,
+        "we_pass": 231,
         "reftests_firefox_passes": 4
       }
     },
@@ -386,7 +386,7 @@
         "blocked": 86,
         "feature": 252,
         "reftest_files": 3,
-        "we_pass": 232,
+        "we_pass": 231,
         "reftests_firefox_passes": 4
       }
     },
@@ -478,7 +478,7 @@
         "blocked": 24,
         "feature": 87,
         "reftest_files": 0,
-        "we_pass": 66,
+        "we_pass": 65,
         "reftests_firefox_passes": 0
       },
       "claimed": "2026-08-16",
@@ -534,7 +534,7 @@
         "blocked": 24,
         "feature": 87,
         "reftest_files": 0,
-        "we_pass": 66,
+        "we_pass": 65,
         "reftests_firefox_passes": 0
       }
     },
@@ -557,12 +557,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "94.8%",
       "firefox_gap": {
-        "files": 156,
+        "files": 154,
         "harness_files": 141,
         "blocked": 10,
         "feature": 131,
-        "reftest_files": 15,
-        "we_pass": 66,
+        "reftest_files": 13,
+        "we_pass": 68,
         "reftests_firefox_passes": 25
       }
     },
@@ -608,12 +608,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.1%",
       "firefox_gap": {
-        "files": 201,
-        "harness_files": 118,
+        "files": 198,
+        "harness_files": 115,
         "blocked": 15,
-        "feature": 103,
+        "feature": 100,
         "reftest_files": 83,
-        "we_pass": 109,
+        "we_pass": 105,
         "reftests_firefox_passes": 127
       }
     },
@@ -633,13 +633,13 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "56.2%",
       "firefox_gap": {
-        "files": 265,
-        "harness_files": 157,
-        "blocked": 19,
-        "feature": 138,
-        "reftest_files": 108,
-        "we_pass": 51,
-        "reftests_firefox_passes": 150
+        "files": 243,
+        "harness_files": 141,
+        "blocked": 14,
+        "feature": 127,
+        "reftest_files": 102,
+        "we_pass": 72,
+        "reftests_firefox_passes": 149
       }
     },
     {
@@ -660,13 +660,13 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "56.2%",
       "firefox_gap": {
-        "files": 265,
-        "harness_files": 157,
-        "blocked": 19,
-        "feature": 138,
-        "reftest_files": 108,
-        "we_pass": 51,
-        "reftests_firefox_passes": 150
+        "files": 243,
+        "harness_files": 141,
+        "blocked": 14,
+        "feature": 127,
+        "reftest_files": 102,
+        "we_pass": 72,
+        "reftests_firefox_passes": 149
       }
     },
     {
@@ -687,12 +687,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.4%",
       "firefox_gap": {
-        "files": 113,
-        "harness_files": 109,
-        "blocked": 20,
+        "files": 112,
+        "harness_files": 108,
+        "blocked": 19,
         "feature": 89,
         "reftest_files": 4,
-        "we_pass": 68,
+        "we_pass": 69,
         "reftests_firefox_passes": 9
       }
     },
@@ -714,12 +714,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "86.3%",
       "firefox_gap": {
-        "files": 122,
-        "harness_files": 117,
-        "blocked": 15,
-        "feature": 102,
+        "files": 119,
+        "harness_files": 114,
+        "blocked": 13,
+        "feature": 101,
         "reftest_files": 5,
-        "we_pass": 68,
+        "we_pass": 71,
         "reftests_firefox_passes": 11
       },
       "claimed": "2026-08-16",
@@ -740,12 +740,12 @@
       "firefox_ceiling": "94.4%",
       "target": "94%",
       "firefox_gap": {
-        "files": 242,
-        "harness_files": 143,
-        "blocked": 36,
-        "feature": 107,
-        "reftest_files": 99,
-        "we_pass": 232,
+        "files": 214,
+        "harness_files": 141,
+        "blocked": 22,
+        "feature": 119,
+        "reftest_files": 73,
+        "we_pass": 260,
         "reftests_firefox_passes": 221
       }
     },
@@ -765,12 +765,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.3%",
       "firefox_gap": {
-        "files": 212,
+        "files": 208,
         "harness_files": 147,
-        "blocked": 122,
-        "feature": 25,
-        "reftest_files": 65,
-        "we_pass": 95,
+        "blocked": 119,
+        "feature": 28,
+        "reftest_files": 61,
+        "we_pass": 99,
         "reftests_firefox_passes": 159
       }
     },
@@ -792,12 +792,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.4%",
       "firefox_gap": {
-        "files": 113,
-        "harness_files": 109,
-        "blocked": 20,
+        "files": 112,
+        "harness_files": 108,
+        "blocked": 19,
         "feature": 89,
         "reftest_files": 4,
-        "we_pass": 68,
+        "we_pass": 69,
         "reftests_firefox_passes": 9
       }
     },
@@ -840,17 +840,17 @@
       "status": "in_progress",
       "agent": "wpt-e1-retake",
       "adr": "",
-      "notes": "Largest reftest area in the suite. 2026-08-18 (wpt-par-e1): css/CSS2/ reftests 2,230 -> 2,601 of 6,219 (35.9% -> 41.8%); the check prints \"6219 reftests: 2601 passed (41.8%)\" and its target is 60%, so it is NOT met. Landed: vertical-align, the absolute length units (in/cm/mm/pc/Q -- 1,873 files of this area are written in inches and \"width: 3in\" was an invalid declaration), XML parsing for application/xhtml+xml (3,087 reference files put their stylesheet in a CDATA section, which the HTML tokenizer glues onto the first selector), and a real per-side border model (twelve longhands and four shorthands were unknown properties and the paint stroked one rectangle at border-width.top). The whole reftest suite went 7,394 -> 7,893. Next causes, ranked from the artifact images: margin collapsing (margin-padding-clear), clip (visufx), abspos containing blocks (positioning), then border-collapse/border-spacing which do not exist at all. See docs/session-log.md, entry \"WPT task E1\".",
+      "notes": "Largest reftest area in the suite. 2026-08-31 (wpt-e1-retake), re-taken from a stale 2026-08-18 claim: css/CSS2/ reftests 2,659 -> 3,061 of 6,219 (42.8% -> 49.2%). The check prints \"6219 reftests: 3061 passed (49.2%)\" against a target of 60%, so it is NOT met. Landed: ::first-letter (a third PseudoElement, splitting an existing text run rather than generating one, over a generated Ps/Pe/Pi/Pf/Po + Zs table in src/text), a string-valued `content` (the property had `normal`/`none`/`\"\"` and nothing else), and three rules those made visible -- a column box generates nothing, a generated flex container's text needs an anonymous item, and a pseudo-element selector matches no element in a DOM query. css/CSS2/selectors 12.1% -> 85.8% (339 of its 421 failures were one family), generated-content 7.1% -> 23.9%. NEXT, ranked and measured: attr() in `content` is 83 files of generated-content and the design question is where the element enters declaration application -- ApplyDeclaration has no element and StyleForPseudo does. Then counter() 56, quotes 23. Outside generated-content the ranking is unchanged from 2026-08-18: tables/table-anonymous-objects 157, normal-flow 315, positioning 262, margin collapsing, and border-collapse/border-spacing which do not exist. See docs/session-log.md, entry \"WPT task E1 (re-taken)\".",
       "ceiling_source": "firefox",
       "firefox_ceiling": "98.9%",
       "firefox_gap": {
-        "files": 3907,
-        "harness_files": 40,
-        "blocked": 7,
-        "feature": 33,
-        "reftest_files": 3867,
-        "we_pass": 2238,
-        "reftests_firefox_passes": 6083
+        "files": 3094,
+        "harness_files": 25,
+        "blocked": 2,
+        "feature": 23,
+        "reftest_files": 3069,
+        "we_pass": 3053,
+        "reftests_firefox_passes": 6085
       },
       "claimed": "2026-08-31"
     },
@@ -872,12 +872,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.2%",
       "firefox_gap": {
-        "files": 952,
-        "harness_files": 250,
-        "blocked": 172,
-        "feature": 78,
-        "reftest_files": 702,
-        "we_pass": 324,
+        "files": 843,
+        "harness_files": 225,
+        "blocked": 4,
+        "feature": 221,
+        "reftest_files": 618,
+        "we_pass": 433,
         "reftests_firefox_passes": 931
       }
     },
@@ -899,12 +899,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "89.4%",
       "firefox_gap": {
-        "files": 1126,
-        "harness_files": 511,
-        "blocked": 415,
-        "feature": 96,
-        "reftest_files": 615,
-        "we_pass": 231,
+        "files": 1102,
+        "harness_files": 492,
+        "blocked": 305,
+        "feature": 187,
+        "reftest_files": 610,
+        "we_pass": 255,
         "reftests_firefox_passes": 840
       }
     },
@@ -924,13 +924,13 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "80.9%",
       "firefox_gap": {
-        "files": 469,
-        "harness_files": 87,
-        "blocked": 27,
-        "feature": 60,
-        "reftest_files": 382,
-        "we_pass": 112,
-        "reftests_firefox_passes": 478
+        "files": 433,
+        "harness_files": 79,
+        "blocked": 8,
+        "feature": 71,
+        "reftest_files": 354,
+        "we_pass": 149,
+        "reftests_firefox_passes": 479
       }
     },
     {
@@ -951,12 +951,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "91.4%",
       "firefox_gap": {
-        "files": 222,
-        "harness_files": 68,
-        "blocked": 5,
-        "feature": 63,
-        "reftest_files": 154,
-        "we_pass": 68,
+        "files": 208,
+        "harness_files": 62,
+        "blocked": 2,
+        "feature": 60,
+        "reftest_files": 146,
+        "we_pass": 82,
         "reftests_firefox_passes": 197
       }
     },
@@ -978,12 +978,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "68.9%",
       "firefox_gap": {
-        "files": 196,
-        "harness_files": 88,
-        "blocked": 29,
-        "feature": 59,
-        "reftest_files": 108,
-        "we_pass": 113,
+        "files": 176,
+        "harness_files": 69,
+        "blocked": 6,
+        "feature": 63,
+        "reftest_files": 107,
+        "we_pass": 133,
         "reftests_firefox_passes": 210
       }
     },
@@ -1005,13 +1005,13 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "98.9%",
       "firefox_gap": {
-        "files": 3907,
-        "harness_files": 40,
-        "blocked": 7,
-        "feature": 33,
-        "reftest_files": 3867,
-        "we_pass": 2238,
-        "reftests_firefox_passes": 6083
+        "files": 3094,
+        "harness_files": 25,
+        "blocked": 2,
+        "feature": 23,
+        "reftest_files": 3069,
+        "we_pass": 3053,
+        "reftests_firefox_passes": 6085
       }
     },
     {
@@ -1030,13 +1030,13 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "90.3%",
       "firefox_gap": {
-        "files": 1095,
-        "harness_files": 281,
-        "blocked": 102,
-        "feature": 179,
-        "reftest_files": 814,
-        "we_pass": 445,
-        "reftests_firefox_passes": 1216
+        "files": 909,
+        "harness_files": 144,
+        "blocked": 98,
+        "feature": 46,
+        "reftest_files": 765,
+        "we_pass": 632,
+        "reftests_firefox_passes": 1217
       },
       "claimed": "2026-08-18"
     },
@@ -1058,12 +1058,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "93.7%",
       "firefox_gap": {
-        "files": 1039,
-        "harness_files": 60,
-        "blocked": 10,
-        "feature": 50,
-        "reftest_files": 979,
-        "we_pass": 152,
+        "files": 1063,
+        "harness_files": 59,
+        "blocked": 8,
+        "feature": 51,
+        "reftest_files": 1004,
+        "we_pass": 128,
         "reftests_firefox_passes": 1112
       }
     },
@@ -1083,12 +1083,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "89.9%",
       "firefox_gap": {
-        "files": 177,
-        "harness_files": 83,
-        "blocked": 3,
-        "feature": 80,
+        "files": 173,
+        "harness_files": 79,
+        "blocked": 2,
+        "feature": 77,
         "reftest_files": 94,
-        "we_pass": 79,
+        "we_pass": 83,
         "reftests_firefox_passes": 144
       }
     },
@@ -1108,12 +1108,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "74.2%",
       "firefox_gap": {
-        "files": 102,
-        "harness_files": 15,
+        "files": 76,
+        "harness_files": 11,
         "blocked": 3,
-        "feature": 12,
-        "reftest_files": 87,
-        "we_pass": 50,
+        "feature": 8,
+        "reftest_files": 65,
+        "we_pass": 76,
         "reftests_firefox_passes": 133
       }
     },
@@ -1133,12 +1133,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "95.6%",
       "firefox_gap": {
-        "files": 553,
-        "harness_files": 97,
-        "blocked": 1,
-        "feature": 96,
-        "reftest_files": 456,
-        "we_pass": 213,
+        "files": 529,
+        "harness_files": 79,
+        "blocked": 0,
+        "feature": 79,
+        "reftest_files": 450,
+        "we_pass": 237,
         "reftests_firefox_passes": 661
       }
     },
@@ -1177,12 +1177,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "95.4%",
       "firefox_gap": {
-        "files": 267,
-        "harness_files": 33,
-        "blocked": 1,
-        "feature": 32,
-        "reftest_files": 234,
-        "we_pass": 79,
+        "files": 255,
+        "harness_files": 30,
+        "blocked": 0,
+        "feature": 30,
+        "reftest_files": 225,
+        "we_pass": 90,
         "reftests_firefox_passes": 298
       }
     },
@@ -1204,12 +1204,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.5%",
       "firefox_gap": {
-        "files": 312,
-        "harness_files": 27,
-        "blocked": 2,
-        "feature": 25,
-        "reftest_files": 285,
-        "we_pass": 117,
+        "files": 308,
+        "harness_files": 20,
+        "blocked": 0,
+        "feature": 20,
+        "reftest_files": 288,
+        "we_pass": 121,
         "reftests_firefox_passes": 400
       }
     },
@@ -1231,13 +1231,13 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "99.2%",
       "firefox_gap": {
-        "files": 591,
-        "harness_files": 93,
-        "blocked": 1,
-        "feature": 92,
-        "reftest_files": 498,
-        "we_pass": 288,
-        "reftests_firefox_passes": 779
+        "files": 575,
+        "harness_files": 80,
+        "blocked": 2,
+        "feature": 78,
+        "reftest_files": 495,
+        "we_pass": 304,
+        "reftests_firefox_passes": 780
       }
     },
     {
@@ -1257,9 +1257,12 @@
       "firefox_ceiling": "78.5%",
       "firefox_gap": {
         "files": 337,
-        "measured": "2026-08-18",
-        "was": 774,
-        "note": "recorded whole, reftests included"
+        "harness_files": 306,
+        "blocked": 17,
+        "feature": 289,
+        "reftest_files": 31,
+        "we_pass": 842,
+        "reftests_firefox_passes": 114
       },
       "claimed": "2026-08-18"
     },
@@ -1284,8 +1287,8 @@
         "blocked": 957,
         "feature": 964,
         "reftest_files": 18,
-        "we_pass": 39,
-        "reftests_firefox_passes": 57
+        "we_pass": 37,
+        "reftests_firefox_passes": 55
       }
     },
     {
@@ -1304,12 +1307,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.5%",
       "firefox_gap": {
-        "files": 813,
+        "files": 812,
         "harness_files": 622,
         "blocked": 242,
         "feature": 380,
-        "reftest_files": 191,
-        "we_pass": 261,
+        "reftest_files": 190,
+        "we_pass": 262,
         "reftests_firefox_passes": 437
       }
     },
@@ -1354,9 +1357,9 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "91.8%",
       "firefox_gap": {
-        "files": 278,
-        "harness_files": 278,
-        "blocked": 120,
+        "files": 279,
+        "harness_files": 279,
+        "blocked": 121,
         "feature": 158,
         "reftest_files": 0,
         "we_pass": 32,
@@ -1679,9 +1682,9 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "unmeasured",
       "firefox_gap": {
-        "files": 620,
-        "harness_files": 620,
-        "blocked": 457,
+        "files": 621,
+        "harness_files": 621,
+        "blocked": 458,
         "feature": 163,
         "reftest_files": 0,
         "we_pass": 72,
@@ -1915,10 +1918,10 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "80.1%",
       "firefox_gap": {
-        "files": 552,
-        "harness_files": 550,
+        "files": 551,
+        "harness_files": 549,
         "blocked": 298,
-        "feature": 252,
+        "feature": 251,
         "reftest_files": 2,
         "we_pass": 60,
         "reftests_firefox_passes": 4
@@ -1944,10 +1947,10 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "80.1%",
       "firefox_gap": {
-        "files": 552,
-        "harness_files": 550,
+        "files": 551,
+        "harness_files": 549,
         "blocked": 298,
-        "feature": 252,
+        "feature": 251,
         "reftest_files": 2,
         "we_pass": 60,
         "reftests_firefox_passes": 4
@@ -2012,10 +2015,10 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "unmeasured",
       "firefox_gap": {
-        "files": 246,
-        "harness_files": 246,
+        "files": 245,
+        "harness_files": 245,
         "blocked": 123,
-        "feature": 123,
+        "feature": 122,
         "reftest_files": 0,
         "we_pass": 9,
         "reftests_firefox_passes": 0
@@ -2116,12 +2119,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "96.8%",
       "firefox_gap": {
-        "files": 320,
-        "harness_files": 123,
-        "blocked": 17,
-        "feature": 106,
-        "reftest_files": 197,
-        "we_pass": 145,
+        "files": 305,
+        "harness_files": 111,
+        "blocked": 10,
+        "feature": 101,
+        "reftest_files": 194,
+        "we_pass": 160,
         "reftests_firefox_passes": 327
       }
     },
@@ -2155,9 +2158,9 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "unmeasured",
       "firefox_gap": {
-        "files": 259,
-        "harness_files": 258,
-        "blocked": 123,
+        "files": 260,
+        "harness_files": 259,
+        "blocked": 124,
         "feature": 135,
         "reftest_files": 1,
         "we_pass": 17,
@@ -2209,9 +2212,9 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "unmeasured",
       "firefox_gap": {
-        "files": 259,
-        "harness_files": 258,
-        "blocked": 123,
+        "files": 260,
+        "harness_files": 259,
+        "blocked": 124,
         "feature": 135,
         "reftest_files": 1,
         "we_pass": 17,
@@ -2425,13 +2428,13 @@
       "adr": "0012",
       "notes": "**Had no task until 2026-08-17.** 314 test files Firefox passes and we fail, of which only 65 are blocked -- the highest ratio of ordinary specification work to plumbing in the top ten. `custom-elements/form-associated` is a further 103 files at 1/104, which is the same subject from the other side. CLAUDE.md's own list of Hacker News gaps says `<select>` is laid out and submitted but not clickable, which is one of these.",
       "firefox_gap": {
-        "files": 342,
-        "harness_files": 314,
-        "blocked": 65,
-        "feature": 249,
-        "reftest_files": 28,
-        "we_pass": 77,
-        "reftests_firefox_passes": 65
+        "files": 343,
+        "harness_files": 316,
+        "blocked": 66,
+        "feature": 250,
+        "reftest_files": 27,
+        "we_pass": 79,
+        "reftests_firefox_passes": 66
       }
     },
     {
@@ -2473,9 +2476,9 @@
       "adr": "0027",
       "notes": "**Had no task until 2026-08-17.** 520 test files Firefox passes and we fail, 237 blocked -- the largest single directory under html/semantics/. Depends on J1b because a large part of it is <iframe> as an element. The media-elements subtree beneath it is L1/L3 and is not this task.",
       "firefox_gap": {
-        "files": 540,
-        "harness_files": 519,
-        "blocked": 235,
+        "files": 542,
+        "harness_files": 521,
+        "blocked": 237,
         "feature": 284,
         "reftest_files": 21,
         "we_pass": 112,
@@ -2507,6 +2510,6 @@
       "claimed": "2026-08-18"
     }
   ],
-  "gap_measured": "2026-08-17",
-  "gap_source": "firefox 156.0a1 via tools/wpt/firefox-gap.py"
+  "gap_measured": "2026-08-31",
+  "gap_source": "firefox 157.0a1 via tools/wpt/firefox-gap.py"
 }

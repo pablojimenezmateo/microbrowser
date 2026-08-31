@@ -7809,3 +7809,117 @@ for says the machine is fine. At 2× the shard is 854s with subtests, crashes an
   expected to TIMEOUT, but a recording run has the short-budget path interlocked off, so all 883
   pay a full 65s deadline: 2,193s. Concurrency cannot shorten a wall-clock deadline. That cost is
   exactly what `--known-timeout-budget` removes on *gating* runs, which are the ones you repeat.
+
+## WPT task E1 (re-taken) — CSS2 normative layout · 2026-08-31
+
+**Status:** in_progress — target not reached.
+**Check** (`docs/wpt-tasks.json`: "css/CSS2/ >= 60%"): **not met.**
+`microbrowser_wpt --reftests-only css/CSS2/` printed
+
+```
+6219 reftests: 3061 passed (49.2%), 6 of those with both pages blank
+0 unexpected results
+```
+
+from a baseline of `2659 passed (42.8%)` measured on this tree at the start of the session. The
+whole reftest suite finished at **8,417 of 20,998, 0 unexpected**, and `ctest -E microbrowser_wpt`
+is 24 of 24 under the perf, ASan and UBSan presets.
+
+**Re-taken** from a claim of 2026-08-18 whose branch had merged (`4e0f98b`) with nothing touching
+`css/CSS2/` since — stale by the plan's three-day rule.
+
+**Landed:** *Punctuation and space separators are a generated table* · *::first-letter is a third
+pseudo-element, and it splits text rather than inventing it* · *Record css/CSS2 at 3,013 reftests* ·
+*A string `content` generates the text it says, and a column box generates nothing* · *A
+`<style type>` that is not ASCII-case-insensitively `text/css` is not a stylesheet* · *Record the
+generated-content pass*
+
+**Left:** 3,158 recorded reftest failures in `css/CSS2/`. Inside `generated-content` the ranking is
+now exact and measured, not guessed: **`attr()` in `content` is 83 files**, `counter()` 56, the
+quote keywords 23. Outside it the 2026-08-18 ranking still holds — `tables/table-anonymous-objects`
+157, `normal-flow` 315, `positioning` 262, margin collapsing, and `border-collapse`/`border-spacing`
+which do not exist at all.
+
+**`attr()` is the next task here and it has a design question the previous two features did not.**
+`ApplyDeclaration` takes no element, so `attr(class)` cannot be resolved where every other value is;
+`StyleForPseudo` *does* have the element and is where `var()` is already substituted. Substituting
+`attr()` into a quoted string there and letting the ordinary parser take it does not work cleanly —
+the value may contain both quote characters, and the tokenizer has already unescaped, so there is no
+spelling that survives the round trip. Resolving it straight into `content_text` is probably right.
+Decide that before writing code.
+
+**Found:**
+
+**The area's largest cause was one test family, and the ranking that found it took a minute.**
+339 of `css/CSS2/selectors`' 421 failures were `first-letter-punctuation-*` — one missing
+pseudo-element, 71% of a directory. `grep -o '^\[css/CSS2/<dir>/[^]]*\]' expectations/css.txt | sed
+'s/-[0-9a-z]*\.\(xht\|html\)$//' | sort | uniq -c | sort -rn` is the whole technique: group an
+area's failures by test *family* rather than by feature mentioned in the file. The 2026-08-18
+session's `vertical-align` lesson is the same coin the other way up — 621 files *mentioned* it and
+implementing it moved zero, because the references used it too. `::first-letter`'s references use a
+`<span>`, so both sides were not wrong together.
+
+**Twelve tests started failing and not one of them regressed.** Every one writes its verdict as
+generated text — `content: "FAIL"`, or `@supports not (x) { content: "x is unsupported!" }` — so
+while a string `content` produced no box, the test and its reference rendered the same blank page
+and agreed. This is the 697-two-blank-pages problem reached from the other side: **a test can be
+mute rather than blank.** Four are files Firefox passes and each names exactly one missing feature
+(`@scope`, `attr()`, `font-synthesis-position`, writing-mode propagation), which is the most useful
+kind of failure this suite produces. They are recorded with a comment each saying so.
+
+**Four *real* regressions came out of the same visibility and were fixed rather than recorded.**
+Two `flexbox_generated-*` files compare `::after { content:"x"; display:flex }` against the same
+declaration with `display:block` — a generated box is built inside `append_generated` rather than
+through `BuildFor`, so it reached none of the anonymous-flex-item wrapping and the two rendered
+differently. And two `*-ascii-case-insensitive` files found that **`<style type>` was never read at
+all**: every `<style>` was CSS whatever it claimed, and `text/cſs` (U+017F, which folds to `s` under
+full Unicode case folding and must not under ASCII) was being applied. Firefox passes all four.
+
+**A fifth was pre-existing and only reachable through the new feature.**
+`querySelector("#x::before")` returned `#x`, and had since `::before` landed. `css::Selector` cannot
+be the place to fix it — it answers the cascade's question, "does this element originate the box
+this rule styles", which is *why* `div::before` has to match the div — so the DOM's question is
+answered in `bindings::MatchesAny`, at the one place every query reaches the matcher. Adding
+`::first-letter` is what made a test fail on it; the fix took all three spellings and 40 subtest
+failures.
+
+**The one thing I got wrong, and the shape of it is worth keeping.** I wrote a local test asserting
+that `<div>-Test</div>` has no first letter, reasoning that a dash is punctuation. Pd is not one of
+CSS 2.1's five categories, so the dash is not *skipped* — it **is** the first typographic letter
+unit, and `T` is not in the pseudo at all. The code was right and the test was wrong, which is the
+`tests/` warning in CLAUDE.md happening to a test written the same hour it was read.
+
+**And one decision no test could make.** `css/css-backgrounds/first-letter-space-not-selected.html`
+is the only file in the checkout that asks whether a leading `&nbsp;` is inside `::first-letter`,
+and it asks for more than either reading gives — it wants the pseudo to match nothing at all — so
+**Firefox fails it too**. Measured both ways: skipping the space and taking it as the letter give a
+byte-identical 8,355 of 20,998. Skipping is kept because it puts the emphasis on the letter rather
+than on an invisible character, and the comment in `FirstLetterExtent` says that no test
+distinguishes them.
+
+**`docs/wpt-firefox-gap.md` was two weeks stale and its aggregate must not be read as a delta.**
+`--annotate-tasks` moved it from 29.3% to 34.2% of what Firefox passes, and most of that is not this
+session: the committed version was generated on 2026-08-17 against **Firefox 156.0a1**, and the
+cache on this machine is **157.0a1 dated 2026-08-31**, so the jump folds in a different Firefox run
+plus everything that landed since — F10's font-cache fix, the E1/E8/F6/H9 merges, B6. E1's own row
+went 3,907 → 3,094 gap files and carries the same caveat. **The comparable numbers this session
+produced are the two reftest counts above**, same binary, same expectations, measured before and
+after.
+
+**Two areas of the tree are stale in ways that are not this session's and will mislead the next
+one.** `dom/nodes/` reports 32 unexpected results and `html/rendering/` 38, all of them
+*improvements* (PASS where FAIL is recorded, OK where TIMEOUT is) and nearly all XHTML parsing and
+`createElement` validation from the 2026-08-18 merge. I checked rather than assumed: stashing this
+session's `src/` changes, rebuilding and re-running the fieldset and margin-collapsing directories
+gives **13 unexpected and 167 passed either way**, byte for byte. Re-recording the stale testharness
+areas is still the follow-up B6 named and is still a different task.
+
+**Also seen, not chased:** `css/selectors/focus-visible-011.html` and `-018-2.html` report
+unexpected under a loaded machine and pass three times out of three when run alone. Different files
+on different runs, which is the signature of a load-dependent flake rather than the font race F10
+closed.
+
+**Process note.** `tools/run-checks.sh asan` runs the whole `ctest` gate including the WPT shard,
+which under a sanitizer build is very long; the 24 unit shards were run to completion under both
+ASan and UBSan with no failures and no sanitizer reports, and the WPT shard was stopped. Nobody has
+run that shard since the six-way merge, and this session did not change that.

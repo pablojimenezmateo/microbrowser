@@ -2,9 +2,9 @@
 
 **Generated** by `tools/wpt/firefox-gap.py`. Do not edit by hand.
 
-Firefox version: 156.0a1
-Firefox run date: 2026-08-17
-Firefox's WPT revision: `b80a9ddcbae8`
+Firefox version: 157.0a1
+Firefox run date: 2026-08-31
+Firefox's WPT revision: `7e755825e0b5`
 Our pinned WPT revision: `4120ac0deb57`
 
 The unit is a **test file**, and a file counts as passed only when every
@@ -21,13 +21,13 @@ than a specification gap.
 | | testharness files | reftest files | total |
 |---|--:|--:|--:|
 | in our scope | 23146 | 20998 | 44144 |
-| Firefox passes | 19210 | 17961 | 37171 |
-| **we pass** | **4295** | **6605** | **10900** |
-| **Firefox passes, we fail** | **14915** | **11356** | **26271** |
-| both fail | 3494 | 2236 | 5730 |
-| we pass, Firefox fails (audit) | 365 | 784 | 1149 |
+| Firefox passes | 19232 | 17918 | 37150 |
+| **we pass** | **5111** | **7609** | **12720** |
+| **Firefox passes, we fail** | **14121** | **10309** | **24430** |
+| both fail | 3442 | 2207 | 5649 |
+| we pass, Firefox fails (audit) | 332 | 796 | 1128 |
 
-**29.3% of what Firefox passes.** Both halves of the suite are in that number as of
+**34.2% of what Firefox passes.** Both halves of the suite are in that number as of
 task F9 (2026-08-17). Before it, every reftest counted as a failure --
 which was the honest reading while nothing had ever recorded one, because
 a format that writes down only failures cannot tell a pass from a test
@@ -37,8 +37,8 @@ nobody ran.
 
 | cause | files |
 |---|--:|
-| the harness never reported (TIMEOUT/ERROR/CRASH) | 6152 |
-| subtests ran and failed | 8763 |
+| the harness never reported (TIMEOUT/ERROR/CRASH) | 5701 |
+| subtests ran and failed | 8420 |
 
 A blocked file is worth more than its count: none of its subtests are
 in any denominator anywhere, so it is invisible in every rate.
@@ -73,109 +73,110 @@ distinction. A refused area is a decision with a name
 
 | area | gap | blocked | feature | reftest | we pass | firefox passes | in scope | refusal |
 |---|--:|--:|--:|--:|--:|--:|--:|---|
-| `css/CSS2` | 3907 | 7 | 33 | 3867 | 2238 | 6145 | 6279 |  |
-| `html/canvas` | 2715 | 976 | 1678 | 61 | 446 | 3161 | 3834 |  |
-| `html/semantics` | 1638 | 510 | 1006 | 122 | 428 | 2066 | 2636 |  |
-| `css/css-grid` | 1126 | 415 | 96 | 615 | 231 | 1357 | 2253 |  |
-| `css/css-text` | 1095 | 102 | 179 | 814 | 445 | 1540 | 1915 |  |
-| `css/css-writing-modes` | 1039 | 10 | 50 | 979 | 152 | 1191 | 1222 |  |
-| `css/css-flexbox` | 952 | 172 | 78 | 702 | 324 | 1276 | 1369 |  |
+| `css/CSS2` | 3094 | 2 | 23 | 3069 | 3053 | 6147 | 6279 |  |
+| `html/canvas` | 2278 | 974 | 1255 | 49 | 879 | 3157 | 3831 |  |
+| `html/semantics` | 1637 | 513 | 1007 | 117 | 434 | 2071 | 2635 |  |
+| `css/css-grid` | 1102 | 305 | 187 | 610 | 255 | 1357 | 2253 |  |
+| `css/css-writing-modes` | 1063 | 8 | 51 | 1004 | 128 | 1191 | 1222 |  |
 | `referrer-policy/gen` | 951 | 865 | 86 | 0 | 0 | 951 | 1001 |  |
-| `css/css-transforms` | 591 | 1 | 92 | 498 | 288 | 879 | 896 |  |
-| `css/css-backgrounds` | 553 | 1 | 96 | 456 | 213 | 766 | 848 |  |
-| `html/browsers` | 552 | 298 | 252 | 2 | 60 | 612 | 758 | **partial** ADR 0026 §6 -- window.open returns null, opener absent |
-| `css/css-sizing` | 469 | 27 | 60 | 382 | 112 | 581 | 745 |  |
+| `css/css-text` | 909 | 98 | 46 | 765 | 632 | 1541 | 1915 |  |
+| `css/css-flexbox` | 843 | 4 | 221 | 618 | 433 | 1276 | 1369 |  |
+| `css/css-transforms` | 575 | 2 | 78 | 495 | 304 | 879 | 896 |  |
+| `html/browsers` | 551 | 298 | 251 | 2 | 60 | 611 | 757 | **partial** ADR 0026 §6 -- window.open returns null, opener absent |
+| `css/css-backgrounds` | 529 | 0 | 79 | 450 | 237 | 766 | 848 |  |
+| `css/css-sizing` | 433 | 8 | 71 | 354 | 149 | 582 | 745 |  |
 | `websockets` | 364 | 285 | 79 | 0 | 6 | 370 | 382 | **partial** infrastructure -- our server does not speak the WebSocket protocol |
-| `css/css-multicol` | 358 | 8 | 52 | 298 | 93 | 451 | 561 |  |
-| `css/css-shapes` | 341 | 17 | 117 | 207 | 5 | 346 | 375 |  |
-| `css/css-fonts` | 320 | 17 | 106 | 197 | 145 | 465 | 536 |  |
-| `css/css-images` | 312 | 2 | 25 | 285 | 117 | 429 | 501 |  |
+| `css/css-multicol` | 326 | 2 | 42 | 282 | 125 | 451 | 561 |  |
+| `css/css-shapes` | 316 | 17 | 92 | 207 | 30 | 346 | 375 |  |
+| `css/css-images` | 308 | 0 | 20 | 288 | 121 | 429 | 501 |  |
+| `css/css-fonts` | 305 | 10 | 101 | 194 | 160 | 465 | 536 |  |
 | `xhr` | 296 | 29 | 267 | 0 | 87 | 383 | 398 |  |
 | `svg/animations` | 280 | 37 | 230 | 13 | 6 | 286 | 305 |  |
-| `html/webappapis` | 278 | 120 | 158 | 0 | 32 | 310 | 345 |  |
-| `css/css-color` | 267 | 1 | 32 | 234 | 79 | 346 | 369 |  |
-| `css/css-values` | 265 | 19 | 138 | 108 | 51 | 316 | 479 |  |
+| `html/webappapis` | 279 | 121 | 158 | 0 | 32 | 311 | 343 |  |
+| `css/css-color` | 255 | 0 | 30 | 225 | 90 | 345 | 369 |  |
 | `IndexedDB` | 252 | 41 | 211 | 0 | 12 | 264 | 265 | **partial** ADR 0021/0038 -- memory tier only, no disk persistence by default |
-| `css/selectors` | 242 | 36 | 107 | 99 | 232 | 474 | 503 | **partial** ADR 0012/0016/0033 -- :visited matches nothing (privacy) |
-| `css/css-align` | 231 | 65 | 130 | 36 | 16 | 247 | 296 |  |
-| `css/css-position` | 222 | 5 | 63 | 154 | 68 | 290 | 362 |  |
-| `html/rendering` | 215 | 20 | 82 | 113 | 210 | 425 | 465 |  |
-| `css/css-conditional` | 212 | 122 | 25 | 65 | 95 | 307 | 395 |  |
-| `html/dom` | 201 | 15 | 103 | 83 | 109 | 310 | 404 |  |
-| `css/css-overflow` | 196 | 29 | 59 | 108 | 113 | 309 | 720 |  |
-| `css/css-text-decor` | 196 | 0 | 38 | 158 | 116 | 312 | 355 |  |
+| `css/css-values` | 243 | 14 | 127 | 102 | 72 | 315 | 479 |  |
+| `css/css-align` | 214 | 2 | 180 | 32 | 35 | 249 | 296 |  |
+| `css/selectors` | 214 | 22 | 119 | 73 | 260 | 474 | 503 | **partial** ADR 0012/0016/0033 -- :visited matches nothing (privacy) |
+| `html/rendering` | 212 | 20 | 82 | 110 | 212 | 424 | 465 |  |
+| `css/css-conditional` | 208 | 119 | 28 | 61 | 99 | 307 | 395 |  |
+| `css/css-position` | 208 | 2 | 60 | 146 | 82 | 290 | 362 |  |
+| `html/dom` | 198 | 15 | 100 | 83 | 105 | 303 | 364 |  |
 | `dom/nodes` | 188 | 55 | 131 | 2 | 120 | 308 | 330 |  |
 | `content-security-policy/gen` | 184 | 184 | 0 | 0 | 0 | 184 | 260 |  |
+| `css/css-text-decor` | 183 | 0 | 30 | 153 | 129 | 312 | 355 |  |
 | `html/syntax` | 181 | 124 | 48 | 9 | 183 | 364 | 400 |  |
-| `css/css-tables` | 177 | 3 | 80 | 94 | 79 | 256 | 300 |  |
-| `css/css-ui` | 166 | 4 | 63 | 99 | 884 | 1050 | 1136 |  |
+| `css/css-overflow` | 176 | 6 | 63 | 107 | 133 | 309 | 720 |  |
+| `css/css-ui` | 175 | 1 | 55 | 119 | 824 | 999 | 1069 |  |
+| `css/css-tables` | 173 | 2 | 77 | 94 | 83 | 256 | 300 |  |
 | `fetch/api` | 152 | 13 | 139 | 0 | 30 | 182 | 223 |  |
-| `css/css-variables` | 134 | 13 | 27 | 94 | 93 | 227 | 241 |  |
-| `css/cssom-view` | 122 | 15 | 102 | 5 | 68 | 190 | 236 |  |
-| `css/css-animations` | 113 | 11 | 84 | 18 | 23 | 136 | 155 |  |
-| `css/cssom` | 113 | 20 | 89 | 4 | 68 | 181 | 202 |  |
-| `dom/events` | 111 | 24 | 87 | 0 | 66 | 177 | 202 |  |
+| `css/css-variables` | 132 | 12 | 26 | 94 | 95 | 227 | 241 |  |
+| `css/cssom-view` | 119 | 13 | 101 | 5 | 71 | 190 | 236 |  |
+| `css/cssom` | 112 | 19 | 89 | 4 | 69 | 181 | 202 |  |
+| `dom/events` | 111 | 24 | 87 | 0 | 65 | 176 | 202 |  |
 | `referrer-policy/4K+1` | 108 | 65 | 43 | 0 | 0 | 108 | 108 |  |
 | `referrer-policy/4K-1` | 108 | 64 | 44 | 0 | 0 | 108 | 108 |  |
 | `referrer-policy/4K` | 108 | 64 | 44 | 0 | 0 | 108 | 108 |  |
-| `css/css-display` | 102 | 3 | 12 | 87 | 50 | 152 | 246 |  |
+| `css/css-animations` | 105 | 7 | 79 | 19 | 31 | 136 | 155 |  |
 | `upgrade-insecure-requests/gen` | 99 | 0 | 99 | 0 | 0 | 99 | 196 |  |
-| `css/css-transitions` | 98 | 20 | 76 | 2 | 12 | 110 | 126 |  |
-| `css/css-cascade` | 97 | 17 | 48 | 32 | 33 | 130 | 146 |  |
-| `svg/painting` | 92 | 59 | 6 | 27 | 36 | 128 | 156 |  |
+| `css/css-cascade` | 98 | 5 | 56 | 37 | 32 | 130 | 146 |  |
+| `css/css-transitions` | 93 | 18 | 73 | 2 | 18 | 111 | 126 |  |
+| `svg/painting` | 93 | 59 | 6 | 28 | 35 | 128 | 156 |  |
 | `svg/types` | 83 | 26 | 57 | 0 | 0 | 83 | 86 |  |
 | `intersection-observer` | 78 | 21 | 56 | 1 | 13 | 91 | 107 |  |
+| `css/css-display` | 76 | 3 | 8 | 65 | 76 | 152 | 246 |  |
 | `html/interaction` | 76 | 8 | 68 | 0 | 14 | 90 | 194 |  |
 | `eventsource` | 75 | 37 | 38 | 0 | 1 | 76 | 76 |  |
 | `svg/geometry` | 75 | 42 | 12 | 21 | 4 | 79 | 86 |  |
-| `resource-timing` | 71 | 36 | 35 | 0 | 8 | 79 | 103 |  |
 | `workers` | 71 | 28 | 43 | 0 | 28 | 99 | 111 | **partial** ADR 0022 §1 -- SharedWorker refused; DedicatedWorker implemented |
+| `resource-timing` | 70 | 35 | 35 | 0 | 8 | 78 | 102 |  |
 | `fetch/metadata` | 66 | 34 | 32 | 0 | 0 | 66 | 87 |  |
 | `html/editing` | 65 | 25 | 32 | 8 | 38 | 103 | 241 |  |
 | `html/cross-origin-embedder-policy` | 61 | 27 | 34 | 0 | 0 | 61 | 88 |  |
 | `content-security-policy/script-src` | 57 | 37 | 20 | 0 | 24 | 81 | 90 |  |
 | `media-source` | 57 | 19 | 38 | 0 | 2 | 59 | 72 |  |
-| `shadow-dom` | 55 | 6 | 41 | 8 | 23 | 78 | 83 |  |
+| `shadow-dom` | 54 | 6 | 41 | 7 | 24 | 78 | 83 |  |
 | `custom-elements/reactions` | 52 | 0 | 52 | 0 | 4 | 56 | 57 |  |
 | `webmessaging` | 50 | 34 | 16 | 0 | 7 | 57 | 60 |  |
 | `html/cross-origin-opener-policy` | 46 | 4 | 42 | 0 | 53 | 99 | 157 |  |
-| `navigation-timing` | 43 | 29 | 14 | 0 | 6 | 49 | 58 |  |
+| `navigation-timing` | 42 | 28 | 14 | 0 | 6 | 48 | 58 |  |
 | `html/infrastructure` | 41 | 15 | 26 | 0 | 55 | 96 | 118 |  |
 | `webstorage` | 39 | 25 | 14 | 0 | 10 | 49 | 54 |  |
 | `custom-elements` | 38 | 7 | 30 | 1 | 4 | 42 | 45 |  |
-| `shadow-dom/focus` | 36 | 1 | 32 | 3 | 3 | 39 | 40 |  |
+| `custom-elements/registries` | 37 | 9 | 28 | 0 | 1 | 38 | 40 |  |
 | `web-animations/interfaces` | 36 | 7 | 29 | 0 | 0 | 36 | 42 |  |
+| `shadow-dom/focus` | 35 | 1 | 32 | 2 | 4 | 39 | 40 |  |
 | `svg/linking` | 35 | 13 | 4 | 18 | 23 | 58 | 63 |  |
 | `svg/text` | 35 | 18 | 9 | 8 | 37 | 72 | 97 |  |
 | `selection` | 32 | 4 | 28 | 0 | 38 | 70 | 90 |  |
 | `shadow-dom/untriaged` | 32 | 1 | 27 | 4 | 25 | 57 | 59 |  |
 | `svg/path` | 32 | 7 | 21 | 4 | 13 | 45 | 65 |  |
 | `referrer-policy/generic` | 31 | 17 | 14 | 0 | 0 | 31 | 42 |  |
-| `workers/interfaces` | 30 | 9 | 21 | 0 | 34 | 64 | 66 |  |
+| `workers/interfaces` | 30 | 9 | 21 | 0 | 34 | 64 | 65 |  |
 | `content-security-policy/frame-ancestors` | 29 | 24 | 5 | 0 | 5 | 34 | 34 |  |
+| `css/css-box` | 29 | 0 | 28 | 1 | 8 | 37 | 146 |  |
 | `content-security-policy/connect-src` | 28 | 0 | 28 | 0 | 0 | 28 | 30 |  |
-| `css/css-box` | 28 | 1 | 25 | 2 | 10 | 38 | 153 |  |
 | `performance-timeline` | 28 | 18 | 10 | 0 | 17 | 45 | 58 |  |
 | `web-animations/timing-model` | 28 | 4 | 22 | 2 | 4 | 32 | 34 |  |
 | `workers/constructors` | 28 | 5 | 23 | 0 | 7 | 35 | 35 |  |
 | `png/apng` | 28 | 0 | 0 | 28 | 1 | 29 | 29 |  |
 | `content-security-policy/worker-src` | 27 | 10 | 17 | 0 | 3 | 30 | 31 |  |
-| `svg/struct` | 27 | 2 | 5 | 20 | 23 | 50 | 67 |  |
 | `content-security-policy/style-src` | 26 | 14 | 12 | 0 | 12 | 38 | 42 |  |
 | `domxpath` | 26 | 3 | 23 | 0 | 0 | 26 | 32 |  |
+| `svg/struct` | 26 | 2 | 5 | 19 | 24 | 50 | 67 |  |
 | `content-security-policy/reporting` | 25 | 19 | 6 | 0 | 1 | 26 | 31 |  |
 | `cors` | 25 | 8 | 17 | 0 | 0 | 25 | 27 |  |
 | `referrer-policy/css-integration` | 24 | 8 | 16 | 0 | 0 | 24 | 24 |  |
 | `resize-observer` | 24 | 10 | 12 | 2 | 13 | 37 | 38 |  |
 | `workers/semantics` | 24 | 13 | 11 | 0 | 4 | 28 | 30 |  |
 | `content-security-policy/unsafe-hashes` | 23 | 23 | 0 | 0 | 1 | 24 | 24 |  |
-| `svg/shapes` | 23 | 6 | 0 | 17 | 12 | 35 | 36 |  |
 | `web-animations/animation-model` | 23 | 0 | 18 | 5 | 3 | 26 | 31 |  |
 | `web-animations/responsive` | 23 | 0 | 22 | 1 | 6 | 29 | 46 |  |
 | `webmessaging/with-ports` | 23 | 13 | 10 | 0 | 1 | 24 | 24 |  |
 | `webmessaging/without-ports` | 23 | 13 | 10 | 0 | 4 | 27 | 27 |  |
 | `fetch/compression-dictionary` | 22 | 3 | 19 | 0 | 1 | 23 | 31 |  |
 | `svg/coordinate-systems` | 22 | 1 | 7 | 14 | 4 | 26 | 26 |  |
+| `svg/shapes` | 22 | 6 | 0 | 16 | 13 | 35 | 36 |  |
 | `svg/styling` | 22 | 2 | 9 | 11 | 39 | 61 | 82 |  |
 | `css/css-syntax` | 20 | 0 | 20 | 0 | 16 | 36 | 41 |  |
 | `encoding` | 20 | 13 | 7 | 0 | 52 | 72 | 78 |  |
@@ -183,10 +184,10 @@ distinction. A refused area is a decision with a name
 | `content-security-policy/securitypolicyviolation` | 19 | 17 | 2 | 0 | 0 | 19 | 24 |  |
 | `svg/interact` | 19 | 12 | 7 | 0 | 7 | 26 | 34 |  |
 | `xhr/formdata` | 19 | 2 | 17 | 0 | 8 | 27 | 27 |  |
+| `content-security-policy/inheritance` | 18 | 16 | 2 | 0 | 2 | 20 | 26 |  |
 | `storage` | 18 | 1 | 17 | 0 | 0 | 18 | 28 |  |
 | `workers/modules` | 18 | 7 | 11 | 0 | 0 | 18 | 25 |  |
 | `content-security-policy/generic` | 17 | 15 | 2 | 0 | 9 | 26 | 29 |  |
-| `content-security-policy/inheritance` | 17 | 15 | 2 | 0 | 2 | 19 | 26 |  |
 | `streams/readable-streams` | 17 | 1 | 16 | 0 | 0 | 17 | 22 |  |
 | `content-security-policy/sandbox` | 16 | 3 | 13 | 0 | 0 | 16 | 17 |  |
 | `streams/writable-streams` | 16 | 0 | 16 | 0 | 0 | 16 | 16 |  |
@@ -218,6 +219,7 @@ distinction. A refused area is a decision with a name
 | `dom/traversal` | 10 | 0 | 10 | 0 | 7 | 17 | 18 |  |
 | `encoding/legacy-mb-japanese` | 10 | 10 | 0 | 0 | 472 | 482 | 482 |  |
 | `eventsource/dedicated-worker` | 10 | 1 | 9 | 0 | 0 | 10 | 10 |  |
+| `hr-time` | 10 | 4 | 6 | 0 | 4 | 14 | 15 |  |
 | `html/document-isolation-policy` | 10 | 0 | 10 | 0 | 0 | 10 | 38 |  |
 | `svg/layout` | 10 | 0 | 0 | 10 | 2 | 12 | 12 |  |
 | `content-security-policy/frame-src` | 9 | 7 | 2 | 0 | 0 | 9 | 12 |  |
@@ -225,7 +227,6 @@ distinction. A refused area is a decision with a name
 | `content-security-policy/reporting-api` | 9 | 8 | 1 | 0 | 1 | 10 | 11 |  |
 | `custom-elements/parser` | 9 | 3 | 6 | 0 | 2 | 11 | 11 |  |
 | `fetch/range` | 9 | 1 | 8 | 0 | 0 | 9 | 11 |  |
-| `hr-time` | 9 | 3 | 6 | 0 | 4 | 13 | 15 |  |
 | `html/user-activation` | 9 | 8 | 1 | 0 | 1 | 10 | 21 |  |
 | `selection/shadow-dom` | 9 | 0 | 9 | 0 | 8 | 17 | 22 |  |
 | `shadow-dom/declarative` | 9 | 2 | 7 | 0 | 12 | 21 | 56 |  |
@@ -252,12 +253,12 @@ distinction. A refused area is a decision with a name
 | `cookies/attributes` | 6 | 4 | 2 | 0 | 0 | 6 | 9 |  |
 | `cookies/samesite` | 6 | 6 | 0 | 0 | 0 | 6 | 22 |  |
 | `cookies/secure` | 6 | 3 | 3 | 0 | 0 | 6 | 6 |  |
+| `custom-elements/upgrading` | 6 | 0 | 6 | 0 | 0 | 6 | 7 |  |
 | `dom` | 6 | 0 | 5 | 1 | 4 | 10 | 11 |  |
 | `fetch/nosniff` | 6 | 3 | 3 | 0 | 0 | 6 | 6 |  |
 | `content-security-policy/font-src` | 5 | 5 | 0 | 0 | 0 | 5 | 5 |  |
 | `cookies/domain` | 5 | 5 | 0 | 0 | 0 | 5 | 5 |  |
 | `custom-elements/state` | 5 | 1 | 4 | 0 | 0 | 5 | 5 |  |
-| `custom-elements/upgrading` | 5 | 0 | 5 | 0 | 0 | 5 | 7 |  |
 | `dom/abort` | 5 | 2 | 3 | 0 | 5 | 10 | 10 |  |
 | `encoding/legacy-mb-tchinese` | 5 | 0 | 5 | 0 | 278 | 283 | 283 |  |
 | `html/anonymous-iframe` | 5 | 1 | 4 | 0 | 0 | 5 | 33 |  |
@@ -267,7 +268,6 @@ distinction. A refused area is a decision with a name
 | `content-security-policy/default-src` | 4 | 1 | 3 | 0 | 0 | 4 | 4 |  |
 | `content-security-policy/meta` | 4 | 0 | 4 | 0 | 0 | 4 | 5 |  |
 | `content-security-policy/svg` | 4 | 1 | 3 | 0 | 1 | 5 | 6 |  |
-| `custom-elements/registries` | 4 | 0 | 4 | 0 | 1 | 5 | 40 |  |
 | `fetch/security` | 4 | 1 | 3 | 0 | 0 | 4 | 11 |  |
 | `fetch/stale-while-revalidate` | 4 | 2 | 2 | 0 | 0 | 4 | 6 |  |
 | `png` | 4 | 3 | 0 | 1 | 0 | 4 | 4 |  |
@@ -391,29 +391,29 @@ third possibility, and telling them apart needs one run.
 
 | area | files |
 |---|--:|
-| `css/css-grid` | 372 |
-| `html/semantics` | 91 |
+| `css/css-grid` | 371 |
 | `html/editing` | 90 |
-| `css/css-text` | 89 |
-| `html/canvas` | 65 |
+| `css/css-text` | 86 |
+| `html/semantics` | 84 |
+| `html/canvas` | 61 |
+| `css/CSS2` | 45 |
 | `url` | 30 |
-| `css/css-box` | 28 |
-| `css/css-overflow` | 27 |
-| `css/css-values` | 27 |
-| `css/css-ui` | 26 |
+| `css/css-box` | 29 |
 | `css/css-text-decor` | 22 |
+| `css/css-ui` | 22 |
+| `css/css-overflow` | 19 |
 | `html/syntax` | 18 |
 | `fetch/h1-parsing` | 17 |
 | `svg/text` | 17 |
-| `css/css-sizing` | 16 |
 | `css/css-fonts` | 16 |
-| `css/CSS2` | 14 |
-| `css/css-images` | 12 |
 | `selection` | 12 |
+| `html/rendering` | 11 |
+| `css/css-images` | 11 |
 | `svg/painting` | 11 |
-| `html/rendering` | 10 |
+| `css/css-values` | 10 |
 | `html/dom` | 9 |
-| `css/css-backgrounds` | 8 |
+| `css/css-multicol` | 8 |
+| `css/css-transforms` | 8 |
 | `svg/styling` | 8 |
-| `css/css-transforms` | 7 |
+| `css/css-flexbox` | 7 |
 
