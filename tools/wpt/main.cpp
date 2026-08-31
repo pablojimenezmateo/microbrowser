@@ -1156,14 +1156,28 @@ int main(int argc, char** argv) {
     }
     if (retries_left[index] > 0) {
       // Two reasons to run it again, and they are the same reason.
-      const bool disagrees = first_look.outcome == Outcome::Unexpected &&
-                             !options.update_expectations;
+      //
+      // **A disagreement is re-run before it is written down, not only before
+      // it is reported.** This used to carry `&& !options.update_expectations`,
+      // on the reading that a recording run has nothing to disagree with -- but
+      // it does: the expectation already on disk. A recording run that flips one
+      // result bakes that flip in, and the next run is red at a file nobody
+      // touched. It happened here, to
+      // `css/css-transitions/render-blocking/no-transition-from-ua-to-blocking-stylesheet.html`,
+      // which passed 150 times out of 150 in isolation and failed once in the
+      // one run that was writing (task F10). The cost is bounded by the same
+      // `retries_left` as anything else and is proportional to what *moved*
+      // rather than to the size of the area: the reftest re-record that found
+      // this had 58 disagreements out of 20,998 tests.
+      const bool disagrees = first_look.outcome == Outcome::Unexpected;
       // A TIMEOUT is the one status that is as much a property of the machine
       // as of the browser: the page's own harness gives up after ten seconds,
       // and a test that finishes in nine loses that race whenever the box is
       // busy. Recording one without a second look bakes the load average of the
       // afternoon into the expectations, and the next agent's first run is red
-      // for a reason that has nothing to do with their change.
+      // for a reason that has nothing to do with their change. This stays
+      // separate from `disagrees` because a TIMEOUT that *agrees* with a
+      // recorded TIMEOUT is still worth a second look.
       const bool timed_out_while_recording =
           options.update_expectations && report.harness == "TIMEOUT";
       if (disagrees || timed_out_while_recording) {

@@ -28555,10 +28555,6 @@ harness=FAIL
 harness=FAIL
 [html/semantics/grouping-content/the-ol-element/grouping-ol-type-reftest-003.html]
 harness=FAIL
-[html/semantics/grouping-content/the-pre-element/grouping-pre-reftest-001.html]
-harness=FAIL
-[html/semantics/grouping-content/the-pre-element/pre-newline-bidi.html]
-harness=FAIL
 [html/semantics/interactive-elements/contextmenu-historical.html]
 FAIL=HTMLMenuItemElement must not be not present
 FAIL=onshow must not be present on the GlobalEventHandlers locations

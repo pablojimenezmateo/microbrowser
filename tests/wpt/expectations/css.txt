@@ -39433,10 +39433,6 @@ FAIL=We should use the local font to render the page when the primary remote fon
 harness=FAIL
 [css/css-fonts/first-available-font-002.html]
 harness=FAIL
-[css/css-fonts/font-default-01.html]
-harness=FAIL
-[css/css-fonts/font-default-02.html]
-harness=FAIL
 [css/css-fonts/font-default-04.html]
 harness=FAIL
 [css/css-fonts/font-display/font-display-failure-fallback.html]
@@ -39452,6 +39448,8 @@ FAIL=CSS Fonts: parsing 'normal' in the font-style descriptor
 FAIL=CSS Fonts: parsing 'normal' in the font-style descriptor 1
 FAIL=CSS Fonts: parsing 'normal' in the font-style descriptor 2
 FAIL=CSS Fonts: parsing 'normal' in the font-style descriptor 3
+[css/css-fonts/font-face-unicode-range-2.html]
+harness=FAIL
 [css/css-fonts/font-face-unicode-range-nbsp.html]
 harness=FAIL
 [css/css-fonts/font-face-weight-auto-variable.html]
@@ -39517,8 +39515,6 @@ harness=FAIL
 [css/css-fonts/font-features-across-space-3.html]
 harness=FAIL
 [css/css-fonts/font-kerning-01.html]
-harness=FAIL
-[css/css-fonts/font-kerning-02.html]
 harness=FAIL
 [css/css-fonts/font-kerning-03.html]
 harness=FAIL
@@ -39597,6 +39593,8 @@ harness=FAIL
 [css/css-fonts/font-size-adjust-012.html]
 harness=FAIL
 [css/css-fonts/font-size-adjust-013.html]
+harness=FAIL
+[css/css-fonts/font-size-adjust-014.html]
 harness=FAIL
 [css/css-fonts/font-size-adjust-ic-height.html]
 harness=FAIL
@@ -39776,8 +39774,6 @@ harness=FAIL
 harness=FAIL
 [css/css-fonts/font-variant-04.html]
 harness=FAIL
-[css/css-fonts/font-variant-alternates-01.html]
-harness=FAIL
 [css/css-fonts/font-variant-alternates-02.html]
 harness=FAIL
 [css/css-fonts/font-variant-alternates-03.html]
@@ -39818,8 +39814,6 @@ harness=FAIL
 harness=FAIL
 [css/css-fonts/font-variant-alternates-parsing.html]
 FAIL=CSS Test:  font-variant-alternates: historical-forms; parses case-insensitively
-[css/css-fonts/font-variant-caps-01.html]
-harness=FAIL
 [css/css-fonts/font-variant-caps-02.html]
 harness=FAIL
 [css/css-fonts/font-variant-caps-03.html]
@@ -39833,8 +39827,6 @@ harness=FAIL
 [css/css-fonts/font-variant-caps-07.html]
 harness=FAIL
 [css/css-fonts/font-variant-caps.html]
-harness=FAIL
-[css/css-fonts/font-variant-east-asian-01.html]
 harness=FAIL
 [css/css-fonts/font-variant-east-asian-02.html]
 harness=FAIL
@@ -39858,31 +39850,19 @@ harness=FAIL
 harness=FAIL
 [css/css-fonts/font-variant-emoji-1.html]
 harness=FAIL
-[css/css-fonts/font-variant-ligatures-01.html]
-harness=FAIL
 [css/css-fonts/font-variant-ligatures-02.html]
-harness=FAIL
-[css/css-fonts/font-variant-ligatures-03.html]
 harness=FAIL
 [css/css-fonts/font-variant-ligatures-04.html]
 harness=FAIL
 [css/css-fonts/font-variant-ligatures-05.html]
 harness=FAIL
-[css/css-fonts/font-variant-ligatures-06.html]
-harness=FAIL
 [css/css-fonts/font-variant-ligatures-07.html]
-harness=FAIL
-[css/css-fonts/font-variant-ligatures-08.html]
-harness=FAIL
-[css/css-fonts/font-variant-ligatures-09.html]
 harness=FAIL
 [css/css-fonts/font-variant-ligatures-10.html]
 harness=FAIL
 [css/css-fonts/font-variant-ligatures-11.optional.html]
 harness=FAIL
 [css/css-fonts/font-variant-ligatures.html]
-harness=FAIL
-[css/css-fonts/font-variant-numeric-01.html]
 harness=FAIL
 [css/css-fonts/font-variant-numeric-02.html]
 harness=FAIL
@@ -39901,8 +39881,6 @@ harness=FAIL
 [css/css-fonts/font-variant-numeric-09.html]
 harness=FAIL
 [css/css-fonts/font-variant-numeric.html]
-harness=FAIL
-[css/css-fonts/font-variant-position-01.html]
 harness=FAIL
 [css/css-fonts/font-variant-position-02.html]
 harness=FAIL
@@ -40117,8 +40095,6 @@ FAIL=Property font-variant-position inherits
 FAIL=Property font-variation-settings has initial value normal
 FAIL=Property font-variation-settings inherits
 FAIL=Property font-weight inherits
-[css/css-fonts/italic-oblique-fallback.html]
-harness=FAIL
 [css/css-fonts/lang-attribute-affects-rendering-of-second-text-run.html]
 harness=FAIL
 [css/css-fonts/lang-attribute-affects-rendering.html]
@@ -41487,6 +41463,8 @@ harness=FAIL
 harness=FAIL
 [css/css-fonts/rch-in-monospace.html]
 harness=FAIL
+[css/css-fonts/remove-loaded-font-face-rule.html]
+harness=FAIL
 [css/css-fonts/rex-in-monospace.html]
 harness=FAIL
 [css/css-fonts/ric-in-monospace.html]
@@ -41538,6 +41516,8 @@ FAIL=menu
 FAIL=message-box
 FAIL=small-caption
 FAIL=status-bar
+[css/css-fonts/system-ui-ar.html]
+harness=FAIL
 [css/css-fonts/system-ui-ja-vs-zh.html]
 harness=FAIL
 [css/css-fonts/system-ui-ja.html]
@@ -41545,6 +41525,8 @@ harness=FAIL
 [css/css-fonts/system-ui-mixed.html]
 harness=FAIL
 [css/css-fonts/system-ui-ur-vs-ar.html]
+harness=FAIL
+[css/css-fonts/system-ui-ur.html]
 harness=FAIL
 [css/css-fonts/system-ui-zh.html]
 harness=FAIL
@@ -41877,6 +41859,8 @@ FAIL=font-weight(valid): Valid calc expression: calc(100.5*3 + 50.5)
 FAIL=font-weight(valid): Values that are not multiple of 100 should be parsed successfully: 401
 [css/css-fonts/variations/at-font-face-font-matching.html]
 harness=TIMEOUT
+[css/css-fonts/variations/font-opentype-collections.html]
+harness=TIMEOUT
 [css/css-fonts/variations/font-parse-numeric-stretch-style-weight.html]
 FAIL=Valid value 0% for font property stretch used for styling.
 FAIL=Valid value 0% matches 0% for stretch in @font-face.
@@ -42070,17 +42054,12 @@ FAIL=Test native font matching on CSSTest Weights Full for weight 675
 FAIL=Test native font matching on CSSTest Weights W1479 for weight 475
 FAIL=Test native font matching on CSSTest Weights W2569 for weight 375
 [css/css-fonts/variations/font-weight-matching.html]
-FAIL=Test @font-face matching for weight 1000
-FAIL=Test @font-face matching for weight 250
+FAIL=Test @font-face matching for weight 249
 FAIL=Test @font-face matching for weight 399
-FAIL=Test @font-face matching for weight 400
 FAIL=Test @font-face matching for weight 420
 FAIL=Test @font-face matching for weight 470
-FAIL=Test @font-face matching for weight 500
 FAIL=Test @font-face matching for weight 600
-FAIL=Test @font-face matching for weight 750
 FAIL=Test @font-face matching for weight 751
-FAIL=Test @font-face matching for weight 900
 [css/css-fonts/variations/font-weight-parsing.html]
 FAIL=@supports: Negative simple calc value (to be clamped)
 FAIL=@supports: Non-integer Values should be parsed successfully
@@ -42101,6 +42080,8 @@ harness=FAIL
 [css/css-fonts/variations/variable-gsub.html]
 harness=FAIL
 [css/css-fonts/variations/variable-opsz-size-adjust.html]
+harness=FAIL
+[css/css-fonts/web-font-no-longer-accessible-when-stylesheet-removed.html]
 harness=FAIL
 [css/css-grid/abspos/absolute-positioning-definite-sizes-001.html]
 harness=TIMEOUT
@@ -75117,8 +75098,6 @@ FAIL=e.style['text-underline-offset'] = "auto" should set the property value
 FAIL=e.style['text-underline-offset'] = "calc(-13em + 50px)" should set the property value
 FAIL=e.style['text-underline-offset'] = "calc(40em - 10px)" should set the property value
 FAIL=e.style['text-underline-offset'] = "calc(45% - 0.3em)" should set the property value
-[css/css-text-decor/text-underline-position-vertical-ja.html]
-harness=FAIL
 [css/css-text/animations/hyphen-limit-chars-interpolation.html]
 FAIL=CSS Animations: property <hyphenate-limit-chars> from [5 1 2] to [17 5 10] at (-0.25) should be [2 0]
 FAIL=CSS Animations: property <hyphenate-limit-chars> from [5 1 2] to [17 5 10] at (-0.5) should be [-1 -1 -2]
@@ -76147,10 +76126,6 @@ FAIL=white-space:break-spaces
 FAIL=white-space:normal
 FAIL=white-space:pre-line
 FAIL=white-space:pre-wrap
-[css/css-text/i18n/css3-text-line-break-opclns-004.html]
-harness=FAIL
-[css/css-text/i18n/css3-text-line-break-opclns-111.html]
-harness=FAIL
 [css/css-text/i18n/ja/css-text-line-break-ja-cj-loose.html]
 harness=TIMEOUT
 [css/css-text/i18n/ja/css-text-line-break-ja-cj-normal.html]
@@ -76498,8 +76473,6 @@ harness=FAIL
 [css/css-text/line-break/line-break-anywhere-overrides-uax-behavior-016.html]
 harness=FAIL
 [css/css-text/line-break/line-break-loose-015.xht]
-harness=FAIL
-[css/css-text/line-break/line-break-loose-017a.xht]
 harness=FAIL
 [css/css-text/line-break/line-break-loose-hyphens-001.html]
 harness=FAIL
@@ -77945,12 +77918,6 @@ FAIL=Web Animations: property <text-justify> from [inter-word] to [distribute] a
 FAIL=Web Animations: property <text-justify> from [inter-word] to [distribute] at (1.5) should be [distribute]
 [css/css-text/text-justify/text-justify-word-separators.html]
 harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-001.html?class=chws,htb]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-001.html?class=chws,vrl]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-colon-001.html?class=chws,htb]
-harness=FAIL
 [css/css-text/text-spacing-trim/text-spacing-trim-colon-001.html?class=chws,vrl]
 harness=FAIL
 [css/css-text/text-spacing-trim/text-spacing-trim-colon-001.html?class=halt,vrl]
@@ -77989,57 +77956,7 @@ harness=FAIL
 harness=FAIL
 [css/css-text/text-spacing-trim/text-spacing-trim-end-001.html?class=halt,vrl]
 harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-fallback-001.html]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-fallback-002.html?class=chws,htb]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-fallback-002.html?class=chws,vrl]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-narrow-001.html?class=chws,htb]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-quote-001.html?class=chws,htb&lang=zh-hans]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-quote-001.html?class=chws,htb&lang=zh-hant]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-quote-001.html?class=chws,vrl&lang=zh-hans]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-quote-001.html?class=chws,vrl&lang=zh-hant]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-space-all-001.html?class=chws]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-space-all-001.html?class=halt]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-span-001.html?class=chws,htb]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-span-001.html?class=chws,vrl]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-span-001.html?class=space-first,chws,htb]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-span-001.html?class=space-first,chws,vrl]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-span-001.html?class=trim-start,chws,htb]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-span-001.html?class=trim-start,chws,vrl]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-start-001.html?class=chws,htb]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-start-001.html?class=chws,vrl]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-start-001.html?class=space-first,chws,htb]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-start-001.html?class=space-first,chws,vrl]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-start-001.html?class=trim-start,chws,htb]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-start-001.html?class=trim-start,chws,vrl]
-harness=FAIL
 [css/css-text/text-spacing-trim/text-spacing-trim-start-002.html]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-start-oof-001.html?class=chws,htb]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-trim-all-001.html?class=chws,htb]
-harness=FAIL
-[css/css-text/text-spacing-trim/text-spacing-trim-trim-all-001.html?class=chws,vrl]
 harness=FAIL
 [css/css-text/text-stroke-width-subpixel.html]
 harness=FAIL
@@ -79036,6 +78953,8 @@ harness=FAIL
 [css/css-text/word-break/break-boundary-2-chars-001.html]
 harness=FAIL
 [css/css-text/word-break/word-break-break-all-004.html]
+harness=FAIL
+[css/css-text/word-break/word-break-break-all-006.html]
 harness=FAIL
 [css/css-text/word-break/word-break-break-all-008.html]
 harness=FAIL
@@ -88158,8 +88077,6 @@ harness=FAIL
 [css/css-ui/text-overflow-003.html]
 harness=FAIL
 [css/css-ui/text-overflow-004.html]
-harness=FAIL
-[css/css-ui/text-overflow-005.html]
 harness=FAIL
 [css/css-ui/text-overflow-006.html]
 harness=FAIL
@@ -104069,10 +103986,6 @@ harness=FAIL
 [css/selectors/selection-image-002.html]
 harness=FAIL
 [css/selectors/selector-placeholder-shown-type-change-001.html]
-harness=FAIL
-[css/selectors/selector-placeholder-shown-type-change-002.html]
-harness=FAIL
-[css/selectors/selector-placeholder-shown-type-change-003.html]
 harness=FAIL
 [css/selectors/selector-read-write-type-change-002.html]
 harness=FAIL
