@@ -6,9 +6,9 @@ FAIL=target.style.transform = 'translateY(195px)'
 FAIL=target.style.transform = 'translateY(300px)'
 FAIL=target.style.zoom = 2
 [intersection-observer/callback-cross-realm-report-exception.html]
-harness=TIMEOUT
+FAIL=IntersectionObserver reports the exception from its callback in the callback's global object
 [intersection-observer/client-rect.html]
-harness=TIMEOUT
+FAIL=First rAF should generate notification.
 [intersection-observer/clip-path-animation.html]
 FAIL=clip-path-animation
 [intersection-observer/clip-path.html]
@@ -19,39 +19,29 @@ FAIL=In containing block and not intersecting.
 FAIL=Not in containing block and intersecting.
 FAIL=Not in containing block and not intersecting.
 [intersection-observer/cross-document-root.html]
-harness=TIMEOUT
+FAIL=First rAF.
 [intersection-observer/cross-origin-iframe.sub.html]
-harness=TIMEOUT
+FAIL=Intersection observer test with no explicit root and target in a cross-origin iframe.
 [intersection-observer/cross-origin-tall-iframe-rendering.sub.html]
 harness=FAIL
 [intersection-observer/cross-origin-tall-iframe.sub.html]
 harness=TIMEOUT
-[intersection-observer/disconnect.html]
-FAIL=First rAF.
 [intersection-observer/display-none.html]
 FAIL=display-none
 [intersection-observer/document-scrolling-element-root.html]
-harness=TIMEOUT
+FAIL=First rAF.
 [intersection-observer/edge-inclusive-intersection.html]
 FAIL=First rAF.
 FAIL=Set transform=translateY(185px) on target.
 FAIL=Set transform=translateY(200px) on target.
 FAIL=Set transform=translateY(201px) on target.
-[intersection-observer/empty-root-margin.html]
-FAIL=An empty rootMargin string is interpreted as a margin of size zero
-[intersection-observer/fixed-position-child-scroll.html]
-FAIL=First rAF.
-FAIL=scrollTo(0, 1000)
 [intersection-observer/fixed-position-iframe-scroll.html]
-harness=TIMEOUT
-[intersection-observer/fixed-position-scroll.html]
 FAIL=First rAF.
 FAIL=scrollTo(0, 1000)
 [intersection-observer/grow-height-and-scrolled.html]
 FAIL=IntersectionObserver should only report intersection change after the target grows height and is scrolled.
 [intersection-observer/idlharness.window.html]
 FAIL=IntersectionObserver interface object length
-FAIL=IntersectionObserver interface object name
 FAIL=IntersectionObserver interface: attribute delay
 FAIL=IntersectionObserver interface: attribute root
 FAIL=IntersectionObserver interface: attribute rootMargin
@@ -95,11 +85,16 @@ FAIL=IntersectionObserverEntry interface: existence and properties of interface 
 FAIL=IntersectionObserverEntry interface: existence and properties of interface prototype object's @@unscopables property
 FAIL=Stringification of observer
 [intersection-observer/iframe-no-root-with-wrapping-scroller.html]
-harness=TIMEOUT
+FAIL=First rAF.
+FAIL=document.scrollingElement.scrollTop = 100
+FAIL=iframe.contentDocument.scrollingElement.scrollTop = 250
 [intersection-observer/iframe-no-root.html]
-harness=TIMEOUT
+FAIL=First rAF.
+FAIL=document.scrollingElement.scrollTop = 100
+FAIL=iframe.contentDocument.scrollingElement.scrollTop = 250
 [intersection-observer/iframe-root-with-overflow-propagation.html]
-harness=TIMEOUT
+FAIL=First rAF.
+FAIL=Scroll the iframe container to show the target element.
 [intersection-observer/initial-observation-with-threshold.html]
 FAIL=First rAF
 [intersection-observer/inline-client-rect.html]
@@ -111,10 +106,6 @@ harness=TIMEOUT
 FAIL=Rects in initial notifications should report initial positions.
 [intersection-observer/isIntersecting-threshold.html]
 FAIL=Scrolled to half way through target element
-[intersection-observer/multiple-targets.html]
-FAIL=First rAF.
-[intersection-observer/multiple-thresholds.html]
-FAIL=First rAF.
 [intersection-observer/nested-cross-origin-iframe.sub.html]
 harness=TIMEOUT
 [intersection-observer/observer-attributes.html]
@@ -132,8 +123,6 @@ FAIL=IntersectionObserver constructor with { rootMargin: "auto" }
 FAIL=IntersectionObserver constructor with { rootMargin: "calc(1px + 2px)" }
 FAIL=IntersectionObserver constructor with { threshold: ["foo"] }
 FAIL=IntersectionObserver constructor with { threshold: [1.1] }
-[intersection-observer/observer-without-js-reference.html]
-FAIL=First rAF
 [intersection-observer/padding-clip.html]
 FAIL=Scrollport is used rather than content rect to compute intersection ratio
 [intersection-observer/remove-element.html]
@@ -142,26 +131,24 @@ FAIL=root.removeChild(target).
 FAIL=First rAF.
 FAIL=Moving the target to the right bottom corner of the table.
 [intersection-observer/root-margin-in-same-origin-iframe.html]
-harness=TIMEOUT
-[intersection-observer/root-margin-root-element.html]
-FAIL=First rAF
+FAIL=Intersection Observer: root margin is applied when observer is in a same-origin iframe
 [intersection-observer/root-margin-rounding.html]
 FAIL=IntersectionObserver root margin cannot end up with negative rect (and thus non-intersecting) due to rounding
 [intersection-observer/root-margin.html]
 FAIL=First rAF.
+FAIL=document.scrollingElement.scrollLeft = 100
+FAIL=document.scrollingElement.scrollTop = document.documentElement.clientHeight + 200
+FAIL=document.scrollingElement.scrollTop = document.documentElement.clientHeight + 300
 [intersection-observer/root-vertical-rl.html]
 FAIL=First rAF.
 FAIL=Set transform=translateX(50px) on target.
 [intersection-observer/rtl-clipped-root.html]
 FAIL=First rAF
-[intersection-observer/same-document-no-root.html]
-FAIL=First rAF.
-[intersection-observer/same-document-root.html]
-FAIL=First rAF
 [intersection-observer/same-document-with-document-root.html]
 FAIL=First rAF.
+FAIL=document.scrollingElement.scrollTop = 300
 [intersection-observer/same-document-zero-size-target.html]
-FAIL=First rAF
+FAIL=document.scrollingElement.scrollTop = 300
 [intersection-observer/same-origin-grand-child-iframe.sub.html]
 harness=TIMEOUT
 [intersection-observer/scroll-and-root-margin.html]
@@ -175,7 +162,7 @@ FAIL=Test no initial scroll margin intersection
 [intersection-observer/scroll-margin-horizontal.html]
 FAIL=Test scroll margin intersection
 [intersection-observer/scroll-margin-iframe.html]
-harness=TIMEOUT
+FAIL=Test scroll margin intersection
 [intersection-observer/scroll-margin-nested-2.html]
 FAIL=Test scroll margin intersection
 [intersection-observer/scroll-margin-nested-3.html]
@@ -198,6 +185,8 @@ FAIL=Test scroll margin intersection
 FAIL=First rAF after creating shadow DOM.
 [intersection-observer/svg-clipped-rect-target.html]
 FAIL=First rAF.
+FAIL=document.scrollingElement.scrollTop = 100
+FAIL=document.scrollingElement.scrollTop = 300
 [intersection-observer/svg-container-element.html]
 FAIL=Change inner svg element
 FAIL=First rAF.
@@ -216,8 +205,12 @@ FAIL=Changing target y position to 0
 FAIL=Initial Observation
 [intersection-observer/svg-intersection-with-fractional-bounds.html]
 FAIL=Initial Observation
+FAIL=Intersection observation after scrolling 100
+FAIL=Intersection observation after scrolling 300
 [intersection-observer/svg-rect-target.html]
 FAIL=First rAF.
+FAIL=document.scrollingElement.scrollTop = 100
+FAIL=document.scrollingElement.scrollTop = 300
 [intersection-observer/svg-stroke-change.html]
 FAIL=First rAF.
 FAIL=change stroke
@@ -237,26 +230,35 @@ FAIL=First rAF.
 harness=ERROR
 [intersection-observer/target-is-root.html]
 FAIL=IntersectionObserver when root == target doesn't compute an intersection
-[intersection-observer/text-target.html]
-FAIL=First rAF.
 [intersection-observer/timestamp.html]
-harness=TIMEOUT
+FAIL=First rAF after iframe is loaded.
+FAIL=Generate notifications.
 [intersection-observer/transformed-iframe-001-cross-origin.html]
-harness=TIMEOUT
+FAIL=Scroll such that target is just out of view, target is not visible
+FAIL=Scroll to end of page, target is not visible
+FAIL=Target is initially visible
 [intersection-observer/transformed-iframe-001-same-origin.html]
-harness=TIMEOUT
+FAIL=Scroll such that target is just out of view, target is not visible
+FAIL=Scroll to end of page, target is not visible
+FAIL=Target is initially visible
 [intersection-observer/transformed-iframe-002-cross-origin.html]
-harness=TIMEOUT
+FAIL=Scroll such that target is just out of view, target is not visible
+FAIL=Target is initially visible
 [intersection-observer/transformed-iframe-002-same-origin.html]
-harness=TIMEOUT
+FAIL=Scroll such that target is just out of view, target is not visible
+FAIL=Target is initially visible
 [intersection-observer/transformed-iframe-003-cross-origin.html]
-harness=TIMEOUT
+FAIL=Scroll down a bit, target is still not visible
+FAIL=Target is not visible as it's rotated perpendicularly to viewport
 [intersection-observer/transformed-iframe-003-same-origin.html]
-harness=TIMEOUT
+FAIL=Scroll down a bit, target is still not visible
+FAIL=Target is not visible as it's rotated perpendicularly to viewport
 [intersection-observer/transformed-iframe-004-cross-origin.html]
-harness=TIMEOUT
+FAIL=Scroll down a bit, target is still not visible
+FAIL=Target is not visible as it's rotated perpendicularly to viewport
 [intersection-observer/transformed-iframe-004-same-origin.html]
-harness=TIMEOUT
+FAIL=Scroll down a bit, target is still not visible
+FAIL=Target is not visible as it's rotated perpendicularly to viewport
 [intersection-observer/unclipped-root.html]
 FAIL=First rAF.
 FAIL=target.style.transform = 'translateY(195px)'
@@ -270,8 +272,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [intersection-observer/v2/3d-transform-z-order-occlusion.html]
 harness=TIMEOUT
-[intersection-observer/v2/animated-occlusion.html]
-FAIL=First rAF.
 [intersection-observer/v2/animated-opacity.html]
 harness=TIMEOUT
 [intersection-observer/v2/blur-filter.html]
@@ -347,9 +347,7 @@ FAIL=First rAF.
 FAIL=occluder.style.textShadow = ""
 FAIL=occluder.style.textShadow = "none"
 [intersection-observer/v2/z-index-changes.html]
-harness=TIMEOUT
-[intersection-observer/visibility-hidden.html]
-FAIL=First rAF.
+FAIL=IntersectionObserver observes visibility changes from z-index
 [intersection-observer/zero-area-element-hidden.html]
 FAIL=First rAF.
 [intersection-observer/zoom-scaled-target.html]

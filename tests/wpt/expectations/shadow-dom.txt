@@ -372,16 +372,12 @@ FAIL=Focus for web component input type elements should be bound by <form> insid
 [shadow-dom/focus-navigation/focus-navigation-with-delegatesFocus.html]
 FAIL=Testing tab navigation order with mode closed, no tabindex and delegatesFocus=false.
 FAIL=Testing tab navigation order with mode closed, no tabindex and delegatesFocus=true.
-FAIL=Testing tab navigation order with mode closed, tabindex=-1 and delegatesFocus=false.
-FAIL=Testing tab navigation order with mode closed, tabindex=-1 and delegatesFocus=true.
 FAIL=Testing tab navigation order with mode closed, tabindex=0 and delegatesFocus=false.
 FAIL=Testing tab navigation order with mode closed, tabindex=0 and delegatesFocus=true.
 FAIL=Testing tab navigation order with mode closed, tabindex=1 and delegatesFocus=false.
 FAIL=Testing tab navigation order with mode closed, tabindex=1 and delegatesFocus=true.
 FAIL=Testing tab navigation order with mode open, no tabindex and delegatesFocus=false.
 FAIL=Testing tab navigation order with mode open, no tabindex and delegatesFocus=true.
-FAIL=Testing tab navigation order with mode open, tabindex=-1 and delegatesFocus=false.
-FAIL=Testing tab navigation order with mode open, tabindex=-1 and delegatesFocus=true.
 FAIL=Testing tab navigation order with mode open, tabindex=0 and delegatesFocus=false.
 FAIL=Testing tab navigation order with mode open, tabindex=0 and delegatesFocus=true.
 FAIL=Testing tab navigation order with mode open, tabindex=1 and delegatesFocus=false.
@@ -392,8 +388,6 @@ FAIL=Focus controller should treat slots as a focus scope.
 FAIL=Verifies that focus order goes in flat tree order with buttons inside nested slots which have a mixture of assigned and unassigned states.
 [shadow-dom/focus-navigation/focus-reverse-unassigned-slot.html]
 FAIL=Verifies that focusing backwards from a button inside a slot which has no assigned nodes goes to the previous focusable element.
-[shadow-dom/focus-navigation/focus-unassignable-slot.html]
-FAIL=Verifies that focusing forwards from an input inside a slot which has no shadow root goes to the next focusable element in light DOM.
 [shadow-dom/focus-navigation/focus-with-negative-index.html]
 FAIL=Focus controller should treat slots as a focus scope.
 FAIL=This is a regression test: After focusing negative tabindex-ed elements, focus moves in tree order.
@@ -420,8 +414,6 @@ FAIL=Grid items in shadow host that is a display contents grid item
 [shadow-dom/focus-navigation/reading-flow/tentative/grid-order-on-shadow-host.html]
 FAIL=Grid items in shadow host with delegatesFocus
 FAIL=Grid items in shadow host without delegatesFocus
-[shadow-dom/focus-navigation/reading-flow/tentative/grid-order-pseudo-elements.html]
-FAIL=Grid pseudo items are not focusable
 [shadow-dom/focus-navigation/reading-flow/tentative/grid-order-with-display-contents.html]
 FAIL=Grid items are in nested display contents containers.
 FAIL=Items in display contents are sorted in same grid container and are placed in the position where their first child resides.
@@ -538,7 +530,7 @@ harness=FAIL
 [shadow-dom/focus/focus-pseudo-on-shadow-host-2.html]
 harness=FAIL
 [shadow-dom/focus/focus-scroll-under-delegatesFocus.html]
-FAIL=delegatesFocus shouldn't cause extra focus steps
+harness=TIMEOUT
 [shadow-dom/focus/focus-selector-delegatesFocus.html]
 FAIL=:focus applies to host with delegatesFocus=false when an element in a nested shadow tree with delegatesFocus=false is focused
 FAIL=:focus applies to host with delegatesFocus=false when an element in a nested shadow tree with delegatesFocus=true is focused
@@ -555,8 +547,6 @@ FAIL=slot with tabindex=0 that generates a box should be focusable
 FAIL=:focus should be applied to the host and :focus-visible should be applied to the child node when the focus is moved by <tab>
 [shadow-dom/focus/focus-tabindex-order-shadow-negative-delegatesFocus.html]
 FAIL=Order when all tabindex=-1 is and delegatesFocus = true
-[shadow-dom/focus/focus-tabindex-order-shadow-negative.html]
-FAIL=Order when all elements in shadow tree has negative tabindex
 [shadow-dom/focus/focus-tabindex-order-shadow-slot-one.html]
 FAIL=Order when all tabindex=0, except for one slot that has tabindex=1
 [shadow-dom/focus/focus-tabindex-order-shadow-varying-delegatesFocus.html]
@@ -590,8 +580,6 @@ FAIL=shadow root has selectable text when focus is delegated
 FAIL=shadow root has selectable text when focus is not delegated
 [shadow-dom/form-control-form-attribute.html]
 FAIL=Shadow form control's form attribute should work also in shadow DOM.
-[shadow-dom/host-with-namespace.xhtml]
-harness=TIMEOUT
 [shadow-dom/imperative-slot-api-cross-shadow-root.html]
 FAIL=HTMLSlotElement.assign cross shadow root layout should not crash
 FAIL=HTMLSlotElement.assign drops DidSlotChange for previous_slot in different shadow root
@@ -631,7 +619,8 @@ FAIL=Text node fallback should be cleared in a subsequently layout
 [shadow-dom/imperative-slot-layout-invalidation-001.html]
 harness=FAIL
 [shadow-dom/innerHTML-setter.xhtml]
-harness=TIMEOUT
+FAIL=InnerHTML behavior on custom element in default 'foo' namespace
+FAIL=InnerHTML behavior with prefixes on custom element
 [shadow-dom/input-element-list.html]
 FAIL=Input element's list attribute should point to the datalist element in Shadow DOM.
 FAIL=Input element's list attribute should point to the datalist element.
@@ -658,28 +647,15 @@ harness=FAIL
 [shadow-dom/offsetParent-across-shadow-boundaries.html]
 FAIL=offsetParent must find the first offset parent which is a shadow-including ancestor of the context object even some shadow tree of closed mode did not have any offset parent
 FAIL=offsetParent must find the first offset parent which is a shadow-including ancestor of the context object even some shadow tree of open mode did not have any offset parent
-FAIL=offsetParent must return null on a child element of a shadow host for the shadow tree in closed mode which is not assigned to any slot
-FAIL=offsetParent must return null on a child element of a shadow host for the shadow tree in closed mode which is not in the flat tree
-FAIL=offsetParent must return null on a child element of a shadow host for the shadow tree in open mode which is not assigned to any slot
-FAIL=offsetParent must return null on a child element of a shadow host for the shadow tree in open mode which is not in the flat tree
 FAIL=offsetParent must return null when the context object is assigned to a slot without a fixed containing block in shadow tree of closed mode
 FAIL=offsetParent must return null when the context object is assigned to a slot without a fixed containing block in shadow tree of open mode
 FAIL=offsetParent must return the fixed position containing block of a fixed element when the context object is assigned to a slot within a fixed containing block in shadow tree of closed mode
 FAIL=offsetParent must return the fixed position containing block of a fixed element when the context object is assigned to a slot within a fixed containing block in shadow tree of open mode
-FAIL=offsetParent must return the fixed position containing block of an element when the context object is assigned to a slot within a fixed containing block in shadow tree of closed mode
-FAIL=offsetParent must return the fixed position containing block of an element when the context object is assigned to a slot within a fixed containing block in shadow tree of open mode
 FAIL=offsetParent must return the offset parent in the same shadow tree of closed mode
 FAIL=offsetParent must return the offset parent in the same shadow tree of closed mode even when nested
 FAIL=offsetParent must return the offset parent in the same shadow tree of open mode
 FAIL=offsetParent must return the offset parent in the same shadow tree of open mode even when nested
-FAIL=offsetParent must skip multiple offset parents of an element when the context object is assigned to a slot in a shadow tree of closed mode
-FAIL=offsetParent must skip multiple offset parents of an element when the context object is assigned to a slot in a shadow tree of open mode
-FAIL=offsetParent must skip offset parents of an element when the context object is assigned to a slot in a shadow tree of closed mode
-FAIL=offsetParent must skip offset parents of an element when the context object is assigned to a slot in a shadow tree of open mode
-FAIL=offsetParent must skip offset parents of an element when the context object is assigned to a slot in nested shadow trees of closed mode
-FAIL=offsetParent must skip offset parents of an element when the context object is assigned to a slot in nested shadow trees of open mode
 [shadow-dom/offsetTop-offsetLeft-across-shadow-boundaries.html]
-FAIL=Verifies that HTMLElement.offsetLeft accounts for shadow boundaries.
 FAIL=Verifies that HTMLElement.offsetTop accounts for shadow boundaries when nested in multiple shadow roots.
 FAIL=Verifies that HTMLElement.offsetTop accounts for shadow boundaries.
 [shadow-dom/reference-target/tentative/aria-labelledby.html]
@@ -970,17 +946,12 @@ FAIL=Slots: Slot is assigned to another slot
 FAIL=Slots: Slots in closed.
 [shadow-dom/touch-event-retargeting-leak.html]
 FAIL=TouchEvent retargeting does not leak closed shadow root nodes to window during capture phase
-[shadow-dom/untriaged/elements-and-dom-objects/extensions-to-element-interface/methods/test-002.html]
-FAIL=A_10_02_02_02_T01
 [shadow-dom/untriaged/elements-and-dom-objects/shadowroot-object/shadowroot-attributes/activeElement-confirm-return-null.html]
 FAIL=confirm activeElement return null
 FAIL=confirm activeElement return null when focus on the element in the outer shadow tree
 FAIL=confirm activeElement return null when there is other element in body
 [shadow-dom/untriaged/elements-and-dom-objects/shadowroot-object/shadowroot-attributes/test-007.html]
 FAIL=A_10_01_01_03_01_T01
-[shadow-dom/untriaged/elements-and-dom-objects/shadowroot-object/shadowroot-attributes/test-011.html]
-FAIL=A_10_01_01_05_01_T01
-FAIL=A_10_01_01_05_01_T02
 [shadow-dom/untriaged/elements-and-dom-objects/shadowroot-object/shadowroot-methods/test-004.html]
 FAIL=A_10_01_02_04_T01
 [shadow-dom/untriaged/elements-and-dom-objects/shadowroot-object/shadowroot-methods/test-006.html]
@@ -1006,8 +977,6 @@ FAIL=A_05_02_01_T1
 FAIL=A_05_02_02_T01
 [shadow-dom/untriaged/html-elements-in-shadow-trees/html-forms/test-003.html]
 harness=TIMEOUT
-[shadow-dom/untriaged/html-elements-in-shadow-trees/inert-html-elements/test-002.html]
-FAIL=A_08_01_02_T01
 [shadow-dom/untriaged/shadow-trees/nested-shadow-trees/nested_tree_reftest.html]
 harness=FAIL
 [shadow-dom/untriaged/shadow-trees/shadow-root-001.html]
@@ -1029,30 +998,14 @@ FAIL=A_04_01_05_T01
 [shadow-dom/untriaged/shadow-trees/upper-boundary-encapsulation/test-007.html]
 FAIL=A_04_01_07_T01
 FAIL=A_04_01_07_T02
-[shadow-dom/untriaged/shadow-trees/upper-boundary-encapsulation/test-011.html]
-FAIL=A_04_01_11_T2
 [shadow-dom/untriaged/styles/not-apply-in-shadow-root-001.html]
 harness=FAIL
-[shadow-dom/untriaged/styles/test-001.html]
-FAIL=A_06_00_01_T01
-FAIL=A_06_00_01_T02
-[shadow-dom/untriaged/styles/test-003.html]
-FAIL=A_06_00_03_T01
-FAIL=A_06_00_03_T02
-FAIL=A_06_00_03_T03
-[shadow-dom/untriaged/styles/test-005.html]
-FAIL=A_06_00_06_T01
-[shadow-dom/untriaged/styles/test-008.html]
-FAIL=A_06_00_09_T01
 [shadow-dom/untriaged/user-interaction/active-element/test-001.html]
 FAIL=A_07_03_01_T01
 [shadow-dom/untriaged/user-interaction/active-element/test-002.html]
 FAIL=A_07_03_02_T01
 [shadow-dom/untriaged/user-interaction/editing/inheritance-of-content-editable-001.html]
 FAIL=contentEditable of shadow trees must be undefined when contentEditable attribute of shadow host is "inherit"
-[shadow-dom/untriaged/user-interaction/ranges-and-selections/test-001.html]
-FAIL=A_07_07_01_T01
-FAIL=A_07_07_01_T02
 [shadow-dom/untriaged/user-interaction/ranges-and-selections/test-002.html]
 FAIL=A_07_01_02_T01
 FAIL=A_07_07_02_T02

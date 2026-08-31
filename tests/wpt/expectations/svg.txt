@@ -246,7 +246,7 @@ FAIL=Dependent timed element end on syncbase
 [svg/animations/end-attribute-change-end-time.html]
 FAIL=Mutation of the 'end' attribute changes current interval end
 [svg/animations/end-event.svg]
-harness=TIMEOUT
+FAIL=Animation triggers on 'endEvent'
 [svg/animations/event-listeners.html]
 harness=TIMEOUT
 [svg/animations/eventbase-non-svg-element.html]
@@ -284,9 +284,9 @@ FAIL=This is a from by animation for all non-additive property types - should ha
 [svg/animations/onbegin.svg]
 harness=TIMEOUT
 [svg/animations/onend.svg]
-harness=TIMEOUT
+FAIL='onend' event handler content attribute
 [svg/animations/onrepeat.svg]
-harness=TIMEOUT
+FAIL='onrepeat' event handler content attribute
 [svg/animations/pruning-first-interval.html]
 FAIL=Timed element not active after first interval active duration changes to unresolved
 [svg/animations/reinserting-svg-into-document.html]
@@ -294,17 +294,17 @@ FAIL=Reinserting SVG animation into document should continue the animation
 [svg/animations/remove-animation-element-while-animation-is-running.html]
 FAIL=This removes an animation element while the animation is running
 [svg/animations/repeat-event.svg]
-harness=TIMEOUT
+FAIL=Animation triggers on 'repeatEvent'
 [svg/animations/repeat-iteration-event-001.svg]
-harness=TIMEOUT
+FAIL=Animation does not triggers on 'repeat(0)'
 [svg/animations/repeat-iteration-event-002.svg]
-harness=TIMEOUT
+FAIL=Animation triggers on 'repeat(1)'
 [svg/animations/repeat-iteration-event-003.svg]
-harness=TIMEOUT
+FAIL=Animation triggers on 'repeat(2)'
 [svg/animations/repeat-iteration-event-004.svg]
-harness=TIMEOUT
+FAIL=Animation triggers on 'repeat(3)'
 [svg/animations/repeat-iteration-event-005.svg]
-harness=TIMEOUT
+FAIL=No repeat iteration at interval end
 [svg/animations/repeat-iteration-event-006.svg]
 harness=TIMEOUT
 [svg/animations/repeatcount-attribute-mutation.html]
@@ -3541,6 +3541,8 @@ harness=FAIL
 harness=FAIL
 [svg/painting/reftests/text-shadow-02.html]
 harness=FAIL
+[svg/painting/reftests/text-shadow-03.html]
+harness=FAIL
 [svg/painting/reftests/zero-scale-svg-transform-inside-g-tag.html]
 harness=FAIL
 [svg/painting/scripted/SVGMarkerElement-orientType-synchronization.html]
@@ -3554,6 +3556,8 @@ harness=TIMEOUT
 [svg/painting/subpixel-clip-path-transform.html]
 harness=FAIL
 [svg/painting/svg-child-will-change-transform-invalidation.html]
+harness=FAIL
+[svg/painting/svg-percent-stroke-width-viewbox-update.html]
 harness=FAIL
 [svg/painting/text-clip-path-transform.html]
 harness=FAIL
@@ -3895,8 +3899,6 @@ FAIL=default fetchpriority attribute on SVG <script> elements should be 'auto'
 FAIL=fetchpriority attribute on SVG <script> elements should reflect valid IDL values
 [svg/scripted/script-invalid-script-type.html]
 FAIL=svg:script runs after valid script type is set
-[svg/scripted/script-runs-in-shadow-tree.html]
-FAIL=svg:script runs correctly in a shadow tree
 [svg/scripted/text-attrs-dxdy-have-length.svg]
 harness=TIMEOUT
 [svg/scripted/text-attrs-xyrotate-have-length.svg]
@@ -4040,7 +4042,7 @@ harness=TIMEOUT
 [svg/struct/scripted/svg-getIntersectionList-006.svg]
 harness=TIMEOUT
 [svg/struct/scripted/use-external-reload-in-iframe.html]
-FAIL=<use> with external resource in reloaded iframe
+harness=TIMEOUT
 [svg/struct/scripted/use-load-error-events.tentative.html]
 harness=TIMEOUT
 [svg/struct/systemLanguage-matching.html]
@@ -4138,8 +4140,6 @@ harness=FAIL
 harness=FAIL
 [svg/styling/css-var-on-length-attributes-quirk.html]
 harness=FAIL
-[svg/styling/glyph-orientation-horizontal.historical.html]
-FAIL=glyph-orientation-horizontal is not parsed in a style declaration
 [svg/styling/presentation-attributes-irrelevant.html]
 FAIL=font-family presentation attribute supported on an irrelevant element
 [svg/styling/presentation-attributes-relevant.html]
@@ -4169,17 +4169,6 @@ harness=FAIL
 [svg/styling/symbol-g-graphics-element.html]
 FAIL=<g> element has transform presentation style from being an SVGGraphicsElement
 FAIL=<symbol> element has transform presentation style from being an SVGGraphicsElement
-[svg/styling/vector-effect-invalid.html]
-FAIL=e.style['vector-effect'] = "non-scaling-stroke screen" should not set the property value
-FAIL=e.style['vector-effect'] = "non-scaling-stroke viewport screen" should not set the property value
-FAIL=e.style['vector-effect'] = "non-scaling-stroke viewport" should not set the property value
-FAIL=e.style['vector-effect'] = "none non-scaling-stroke" should not set the property value
-FAIL=e.style['vector-effect'] = "none none" should not set the property value
-FAIL=e.style['vector-effect'] = "none screen" should not set the property value
-FAIL=e.style['vector-effect'] = "none viewport" should not set the property value
-FAIL=e.style['vector-effect'] = "screen non-scaling-stroke" should not set the property value
-FAIL=e.style['vector-effect'] = "screen" should not set the property value
-FAIL=e.style['vector-effect'] = "viewport" should not set the property value
 [svg/text/inheritance.svg]
 harness=TIMEOUT
 [svg/text/parsing/inline-size-invalid.svg]
@@ -4327,7 +4316,8 @@ FAIL=outer <svg> in foreignObject (in document)
 FAIL=outer <svg> in foreignObject (not in document)
 FAIL=svg element with no parent
 [svg/types/SVGElement.ownerSVGElement-02.html]
-harness=TIMEOUT
+FAIL=non-svg child of root svg element
+FAIL=root svg element
 [svg/types/SameObject-identity.html]
 FAIL=SVGAnimatedAngle.baseVal: mk.orientAngle.baseVal
 FAIL=SVGAnimatedLength.animVal: rect.x.animVal

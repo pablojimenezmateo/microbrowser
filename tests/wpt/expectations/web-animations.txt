@@ -152,8 +152,6 @@ harness=FAIL
 harness=FAIL
 [web-animations/animation-model/side-effects-of-animations-in-effect.html]
 harness=FAIL
-[web-animations/animation-model/side-effects-of-animations-none.html]
-harness=FAIL
 [web-animations/animation-trigger/event-trigger-before-handlers.tentative.html]
 FAIL=Animation triggers are handled before registered event listeners
 [web-animations/animation-trigger/event-trigger-once.tentative.html]
@@ -162,7 +160,6 @@ FAIL=Basic event-based animation-trigger with 'once' behavior
 FAIL=Basic event-based animation-trigger with 'repeat' behavior
 [web-animations/idlharness.window.html]
 FAIL=Animation interface object length
-FAIL=Animation interface object name
 FAIL=Animation interface: attribute currentTime
 FAIL=Animation interface: attribute effect
 FAIL=Animation interface: attribute finished
@@ -343,9 +340,129 @@ FAIL=Replacing the timeline of an animation targetting an element in a document 
 FAIL=Replacing the timeline of an animation targetting an element in a document without a browsing context leaves it in the pending state
 FAIL=The timeline associated with an animation trigger on an element in a document without a browsing context is inactive
 [web-animations/interfaces/Animatable/animate.html]
-harness=TIMEOUT
+FAIL=Element.animate() accepts a KeyframeAnimationOptions argument
+FAIL=Element.animate() accepts a double as an options argument
+FAIL=Element.animate() accepts a duration of 'auto' using a dictionary object
+FAIL=Element.animate() accepts a keyframe sequence with a CSS variable as its property
+FAIL=Element.animate() accepts a keyframe sequence with a CSS variable reference
+FAIL=Element.animate() accepts a keyframe sequence with a CSS variable reference in a shorthand property
+FAIL=Element.animate() accepts a keyframe sequence with different composite values, but the same composite value for a given offset
+FAIL=Element.animate() accepts a keyframe sequence with different easing values, but the same easing value for a given offset
+FAIL=Element.animate() accepts a keyframe sequence with duplicate values for a given interior offset
+FAIL=Element.animate() accepts a keyframe sequence with duplicate values for offsets 0 and 1
+FAIL=Element.animate() accepts a one property keyframe sequence with all omitted offsets
+FAIL=Element.animate() accepts a one property keyframe sequence with some null offsets
+FAIL=Element.animate() accepts a one property keyframe sequence with some omitted offsets
+FAIL=Element.animate() accepts a one property one keyframe sequence
+FAIL=Element.animate() accepts a one property one non-array value property-indexed keyframes specification
+FAIL=Element.animate() accepts a one property one value property-indexed keyframes specification
+FAIL=Element.animate() accepts a one property two keyframe sequence
+FAIL=Element.animate() accepts a one property two keyframe sequence that needs to stringify its values
+FAIL=Element.animate() accepts a one property two value property-indexed keyframes specification
+FAIL=Element.animate() accepts a one property two value property-indexed keyframes specification that needs to stringify its values
+FAIL=Element.animate() accepts a one property two value property-indexed keyframes specification where the first value is invalid
+FAIL=Element.animate() accepts a one property two value property-indexed keyframes specification where the second value is invalid
+FAIL=Element.animate() accepts a one shorthand property two keyframe sequence
+FAIL=Element.animate() accepts a one shorthand property two value property-indexed keyframes specification
+FAIL=Element.animate() accepts a property-indexed keyframe with a composite array
+FAIL=Element.animate() accepts a property-indexed keyframe with a composite array that is too long
+FAIL=Element.animate() accepts a property-indexed keyframe with a composite array that is too short
+FAIL=Element.animate() accepts a property-indexed keyframe with a single composite operation
+FAIL=Element.animate() accepts a property-indexed keyframe with a single easing
+FAIL=Element.animate() accepts a property-indexed keyframe with a single null offset
+FAIL=Element.animate() accepts a property-indexed keyframe with a single offset
+FAIL=Element.animate() accepts a property-indexed keyframe with a single-element array of easings
+FAIL=Element.animate() accepts a property-indexed keyframe with a single-element composite array
+FAIL=Element.animate() accepts a property-indexed keyframe with an array of easings
+FAIL=Element.animate() accepts a property-indexed keyframe with an array of easings that is too long
+FAIL=Element.animate() accepts a property-indexed keyframe with an array of easings that is too short
+FAIL=Element.animate() accepts a property-indexed keyframe with an array of offsets
+FAIL=Element.animate() accepts a property-indexed keyframe with an array of offsets that is not strictly ascending in the unused part of the array
+FAIL=Element.animate() accepts a property-indexed keyframe with an array of offsets that is too long
+FAIL=Element.animate() accepts a property-indexed keyframe with an array of offsets that is too short
+FAIL=Element.animate() accepts a property-indexed keyframe with an array of offsets with a trailing null value
+FAIL=Element.animate() accepts a property-indexed keyframe with an array of offsets with adjacent null values
+FAIL=Element.animate() accepts a property-indexed keyframe with an array of offsets with all null values (and too many at that)
+FAIL=Element.animate() accepts a property-indexed keyframe with an array of offsets with an embedded null value
+FAIL=Element.animate() accepts a property-indexed keyframe with an array of offsets with leading and trailing null values
+FAIL=Element.animate() accepts a property-indexed keyframe with an empty array of easings
+FAIL=Element.animate() accepts a property-indexed keyframe with an empty array of offsets
+FAIL=Element.animate() accepts a property-indexed keyframe without any specified easing
+FAIL=Element.animate() accepts a property-indexed keyframes specification with a CSS variable as the property
+FAIL=Element.animate() accepts a property-indexed keyframes specification with a CSS variable reference
+FAIL=Element.animate() accepts a property-indexed keyframes specification with a CSS variable reference in a shorthand property
+FAIL=Element.animate() accepts a property-indexed keyframes specification with an invalid value
+FAIL=Element.animate() accepts a single keyframe sequence with a single calc() offset
+FAIL=Element.animate() accepts a single keyframe sequence with null offset
+FAIL=Element.animate() accepts a single keyframe sequence with omitted offset
+FAIL=Element.animate() accepts a single keyframe sequence with string offset
+FAIL=Element.animate() accepts a two property (a shorthand and one of its component longhands) two keyframe sequence
+FAIL=Element.animate() accepts a two property (one shorthand and one of its longhand components) two value property-indexed keyframes specification
+FAIL=Element.animate() accepts a two property (one shorthand and one of its shorthand components) two value property-indexed keyframes specification
+FAIL=Element.animate() accepts a two property four keyframe sequence
+FAIL=Element.animate() accepts a two property keyframe sequence where one property is missing from the first keyframe
+FAIL=Element.animate() accepts a two property keyframe sequence where one property is missing from the last keyframe
+FAIL=Element.animate() accepts a two property keyframe sequence with some omitted offsets
+FAIL=Element.animate() accepts a two property property-indexed keyframes specification with different numbers of values
+FAIL=Element.animate() accepts a two property two keyframe sequence
+FAIL=Element.animate() accepts a two property two value property-indexed keyframes specification
+FAIL=Element.animate() accepts an absent options argument
+FAIL=Element.animate() calls play on the Animation
+FAIL=Element.animate() correctly sets the Animation's timeline with null timeline in KeyframeAnimationOptions.
+FAIL=Element.animate() correctly sets the id attribute
+FAIL=Element.animate() correctly sets the id attribute when no id is specified
+FAIL=Element.animate() creates an Animation object
+FAIL=Element.animate() creates an Animation object in the relevant realm of the target element
+FAIL=Element.animate() creates an Animation object with a KeyframeEffect
+FAIL=Element.animate() creates an Animation object with a KeyframeEffect that is created in the relevant realm of the target element
+FAIL=Element.animate() does not accept a keyframe sequence with an invalid easing value
+FAIL=Element.animate() does not accept invalid delay value: -Infinity
+FAIL=Element.animate() does not accept invalid delay value: Infinity
+FAIL=Element.animate() does not accept invalid delay value: NaN
+FAIL=Element.animate() does not accept invalid duration value: "100" using a dictionary object
+FAIL=Element.animate() does not accept invalid duration value: "abc"
+FAIL=Element.animate() does not accept invalid duration value: "abc" using a dictionary object
+FAIL=Element.animate() does not accept invalid duration value: -1
+FAIL=Element.animate() does not accept invalid duration value: -1 using a dictionary object
+FAIL=Element.animate() does not accept invalid duration value: -Infinity
+FAIL=Element.animate() does not accept invalid duration value: -Infinity using a dictionary object
+FAIL=Element.animate() does not accept invalid duration value: NaN
+FAIL=Element.animate() does not accept invalid duration value: NaN using a dictionary object
+FAIL=Element.animate() does not accept invalid iterationStart value: -1
+FAIL=Element.animate() does not accept invalid iterationStart value: -Infinity
+FAIL=Element.animate() does not accept invalid iterationStart value: Infinity
+FAIL=Element.animate() does not accept invalid iterationStart value: NaN
+FAIL=Element.animate() does not accept invalid iterations value: -1
+FAIL=Element.animate() does not accept invalid iterations value: -Infinity
+FAIL=Element.animate() does not accept invalid iterations value: NaN
+FAIL=Element.animate() does not accept keyframes not loosely sorted by offset
+FAIL=Element.animate() does not accept keyframes with an invalid composite value
+FAIL=Element.animate() does not accept keyframes with an out-of-bounded negative offset
+FAIL=Element.animate() does not accept keyframes with an out-of-bounded positive offset
+FAIL=Element.animate() does not accept property-indexed keyframe with an invalid easing in the unused part of the array of easings
+FAIL=Element.animate() does not accept property-indexed keyframes not loosely sorted by offset
+FAIL=Element.animate() does not accept property-indexed keyframes not loosely sorted by offset even though not all offsets are specified
+FAIL=Element.animate() does not accept property-indexed keyframes with an invalid composite value
+FAIL=Element.animate() does not accept property-indexed keyframes with an invalid composite value as one of the array values
+FAIL=Element.animate() does not accept property-indexed keyframes with an invalid easing value
+FAIL=Element.animate() does not accept property-indexed keyframes with an invalid easing value as one of the array values
+FAIL=Element.animate() does not accept property-indexed keyframes with offsets out of range
+FAIL=Finished fill animation doesn't replace animation on a different pseudoElement
+FAIL=animate() with a non-null invalid pseudoElement '' throws a SyntaxError
+FAIL=animate() with a non-null invalid pseudoElement '::abc' throws a SyntaxError
+FAIL=animate() with a non-null invalid pseudoElement ':abc' throws a SyntaxError
+FAIL=animate() with a non-null invalid pseudoElement 'before' throws a SyntaxError
+FAIL=animate() with pseudoElement an Animation object targeting the correct pseudo-element
+FAIL=animate() with pseudoElement an Animation object targeting the correct pseudo-element for ::first-line
+FAIL=animate() with pseudoElement an Animation object targeting the correct pseudo-element for ::marker
+FAIL=animate() with pseudoElement parameter creates an Animation object
+FAIL=animate() with pseudoElement parameter creates an Animation object for ::first-line
+FAIL=animate() with pseudoElement parameter creates an Animation object for ::marker
+FAIL=animate() with pseudoElement parameter without content creates an Animation object
+FAIL=animate() with pseudoElement without content creates an Animation object targeting the correct pseudo-element
 [web-animations/interfaces/Animatable/getAnimations-iframe.html]
-harness=TIMEOUT
+FAIL=Calling Document.getAnimations updates layout of parent frame if needed
+FAIL=Calling Element.getAnimations updates layout of parent frame if needed
 [web-animations/interfaces/Animatable/getAnimations-pseudoElement-option-on-view-transition.html]
 FAIL=Returns view transition animations with pseudoElement option
 [web-animations/interfaces/Animatable/getAnimations.html]
@@ -422,7 +539,15 @@ FAIL=Treats display:contents as rendered
 FAIL=Treats display:contents in a display:none subtree as not rendered
 FAIL=Triggers mutation observers when updating style
 [web-animations/interfaces/Animation/constructor.html]
-harness=TIMEOUT
+FAIL=Animation can be constructed with non-null effect and no timeline parameter
+FAIL=Animation can be constructed with non-null effect and non-null timeline
+FAIL=Animation can be constructed with non-null effect and null timeline
+FAIL=Animation can be constructed with null effect and no timeline parameter
+FAIL=Animation can be constructed with null effect and non-null timeline
+FAIL=Animation can be constructed with null effect and null timeline
+FAIL=Animation constructed by an effect with null target runs normally
+FAIL=Animation constructed with a keyframe that target element is in iframe
+FAIL=Animation created with an affect associated with another animation.
 [web-animations/interfaces/Animation/effect.html]
 FAIL=Clearing and setting Animation.effect should update the computed style of the target element
 FAIL=effect is set correctly.
@@ -612,7 +737,17 @@ FAIL=Event created without an event parameter has null time values
 [web-animations/interfaces/Document/timeline.html]
 FAIL=Document.timeline returns the default document timeline
 [web-animations/interfaces/DocumentOrShadowRoot/getAnimations.html]
-harness=TIMEOUT
+FAIL=Document.getAnimations() does NOT return animations in shadow trees
+FAIL=Document.getAnimations() does not return a disconnected node
+FAIL=Document.getAnimations() does not return an animation with a null target
+FAIL=Document.getAnimations() returns an empty sequence for non-animated content
+FAIL=Document.getAnimations() returns animations on elements inside same-origin iframes
+FAIL=Document.getAnimations() returns script-generated animations
+FAIL=Document.getAnimations() returns script-generated animations in the order they were created
+FAIL=Document.getAnimations() triggers a style change event
+FAIL=ShadowRoot.getAnimations() does NOT return animations in parent document
+FAIL=ShadowRoot.getAnimations() return all animations in the shadow tree
+FAIL=iframe.contentDocument.getAnimations() returns animations on elements inside same-origin Document
 [web-animations/interfaces/DocumentTimeline/constructor.html]
 FAIL=A negative origin time makes the document timeline's current time run ahead of the default document timeline
 FAIL=A positive origin time makes the document timeline's current time lag behind the default document timeline
@@ -1061,7 +1196,7 @@ FAIL=column-gap responsive to style changes
 [web-animations/responsive/d.html]
 FAIL=d responsive to inherited d changes
 [web-animations/responsive/fill-forwards-viewport-units.html]
-harness=TIMEOUT
+FAIL=fill: forwards with viewport units updates on viewport resize
 [web-animations/responsive/font-size-adjust.html]
 FAIL=font-size-adjust responsive to inherited font-size-adjust changes
 [web-animations/responsive/fontSize.html]
@@ -1078,6 +1213,8 @@ FAIL=lineHeight responsive to style changes
 [web-animations/responsive/minHeight.html]
 FAIL=minHeight clamped to 0px on keyframes
 FAIL=minHeight responsive to style changes
+[web-animations/responsive/multiple-properties-delayed-important.html]
+harness=FAIL
 [web-animations/responsive/neutral-keyframe.html]
 harness=FAIL
 [web-animations/responsive/offset-path.html]
@@ -1138,6 +1275,8 @@ FAIL=Font size responsive to inherited changes at start
 FAIL=Lengths responsive to style changes
 FAIL=Numbers responsive to style changes
 FAIL=Percentages responsive to width style changes
+[web-animations/responsive/tramsform-with-delayed-important.html]
+harness=FAIL
 [web-animations/responsive/transform.html]
 FAIL=Transform responsive to font size changes
 [web-animations/responsive/translate.html]
@@ -1488,9 +1627,13 @@ FAIL=Transformed progress for steps(2, start) function
 FAIL=Child frames do not report negative initial times
 FAIL=Document timelines report current time relative to navigationStart
 [web-animations/timing-model/timelines/sibling-iframe-timeline.html]
-harness=TIMEOUT
+FAIL=animation tied to another frame's timeline runs properly
 [web-animations/timing-model/timelines/timelines.html]
-harness=TIMEOUT
+FAIL=Performs a microtask checkpoint after updating timelines
+FAIL=Runs finished promise before animation events
+FAIL=Timeline time increases once per animation frame
+FAIL=Timeline time increases once per animation frame in an iframe
+FAIL=Timeline time should be the same for all RAF callbacks in an animation frame
 [web-animations/timing-model/timelines/update-and-send-events-replacement.html]
 harness=TIMEOUT
 [web-animations/timing-model/timelines/update-and-send-events.html]

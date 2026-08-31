@@ -6229,6 +6229,10 @@ FAIL=Test exceptions on CanvasFilter() convolveMatrix
 FAIL=Test exceptions on CanvasFilter() dropShadow object
 [html/canvas/offscreen/filters/2d.filter.canvasFilterObject.dropShadow.exceptions.tentative.worker.html]
 FAIL=Test exceptions on CanvasFilter() dropShadow object
+[html/canvas/offscreen/filters/2d.filter.canvasFilterObject.dropShadow.tentative.html]
+harness=FAIL
+[html/canvas/offscreen/filters/2d.filter.canvasFilterObject.dropShadow.tentative.w.html]
+harness=FAIL
 [html/canvas/offscreen/filters/2d.filter.canvasFilterObject.gaussianBlur.tentative.html]
 harness=FAIL
 [html/canvas/offscreen/filters/2d.filter.canvasFilterObject.gaussianBlur.tentative.w.html]
@@ -6281,6 +6285,10 @@ FAIL=Test exceptions on CanvasFilter() convolveMatrix
 FAIL=Test exceptions on CanvasFilter() dropShadow object
 [html/canvas/offscreen/filters/2d.filter.layers.dropShadow.exceptions.tentative.worker.html]
 FAIL=Test exceptions on CanvasFilter() dropShadow object
+[html/canvas/offscreen/filters/2d.filter.layers.dropShadow.tentative.html]
+harness=FAIL
+[html/canvas/offscreen/filters/2d.filter.layers.dropShadow.tentative.w.html]
+harness=FAIL
 [html/canvas/offscreen/filters/2d.filter.layers.gaussianBlur.tentative.html]
 harness=FAIL
 [html/canvas/offscreen/filters/2d.filter.layers.gaussianBlur.tentative.w.html]
@@ -11717,6 +11725,10 @@ FAIL=lang on host and slotted element
 FAIL=lang only on host
 [html/dom/elements/global-attributes/lang-attribute.window.html]
 FAIL=unnamespaced lang attribute only works on elements in the HTML namespace
+[html/dom/elements/global-attributes/lang-xmllang-01.html]
+harness=FAIL
+[html/dom/elements/global-attributes/style-01.html]
+harness=FAIL
 [html/dom/elements/global-attributes/the-lang-attribute-002.html]
 FAIL=The browser will NOT recognize a language declared in an xml:lang attribute on the html tag.
 [html/dom/elements/global-attributes/the-lang-attribute-003.html]
@@ -18290,8 +18302,12 @@ FAIL=div.hidden = "UnTiL-FoUnD"
 FAIL=div.hidden = "until-found"
 [html/editing/the-hidden-attribute/hidden-ua-stylesheet.html]
 FAIL=hidden-ua-stylesheet
+[html/editing/the-hidden-attribute/hidden-until-found-001.html]
+harness=FAIL
 [html/editing/the-hidden-attribute/hidden-until-found-002.html]
 harness=TIMEOUT
+[html/editing/the-hidden-attribute/hidden-until-found-004.html]
+harness=FAIL
 [html/editing/the-hidden-attribute/hidden-until-found-005.html]
 harness=FAIL
 [html/editing/the-hidden-attribute/hidden-until-found-and-details.html]
@@ -22953,6 +22969,8 @@ harness=FAIL
 harness=TIMEOUT
 [html/semantics/embedded-content/the-img-element/image-loading-lazy.html]
 harness=TIMEOUT
+[html/semantics/embedded-content/the-img-element/image-loading-subpixel-clip.html]
+harness=FAIL
 [html/semantics/embedded-content/the-img-element/image-srcdoc-relative-uri-print.html]
 harness=FAIL
 [html/semantics/embedded-content/the-img-element/img-picture-ancestor.html]
