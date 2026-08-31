@@ -119,8 +119,10 @@ constexpr const char* kUsage =
     "  --wpt-root DIR        checkout to run (default third_party/wpt)\n"
     "  --expectations DIR    expectation files (default tests/wpt/expectations)\n"
     "  --areas FILE          run the path prefixes listed in FILE, one per line\n"
-    "  --jobs N              tests in flight at once (default: half the cores). Raising\n"
-    "                        it deletes subtests from a CPU-bound area; see the source\n"
+    "  --jobs N              CPU-active tests in flight (default: half the cores). A\n"
+    "                        test already expected to TIMEOUT counts as a fraction of\n"
+    "                        one, so a timeout-heavy area runs more processes for the\n"
+    "                        same load. Raising this deletes subtests; see the source\n"
     "  --timeout MS          per test, before it is killed (default 10000)\n"
     "  --retries N           re-runs of a result that disagrees (default 1)\n"
     "  --timeout-multiplier N  scale every deadline; use it on a slow build\n"
@@ -131,7 +133,7 @@ constexpr const char* kUsage =
     "                        without --summary, which is what the first shard wants\n"
     "  --long-timeout MS     for a test marked `timeout=long` (default 60000)\n"
     "  --known-timeout-budget MS  what a test already expected to TIMEOUT is given\n"
-    "                        before it is called one again (default 5000; 0 disables).\n"
+    "                        before it is called one again (default 2000; 0 disables).\n"
     "                        Ignored by a recording or summarising run; see the source\n"
     "  --list                print the tests that would run and exit; with --verbose,\n"
     "                        a reftest's `<meta name=fuzzy>` tolerance too\n"
@@ -195,7 +197,18 @@ struct Options {
   // 2026-08-16 exactly -- 6,700 subtests silently deleted from a measurement
   // that still said it finished. So `--update-expectations`, `--summary` and
   // `--summary-state` each turn this off, and the run says so.
-  int known_timeout_budget_ms = 5000;
+  //
+  // **5,000 -> 2,000 on 2026-08-31, and the argument is the paragraph above
+  // rather than a new one.** 6,231 of the 23,146 testharness files carry a
+  // committed `harness=TIMEOUT`, so this constant is multiplied by 6,231 in
+  // every gating run and is the single largest term in what `ctest` costs.
+  // The blind band it widens is [budget, full], and the reason a fixed test
+  // almost never lands in it is that a page which works reports in well under
+  // a second -- which is an argument about the *bottom* of the band, so moving
+  // its top from 5s to 2s adds three seconds of a region that was already
+  // nearly empty. Anything that does land there still disagrees, and a
+  // disagreement is escalated to the full budget before it is believed.
+  int known_timeout_budget_ms = 2000;
   int timeout_multiplier = 1;
   int retries = 1;
   int shard_index = 0;
@@ -695,6 +708,12 @@ struct RunningTest {
   std::size_t index = 0;
   std::string output;
   std::chrono::steady_clock::time_point deadline;
+  // What this test costs the admission budget while it is in flight. See
+  // `kIdleLoad`: a test whose committed expectation is already TIMEOUT spends
+  // its budget in `poll` rather than on a core, and admitting it against a
+  // whole job is what makes a timeout-heavy area run a 24-core machine at a
+  // load average of 0.3.
+  double load = 1.0;
   // This child was given the artifacts directory, so a FAIL from it spends one
   // of the run's artifact budget.
   bool may_write_artifacts = false;
@@ -1083,12 +1102,53 @@ int main(int argc, char** argv) {
     //
     // This is the `--long-timeout` bug of 2026-08-16 in a new costume, and the
     // rule from it holds here: **compare the subtest count against the previous
-    // record before believing a re-record.** `--jobs` is a flag; raise it by
-    // hand for an interactive run over an area you know is timeout-bound, and
-    // never for one that writes expectations.
+    // record before believing a re-record.**
+    //
+    // This comment used to end "raise it by hand for an interactive run over an
+    // area you know is timeout-bound". That advice is withdrawn, and the block
+    // below is why: the runner now knows which tests are timeout-bound, because
+    // their expectations say so, and it spends the budget accordingly. There is
+    // no longer an area for which raising this by hand is the right answer.
     const long cores = ::sysconf(_SC_NPROCESSORS_ONLN);
     jobs = static_cast<int>(std::max<long>(1, cores / 2));
   }
+
+  // **`jobs` is a budget of *CPU-active* tests, not a count of processes.**
+  //
+  // The measurements above are all real and they are not in conflict: raising
+  // the process count is catastrophic on `encoding/` and free on
+  // `referrer-policy/`. What separates them is not the area, it is that 91% of
+  // `referrer-policy/gen/`'s tests are already expected to TIMEOUT, and a test
+  // that is going to time out spends its whole budget blocked in `poll`.
+  // Measured while writing this: 12 in flight over `referrer-policy/gen/`
+  // holds a 24-core machine at a load average of 0.29.
+  //
+  // So an expected-TIMEOUT test is admitted against `kIdleLoad` of a job
+  // rather than a whole one, and the number of tests actually competing for a
+  // core stays at `jobs` whatever the mix. That is the quantity the old flat
+  // count was a proxy for, and the proxy is exact only when no test times out.
+  //
+  // Calibrated against three runs of the same binary, 2026-08-31, 24 cores:
+  //
+  //     referrer-policy/4K+1  f=0.60  jobs 12 -> 30   300s -> 120s   IDENTICAL
+  //     referrer-policy/4K    f=0.59  jobs 12 -> 48   300s ->  91s   48/60 -> 47/61
+  //     encoding/legacy-mb-japanese  f=0.02  jobs 12 -> 48
+  //                                    442,614 subtests -> 422,953, 8 -> 45 timeouts
+  //
+  // The middle row is the one that fixes the constant. A flat 48 at f=0.59
+  // leaves 48 x 0.41 = 20 tests CPU-active against a target of 12 and loses a
+  // test; the 30 the budget itself picks leaves 12.3 and is byte-identical.
+  // **The failure is predicted by the active count, not by the process count**,
+  // which is what makes this a budget rather than a bigger number.
+  //
+  // `kIdleLoad` is 0.15 and not 0 because "expected to TIMEOUT" is not the same
+  // claim as "idle": a page stuck in a script loop times out with a core in its
+  // hand. 0.15 costs a timeout-heavy area a fifth of its theoretical headroom
+  // and bounds the damage if a whole directory turns out to hang hot.
+  constexpr double kIdleLoad = 0.15;
+  // And an absolute ceiling, because the budget is about CPU and processes cost
+  // memory: a test child is ~110MB resident here, so 4x is ~5GB in flight.
+  const int job_ceiling = jobs * 4;
 
   std::size_t next_test = 0;
   std::size_t completed = 0;
@@ -1304,9 +1364,14 @@ int main(int argc, char** argv) {
     }
   };
 
+  // The CPU-active tests in flight, which is what `jobs` bounds. A whole job
+  // for an ordinary test, `kIdleLoad` for one already expected to TIMEOUT.
+  double active_load = 0.0;
+
   while (next_test < tests.size() || !retry_queue.empty() || !running.empty()) {
     while ((next_test < tests.size() || !retry_queue.empty()) &&
-           static_cast<int>(running.size()) < jobs) {
+           active_load < static_cast<double>(jobs) &&
+           static_cast<int>(running.size()) < job_ceiling) {
       std::size_t index = 0;
       if (!retry_queue.empty()) {
         index = retry_queue.back();
@@ -1422,6 +1487,11 @@ int main(int argc, char** argv) {
       child.deadline = std::chrono::steady_clock::now() +
                        std::chrono::milliseconds(budget_ms + 5000);
       child.may_write_artifacts = may_write_artifacts;
+      // The same condition the short budget above is chosen by, and
+      // deliberately so: a test is cheap to *wait* for exactly when it is the
+      // one whose result is a single bit.
+      child.load = (expected != nullptr && expected->harness == "TIMEOUT") ? kIdleLoad : 1.0;
+      active_load += child.load;
       running.push_back(std::move(child));
     }
 
@@ -1500,6 +1570,7 @@ int main(int argc, char** argv) {
         }
       }
       finish(child.index, report);
+      active_load -= child.load;
       running.erase(running.begin() + static_cast<std::ptrdiff_t>(index));
     }
   }
