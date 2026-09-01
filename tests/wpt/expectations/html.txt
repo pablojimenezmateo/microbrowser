@@ -28274,8 +28274,6 @@ harness=FAIL
 FAIL=Select should not match :focus-visible when using mouse.
 [html/semantics/forms/the-select-element/customizable-select/select-font-size.html]
 harness=FAIL
-[html/semantics/forms/the-select-element/customizable-select/select-grid-before-after.html]
-harness=FAIL
 [html/semantics/forms/the-select-element/customizable-select/select-home-end-pagedown-pageup-detailed.optional.html]
 FAIL=Behavior of Home and End for customizable-<select>
 FAIL=Behavior of Home and End for customizable-<select>, starting at the bottom

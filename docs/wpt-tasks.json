@@ -81,10 +81,10 @@
       "status": "not_started",
       "order": 1,
       "firefox_gap": {
-        "files": 7969,
+        "files": 7956,
         "blocked": 60,
         "feature": 1104,
-        "reftest": 6805
+        "reftest": 6792
       }
     },
     {
@@ -93,10 +93,10 @@
       "status": "not_started",
       "order": 2,
       "firefox_gap": {
-        "files": 4743,
+        "files": 4741,
         "blocked": 80,
         "feature": 2923,
-        "reftest": 1740
+        "reftest": 1738
       }
     },
     {
@@ -844,12 +844,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "98.9%",
       "firefox_gap": {
-        "files": 3092,
+        "files": 3090,
         "harness_files": 25,
         "blocked": 0,
         "feature": 25,
-        "reftest_files": 3067,
-        "we_pass": 3055,
+        "reftest_files": 3065,
+        "we_pass": 3057,
         "reftests_firefox_passes": 6085
       },
       "claimed": "2026-08-31"
@@ -872,12 +872,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.2%",
       "firefox_gap": {
-        "files": 806,
+        "files": 805,
         "harness_files": 215,
         "blocked": 3,
         "feature": 212,
-        "reftest_files": 591,
-        "we_pass": 470,
+        "reftest_files": 590,
+        "we_pass": 471,
         "reftests_firefox_passes": 931
       },
       "claimed": "2026-08-31"
@@ -900,12 +900,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "89.4%",
       "firefox_gap": {
-        "files": 1106,
+        "files": 1104,
         "harness_files": 488,
         "blocked": 33,
         "feature": 455,
-        "reftest_files": 618,
-        "we_pass": 251,
+        "reftest_files": 616,
+        "we_pass": 253,
         "reftests_firefox_passes": 840
       },
       "claimed": "2026-08-31"
@@ -916,22 +916,22 @@
       "title": "intrinsic sizing",
       "area": "css/css-sizing/",
       "scope": "min-content/max-content/fit-content and aspect-ratio interactions.",
-      "check": "css/css-sizing/ >= 75%.",
+      "check": "css/css-sizing/ reftests >= 250 of 562 files (126 today, 123 before this task). NOT a subtest percentage: 3,050 of the area's 4,797 failing subtests are `*-interpolation.html`, which is task G4, so a rate on this area measures another milestone. The old check said 75% and 45.6% is the arithmetic ceiling with animations absent.",
       "depends": [],
       "target": "75%",
       "status": "in_progress",
       "agent": "wpt-e4",
       "adr": "",
-      "notes": "",
+      "notes": "**In progress 2026-09-01. The check could not pass and replacing it was the first finding -- for the third area running.** `css/css-sizing/` reports 5,657 testharness subtests and passes 835; **3,050 of the 4,797 failures are `*-interpolation.html`**, task G4's feature in another milestone. A perfect sizing implementation leaves the area at **45.6%**. F1 and F7 had the same shape; the tell each time was a percentage whose denominator is dominated by one subdirectory belonging to another milestone.\n\n**Landed: `box-sizing: border-box` decides a declared width, which it had never done.** The property was parsed, stored, reported by `getComputedStyle` and honoured by exactly one thing -- the min/max clamp. A declared `width`/`height` went through as a *content* size, so `width: 100px; padding-left: 50px; box-sizing: border-box` laid out **150** pixels wide. `* { box-sizing: border-box }` is the most common line in any CSS reset, which is what hid it: every element on such a page is wrong by the same amount, so it reads as loose rather than as broken. Full suite **8,352 -> 8,372 reftest files, 20 gains and zero losses**; 40 expectation lines deleted and none added.\n\n**It was found from the other end and that is the lesson.** `aspect-ratio/block-aspect-ratio-004.html` puts a padding on a border-box element and the ratio arithmetic came out wrong; the ratio was fine. Work an area by its own failures, never by its title.\n\n**Left, ranked.** (1) **`aspect-ratio` computes a height from a width and never a width from a height** -- `LayoutEngine.cpp`'s only ratio branch is in the height path, so `height: 100px; aspect-ratio: 1/1` on a block stretches to the containing block. `block-aspect-ratio-002/006/007` and much of the 34-file `block-aspect-ratio-*` family. (2) `aspect-ratio` is ignored for **absolutely positioned** boxes: with `top:0; bottom:0` the inset stretch wins over the ratio (18 files, `abspos-*`). (3) The ratio must apply to the **border** box under `box-sizing: border-box` (`block-aspect-ratio-004/006`). (4) Three declared-length sites still bypass `UsedContentSize`: the replaced-element sizes in `ReplacedBoxes.cpp`, a table row's height, an inline box's. (5) `contain-intrinsic-size`, 51 gap files, untouched. **36 of the aspect-ratio gap files are `grid-aspect-ratio-*` and belong to E3, not here.**",
       "ceiling_source": "firefox",
       "firefox_ceiling": "80.9%",
       "firefox_gap": {
-        "files": 438,
+        "files": 435,
         "harness_files": 79,
         "blocked": 7,
         "feature": 72,
-        "reftest_files": 359,
-        "we_pass": 144,
+        "reftest_files": 356,
+        "we_pass": 147,
         "reftests_firefox_passes": 479
       },
       "claimed": "2026-09-01"
@@ -954,12 +954,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "91.4%",
       "firefox_gap": {
-        "files": 208,
+        "files": 207,
         "harness_files": 62,
         "blocked": 2,
         "feature": 60,
-        "reftest_files": 146,
-        "we_pass": 82,
+        "reftest_files": 145,
+        "we_pass": 83,
         "reftests_firefox_passes": 197
       }
     },
@@ -1008,12 +1008,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "98.9%",
       "firefox_gap": {
-        "files": 3092,
+        "files": 3090,
         "harness_files": 25,
         "blocked": 0,
         "feature": 25,
-        "reftest_files": 3067,
-        "we_pass": 3055,
+        "reftest_files": 3065,
+        "we_pass": 3057,
         "reftests_firefox_passes": 6085
       }
     },
@@ -1061,12 +1061,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "93.7%",
       "firefox_gap": {
-        "files": 1064,
+        "files": 1061,
         "harness_files": 59,
         "blocked": 8,
         "feature": 51,
-        "reftest_files": 1005,
-        "we_pass": 127,
+        "reftest_files": 1002,
+        "we_pass": 130,
         "reftests_firefox_passes": 1112
       }
     },
@@ -1086,12 +1086,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "89.9%",
       "firefox_gap": {
-        "files": 172,
+        "files": 171,
         "harness_files": 79,
         "blocked": 0,
         "feature": 79,
-        "reftest_files": 93,
-        "we_pass": 84,
+        "reftest_files": 92,
+        "we_pass": 85,
         "reftests_firefox_passes": 144
       }
     },
@@ -1136,12 +1136,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "95.6%",
       "firefox_gap": {
-        "files": 517,
+        "files": 516,
         "harness_files": 78,
         "blocked": 0,
         "feature": 78,
-        "reftest_files": 439,
-        "we_pass": 249,
+        "reftest_files": 438,
+        "we_pass": 250,
         "reftests_firefox_passes": 661
       },
       "claimed": "2026-09-01"
@@ -1233,12 +1233,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.5%",
       "firefox_gap": {
-        "files": 308,
+        "files": 307,
         "harness_files": 20,
         "blocked": 0,
         "feature": 20,
-        "reftest_files": 288,
-        "we_pass": 121,
+        "reftest_files": 287,
+        "we_pass": 122,
         "reftests_firefox_passes": 400
       }
     },

@@ -8566,3 +8566,45 @@ against Firefox 34.6% → 34.7%. Expectation diff: 160 lines out, 32 in.
 expectation set at startup and writes it back at the end, so a `--testharness-only` re-record that
 finishes while one is in flight is silently reverted. It happened here. Run the two halves in
 series, not in parallel.
+
+## WPT task E4 — css/css-sizing/, and a box model that ignored box-sizing · 2026-09-01
+
+**Status:** in_progress
+**Check:** restated in reftest files, because the stated 75% was again a target on task G4 —
+3,050 of the area's 4,797 failing subtests are `*-interpolation.html`, and the ceiling with
+animations absent is **45.6%**. It is now `css/css-sizing/` reftests ≥ 250 of 562; today **126,
+from 123**. Both halves verify `0 unexpected results`, exit 0.
+
+**Landed:** `box-sizing: border-box` decides a declared width.
+
+**Found — `box-sizing` was parsed, stored, reported by `getComputedStyle`, and honoured by
+exactly one thing: the min/max clamp.** A declared `width` or `height` went straight through as a
+*content* size, so `width: 100px; padding-left: 50px; box-sizing: border-box` laid out 150 pixels
+wide and `width: 100px; height: 60px; padding: 10px` measured 120 by 80. Full reftest suite
+**8,352 → 8,372, twenty gains and zero losses**; 40 expectation lines deleted and none added.
+
+**`* { box-sizing: border-box }` is the most common line in any CSS reset, and that is precisely
+what hid this.** Every element on such a page is wrong by the same amount, so the page reads as
+loose rather than as broken and nothing about it looks like a box-model bug. Three sessions of
+rendering real pages did not find it.
+
+**It was found from the other end, and that is the transferable part.** I was reading
+`css/css-sizing/aspect-ratio/block-aspect-ratio-004.html`, which puts a `padding-left` on a
+`box-sizing: border-box` element and expects the ratio arithmetic to use the border box. The
+ratio was fine. **Work an area by its own failures, never by its title** — this is the third area
+running (F7, F1, E4) where the title pointed at the wrong work, and the second where the *check*
+was arithmetically impossible.
+
+**A process note that cost real time twice today.** A `--reftests-only --update-expectations` run
+loads the whole expectation set at startup and writes it back at the end, so a `--testharness-only`
+re-record finishing while one is in flight is silently reverted. Run the two halves in series.
+That is now written in the F1 entry too; it is worth putting in `CLAUDE.md` if it happens again.
+
+**Left, ranked, in the ledger under E4.** `aspect-ratio` computes a height from a width and
+**never a width from a height** — `LayoutEngine.cpp` has exactly one ratio branch and it is in the
+height path, so `height: 100px; aspect-ratio: 1/1` on a block stretches to its containing block.
+Then `aspect-ratio` on absolutely positioned boxes, where the `top: 0; bottom: 0` inset stretch
+wins over the ratio (18 files). Then the ratio against the border box under `box-sizing`. Then
+the three declared-length sites that still bypass `UsedContentSize` — replaced elements, a table
+row's height, an inline box's. **36 of the aspect-ratio gap files are `grid-aspect-ratio-*` and
+belong to E3.**

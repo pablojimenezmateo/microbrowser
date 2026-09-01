@@ -4,7 +4,7 @@
 
 Firefox version: 157.0a1
 Firefox run date: 2026-09-01
-Firefox's WPT revision: `5e59630a7156`
+Firefox's WPT revision: `10d18c6d8c6d`
 Our pinned WPT revision: `4120ac0deb57`
 
 The unit is a **test file**, and a file counts as passed only when every
@@ -22,12 +22,12 @@ than a specification gap.
 |---|--:|--:|--:|
 | in our scope | 23146 | 20998 | 44144 |
 | Firefox passes | 19232 | 17918 | 37150 |
-| **we pass** | **5308** | **7592** | **12900** |
-| **Firefox passes, we fail** | **13924** | **10326** | **24250** |
-| both fail | 3435 | 2256 | 5691 |
-| we pass, Firefox fails (audit) | 339 | 747 | 1086 |
+| **we pass** | **5308** | **7608** | **12916** |
+| **Firefox passes, we fail** | **13924** | **10310** | **24234** |
+| both fail | 3435 | 2252 | 5687 |
+| we pass, Firefox fails (audit) | 339 | 751 | 1090 |
 
-**34.7% of what Firefox passes.** Both halves of the suite are in that number as of
+**34.8% of what Firefox passes.** Both halves of the suite are in that number as of
 task F9 (2026-08-17). Before it, every reftest counted as a failure --
 which was the honest reading while nothing had ever recorded one, because
 a format that writes down only failures cannot tell a pass from a test
@@ -73,23 +73,23 @@ distinction. A refused area is a decision with a name
 
 | area | gap | blocked | feature | reftest | we pass | firefox passes | in scope | refusal |
 |---|--:|--:|--:|--:|--:|--:|--:|---|
-| `css/CSS2` | 3092 | 0 | 25 | 3067 | 3055 | 6147 | 6279 |  |
+| `css/CSS2` | 3090 | 0 | 25 | 3065 | 3057 | 6147 | 6279 |  |
 | `html/canvas` | 2288 | 24 | 2202 | 62 | 869 | 3157 | 3831 |  |
 | `html/semantics` | 1642 | 513 | 1007 | 122 | 429 | 2071 | 2635 |  |
-| `css/css-grid` | 1106 | 33 | 455 | 618 | 251 | 1357 | 2253 |  |
-| `css/css-writing-modes` | 1064 | 8 | 51 | 1005 | 127 | 1191 | 1222 |  |
+| `css/css-grid` | 1104 | 33 | 455 | 616 | 253 | 1357 | 2253 |  |
+| `css/css-writing-modes` | 1061 | 8 | 51 | 1002 | 130 | 1191 | 1222 |  |
 | `referrer-policy/gen` | 951 | 865 | 86 | 0 | 0 | 951 | 1001 |  |
 | `css/css-text` | 844 | 0 | 79 | 765 | 697 | 1541 | 1915 |  |
-| `css/css-flexbox` | 806 | 3 | 212 | 591 | 470 | 1276 | 1369 |  |
+| `css/css-flexbox` | 805 | 3 | 212 | 590 | 471 | 1276 | 1369 |  |
 | `css/css-transforms` | 562 | 2 | 77 | 483 | 317 | 879 | 896 |  |
 | `html/browsers` | 551 | 298 | 251 | 2 | 60 | 611 | 757 | **partial** ADR 0026 §6 -- window.open returns null, opener absent |
-| `css/css-backgrounds` | 517 | 0 | 78 | 439 | 249 | 766 | 848 |  |
-| `css/css-sizing` | 438 | 7 | 72 | 359 | 144 | 582 | 745 |  |
+| `css/css-backgrounds` | 516 | 0 | 78 | 438 | 250 | 766 | 848 |  |
+| `css/css-sizing` | 435 | 7 | 72 | 356 | 147 | 582 | 745 |  |
 | `websockets` | 364 | 285 | 79 | 0 | 6 | 370 | 382 | **partial** infrastructure -- our server does not speak the WebSocket protocol |
 | `css/css-multicol` | 328 | 0 | 44 | 284 | 123 | 451 | 561 |  |
 | `css/css-shapes` | 316 | 17 | 92 | 207 | 30 | 346 | 375 |  |
 | `css/css-fonts` | 310 | 8 | 103 | 199 | 155 | 465 | 536 |  |
-| `css/css-images` | 308 | 0 | 20 | 288 | 121 | 429 | 501 |  |
+| `css/css-images` | 307 | 0 | 20 | 287 | 122 | 429 | 501 |  |
 | `xhr` | 296 | 29 | 267 | 0 | 87 | 383 | 398 |  |
 | `svg/animations` | 283 | 27 | 240 | 16 | 3 | 286 | 305 |  |
 | `html/webappapis` | 279 | 121 | 158 | 0 | 32 | 311 | 343 |  |
@@ -100,13 +100,13 @@ distinction. A refused area is a decision with a name
 | `css/selectors` | 212 | 22 | 117 | 73 | 262 | 474 | 503 | **partial** ADR 0012/0016/0033 -- :visited matches nothing (privacy) |
 | `html/rendering` | 211 | 20 | 82 | 109 | 213 | 424 | 465 |  |
 | `css/css-conditional` | 210 | 119 | 28 | 63 | 97 | 307 | 395 |  |
-| `css/css-position` | 208 | 2 | 60 | 146 | 82 | 290 | 362 |  |
+| `css/css-position` | 207 | 2 | 60 | 145 | 83 | 290 | 362 |  |
 | `html/dom` | 200 | 15 | 100 | 85 | 103 | 303 | 364 |  |
 | `content-security-policy/gen` | 184 | 184 | 0 | 0 | 0 | 184 | 260 |  |
 | `css/css-text-decor` | 183 | 0 | 30 | 153 | 129 | 312 | 355 |  |
 | `html/syntax` | 181 | 124 | 48 | 9 | 183 | 364 | 400 |  |
-| `css/css-ui` | 177 | 1 | 55 | 121 | 822 | 999 | 1069 |  |
-| `css/css-tables` | 172 | 0 | 79 | 93 | 84 | 256 | 300 |  |
+| `css/css-ui` | 176 | 1 | 55 | 120 | 823 | 999 | 1069 |  |
+| `css/css-tables` | 171 | 0 | 79 | 92 | 85 | 256 | 300 |  |
 | `css/css-overflow` | 166 | 6 | 63 | 97 | 143 | 309 | 720 |  |
 | `dom/nodes` | 155 | 24 | 129 | 2 | 153 | 308 | 330 |  |
 | `fetch/api` | 152 | 13 | 139 | 0 | 30 | 182 | 223 |  |
@@ -391,10 +391,10 @@ third possibility, and telling them apart needs one run.
 
 | area | files |
 |---|--:|
-| `css/css-grid` | 353 |
+| `css/css-grid` | 355 |
 | `html/editing` | 90 |
 | `css/css-text` | 86 |
-| `html/semantics` | 83 |
+| `html/semantics` | 84 |
 | `html/canvas` | 53 |
 | `css/CSS2` | 45 |
 | `css/css-box` | 32 |

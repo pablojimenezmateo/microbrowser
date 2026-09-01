@@ -2012,8 +2012,6 @@ harness=FAIL
 harness=FAIL
 [css/CSS2/floats/new-fc-separates-from-float-3.html]
 harness=FAIL
-[css/CSS2/floats/overflow-scroll-float-paint-order.html]
-harness=FAIL
 [css/CSS2/floats/overhanging-float-paint-order.html]
 harness=FAIL
 [css/CSS2/floats/remove-block-between-inline-and-float.html]
@@ -4138,8 +4136,6 @@ FAIL=#container 1
 [css/CSS2/normal-flow/containing-block-percent-margin-top.html]
 FAIL=#container 1
 [css/CSS2/normal-flow/cross-domain-iframe-paint-order.sub.html]
-harness=FAIL
-[css/CSS2/normal-flow/dynamic-percentage-height.html]
 harness=FAIL
 [css/CSS2/normal-flow/float-percentage-resolution-quirks-mode.html]
 harness=FAIL
@@ -18189,8 +18185,6 @@ harness=FAIL
 harness=FAIL
 [css/css-backgrounds/background-image-007.html]
 harness=FAIL
-[css/css-backgrounds/background-image-centered-with-border-radius.html]
-harness=FAIL
 [css/css-backgrounds/background-image-cors-no-reload.html]
 FAIL=CORS image from variable doesn't cause re-downloads
 [css/css-backgrounds/background-image-cover-zoomed-1.html]
@@ -28656,8 +28650,6 @@ harness=ERROR
 harness=ERROR
 [css/css-conditional/container-queries/scrollbar-container-units-block.html]
 harness=FAIL
-[css/css-conditional/container-queries/scrollbar-container-units-inline.html]
-harness=FAIL
 [css/css-conditional/container-queries/sibling-layout-dependency.html]
 harness=ERROR
 [css/css-conditional/container-queries/size-container-auto-height.html]
@@ -32143,8 +32135,6 @@ FAIL=.flex 5
 FAIL=.flex 6
 FAIL=.flex 8
 FAIL=.flex 9
-[css/css-flexbox/flex-cross-size-border-box-001.html]
-harness=FAIL
 [css/css-flexbox/flex-direction-column-overlap-001.html]
 FAIL=#container 1
 [css/css-flexbox/flex-direction-column-reverse.html]
@@ -49952,10 +49942,6 @@ harness=FAIL
 harness=FAIL
 [css/css-grid/grid-lanes/overflow/grid-lanes-overflow-reverse-baseline-002.html]
 harness=FAIL
-[css/css-grid/grid-lanes/overflow/grid-lanes-overflowing-container-009.html]
-harness=FAIL
-[css/css-grid/grid-lanes/overflow/grid-lanes-overflowing-container-010.html]
-harness=FAIL
 [css/css-grid/grid-lanes/row-min-max-content-container.html]
 harness=FAIL
 [css/css-grid/grid-lanes/subgrid/grid-subgridded-to-grid-lanes/alignment/column-subgrid-stretch-001.html]
@@ -51016,10 +51002,6 @@ harness=FAIL
 FAIL=.grid 2
 FAIL=.grid 8
 [css/css-grid/grid-model/grid-multicol-001.html]
-harness=FAIL
-[css/css-grid/grid-model/grid-overflow-padding-001.html]
-harness=FAIL
-[css/css-grid/grid-model/grid-overflow-padding-002.html]
 harness=FAIL
 [css/css-grid/grid-model/grid-size-shrink-to-fit-001.html]
 FAIL=.grid 1
@@ -54099,8 +54081,6 @@ harness=FAIL
 [css/css-images/image-rendering-border-image.html]
 harness=FAIL
 [css/css-images/image-rendering-mixed-scaled.html]
-harness=FAIL
-[css/css-images/image-set/image-set-all-options-invalid.html]
 harness=FAIL
 [css/css-images/image-set/image-set-computed.sub.html]
 FAIL=Property background-image value '-webkit-image-set('http://localhost/example.jpeg' 240dpi, url(http://localhost/example.png) 3.5x)'
@@ -62098,8 +62078,6 @@ harness=ERROR
 harness=TIMEOUT
 [css/css-position/backdrop-ua-style.html]
 FAIL=UA styles for ::backdrop
-[css/css-position/block-axis-constraint-changes-for-out-of-flow-box.html]
-harness=FAIL
 [css/css-position/change-insets-inside-strict-containment-nested.html]
 harness=FAIL
 [css/css-position/containing-block-change-button.html]
@@ -70534,8 +70512,6 @@ harness=FAIL
 harness=FAIL
 [css/css-sizing/aspect-ratio/block-aspect-ratio-049.html]
 harness=FAIL
-[css/css-sizing/aspect-ratio/block-aspect-ratio-050.html]
-harness=FAIL
 [css/css-sizing/aspect-ratio/block-aspect-ratio-052.html]
 harness=FAIL
 [css/css-sizing/aspect-ratio/block-aspect-ratio-053.html]
@@ -70944,10 +70920,6 @@ harness=FAIL
 [css/css-sizing/border-box-and-max-content-002.html]
 harness=FAIL
 [css/css-sizing/border-box-and-max-content-003.html]
-harness=FAIL
-[css/css-sizing/box-sizing-border-box-001.xht]
-harness=FAIL
-[css/css-sizing/box-sizing-border-box-002.xht]
 harness=FAIL
 [css/css-sizing/box-sizing-border-box-003.xht]
 harness=FAIL
@@ -74680,8 +74652,6 @@ FAIL=(2nd collapse) third row visibility:collapse makes row height 0
 FAIL=spanning cell shrinks to sum of remaining three rows' height
 FAIL=third row visibility:collapse makes row height 0
 [css/css-tables/visibility-collapse-rowspan-005.html]
-harness=FAIL
-[css/css-tables/visibility-hidden-collapsed-borders.html]
 harness=FAIL
 [css/css-tables/width-distribution/computing-column-measure-0.html]
 FAIL=Checking intermediate min-content width for span 1 (1)
@@ -88745,8 +88715,6 @@ harness=FAIL
 FAIL=serialization via CSSMediaRule
 FAIL=serialization via CSSStyleDeclaration
 FAIL=serialization via CSSStyleRule
-[css/css-ui/box-sizing-001.html]
-harness=FAIL
 [css/css-ui/box-sizing-003.html]
 harness=FAIL
 [css/css-ui/box-sizing-005.html]
@@ -100959,8 +100927,6 @@ harness=FAIL
 harness=FAIL
 [css/css-writing-modes/orthogonal-child-with-padding.html]
 harness=FAIL
-[css/css-writing-modes/orthogonal-containing-block-height-changes.html]
-harness=FAIL
 [css/css-writing-modes/orthogonal-parent-shrink-to-fit-001.html]
 FAIL=11: Shrink-to-fit float with a child of orthogonal block with borders
 FAIL=12: Shrink-to-fit float with a child of orthogonal inline with borders
@@ -101153,8 +101119,6 @@ harness=FAIL
 harness=FAIL
 [css/css-writing-modes/sizing-orthog-htb-in-vlr-015.xht]
 harness=FAIL
-[css/css-writing-modes/sizing-orthog-htb-in-vlr-016.xht]
-harness=FAIL
 [css/css-writing-modes/sizing-orthog-htb-in-vlr-018.xht]
 harness=FAIL
 [css/css-writing-modes/sizing-orthog-htb-in-vlr-019.xht]
@@ -101190,8 +101154,6 @@ harness=FAIL
 [css/css-writing-modes/sizing-orthog-htb-in-vrl-013.xht]
 harness=FAIL
 [css/css-writing-modes/sizing-orthog-htb-in-vrl-015.xht]
-harness=FAIL
-[css/css-writing-modes/sizing-orthog-htb-in-vrl-016.xht]
 harness=FAIL
 [css/css-writing-modes/sizing-orthog-htb-in-vrl-018.xht]
 harness=FAIL
