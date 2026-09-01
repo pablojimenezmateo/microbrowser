@@ -682,6 +682,38 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
            "`right 10px` is an edge offset this renderer cannot express");
   });
 
+  AddTest(tests, "Css/BorderBoxSizingTakesThePaddingOutOfADeclaredSize", [] {
+    // **`box-sizing: border-box` was parsed, stored, reported by
+    // `getComputedStyle` and honoured only by the min/max clamp.** A declared
+    // `width` went straight through as a content width, so
+    // `width: 100px; padding-left: 50px; box-sizing: border-box` laid out 150
+    // pixels wide. `* { box-sizing: border-box }` is the most common line in any
+    // CSS reset, which is exactly what hid it: every element on such a page was
+    // wrong by the same amount, so the page looked loose rather than broken.
+    ComputedStyle style;
+    style.box_sizing = css::BoxSizing::BorderBox;
+    ExpectEqInt(static_cast<long long>(
+                    style.UsedContentSize(css::Length::Pixels(100.0f), 0.0f, 50.0f) + 0.5f),
+                50, "the padding and border come out of the declared border box");
+    // The padding may legitimately exceed the declared size, and a negative
+    // content box is not a smaller one.
+    ExpectEqInt(static_cast<long long>(
+                    style.UsedContentSize(css::Length::Pixels(20.0f), 0.0f, 50.0f) + 0.5f),
+                0, "and an over-large padding floors the content at zero rather than inverting it");
+    // A percentage is a percentage of the containing block *and then* the
+    // padding comes off, which is the order that makes `width: 100%` with
+    // padding fit its parent under border-box and overflow it under content-box.
+    ExpectEqInt(static_cast<long long>(
+                    style.UsedContentSize(css::Length{100.0f, css::Length::Unit::Percent}, 200.0f,
+                                          40.0f) + 0.5f),
+                160, "a percentage resolves first and is then reduced");
+
+    ComputedStyle content_box;
+    ExpectEqInt(static_cast<long long>(
+                    content_box.UsedContentSize(css::Length::Pixels(100.0f), 0.0f, 50.0f) + 0.5f),
+                100, "while content-box -- the initial value -- leaves the declaration alone");
+  });
+
   // --- @font-face, ADR 0024 --------------------------------------------------
 
   AddTest(tests, "Css/AtFontFaceIsADescriptorBlockRatherThanARule", [] {

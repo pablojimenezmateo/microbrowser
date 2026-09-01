@@ -700,6 +700,26 @@ struct ComputedStyle {
     return std::max(0.0f, used);
   }
 
+ public:
+  // A declared `width` or `height`, as the **content** size layout works in.
+  //
+  // `box-sizing: border-box` says the length describes the border box, so the
+  // padding and border come out of it. Nothing did this: the property was
+  // parsed, stored, reported by `getComputedStyle`, and honoured *only* by the
+  // min/max clamp below -- so `width: 100px; padding-left: 50px; box-sizing:
+  // border-box` laid out 150 pixels wide. `* { box-sizing: border-box }` is the
+  // most common line in any CSS reset, which is what made this invisible: every
+  // element on such a page was wrong by the same amount, so the page looked
+  // merely loose rather than broken.
+  //
+  // Floored at zero, because the padding may legitimately exceed the declared
+  // size and a negative content box is not a smaller one.
+  float UsedContentSize(const Length& length, float container, float padding_border) const {
+    const float used = length.Used(container, font_size);
+    return box_sizing == BoxSizing::BorderBox ? std::max(0.0f, used - padding_border) : used;
+  }
+
+ private:
   float ClampContent(float used_content, const Length& low, const Length& high, float container,
                      float padding_border) const {
     if (box_sizing == BoxSizing::BorderBox && padding_border > 0.0f) {

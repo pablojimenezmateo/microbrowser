@@ -206,6 +206,9 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   const float horizontal = margin_left + margin_right + padding_left + padding_right +
                            border_left + border_right;
   float content_width = available_width - horizontal;
+  // Needed *before* the width is decided, because `box-sizing: border-box`
+  // takes it out of whatever the declaration said.
+  const float width_padding_border = padding_left + padding_right + border_left + border_right;
   // Measured here when the table's own width depends on it, and handed to
   // LayoutTableChildren so it is measured once rather than once per question
   // asked about it.
@@ -221,13 +224,14 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
     // there, because LayoutBlock runs twice on the same box in more than one
     // path (a float probes, then places) and the second run would read the
     // first run's *used* width as though it were the intrinsic one.
-    content_width = style.width.IsPercent() ? style.width.Used(available_width, style.font_size)
-                                            : ReplacedWidth(box);
+    content_width = style.width.IsPercent()
+                        ? style.UsedContentSize(style.width, available_width, width_padding_border)
+                        : ReplacedWidth(box);
   } else if (!style.width.IsAuto()) {
     // A percentage width resolves against the containing block, which is the
     // one place a percentage *can* be resolved — this is why the cascade
     // carried it instead of guessing.
-    content_width = style.width.Used(available_width, style.font_size);
+    content_width = style.UsedContentSize(style.width, available_width, width_padding_border);
   } else if (style.display == css::Display::Table) {
     // Shrink-to-fit, which is what a table with no stated width gets: as wide
     // as its columns want, but never wider than what is available and never
@@ -261,7 +265,6 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   // shrink-to-fit, or the flex algorithm. One place, so a `max-width` cannot
   // be honoured on a block and forgotten on a float. Under `border-box` the
   // bound describes padding+border+content (iron-fit's `max-height` on youtube).
-  const float width_padding_border = padding_left + padding_right + border_left + border_right;
   content_width =
       style.ClampWidth(std::max(0.0f, content_width), available_width, width_padding_border);
 
@@ -322,6 +325,10 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   }
 
   float content_height = 0.0f;
+  const float border_top = geometry.border.top.Resolve(style.font_size);
+  const float border_bottom = geometry.border.bottom.Resolve(style.font_size);
+  const float height_padding_border = padding_top + padding_bottom + border_top + border_bottom;
+
   // Definite height known before children when it does not depend on them
   // (stated length, or ForcedSize from abspos stretch / flex). Needed for
   // percentage heights on both block children and inline replaced boxes.
@@ -329,7 +336,7 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   if (forced != nullptr && forced->content_height.has_value() && forced->height_is_definite) {
     definite_content_height = *forced->content_height;
   } else if (!style.height.IsAuto() && !style.height.IsPercent()) {
-    definite_content_height = style.height.Resolve(style.font_size);
+    definite_content_height = style.UsedContentSize(style.height, 0.0f, height_padding_border);
   }
 
   if (style.IsFlexContainer()) {
@@ -390,7 +397,10 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
     content_height = std::max(content_height, own_floats.LowestBottom() - content_top);
   }
   if (!style.height.IsAuto() && !style.height.IsPercent()) {
-    content_height = style.height.Resolve(style.font_size, content_height);
+    content_height = style.box_sizing == css::BoxSizing::BorderBox
+                         ? std::max(0.0f, style.height.Resolve(style.font_size, content_height) -
+                                              height_padding_border)
+                         : style.height.Resolve(style.font_size, content_height);
   } else if (style.aspect_ratio > 0.0f) {
     // `aspect-ratio` with an automatic height and a width that is known: the
     // height comes from the ratio rather than from the content. This is where
@@ -414,9 +424,7 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   // no-op rather than a wrong number. `border-box` subtracts padding+border
   // from the bound so `max-height: 896px; box-sizing: border-box` actually
   // yields a 896px border box (youtube consent).
-  const float border_top = geometry.border.top.Resolve(style.font_size);
-  const float border_bottom = geometry.border.bottom.Resolve(style.font_size);
-  const float height_padding_border = padding_top + padding_bottom + border_top + border_bottom;
+
   content_height =
       style.ClampHeight(content_height, content_height, height_padding_border);
 

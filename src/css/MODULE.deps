@@ -135,7 +135,14 @@ budget: CustomProperties header_lines=70 public_methods=8 members=1
 # `transform-box`. The three properties are one grouped member in Transform.h,
 # beside the operation type they are made of; `transform-box` is one enum.
 budget: BackgroundLayer  header_lines=30  public_methods=2  members=7
-budget: ComputedStyle    header_lines=382 public_methods=27 members=48
+# +19 header lines and +1 public method for `UsedContentSize` (2026-09-01, task E4).
+# `box-sizing: border-box` was parsed, stored, reported by getComputedStyle and honoured
+# *only* by the min/max clamp, so a declared width laid out padding+border too wide. The
+# helper is on the style rather than at the nine call sites for the reason ClampContent is:
+# nine copies of "subtract the padding when border-box" is eight chances to forget one, and
+# a box model that disagrees with itself between two axes is not a smaller bug than one that
+# is wrong in both.
+budget: ComputedStyle    header_lines=401 public_methods=28 members=48
 # Every field inherits, so the struct is copied whole by `InheritInto` -- which
 # is why a field added here is inherited by default and why that default is
 # correct for this group and for no other.

@@ -214,7 +214,12 @@ float LayoutEngine::LayoutFlexContainer(Box& box, float content_left, float cont
     definite_main = *forced->content_height;
     definite_cross = *forced->content_height;
   } else if (!style.height.IsAuto() && !style.height.IsPercent()) {
-    const float stated = style.height.Resolve(style.font_size);
+    // Through `UsedContentSize` for the same reason the block path is: a flex
+    // container's declared height under `box-sizing: border-box` describes its
+    // border box, and a container that disagreed with an ordinary block about
+    // that would make `box-sizing` mean one thing inside a flex parent and
+    // another outside it.
+    const float stated = style.UsedContentSize(style.height, 0.0f, height_padding_border);
     const float clamped = style.ClampHeight(stated, stated, height_padding_border);
     definite_main = clamped;
     definite_cross = clamped;
