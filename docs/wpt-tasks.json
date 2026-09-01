@@ -81,10 +81,10 @@
       "status": "not_started",
       "order": 1,
       "firefox_gap": {
-        "files": 7945,
+        "files": 7935,
         "blocked": 60,
-        "feature": 1104,
-        "reftest": 6781
+        "feature": 1102,
+        "reftest": 6773
       }
     },
     {
@@ -922,16 +922,16 @@
       "status": "in_progress",
       "agent": "wpt-e4",
       "adr": "",
-      "notes": "**In progress 2026-09-01. The check could not pass and replacing it was the first finding -- for the third area running.** `css/css-sizing/` reports 5,657 testharness subtests and passes 835; **3,050 of the 4,797 failures are `*-interpolation.html`**, task G4's feature in another milestone. A perfect sizing implementation leaves the area at **45.6%**. F1 and F7 had the same shape; the tell each time was a percentage whose denominator is dominated by one subdirectory belonging to another milestone.\n\n**Landed: `box-sizing: border-box` decides a declared width, which it had never done.** The property was parsed, stored, reported by `getComputedStyle` and honoured by exactly one thing -- the min/max clamp. A declared `width`/`height` went through as a *content* size, so `width: 100px; padding-left: 50px; box-sizing: border-box` laid out **150** pixels wide. `* { box-sizing: border-box }` is the most common line in any CSS reset, which is what hid it: every element on such a page is wrong by the same amount, so it reads as loose rather than as broken. Full suite **8,352 -> 8,372 reftest files, 20 gains and zero losses**; 40 expectation lines deleted and none added.\n\n**It was found from the other end and that is the lesson.** `aspect-ratio/block-aspect-ratio-004.html` puts a padding on a border-box element and the ratio arithmetic came out wrong; the ratio was fine. Work an area by its own failures, never by its title.\n\n**Left, ranked.** (1) `aspect-ratio` is ignored for **absolutely positioned** boxes: with `top:0; bottom:0` the inset stretch wins over the ratio (18 files, `abspos-*`). (2) Three declared-length sites still bypass `UsedContentSize`: the replaced-element sizes in `ReplacedBoxes.cpp`, a table row's height, an inline box's. (3) `contain-intrinsic-size`, 51 gap files, untouched. **36 of the aspect-ratio gap files are `grid-aspect-ratio-*` and belong to E3, not here.**\n\n**Second landing, same session: `aspect-ratio` is a ratio in both directions.** It was read in exactly one place -- the `height: auto` branch -- so `height: 100px; aspect-ratio: 1/1` on a block stretched to its containing block. It now applies to the box `box-sizing` names rather than to the content box, which is the half that is right whenever the padding is zero and wrong the moment it is not. Full suite **8,372 -> 8,383, eleven gains and zero losses**; the area 126 -> 137 of 562 reftest files and its gap **435 -> 424**. Two new subtest failures, both `min-width: auto`'s automatic minimum interacting with a ratio -- the next thing here.",
+      "notes": "**In progress 2026-09-01. The check could not pass and replacing it was the first finding -- for the third area running.** `css/css-sizing/` reports 5,657 testharness subtests and passes 835; **3,050 of the 4,797 failures are `*-interpolation.html`**, task G4's feature in another milestone. A perfect sizing implementation leaves the area at **45.6%**. F1 and F7 had the same shape; the tell each time was a percentage whose denominator is dominated by one subdirectory belonging to another milestone.\n\n**Landed: `box-sizing: border-box` decides a declared width, which it had never done.** The property was parsed, stored, reported by `getComputedStyle` and honoured by exactly one thing -- the min/max clamp. A declared `width`/`height` went through as a *content* size, so `width: 100px; padding-left: 50px; box-sizing: border-box` laid out **150** pixels wide. `* { box-sizing: border-box }` is the most common line in any CSS reset, which is what hid it: every element on such a page is wrong by the same amount, so it reads as loose rather than as broken. Full suite **8,352 -> 8,372 reftest files, 20 gains and zero losses**; 40 expectation lines deleted and none added.\n\n**It was found from the other end and that is the lesson.** `aspect-ratio/block-aspect-ratio-004.html` puts a padding on a border-box element and the ratio arithmetic came out wrong; the ratio was fine. Work an area by its own failures, never by its title.\n\n**Left, ranked.** (2) Three declared-length sites still bypass `UsedContentSize`: the replaced-element sizes in `ReplacedBoxes.cpp`, a table row's height, an inline box's. (3) `contain-intrinsic-size`, 51 gap files, untouched. **36 of the aspect-ratio gap files are `grid-aspect-ratio-*` and belong to E3, not here.**\n\n**Second landing, same session: `aspect-ratio` is a ratio in both directions.** It was read in exactly one place -- the `height: auto` branch -- so `height: 100px; aspect-ratio: 1/1` on a block stretched to its containing block. It now applies to the box `box-sizing` names rather than to the content box, which is the half that is right whenever the padding is zero and wrong the moment it is not. Full suite **8,372 -> 8,383, eleven gains and zero losses**; the area 126 -> 137 of 562 reftest files and its gap **435 -> 424**. Two new subtest failures, both `min-width: auto`'s automatic minimum interacting with a ratio -- the next thing here.\n\n**Third landing: `aspect-ratio` beats the inset stretch.** `left:0; right:0; top:0; bottom:0` with a declared width is not a stretched box -- the width is definite, so the ratio gives the height and the insets are over-constrained and ignored. It also closed the fourth `UsedContentSize` bypass, an abspos box's own declared width and height. Full suite **8,383 -> 8,391, eight gains and zero losses**; the area 137 -> 142 of 562 and its gap **424 -> 417**.\n\n**Where the task stands: 435 -> 417 gap files and 123 -> 142 reftest files over one session, and the check wants 250.** The three landings were `box-sizing` on a declared size, `aspect-ratio` in both directions, and `aspect-ratio` against the insets -- none of which the task's title names. What is left that it *does* name is `contain-intrinsic-size` (51 gap files, untouched) and `min-content`/`max-content`/`fit-content` as keywords (`keyword-sizes-on-flex-item-001/002` and `keyword-sizes-on-floated-element` are 209 subtests between them).",
       "ceiling_source": "firefox",
       "firefox_ceiling": "80.9%",
       "firefox_gap": {
-        "files": 424,
-        "harness_files": 79,
+        "files": 417,
+        "harness_files": 77,
         "blocked": 7,
-        "feature": 72,
-        "reftest_files": 345,
-        "we_pass": 158,
+        "feature": 70,
+        "reftest_files": 340,
+        "we_pass": 165,
         "reftests_firefox_passes": 479
       },
       "claimed": "2026-09-01"
@@ -954,12 +954,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "91.4%",
       "firefox_gap": {
-        "files": 207,
+        "files": 204,
         "harness_files": 62,
         "blocked": 2,
         "feature": 60,
-        "reftest_files": 145,
-        "we_pass": 83,
+        "reftest_files": 142,
+        "we_pass": 86,
         "reftests_firefox_passes": 197
       }
     },

@@ -62505,14 +62505,7 @@ FAIL=.containing-block 8
 FAIL=.containing-block 9
 [css/css-position/position-absolute-scrollable-overflow-zero.html]
 harness=FAIL
-[css/css-position/position-absolute-semi-replaced-stretch-button.html]
-harness=FAIL
-[css/css-position/position-absolute-semi-replaced-stretch-input.html]
-harness=FAIL
-[css/css-position/position-absolute-semi-replaced-stretch-other.html]
-harness=FAIL
 [css/css-position/position-absolute-table-001.html]
-FAIL=table size border-box
 FAIL=table size border-box interpreted as minimum width
 FAIL=table size content-box interpreted as minimum width
 FAIL=table size is interpreted as border-box width by default
@@ -70416,13 +70409,7 @@ harness=FAIL
 harness=FAIL
 [css/css-sizing/aspect-ratio/abspos-004.html]
 harness=FAIL
-[css/css-sizing/aspect-ratio/abspos-005.html]
-harness=FAIL
-[css/css-sizing/aspect-ratio/abspos-006.html]
-harness=FAIL
 [css/css-sizing/aspect-ratio/abspos-008.html]
-harness=FAIL
-[css/css-sizing/aspect-ratio/abspos-009.html]
 harness=FAIL
 [css/css-sizing/aspect-ratio/abspos-010.html]
 harness=FAIL
@@ -70438,19 +70425,8 @@ harness=FAIL
 harness=FAIL
 [css/css-sizing/aspect-ratio/abspos-016.html]
 harness=FAIL
-[css/css-sizing/aspect-ratio/abspos-017.html]
-harness=FAIL
-[css/css-sizing/aspect-ratio/abspos-019.html]
-harness=FAIL
 [css/css-sizing/aspect-ratio/abspos-021.html]
 harness=FAIL
-[css/css-sizing/aspect-ratio/abspos-aspect-ratio-border.html]
-FAIL=aspect-ratio 1/1 with border and padding on abspos
-FAIL=aspect-ratio 1/1 with border on abspos
-FAIL=aspect-ratio 1/1 with border-box sizing on abspos
-FAIL=aspect-ratio 1/1 with padding on abspos
-FAIL=aspect-ratio 1/1 without border on abspos (sanity)
-FAIL=aspect-ratio 2/1 with border on abspos
 [css/css-sizing/aspect-ratio/aspect-ratio-minimum-size-single-axis-scroll-container.html]
 FAIL=.target 2
 FAIL=.target 4
@@ -70514,8 +70490,6 @@ harness=FAIL
 harness=FAIL
 [css/css-sizing/aspect-ratio/block-aspect-ratio-with-margin-collapsing-002.html]
 harness=FAIL
-[css/css-sizing/aspect-ratio/box-sizing-aspect-ratio-positioned.html]
-FAIL=The computed width of box is 100px
 [css/css-sizing/aspect-ratio/box-sizing-dimensions.html]
 FAIL=.item 1
 FAIL=.item 3

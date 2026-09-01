@@ -8637,3 +8637,35 @@ name the next thing precisely: `min-width: auto`'s automatic minimum interacting
 
 **36 of the aspect-ratio gap files are `grid-aspect-ratio-*` and belong to E3, not here** — worth
 subtracting before anyone reads 206 as this task's remaining work.
+
+## WPT task E4 (continued) — aspect-ratio against the insets · 2026-09-01
+
+**Status:** in_progress
+**Check:** `css/css-sizing/` reftests ≥ 250 of 562; now **142, from 123 at the start of the
+task**. Both halves verify `0 unexpected results`, exit 0.
+
+**Landed:** `aspect-ratio` beats the inset stretch, and an abspos box honours `box-sizing`.
+
+**Found:** `left: 0; right: 0; top: 0; bottom: 0` with a declared width is not a box stretched to
+its containing block. The width is definite, so the ratio decides the height and the insets are
+over-constrained and ignored. Without it, `width: 100px; aspect-ratio: 1/1` inside a 100×500
+block laid out as a 100×500 rectangle — **the ratio applied to nothing at all, because both axes
+were already decided before it was consulted.** Full suite **8,383 → 8,391, eight gains and zero
+losses**; the area's gap 424 → **417**.
+
+**A detail worth not repeating: the two padding-and-border sums here are deliberately not the
+existing `horizontal_extra`/`vertical_extra`.** Those include the margins, and `box-sizing`
+puts the padding and border *inside* a declared length while the margin stays outside it. Reusing
+them would have eaten the margin twice — and on a box with no margin, which is most of the test
+suite, it would have looked correct.
+
+**Where E4 stands after one session: 435 → 417 gap files, 123 → 142 reftest files, against a
+check that wants 250.** All three landings — `box-sizing` on a declared size, `aspect-ratio` in
+both directions, `aspect-ratio` against the insets — are things the task's title does not name.
+What it *does* name and nobody has touched: `contain-intrinsic-size` (51 gap files) and the
+`min-content`/`max-content`/`fit-content` keywords (209 subtests across three files).
+
+**Four sites still bypass `UsedContentSize`** — replaced elements, a table row's height, an inline
+box's, and the flex *item* path. The abspos one was the fourth and is now closed; each is a
+declared length that should go through the same helper, and each is a place `box-sizing` silently
+does nothing today.

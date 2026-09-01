@@ -22,8 +22,8 @@ than a specification gap.
 |---|--:|--:|--:|
 | in our scope | 23146 | 20998 | 44144 |
 | Firefox passes | 19232 | 17918 | 37150 |
-| **we pass** | **5308** | **7619** | **12927** |
-| **Firefox passes, we fail** | **13924** | **10299** | **24223** |
+| **we pass** | **5310** | **7627** | **12937** |
+| **Firefox passes, we fail** | **13922** | **10291** | **24213** |
 | both fail | 3435 | 2252 | 5687 |
 | we pass, Firefox fails (audit) | 339 | 751 | 1090 |
 
@@ -38,7 +38,7 @@ nobody ran.
 | cause | files |
 |---|--:|
 | the harness never reported (TIMEOUT/ERROR/CRASH) | 4060 |
-| subtests ran and failed | 9864 |
+| subtests ran and failed | 9862 |
 
 A blocked file is worth more than its count: none of its subtests are
 in any denominator anywhere, so it is invisible in every rate.
@@ -84,7 +84,7 @@ distinction. A refused area is a decision with a name
 | `css/css-transforms` | 562 | 2 | 77 | 483 | 317 | 879 | 896 |  |
 | `html/browsers` | 551 | 298 | 251 | 2 | 60 | 611 | 757 | **partial** ADR 0026 §6 -- window.open returns null, opener absent |
 | `css/css-backgrounds` | 516 | 0 | 78 | 438 | 250 | 766 | 848 |  |
-| `css/css-sizing` | 424 | 7 | 72 | 345 | 158 | 582 | 745 |  |
+| `css/css-sizing` | 417 | 7 | 70 | 340 | 165 | 582 | 745 |  |
 | `websockets` | 364 | 285 | 79 | 0 | 6 | 370 | 382 | **partial** infrastructure -- our server does not speak the WebSocket protocol |
 | `css/css-multicol` | 328 | 0 | 44 | 284 | 123 | 451 | 561 |  |
 | `css/css-shapes` | 316 | 17 | 92 | 207 | 30 | 346 | 375 |  |
@@ -100,7 +100,7 @@ distinction. A refused area is a decision with a name
 | `css/selectors` | 212 | 22 | 117 | 73 | 262 | 474 | 503 | **partial** ADR 0012/0016/0033 -- :visited matches nothing (privacy) |
 | `html/rendering` | 211 | 20 | 82 | 109 | 213 | 424 | 465 |  |
 | `css/css-conditional` | 210 | 119 | 28 | 63 | 97 | 307 | 395 |  |
-| `css/css-position` | 207 | 2 | 60 | 145 | 83 | 290 | 362 |  |
+| `css/css-position` | 204 | 2 | 60 | 142 | 86 | 290 | 362 |  |
 | `html/dom` | 200 | 15 | 100 | 85 | 103 | 303 | 364 |  |
 | `content-security-policy/gen` | 184 | 184 | 0 | 0 | 0 | 184 | 260 |  |
 | `css/css-text-decor` | 183 | 0 | 30 | 153 | 129 | 312 | 355 |  |
