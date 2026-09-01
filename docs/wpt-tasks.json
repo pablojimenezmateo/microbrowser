@@ -1128,8 +1128,8 @@
       "check": "css/css-backgrounds/ >= 70%.",
       "depends": [],
       "target": "70%",
-      "status": "not_started",
-      "agent": null,
+      "status": "in_progress",
+      "agent": "wpt-f1",
       "adr": "",
       "notes": "A spoiler span on old.reddit is invisible text on white because of this.",
       "ceiling_source": "firefox",
@@ -1142,7 +1142,8 @@
         "reftest_files": 459,
         "we_pass": 228,
         "reftests_firefox_passes": 661
-      }
+      },
+      "claimed": "2026-09-01"
     },
     {
       "id": "F2",
