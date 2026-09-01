@@ -769,8 +769,13 @@ class Document : public Node {
   // HTML namespace only in an HTML document, and `tagName` upper-cases only
   // there. An XML document whose elements were lower-cased on the way in and
   // upper-cased on the way out round-trips to a different name.
-  bool IsHtmlDocument() const { return html_; }
-  void SetHtmlDocument(bool html) { html_ = html; }
+  // Three kinds, because DOM asks two different questions of a document and
+  // they part company on XHTML: `tagName` upper-cases and selectors fold case
+  // only for `Html`, while `createElement` makes HTML elements for `Xhtml` too.
+  enum class DocumentKind : std::uint8_t { Html, Xhtml, Xml };
+  bool IsHtmlDocument() const { return kind_ == DocumentKind::Html; }
+  bool CreatesHtmlElements() const { return kind_ != DocumentKind::Xml; }
+  void SetDocumentKind(DocumentKind kind) { kind_ = kind; }
 
   Element* DocumentElement() const;
   Element* Body() const;
@@ -858,7 +863,7 @@ class Document : public Node {
 
  private:
   bool quirks_ = false;
-  bool html_ = true;
+  DocumentKind kind_ = DocumentKind::Html;
   bool user_activation_ = false;
   std::uint64_t mutation_version_ = 0;
   std::uint64_t structure_version_ = 0;

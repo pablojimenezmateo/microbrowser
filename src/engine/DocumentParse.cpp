@@ -24,6 +24,17 @@ bool IsXmlContentType(std::string_view content_type) {
          (essence.size() > 4 && essence.compare(essence.size() - 4, 4, "+xml") == 0);
 }
 
+// Whether the content type is specifically XHTML, which is the half of DOM's
+// `createElement` condition that is *not* "is this an HTML document".
+bool IsXhtmlContentType(std::string_view content_type) {
+  std::string type = util::AsciiLowerCase(content_type);
+  const std::size_t semicolon = type.find(';');
+  if (semicolon != std::string::npos) {
+    type.erase(semicolon);
+  }
+  return util::TrimAscii(type) == "application/xhtml+xml";
+}
+
 // **The two parsers are not interchangeable and the difference is visible on ordinary pages.** XML
 // has no RAWTEXT: `<style><![CDATA[ … ]]></style>` is a stylesheet in XHTML and, read by the HTML
 // tokenizer, is a stylesheet whose first rule has `<![CDATA[` glued onto its selector -- so the
@@ -56,7 +67,11 @@ std::unique_ptr<dom::Document> ParseDocumentFor(std::string_view source,
     // `DOMParser` had it right since the day it landed, which is why this went
     // unnoticed: the only XML documents anybody looked at were the ones a page
     // made for itself.
-    result.document->SetHtmlDocument(false);
+    // ...and an `application/xhtml+xml` one is its own kind, because
+    // `createElement` in one still makes HTML elements. See `Document::Kind`.
+    result.document->SetDocumentKind(IsXhtmlContentType(content_type)
+                                         ? dom::Document::DocumentKind::Xhtml
+                                         : dom::Document::DocumentKind::Xml);
     return std::move(result.document);
   }
   util::AddPerformanceCounter(util::PerfCounterId::DocumentXmlFellBackToHtml);

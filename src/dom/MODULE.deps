@@ -37,7 +37,14 @@ extern:
 # Raised by four for `ElementState::Indeterminate` and the sentence saying what makes it different
 # from every other bit here: it is IDL-only state with no attribute behind it, so unlike `:checked`
 # it cannot be derived from the tree and has to be stored.
-max_tu_lines: 875
+# 875 -> 882. `Document::DocumentKind` is the smallest correct encoding of DOM's
+# `createElement` condition -- an enum, three methods and one member -- and any
+# encoding of it is at least two lines more than this header had left. The cap's
+# own message says a file over it means a missing module, and that is true here:
+# Node.h holds Node, Element, Document, CharacterData and the traversal API, and
+# splitting Document out is a real project rather than this task's. Raised
+# deliberately and written down so the next raise has to argue against this one.
+max_tu_lines: 882
 
 # Twenty-one, for `IsDocumentFragment`. It sits beside IsElement and IsText
 # for the same reason those do: the kind is a switch a caller would
@@ -155,7 +162,12 @@ budget: ProcessingInstruction header_lines=40 public_methods=8 members=2
 # page reads back (`text/xml` against `image/svg+xml`) is not a tree fact and
 # stays on the binding layer's wrapper, where the rest of "how was this object
 # made" already lives.
-budget: Document     header_lines=130 public_methods=24 members=7
+# +1 method and a `Kind` enum for DOM's `createElement` condition, which is "an
+# HTML document **or** a content type of application/xhtml+xml": two questions in
+# one sentence, and folding them made every XHTML document create its elements in
+# no namespace. Three kinds rather than two bools, because the pair (html,
+# xhtml) has a fourth state that means nothing.
+budget: Document     header_lines=136 public_methods=25 members=7
 # A fragment, plus the one link back from a shadow root to its host. Deliberately
 # not the fragment's parent: a shadow root with a parent would be reachable by
 # every ordinary tree walk, and being unreachable that way is the whole point of

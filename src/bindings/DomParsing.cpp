@@ -210,7 +210,7 @@ void DomBindings::InstallDomParsing() {
     }
     auto made = std::make_unique<dom::Document>();
     dom::Document* raw = made.get();
-    raw->SetHtmlDocument(false);
+    raw->SetDocumentKind(dom::Document::DocumentKind::Xml);
     owner->unattached_.push_back(std::move(made));
     const Value wrapper = owner->WrapperFor(raw);
     if (wrapper.IsObject()) {
@@ -265,7 +265,8 @@ void DomBindings::InstallDomParsing() {
         // branch on. Held on the document rather than beside the content type
         // below, because both of those questions are asked from inside the tree
         // where no wrapper is in reach.
-        raw->SetHtmlDocument(IsHtmlType(type));
+        raw->SetDocumentKind(IsHtmlType(type) ? dom::Document::DocumentKind::Html
+                                             : dom::Document::DocumentKind::Xml);
         // Owned here for the life of the page, exactly like a node script made
         // and never appended: a node's owner is its parent and a document has
         // none, and a wrapper holds a raw pointer, so the tree may not outlive

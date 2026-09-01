@@ -645,6 +645,18 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
         engine::ParseDocumentFor("<svg><unclosed></svg>", "image/svg+xml");
     Expect(broken != nullptr && broken->IsHtmlDocument(),
            "a malformed XML document recovered by the HTML tree builder is an HTML one");
+
+    // **Two questions, and they part company on XHTML.** DOM's `createElement`
+    // puts what it makes in the HTML namespace for "an HTML document *or* a
+    // content type of application/xhtml+xml"; `tagName` upper-cases and
+    // selectors fold case only for the first. Answering both with one flag made
+    // every XHTML document create its elements in no namespace, which took
+    // `url/`'s expectation file from two entries to eight hundred.
+    Expect(xhtml != nullptr && xhtml->CreatesHtmlElements(),
+           "an XHTML document still creates HTML elements");
+    Expect(svg != nullptr && !svg->CreatesHtmlElements(),
+           "and an SVG one does not");
+    Expect(html != nullptr && html->CreatesHtmlElements(), "nor does that change text/html");
   });
 }
 

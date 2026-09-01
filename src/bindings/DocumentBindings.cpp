@@ -188,7 +188,7 @@ void DomBindings::Install() {
     // `xmlns="http://www.w3.org/1999/xhtml"` on every element script added to a
     // parsed XML tree.
     dom::Document& into = *owner->DocumentOf(call.self);
-    if (!into.IsHtmlDocument()) {
+    if (!into.CreatesHtmlElements()) {
       QualifiedName qualified;
       qualified.qualified = std::move(name);
       return owner->CreateElementNS(std::move(qualified), into);
@@ -733,7 +733,7 @@ void DomBindings::InstallImplementation(const js::Value& document_interface) {
   const auto make_xml_document = [](DomBindings* owner) -> Value {
     auto made = std::make_unique<dom::Document>();
     dom::Document* raw = made.get();
-    raw->SetHtmlDocument(false);
+    raw->SetDocumentKind(dom::Document::DocumentKind::Xml);
     // Owned here for the life of the page, like every other node script made
     // and nothing appended: a node's owner is its parent, and a document has
     // none. A wrapper holds a raw pointer, so the node may not outlive it.
