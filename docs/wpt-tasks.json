@@ -2495,12 +2495,13 @@
         "F9"
       ],
       "target": "1,193 files photographed in the state they name",
-      "status": "not_started",
-      "agent": null,
+      "status": "in_progress",
+      "agent": "wpt-f11",
       "adr": "docs/adr/0040-web-platform-tests.md",
       "notes": "Found by F5 on 2026-09-01. `grep -rn reftest-wait tools/wpt/` is EMPTY. **1,193 files use it**: html/canvas 223, html/semantics 142, css/css-overflow 81, css/css-backgrounds 73, css/css-transforms 64, css/selectors 53, css/css-multicol 45, css/css-fonts 45. Every one of them is currently photographed BEFORE the thing it tests has happened, so it passes exactly when the initial state and the final one look the same -- which is an accidental pass in the same family as the blank-page ones F9 counted, and it FLIPS TO A FAILURE the moment the browser starts implementing the property under test. Four did exactly that in F5's session. Same shape as F2 and F9 and it belongs beside them: the measurement is wrong before the browser is.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": ""
+      "firefox_ceiling": "",
+      "claimed": "2026-09-01"
     },
     {
       "id": "F10",
