@@ -8271,3 +8271,67 @@ serialization of `alignment-baseline` and `css/css-images/inheritance.html` the 
 `image-rendering`. Both are SVG presentation properties that CSS's own suite tests, so this work
 moved an area nobody was looking at — which is the argument for implementing a property rather than
 a test.
+
+## WPT task F7b — the SVG DOM · 2026-09-01
+
+**Status:** in_progress — the interface hierarchy landed and the check is not met.
+**Check** (`docs/wpt-tasks.json`: "svg/types/ >= 60% and svg/idlharness.window.html reports fewer
+than 400 failures"): **neither half met.** idlharness prints `1709 subtests, 280 passed` — 1,429
+failures — and `svg/types/` is unchanged at 62 of 665.
+
+**Landed:** *Every SVG element has its own interface* · *A global object's bindings are its own
+properties, to the predicates as well* · *An XHTML document is not an HTML document, but
+createElement still makes HTML elements* · *Re-record sixteen areas*
+
+`svg/` went **659 → 914 passing subtests (12.5% → 17.4%)**; `svg/idlharness.window.html` **48 →
+280**; the suite **34.6% → 34.7%** of what Firefox passes.
+
+**Found — and the largest of the three is not about SVG at all.**
+
+**A global object's bindings were not its own *properties*.** `GetProperty` and `SetProperty` on a
+global already fall through to that realm's global scope — that is what makes `window.ShadowRoot =
+yc` write the binding the bare name resolves to, and the comment there tells the youtube story that
+put it right. The own-property *predicates* never learned the same rule, so
+
+```js
+self.hasOwnProperty("Object")                              // false
+Object.getOwnPropertyDescriptor(self, "HTMLDivElement")    // undefined
+```
+
+for **every** interface in the engine. `assert_own_property(self, name)` is the first thing
+`idlharness.js` asks about every interface it tests, before a single member: **840 of the 1,709
+subtests in `svg/idlharness.window.html` were that one line**, and idlharness runs in `dom/`,
+`html/`, `fetch/`, `css/cssom/`, `webmessaging/`, `streams/`, `storage/`, `user-timing/` and a
+dozen more. Sixteen areas were re-recorded on it. `propertyIsEnumerable` is deliberately *not*
+extended: an interface object is a non-enumerable own property, which is what the descriptor now
+reports, and two answers that disagree would be worse than the one wrong answer a global `var` gets.
+
+**A regression from the F7 iteration, surfaced by this one's re-record.** DOM's `createElement`
+puts what it makes in the HTML namespace for "an HTML document **or** a content type of
+`application/xhtml+xml`" — two questions in one sentence, and they part company on XHTML.
+`SetHtmlDocument(false)` answered both, so every `.xhtml` page created its elements in no namespace.
+`url/a-element-origin-xhtml.xhtml` alone would have put **eight hundred entries into `url.txt`**,
+which is how it was caught: **a re-record's added lines are worth reading one at a time**, and this
+is the second time in two sessions that reading them found something. `Document::DocumentKind` is
+three kinds now.
+
+**The SVG hierarchy itself, and why it is a second table.** `TagInterfaces.h` keys on a *folded* tag
+name in the HTML namespace; SVG keys on a **case-sensitive local name**. `clipPath`,
+`linearGradient` and `feGaussianBlur` are the names, and a case-insensitive lookup would answer
+`SVGClipPathElement` for `<clippath>`, an element SVG does not define. The seven intermediates
+(`SVGGraphicsElement`, `SVGGeometryElement`, the two text ones, `SVGGradientElement`,
+`SVGAnimationElement`, `SVGComponentTransferFunctionElement`) name no tag and are the point:
+`getBBox` is on the first and `getTotalLength` on the second, so skipping them would mean putting
+both on every shape *and* still answering `rect instanceof SVGGeometryElement` wrongly.
+
+**Left, and it is one shape.** The interfaces exist and their **members** do not. idlharness's
+remaining 1,429 failures are `assert_own_property` and `assert_inherits` on the members, and
+`svg/types/` is the animated-value types — `SVGAnimatedLength`, `SVGAnimatedNumber`,
+`SVGAnimatedString`, `SVGAnimatedEnumeration`, `SVGLength`, `SVGNumberList`, `SVGStringList`, base
+value only per ADR 0043 §3. That is a large, mechanical, table-shaped session and it is the next one.
+
+**Also seen, not chased.** A strict-mode assignment to a getter-only property does **not throw** in
+this engine. `url/url-searchparams.any.html`'s "URL.searchParams setter, invalid values" says so,
+and four lines in `microbrowser_jsshell` reproduce it on a plain object literal — so it is the
+language rather than the bindings. It is newly *visible* rather than newly broken: `url/` now
+reports 15,654 subtests where the last recorded baseline had 9,903.

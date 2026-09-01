@@ -57,9 +57,9 @@
       "status": "not_started",
       "order": 7,
       "firefox_gap": {
-        "files": 693,
-        "blocked": 110,
-        "feature": 482,
+        "files": 685,
+        "blocked": 70,
+        "feature": 514,
         "reftest": 101
       }
     },
@@ -93,9 +93,9 @@
       "status": "not_started",
       "order": 2,
       "firefox_gap": {
-        "files": 4743,
+        "files": 4733,
         "blocked": 80,
-        "feature": 2935,
+        "feature": 2925,
         "reftest": 1728
       }
     },
@@ -105,9 +105,9 @@
       "status": "not_started",
       "order": 6,
       "firefox_gap": {
-        "files": 814,
-        "blocked": 293,
-        "feature": 512,
+        "files": 795,
+        "blocked": 277,
+        "feature": 509,
         "reftest": 9
       }
     },
@@ -117,9 +117,9 @@
       "status": "not_started",
       "order": 3,
       "firefox_gap": {
-        "files": 3024,
+        "files": 3026,
         "blocked": 1980,
-        "feature": 1040,
+        "feature": 1042,
         "reftest": 4
       }
     },
@@ -129,9 +129,9 @@
       "status": "not_started",
       "order": 10,
       "firefox_gap": {
-        "files": 341,
-        "blocked": 83,
-        "feature": 257,
+        "files": 340,
+        "blocked": 80,
+        "feature": 259,
         "reftest": 1
       }
     },
@@ -328,12 +328,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "99.8%",
       "firefox_gap": {
-        "files": 341,
-        "harness_files": 338,
-        "blocked": 86,
-        "feature": 252,
+        "files": 333,
+        "harness_files": 330,
+        "blocked": 46,
+        "feature": 284,
         "reftest_files": 3,
-        "we_pass": 231,
+        "we_pass": 239,
         "reftests_firefox_passes": 4
       }
     },
@@ -353,12 +353,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "99.8%",
       "firefox_gap": {
-        "files": 341,
-        "harness_files": 338,
-        "blocked": 86,
-        "feature": 252,
+        "files": 333,
+        "harness_files": 330,
+        "blocked": 46,
+        "feature": 284,
         "reftest_files": 3,
-        "we_pass": 231,
+        "we_pass": 239,
         "reftests_firefox_passes": 4
       }
     },
@@ -381,12 +381,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "99.8%",
       "firefox_gap": {
-        "files": 341,
-        "harness_files": 338,
-        "blocked": 86,
-        "feature": 252,
+        "files": 333,
+        "harness_files": 330,
+        "blocked": 46,
+        "feature": 284,
         "reftest_files": 3,
-        "we_pass": 231,
+        "we_pass": 239,
         "reftests_firefox_passes": 4
       }
     },
@@ -408,12 +408,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "98.7%",
       "firefox_gap": {
-        "files": 188,
-        "harness_files": 186,
-        "blocked": 55,
-        "feature": 131,
+        "files": 155,
+        "harness_files": 153,
+        "blocked": 24,
+        "feature": 129,
         "reftest_files": 2,
-        "we_pass": 120,
+        "we_pass": 153,
         "reftests_firefox_passes": 3
       },
       "claimed": "2026-08-10",
@@ -451,8 +451,8 @@
       "firefox_gap": {
         "files": 10,
         "harness_files": 10,
-        "blocked": 5,
-        "feature": 5,
+        "blocked": 2,
+        "feature": 8,
         "reftest_files": 0,
         "we_pass": 27,
         "reftests_firefox_passes": 0
@@ -473,12 +473,12 @@
       "firefox_ceiling": "93.4%",
       "target": "93%",
       "firefox_gap": {
-        "files": 111,
-        "harness_files": 111,
-        "blocked": 24,
-        "feature": 87,
+        "files": 137,
+        "harness_files": 137,
+        "blocked": 18,
+        "feature": 119,
         "reftest_files": 0,
-        "we_pass": 65,
+        "we_pass": 39,
         "reftests_firefox_passes": 0
       },
       "claimed": "2026-08-16",
@@ -502,12 +502,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "100.0%",
       "firefox_gap": {
-        "files": 5,
-        "harness_files": 5,
+        "files": 4,
+        "harness_files": 4,
         "blocked": 2,
-        "feature": 3,
+        "feature": 2,
         "reftest_files": 0,
-        "we_pass": 5,
+        "we_pass": 6,
         "reftests_firefox_passes": 0
       }
     },
@@ -529,12 +529,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "93.4%",
       "firefox_gap": {
-        "files": 111,
-        "harness_files": 111,
-        "blocked": 24,
-        "feature": 87,
+        "files": 137,
+        "harness_files": 137,
+        "blocked": 18,
+        "feature": 119,
         "reftest_files": 0,
-        "we_pass": 65,
+        "we_pass": 39,
         "reftests_firefox_passes": 0
       }
     },
@@ -1309,12 +1309,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.5%",
       "firefox_gap": {
-        "files": 769,
-        "harness_files": 578,
+        "files": 759,
+        "harness_files": 568,
         "blocked": 51,
-        "feature": 527,
+        "feature": 517,
         "reftest_files": 191,
-        "we_pass": 305,
+        "we_pass": 315,
         "reftests_firefox_passes": 437
       },
       "claimed": "2026-09-01"
@@ -1337,12 +1337,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.5%",
       "firefox_gap": {
-        "files": 769,
-        "harness_files": 578,
+        "files": 759,
+        "harness_files": 568,
         "blocked": 51,
-        "feature": 527,
+        "feature": 517,
         "reftest_files": 191,
-        "we_pass": 305,
+        "we_pass": 315,
         "reftests_firefox_passes": 437
       },
       "claimed": "2026-09-01"
@@ -1361,16 +1361,16 @@
       "status": "in_progress",
       "agent": "wpt-f7b",
       "adr": "docs/adr/0043-svg-as-a-document.md",
-      "notes": "ADR 0043 \u00a73. `svg/idlharness.window.html` alone carries 1,661 failing subtests, twelve times the next largest file in the area, because an SVG child is an HTMLUnknownElement today. animVal is deliberately out of scope: it exists to expose SMIL, which ADR 0043 refuses, and one that always equalled baseVal would be the stub ADR 0012 forbids.",
+      "notes": "2026-09-01 (wpt-f7b): the interface HIERARCHY landed and the check is NOT met. `svg/idlharness.window.html` prints \"1709 subtests, 280 passed\" -- 1,429 failures against a target of fewer than 400 -- and `svg/types/` is unchanged at 62 of 665 (9.3%). `svg/` as a whole went 659 -> 914 passing subtests (12.5% -> 17.4%). WHAT LANDED: `src/bindings/SvgInterfaces.h`, 66 interfaces and the hierarchy above them, installed at startup like HTML's. A SECOND table rather than rows in TagInterfaces.h because the keys differ -- HTML folds its tag name and SVG's local name is CASE-SENSITIVE (`clipPath`, `feGaussianBlur`). The seven intermediates name no tag and are where `getBBox` and `getTotalLength` belong. AND THE THING WORTH MORE THAN THE TASK: a global object's bindings were not its own PROPERTIES to the predicates -- `self.hasOwnProperty(\"Object\")` was false, for HTML interfaces as much as SVG ones. `assert_own_property(self, name)` is the first thing idlharness.js asks about every interface it tests, so this was 840 of svg/idlharness's 1,709 subtests and it runs in dom/, html/, fetch/, css/cssom/, webmessaging/ and a dozen more. Sixteen areas re-recorded on it. AND A REGRESSION IT SURFACED, from F7's commit: an XHTML document had stopped creating HTML elements, because DOM's `createElement` condition is \"an HTML document OR a content type of application/xhtml+xml\" and that is not the same question `IsHtmlDocument` answers. `Document::DocumentKind` is three kinds now. It would have put eight hundred entries into url.txt. WHAT IS LEFT for the check: the interfaces exist and their MEMBERS do not. `svg/types/` is the animated-value types (SVGAnimatedLength/Number/String/Enumeration and the list types, base value only per ADR 0043 \u00a73), and idlharness's remaining 1,429 are `assert_inherits`/`assert_own_property` on those members. That is the next session and it is a large, mechanical, table-shaped one. ALSO FOUND, not chased: a strict-mode assignment to a getter-only property does not throw in this engine -- `url/url-searchparams.any.html` says so and a plain object literal reproduces it in jsshell. See docs/session-log.md, entry \"WPT task F7b\".",
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.5%",
       "firefox_gap": {
-        "files": 769,
-        "harness_files": 578,
+        "files": 759,
+        "harness_files": 568,
         "blocked": 51,
-        "feature": 527,
+        "feature": 517,
         "reftest_files": 191,
-        "we_pass": 305,
+        "we_pass": 315,
         "reftests_firefox_passes": 437
       },
       "claimed": "2026-09-01"
@@ -1394,12 +1394,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.5%",
       "firefox_gap": {
-        "files": 769,
-        "harness_files": 578,
+        "files": 759,
+        "harness_files": 568,
         "blocked": 51,
-        "feature": 527,
+        "feature": 517,
         "reftest_files": 191,
-        "we_pass": 305,
+        "we_pass": 315,
         "reftests_firefox_passes": 437
       }
     },
@@ -1487,8 +1487,8 @@
       "firefox_gap": {
         "files": 79,
         "harness_files": 79,
-        "blocked": 7,
-        "feature": 72,
+        "blocked": 6,
+        "feature": 73,
         "reftest_files": 0,
         "we_pass": 0,
         "reftests_firefox_passes": 0
@@ -1563,12 +1563,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "96.6%",
       "firefox_gap": {
-        "files": 136,
-        "harness_files": 136,
-        "blocked": 75,
-        "feature": 61,
+        "files": 123,
+        "harness_files": 123,
+        "blocked": 68,
+        "feature": 55,
         "reftest_files": 0,
-        "we_pass": 16,
+        "we_pass": 29,
         "reftests_firefox_passes": 0
       }
     },
@@ -1588,12 +1588,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "91.6%",
       "firefox_gap": {
-        "files": 28,
-        "harness_files": 28,
-        "blocked": 18,
-        "feature": 10,
+        "files": 22,
+        "harness_files": 22,
+        "blocked": 10,
+        "feature": 12,
         "reftest_files": 0,
-        "we_pass": 17,
+        "we_pass": 23,
         "reftests_firefox_passes": 0
       }
     },
@@ -1663,12 +1663,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "89.9%",
       "firefox_gap": {
-        "files": 1,
-        "harness_files": 1,
+        "files": 3,
+        "harness_files": 3,
         "blocked": 1,
-        "feature": 0,
+        "feature": 2,
         "reftest_files": 0,
-        "we_pass": 45,
+        "we_pass": 43,
         "reftests_firefox_passes": 0
       }
     },
@@ -1952,12 +1952,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "98.1%",
       "firefox_gap": {
-        "files": 32,
-        "harness_files": 31,
-        "blocked": 16,
-        "feature": 15,
+        "files": 31,
+        "harness_files": 30,
+        "blocked": 13,
+        "feature": 17,
         "reftest_files": 1,
-        "we_pass": 65,
+        "we_pass": 66,
         "reftests_firefox_passes": 1
       }
     },
@@ -2597,6 +2597,6 @@
       "claimed": "2026-08-18"
     }
   ],
-  "gap_measured": "2026-08-31",
+  "gap_measured": "2026-09-01",
   "gap_source": "firefox 157.0a1 via tools/wpt/firefox-gap.py"
 }
