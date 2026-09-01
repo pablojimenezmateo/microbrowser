@@ -1226,8 +1226,8 @@
         "F2"
       ],
       "target": "60%",
-      "status": "not_started",
-      "agent": null,
+      "status": "in_progress",
+      "agent": "wpt-f5",
       "adr": "",
       "notes": "",
       "ceiling_source": "firefox",
@@ -1240,7 +1240,8 @@
         "reftest_files": 497,
         "we_pass": 302,
         "reftests_firefox_passes": 780
-      }
+      },
+      "claimed": "2026-09-01"
     },
     {
       "id": "F6",
