@@ -69,10 +69,10 @@
       "status": "not_started",
       "order": 5,
       "firefox_gap": {
-        "files": 916,
+        "files": 914,
         "blocked": 185,
         "feature": 484,
-        "reftest": 247
+        "reftest": 245
       }
     },
     {
@@ -81,10 +81,10 @@
       "status": "not_started",
       "order": 1,
       "firefox_gap": {
-        "files": 7972,
+        "files": 7969,
         "blocked": 60,
         "feature": 1104,
-        "reftest": 6808
+        "reftest": 6805
       }
     },
     {
@@ -93,10 +93,10 @@
       "status": "not_started",
       "order": 2,
       "firefox_gap": {
-        "files": 4776,
+        "files": 4743,
         "blocked": 80,
-        "feature": 2924,
-        "reftest": 1772
+        "feature": 2923,
+        "reftest": 1740
       }
     },
     {
@@ -189,10 +189,10 @@
       "status": "not_started",
       "order": 4,
       "firefox_gap": {
-        "files": 1442,
+        "files": 1441,
         "blocked": 567,
         "feature": 812,
-        "reftest": 63
+        "reftest": 62
       }
     }
   ],
@@ -633,12 +633,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "56.2%",
       "firefox_gap": {
-        "files": 243,
+        "files": 241,
         "harness_files": 141,
         "blocked": 14,
         "feature": 127,
-        "reftest_files": 102,
-        "we_pass": 72,
+        "reftest_files": 100,
+        "we_pass": 74,
         "reftests_firefox_passes": 149
       }
     },
@@ -660,12 +660,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "56.2%",
       "firefox_gap": {
-        "files": 243,
+        "files": 241,
         "harness_files": 141,
         "blocked": 14,
         "feature": 127,
-        "reftest_files": 102,
-        "we_pass": 72,
+        "reftest_files": 100,
+        "we_pass": 74,
         "reftests_firefox_passes": 149
       }
     },
@@ -844,12 +844,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "98.9%",
       "firefox_gap": {
-        "files": 3091,
+        "files": 3092,
         "harness_files": 25,
         "blocked": 0,
         "feature": 25,
-        "reftest_files": 3066,
-        "we_pass": 3056,
+        "reftest_files": 3067,
+        "we_pass": 3055,
         "reftests_firefox_passes": 6085
       },
       "claimed": "2026-08-31"
@@ -872,12 +872,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.2%",
       "firefox_gap": {
-        "files": 807,
+        "files": 806,
         "harness_files": 215,
         "blocked": 3,
         "feature": 212,
-        "reftest_files": 592,
-        "we_pass": 469,
+        "reftest_files": 591,
+        "we_pass": 470,
         "reftests_firefox_passes": 931
       },
       "claimed": "2026-08-31"
@@ -900,12 +900,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "89.4%",
       "firefox_gap": {
-        "files": 1107,
+        "files": 1106,
         "harness_files": 488,
         "blocked": 33,
         "feature": 455,
-        "reftest_files": 619,
-        "we_pass": 250,
+        "reftest_files": 618,
+        "we_pass": 251,
         "reftests_firefox_passes": 840
       },
       "claimed": "2026-08-31"
@@ -980,12 +980,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "68.9%",
       "firefox_gap": {
-        "files": 168,
+        "files": 166,
         "harness_files": 69,
         "blocked": 6,
         "feature": 63,
-        "reftest_files": 99,
-        "we_pass": 141,
+        "reftest_files": 97,
+        "we_pass": 143,
         "reftests_firefox_passes": 210
       }
     },
@@ -1007,12 +1007,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "98.9%",
       "firefox_gap": {
-        "files": 3091,
+        "files": 3092,
         "harness_files": 25,
         "blocked": 0,
         "feature": 25,
-        "reftest_files": 3066,
-        "we_pass": 3056,
+        "reftest_files": 3067,
+        "we_pass": 3055,
         "reftests_firefox_passes": 6085
       }
     },
@@ -1125,22 +1125,22 @@
       "title": "backgrounds",
       "area": "css/css-backgrounds/",
       "scope": "background on inline boxes (absent today), background-clip/origin/repeat in full.",
-      "check": "css/css-backgrounds/ >= 70%.",
+      "check": "css/css-backgrounds/ reftests >= 300 of 727 files (234 today, 208 before this task). NOT a subtest percentage: 4,601 of the area's 5,377 failing subtests are `animations/*-interpolation.html`, which is task G4, so a rate on this area measures another milestone. The old check said 70% and 25.6% is the arithmetic ceiling with animations absent.",
       "depends": [],
       "target": "70%",
       "status": "in_progress",
       "agent": "wpt-f1",
       "adr": "",
-      "notes": "**In progress 2026-09-01. The check as written cannot pass and the arithmetic is the finding.** `css/css-backgrounds/` reports 6,181 testharness subtests and passes 804 (13.0%). **4,601 of the 5,377 failures -- 86% -- are `animations/*-interpolation.html`**, which is property interpolation: task G4's feature, another milestone, nothing to do with backgrounds. If every remaining non-animation subtest passed tomorrow the area would read **25.6%**. A 70% target on this area is a target on G4 wearing F1's name. Restated in `docs/wpt-plan.md` as the 79 testharness gap files, which is where the backgrounds work actually is.\n\n**Landed this session:** a percentage length in an SVG is a percentage of the viewport. `gfx::SvgDecoder`'s `ParseNumber` rejects a trailing unit it does not know, so `<rect width=\"100%\">` parsed to nothing, fell back to zero, and drew **nothing** -- a rectangle of width zero rather than one of the wrong width, which is the failure that looks like a `background-size` bug and is not one. `css/` reftests 7,412 -> 7,430 files; `svg/` 275 -> 271 with the blank-page count down by exactly the same four, so every loss is an accidental pass exposed.\n\n**Left, ranked.** (1) **F1a**, split out of this task: 183 gap files in `background-size/vector/` needing CSS Images \u00a75 and a rasterization at the used size -- a third of the whole area, and the single largest thing here. (2) `background-position-x` and `background-position-y` are **not implemented as properties at all**: four `parsing/` files fail every subtest on `e.style['background-position-x'] = \"10px\"` setting nothing, 68 subtests. (3) The rest of `parsing/` plus `inheritance.sub.html`, 776 subtests over ~25 files, which is the whole of the area's honest testharness ceiling. (4) `background` on inline boxes, which this task's own title names and which nothing measured this session touched -- the old.reddit spoiler-span gap in the original note.\n\n**Read the ceiling before accepting a percentage target.** One `python3` over `tests/wpt/expectations/css.txt` answered this in a minute, and the 70% has been in the plan since it was written.",
+      "notes": "**In progress 2026-09-01, two sessions in. The original check could not pass and replacing it was the first finding.** `css/css-backgrounds/` reports 6,181 testharness subtests; **4,601 of the 5,377 failures are `animations/*-interpolation.html`**, task G4's feature in another milestone. A perfect backgrounds implementation leaves the area at **25.6%**. The check is now stated in reftest files, which is the unit the plan uses.\n\n**Landed.** (1) *A percentage length in an SVG is a percentage of the viewport.* `gfx::SvgDecoder`'s `ParseNumber` rejects a trailing unit it does not know, so `<rect width=\"100%\">` parsed to nothing, fell back to zero and drew **nothing** -- a rectangle of width zero, not one of the wrong width. (2) *`background-origin` and `background-clip` are two different boxes*, plus `background-position-x`/`-y` and a `background` shorthand that reads a position at all.\n\n**The best finding is the second one's, and it is a shape to expect again: two bugs were cancelling exactly.** `background: url(x) -5px` on an element with a 5px border rendered correctly while the shorthand threw the `-5px` away *and* the painter measured from the border box instead of the padding box. Eight of `css/CSS2/margin-padding-clear/` passed on that pair and **failed the moment either half was fixed alone** -- fixing the origin is what surfaced them. A regression that appears in another directory after a correct fix is as likely to be a second bug losing its cover as it is to be a mistake.\n\n**Numbers.** `css/css-backgrounds/` testharness 804 -> 879 of 6,181; its reftests **208 -> 234** of 727; area gap **538 -> 517** files; `css/CSS2/margin-padding-clear/` +8; full-suite reftests **8,312 -> 8,352**. Expectations: 160 lines out, 32 in. Both halves verify `0 unexpected`.\n\n**Left, ranked.** (1) **F1a** -- 183 gap files of SVG intrinsic sizing, now independent of this task. (2) `background-repeat: round | space`, which needs the tiling loop to scale or space its tiles rather than only to count them (5 gap files). (3) `background` on **inline boxes**, which this task's title names and neither session has touched -- the old.reddit spoiler-span gap. (4) The rest of `parsing/` plus `inheritance.sub.html`, ~700 subtests.\n\n**Twelve reftests in the area now fail honestly and each names a feature.** `background-attachment: local` (6), `background-attachment: fixed` overriding `background-origin` (1), `background-size: contain` (4, F1a), and the multi-layer colour clip (1, refused in `BackgroundStyle.h` with the reason).",
       "ceiling_source": "firefox",
       "firefox_ceiling": "95.6%",
       "firefox_gap": {
-        "files": 538,
-        "harness_files": 79,
+        "files": 517,
+        "harness_files": 78,
         "blocked": 0,
-        "feature": 79,
-        "reftest_files": 459,
-        "we_pass": 228,
+        "feature": 78,
+        "reftest_files": 439,
+        "we_pass": 249,
         "reftests_firefox_passes": 661
       },
       "claimed": "2026-09-01"
@@ -1152,16 +1152,23 @@
       "area": "css/css-backgrounds/background-size/vector/",
       "scope": "CSS Images \u00a75's default sizing algorithm over an SVG's intrinsic width, intrinsic height and intrinsic ratio, and the rasterization that follows from it. Three parts and a file needs all three: (1) the decoder reports what the document actually declares -- an absolute `width`/`height` is an intrinsic dimension, a *percentage* one is NOT (it means the axis has no intrinsic size), and a `viewBox` is an intrinsic ratio only when a dimension is missing, because two dimensions already give the ratio; (2) that travels to layout, which today reads `image.Width()` -- the raster's size, which is an answer even when the document has none; (3) the document is rasterized AT the concrete object size rather than at its own and bilinearly scaled.",
       "check": "css/css-backgrounds/background-size/vector/ >= 150 of 206 reftest files (19 today).",
-      "depends": [
-        "F1"
-      ],
+      "depends": [],
       "target": "150 of 206",
       "status": "not_started",
       "agent": null,
       "adr": "",
-      "notes": "**Split out of F1 on 2026-09-01, after the measurement that made it a separate task.** 183 of `css/css-backgrounds/`'s 538 Firefox-gap files are this one directory -- a third of the area.\n\nUntil 2026-09-01 all 206 of them rendered a **blank rectangle of exactly the right size**, because every image in the directory is written `<rect width=\"100%\" height=\"50%\">` and `gfx::SvgDecoder` could not parse a percentage length. That is fixed (commit `A percentage length in an SVG is a percentage of the viewport`) and the directory is still 19 of 206, which is the point: **the content was one bug and the geometry is another.**\n\n**Do not do half of this.** Measured after the percentage fix, the 187 failures split into ~25 files differing by 34-81 pixels -- the soft boundary a bilinearly-scaled 8x32 raster leaves when it is drawn at 16x64 -- and ~50 differing by the whole image area, which is the sizing algorithm. The rest are between. Fixing the geometry alone gains **nothing**: the tile becomes the right rectangle with a blurred picture in it, and these reftests carry no `<meta name=fuzzy>`.\n\n**Part (3) is the design question and it is why this is not a one-sitting task.** The concrete object size is known only after layout, and `Engine::DecodeImage` decodes on network completion, before it. `Page::RequestedImageSize` is the existing precedent -- it rasterizes an `<img>`'s SVG at the element's `width`/`height` attributes -- but a background has no element attributes to read, and several of these documents have no intrinsic size at all, so the size *is* the background positioning area. Decide where the second rasterization happens before writing code: `src/layout` may see `gfx` but has no bytes, and `src/engine` has the bytes but computes no tile.\n\n`support/diagonal-scaled.svg` in the checkout is the worked example, with the arithmetic in its own comment: no intrinsic dimensions or ratio, so it fills the positioning area at 100x700, and a 10% stroke on that viewport is 50px.",
+      "notes": "**Split out of F1 on 2026-09-01, after the measurement that made it a separate task, and un-blocked from it on the same day: F1's remainder is `background-repeat: round|space` and backgrounds on inline boxes, neither of which this touches. Take it without waiting for F1.** 183 of `css/css-backgrounds/`'s 538 Firefox-gap files are this one directory -- a third of the area.\n\nUntil 2026-09-01 all 206 of them rendered a **blank rectangle of exactly the right size**, because every image in the directory is written `<rect width=\"100%\" height=\"50%\">` and `gfx::SvgDecoder` could not parse a percentage length. That is fixed (commit `A percentage length in an SVG is a percentage of the viewport`) and the directory is still 19 of 206, which is the point: **the content was one bug and the geometry is another.**\n\n**Do not do half of this.** Measured after the percentage fix, the 187 failures split into ~25 files differing by 34-81 pixels -- the soft boundary a bilinearly-scaled 8x32 raster leaves when it is drawn at 16x64 -- and ~50 differing by the whole image area, which is the sizing algorithm. The rest are between. Fixing the geometry alone gains **nothing**: the tile becomes the right rectangle with a blurred picture in it, and these reftests carry no `<meta name=fuzzy>`.\n\n**Part (3) is the design question and it is why this is not a one-sitting task.** The concrete object size is known only after layout, and `Engine::DecodeImage` decodes on network completion, before it. `Page::RequestedImageSize` is the existing precedent -- it rasterizes an `<img>`'s SVG at the element's `width`/`height` attributes -- but a background has no element attributes to read, and several of these documents have no intrinsic size at all, so the size *is* the background positioning area. Decide where the second rasterization happens before writing code: `src/layout` may see `gfx` but has no bytes, and `src/engine` has the bytes but computes no tile.\n\n`support/diagonal-scaled.svg` in the checkout is the worked example, with the arithmetic in its own comment: no intrinsic dimensions or ratio, so it fills the positioning area at 100x700, and a 10% stroke on that viewport is 50px.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": ""
+      "firefox_ceiling": "",
+      "firefox_gap": {
+        "files": 171,
+        "harness_files": 0,
+        "blocked": 0,
+        "feature": 0,
+        "reftest_files": 171,
+        "we_pass": 31,
+        "reftests_firefox_passes": 202
+      }
     },
     {
       "id": "F2",
@@ -1252,12 +1259,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "99.2%",
       "firefox_gap": {
-        "files": 578,
+        "files": 562,
         "harness_files": 79,
         "blocked": 2,
         "feature": 77,
-        "reftest_files": 499,
-        "we_pass": 301,
+        "reftest_files": 483,
+        "we_pass": 317,
         "reftests_firefox_passes": 780
       },
       "claimed": "2026-09-01"
@@ -1329,12 +1336,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.5%",
       "firefox_gap": {
-        "files": 780,
+        "files": 784,
         "harness_files": 568,
         "blocked": 51,
         "feature": 517,
-        "reftest_files": 212,
-        "we_pass": 294,
+        "reftest_files": 216,
+        "we_pass": 290,
         "reftests_firefox_passes": 437
       },
       "claimed": "2026-09-01"
@@ -1357,12 +1364,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.5%",
       "firefox_gap": {
-        "files": 780,
+        "files": 784,
         "harness_files": 568,
         "blocked": 51,
         "feature": 517,
-        "reftest_files": 212,
-        "we_pass": 294,
+        "reftest_files": 216,
+        "we_pass": 290,
         "reftests_firefox_passes": 437
       },
       "claimed": "2026-09-01"
@@ -1385,12 +1392,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.5%",
       "firefox_gap": {
-        "files": 780,
+        "files": 784,
         "harness_files": 568,
         "blocked": 51,
         "feature": 517,
-        "reftest_files": 212,
-        "we_pass": 294,
+        "reftest_files": 216,
+        "we_pass": 290,
         "reftests_firefox_passes": 437
       },
       "claimed": "2026-09-01"
@@ -1414,12 +1421,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.5%",
       "firefox_gap": {
-        "files": 780,
+        "files": 784,
         "harness_files": 568,
         "blocked": 51,
         "feature": 517,
-        "reftest_files": 212,
-        "we_pass": 294,
+        "reftest_files": 216,
+        "we_pass": 290,
         "reftests_firefox_passes": 437
       }
     },
@@ -2606,12 +2613,12 @@
       "adr": "0027",
       "notes": "**Had no task until 2026-08-17.** 520 test files Firefox passes and we fail, 237 blocked -- the largest single directory under html/semantics/. Depends on J1b because a large part of it is <iframe> as an element. The media-elements subtree beneath it is L1/L3 and is not this task.",
       "firefox_gap": {
-        "files": 546,
+        "files": 545,
         "harness_files": 521,
         "blocked": 237,
         "feature": 284,
-        "reftest_files": 25,
-        "we_pass": 108,
+        "reftest_files": 24,
+        "we_pass": 109,
         "reftests_firefox_passes": 42
       }
     },

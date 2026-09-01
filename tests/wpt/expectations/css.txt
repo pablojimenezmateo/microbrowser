@@ -108,8 +108,6 @@ harness=FAIL
 harness=FAIL
 [css/CSS2/backgrounds/background-196.xht]
 harness=FAIL
-[css/CSS2/backgrounds/background-329.xht]
-harness=FAIL
 [css/CSS2/backgrounds/background-applies-to-005.xht]
 harness=FAIL
 [css/CSS2/backgrounds/background-applies-to-006.xht]
@@ -189,10 +187,6 @@ harness=FAIL
 [css/CSS2/backgrounds/background-intrinsic-007.xht]
 harness=FAIL
 [css/CSS2/backgrounds/background-intrinsic-008.xht]
-harness=FAIL
-[css/CSS2/backgrounds/background-intrinsic-009.xht]
-harness=FAIL
-[css/CSS2/backgrounds/background-intrinsic-010.xht]
 harness=FAIL
 [css/CSS2/backgrounds/background-position-001.xht]
 harness=FAIL
@@ -318,13 +312,15 @@ harness=FAIL
 harness=FAIL
 [css/CSS2/backgrounds/background-root-009.xht]
 harness=FAIL
+[css/CSS2/backgrounds/background-root-010.xht]
+harness=FAIL
 [css/CSS2/backgrounds/background-root-012a.xht]
 harness=FAIL
 [css/CSS2/backgrounds/background-root-012b.xht]
 harness=FAIL
-[css/CSS2/backgrounds/background-root-013a.xht]
+[css/CSS2/backgrounds/background-root-015.xht]
 harness=FAIL
-[css/CSS2/backgrounds/background-root-013b.xht]
+[css/CSS2/backgrounds/background-root-016.xht]
 harness=FAIL
 [css/CSS2/backgrounds/background-root-018.xht]
 harness=FAIL
@@ -4579,6 +4575,10 @@ harness=FAIL
 [css/CSS2/normal-flow/min-height-095.xht]
 harness=FAIL
 [css/CSS2/normal-flow/min-height-103.xht]
+harness=FAIL
+[css/CSS2/normal-flow/min-height-111.xht]
+harness=FAIL
+[css/CSS2/normal-flow/min-height-112.xht]
 harness=FAIL
 [css/CSS2/normal-flow/min-height-applies-to-008.xht]
 harness=FAIL
@@ -9311,8 +9311,6 @@ FAIL=.wrapper 6
 FAIL=.wrapper 7
 [css/css-align/baseline-rules/synthesized-baseline-inline-block-001.html]
 FAIL=.wrapper 2
-[css/css-align/baseline-rules/synthesized-baseline-table-cell-001.html]
-harness=FAIL
 [css/css-align/blocks/align-content-block-001.html]
 harness=FAIL
 [css/css-align/blocks/align-content-block-002.html]
@@ -14268,13 +14266,6 @@ FAIL=CSS Animations: property <background-position-x> from [initial] to [right] 
 FAIL=CSS Animations: property <background-position-x> from [initial] to [right] at (0.75) should be [75%]
 FAIL=CSS Animations: property <background-position-x> from [initial] to [right] at (1) should be [100%]
 FAIL=CSS Animations: property <background-position-x> from [initial] to [right] at (1.25) should be [125%]
-FAIL=CSS Animations: property <background-position-x> from neutral to [80px] at (-0.25) should be [30px]
-FAIL=CSS Animations: property <background-position-x> from neutral to [80px] at (0) should be [40px]
-FAIL=CSS Animations: property <background-position-x> from neutral to [80px] at (0.25) should be [50px]
-FAIL=CSS Animations: property <background-position-x> from neutral to [80px] at (0.5) should be [60px]
-FAIL=CSS Animations: property <background-position-x> from neutral to [80px] at (0.75) should be [70px]
-FAIL=CSS Animations: property <background-position-x> from neutral to [80px] at (1) should be [80px]
-FAIL=CSS Animations: property <background-position-x> from neutral to [80px] at (1.25) should be [90px]
 FAIL=CSS Transitions with transition: all: property <background-position-x> from [300px, 400px] to [500px, 600px, 700px] at (-0.25) should be [250px, 350px, 200px, 375px, 225px, 325px]
 FAIL=CSS Transitions with transition: all: property <background-position-x> from [300px, 400px] to [500px, 600px, 700px] at (0) should be [300px, 400px, 300px, 400px, 300px, 400px]
 FAIL=CSS Transitions with transition: all: property <background-position-x> from [300px, 400px] to [500px, 600px, 700px] at (0.25) should be [350px, 450px, 400px, 425px, 375px, 475px]
@@ -14296,13 +14287,6 @@ FAIL=CSS Transitions with transition: all: property <background-position-x> from
 FAIL=CSS Transitions with transition: all: property <background-position-x> from [initial] to [right] at (0.75) should be [75%]
 FAIL=CSS Transitions with transition: all: property <background-position-x> from [initial] to [right] at (1) should be [100%]
 FAIL=CSS Transitions with transition: all: property <background-position-x> from [initial] to [right] at (1.25) should be [125%]
-FAIL=CSS Transitions with transition: all: property <background-position-x> from neutral to [80px] at (-0.25) should be [30px]
-FAIL=CSS Transitions with transition: all: property <background-position-x> from neutral to [80px] at (0) should be [40px]
-FAIL=CSS Transitions with transition: all: property <background-position-x> from neutral to [80px] at (0.25) should be [50px]
-FAIL=CSS Transitions with transition: all: property <background-position-x> from neutral to [80px] at (0.5) should be [60px]
-FAIL=CSS Transitions with transition: all: property <background-position-x> from neutral to [80px] at (0.75) should be [70px]
-FAIL=CSS Transitions with transition: all: property <background-position-x> from neutral to [80px] at (1) should be [80px]
-FAIL=CSS Transitions with transition: all: property <background-position-x> from neutral to [80px] at (1.25) should be [90px]
 FAIL=CSS Transitions: property <background-position-x> from [300px, 400px] to [500px, 600px, 700px] at (-0.25) should be [250px, 350px, 200px, 375px, 225px, 325px]
 FAIL=CSS Transitions: property <background-position-x> from [300px, 400px] to [500px, 600px, 700px] at (0) should be [300px, 400px, 300px, 400px, 300px, 400px]
 FAIL=CSS Transitions: property <background-position-x> from [300px, 400px] to [500px, 600px, 700px] at (0.25) should be [350px, 450px, 400px, 425px, 375px, 475px]
@@ -14324,13 +14308,6 @@ FAIL=CSS Transitions: property <background-position-x> from [initial] to [right]
 FAIL=CSS Transitions: property <background-position-x> from [initial] to [right] at (0.75) should be [75%]
 FAIL=CSS Transitions: property <background-position-x> from [initial] to [right] at (1) should be [100%]
 FAIL=CSS Transitions: property <background-position-x> from [initial] to [right] at (1.25) should be [125%]
-FAIL=CSS Transitions: property <background-position-x> from neutral to [80px] at (-0.25) should be [30px]
-FAIL=CSS Transitions: property <background-position-x> from neutral to [80px] at (0) should be [40px]
-FAIL=CSS Transitions: property <background-position-x> from neutral to [80px] at (0.25) should be [50px]
-FAIL=CSS Transitions: property <background-position-x> from neutral to [80px] at (0.5) should be [60px]
-FAIL=CSS Transitions: property <background-position-x> from neutral to [80px] at (0.75) should be [70px]
-FAIL=CSS Transitions: property <background-position-x> from neutral to [80px] at (1) should be [80px]
-FAIL=CSS Transitions: property <background-position-x> from neutral to [80px] at (1.25) should be [90px]
 FAIL=Web Animations: property <background-position-x> from [300px, 400px] to [500px, 600px, 700px] at (-0.25) should be [250px, 350px, 200px, 375px, 225px, 325px]
 FAIL=Web Animations: property <background-position-x> from [300px, 400px] to [500px, 600px, 700px] at (0) should be [300px, 400px, 300px, 400px, 300px, 400px]
 FAIL=Web Animations: property <background-position-x> from [300px, 400px] to [500px, 600px, 700px] at (0.25) should be [350px, 450px, 400px, 425px, 375px, 475px]
@@ -14352,13 +14329,6 @@ FAIL=Web Animations: property <background-position-x> from [initial] to [right] 
 FAIL=Web Animations: property <background-position-x> from [initial] to [right] at (0.75) should be [75%]
 FAIL=Web Animations: property <background-position-x> from [initial] to [right] at (1) should be [100%]
 FAIL=Web Animations: property <background-position-x> from [initial] to [right] at (1.25) should be [125%]
-FAIL=Web Animations: property <background-position-x> from neutral to [80px] at (-0.25) should be [30px]
-FAIL=Web Animations: property <background-position-x> from neutral to [80px] at (0) should be [40px]
-FAIL=Web Animations: property <background-position-x> from neutral to [80px] at (0.25) should be [50px]
-FAIL=Web Animations: property <background-position-x> from neutral to [80px] at (0.5) should be [60px]
-FAIL=Web Animations: property <background-position-x> from neutral to [80px] at (0.75) should be [70px]
-FAIL=Web Animations: property <background-position-x> from neutral to [80px] at (1) should be [80px]
-FAIL=Web Animations: property <background-position-x> from neutral to [80px] at (1.25) should be [90px]
 [css/css-backgrounds/animations/background-position-y-interpolation.html]
 FAIL=CSS Animations: property <background-position-y> from [300px, 400px] to [500px, 600px, 700px] at (-0.25) should be [250px, 350px, 200px, 375px, 225px, 325px]
 FAIL=CSS Animations: property <background-position-y> from [300px, 400px] to [500px, 600px, 700px] at (0) should be [300px, 400px, 300px, 400px, 300px, 400px]
@@ -14381,13 +14351,6 @@ FAIL=CSS Animations: property <background-position-y> from [initial] to [bottom]
 FAIL=CSS Animations: property <background-position-y> from [initial] to [bottom] at (0.75) should be [75%]
 FAIL=CSS Animations: property <background-position-y> from [initial] to [bottom] at (1) should be [100%]
 FAIL=CSS Animations: property <background-position-y> from [initial] to [bottom] at (1.25) should be [125%]
-FAIL=CSS Animations: property <background-position-y> from neutral to [80px] at (-0.25) should be [30px]
-FAIL=CSS Animations: property <background-position-y> from neutral to [80px] at (0) should be [40px]
-FAIL=CSS Animations: property <background-position-y> from neutral to [80px] at (0.25) should be [50px]
-FAIL=CSS Animations: property <background-position-y> from neutral to [80px] at (0.5) should be [60px]
-FAIL=CSS Animations: property <background-position-y> from neutral to [80px] at (0.75) should be [70px]
-FAIL=CSS Animations: property <background-position-y> from neutral to [80px] at (1) should be [80px]
-FAIL=CSS Animations: property <background-position-y> from neutral to [80px] at (1.25) should be [90px]
 FAIL=CSS Transitions with transition: all: property <background-position-y> from [300px, 400px] to [500px, 600px, 700px] at (-0.25) should be [250px, 350px, 200px, 375px, 225px, 325px]
 FAIL=CSS Transitions with transition: all: property <background-position-y> from [300px, 400px] to [500px, 600px, 700px] at (0) should be [300px, 400px, 300px, 400px, 300px, 400px]
 FAIL=CSS Transitions with transition: all: property <background-position-y> from [300px, 400px] to [500px, 600px, 700px] at (0.25) should be [350px, 450px, 400px, 425px, 375px, 475px]
@@ -14409,13 +14372,6 @@ FAIL=CSS Transitions with transition: all: property <background-position-y> from
 FAIL=CSS Transitions with transition: all: property <background-position-y> from [initial] to [bottom] at (0.75) should be [75%]
 FAIL=CSS Transitions with transition: all: property <background-position-y> from [initial] to [bottom] at (1) should be [100%]
 FAIL=CSS Transitions with transition: all: property <background-position-y> from [initial] to [bottom] at (1.25) should be [125%]
-FAIL=CSS Transitions with transition: all: property <background-position-y> from neutral to [80px] at (-0.25) should be [30px]
-FAIL=CSS Transitions with transition: all: property <background-position-y> from neutral to [80px] at (0) should be [40px]
-FAIL=CSS Transitions with transition: all: property <background-position-y> from neutral to [80px] at (0.25) should be [50px]
-FAIL=CSS Transitions with transition: all: property <background-position-y> from neutral to [80px] at (0.5) should be [60px]
-FAIL=CSS Transitions with transition: all: property <background-position-y> from neutral to [80px] at (0.75) should be [70px]
-FAIL=CSS Transitions with transition: all: property <background-position-y> from neutral to [80px] at (1) should be [80px]
-FAIL=CSS Transitions with transition: all: property <background-position-y> from neutral to [80px] at (1.25) should be [90px]
 FAIL=CSS Transitions: property <background-position-y> from [300px, 400px] to [500px, 600px, 700px] at (-0.25) should be [250px, 350px, 200px, 375px, 225px, 325px]
 FAIL=CSS Transitions: property <background-position-y> from [300px, 400px] to [500px, 600px, 700px] at (0) should be [300px, 400px, 300px, 400px, 300px, 400px]
 FAIL=CSS Transitions: property <background-position-y> from [300px, 400px] to [500px, 600px, 700px] at (0.25) should be [350px, 450px, 400px, 425px, 375px, 475px]
@@ -14437,13 +14393,6 @@ FAIL=CSS Transitions: property <background-position-y> from [initial] to [bottom
 FAIL=CSS Transitions: property <background-position-y> from [initial] to [bottom] at (0.75) should be [75%]
 FAIL=CSS Transitions: property <background-position-y> from [initial] to [bottom] at (1) should be [100%]
 FAIL=CSS Transitions: property <background-position-y> from [initial] to [bottom] at (1.25) should be [125%]
-FAIL=CSS Transitions: property <background-position-y> from neutral to [80px] at (-0.25) should be [30px]
-FAIL=CSS Transitions: property <background-position-y> from neutral to [80px] at (0) should be [40px]
-FAIL=CSS Transitions: property <background-position-y> from neutral to [80px] at (0.25) should be [50px]
-FAIL=CSS Transitions: property <background-position-y> from neutral to [80px] at (0.5) should be [60px]
-FAIL=CSS Transitions: property <background-position-y> from neutral to [80px] at (0.75) should be [70px]
-FAIL=CSS Transitions: property <background-position-y> from neutral to [80px] at (1) should be [80px]
-FAIL=CSS Transitions: property <background-position-y> from neutral to [80px] at (1.25) should be [90px]
 FAIL=Web Animations: property <background-position-y> from [300px, 400px] to [500px, 600px, 700px] at (-0.25) should be [250px, 350px, 200px, 375px, 225px, 325px]
 FAIL=Web Animations: property <background-position-y> from [300px, 400px] to [500px, 600px, 700px] at (0) should be [300px, 400px, 300px, 400px, 300px, 400px]
 FAIL=Web Animations: property <background-position-y> from [300px, 400px] to [500px, 600px, 700px] at (0.25) should be [350px, 450px, 400px, 425px, 375px, 475px]
@@ -14465,13 +14414,6 @@ FAIL=Web Animations: property <background-position-y> from [initial] to [bottom]
 FAIL=Web Animations: property <background-position-y> from [initial] to [bottom] at (0.75) should be [75%]
 FAIL=Web Animations: property <background-position-y> from [initial] to [bottom] at (1) should be [100%]
 FAIL=Web Animations: property <background-position-y> from [initial] to [bottom] at (1.25) should be [125%]
-FAIL=Web Animations: property <background-position-y> from neutral to [80px] at (-0.25) should be [30px]
-FAIL=Web Animations: property <background-position-y> from neutral to [80px] at (0) should be [40px]
-FAIL=Web Animations: property <background-position-y> from neutral to [80px] at (0.25) should be [50px]
-FAIL=Web Animations: property <background-position-y> from neutral to [80px] at (0.5) should be [60px]
-FAIL=Web Animations: property <background-position-y> from neutral to [80px] at (0.75) should be [70px]
-FAIL=Web Animations: property <background-position-y> from neutral to [80px] at (1) should be [80px]
-FAIL=Web Animations: property <background-position-y> from neutral to [80px] at (1.25) should be [90px]
 [css/css-backgrounds/animations/background-size-composition.html]
 FAIL=Compositing CSS Animations: property <background-size> underlying [20% 40%] from add [40px 80px, 180% 160%] to add [80% 40%] at (-0.25) should be [calc( 50px +   0%) calc(100px + 30%), 225% 230%]
 FAIL=Compositing CSS Animations: property <background-size> underlying [20% 40%] from add [40px 80px, 180% 160%] to add [80% 40%] at (0) should be [calc( 40px +  20%) calc( 80px + 40%), 200% 200%]
@@ -18112,44 +18054,38 @@ harness=TIMEOUT
 harness=FAIL
 [css/css-backgrounds/background-attachment-local-inline-002.html]
 harness=TIMEOUT
+[css/css-backgrounds/background-attachment-local/attachment-local-clipping-color-3.html]
+harness=FAIL
+[css/css-backgrounds/background-attachment-local/attachment-local-clipping-color-4.html]
+harness=FAIL
 [css/css-backgrounds/background-attachment-local/attachment-local-clipping-color-6.html]
 harness=FAIL
+[css/css-backgrounds/background-attachment-local/attachment-local-clipping-image-3.html]
+harness=FAIL
+[css/css-backgrounds/background-attachment-local/attachment-local-clipping-image-4.html]
+harness=FAIL
 [css/css-backgrounds/background-attachment-local/attachment-local-clipping-image-6.html]
+harness=FAIL
+[css/css-backgrounds/background-attachment-local/attachment-local-positioning-2.html]
 harness=FAIL
 [css/css-backgrounds/background-attachment-local/attachment-local-positioning-3.html]
 harness=FAIL
 [css/css-backgrounds/background-attachment-local/attachment-local-positioning-4.html]
+harness=FAIL
+[css/css-backgrounds/background-attachment-local/attachment-local-positioning-5.html]
 harness=FAIL
 [css/css-backgrounds/background-clip-001.html]
 FAIL=background-clip_border-box
 FAIL=background-clip_content-box
 FAIL=background-clip_initial
 FAIL=background-clip_padding-box
-[css/css-backgrounds/background-clip-004.html]
-harness=FAIL
-[css/css-backgrounds/background-clip-005.html]
-harness=FAIL
 [css/css-backgrounds/background-clip-006.html]
-harness=FAIL
-[css/css-backgrounds/background-clip-007.html]
-harness=FAIL
-[css/css-backgrounds/background-clip-008.html]
-harness=FAIL
-[css/css-backgrounds/background-clip-010.html]
 harness=FAIL
 [css/css-backgrounds/background-clip-border-area-and-blend-mode.html]
 harness=FAIL
-[css/css-backgrounds/background-clip-color.html]
-harness=FAIL
-[css/css-backgrounds/background-clip-content-box-001.html]
-harness=FAIL
 [css/css-backgrounds/background-clip-content-box-002.html]
 harness=FAIL
-[css/css-backgrounds/background-clip-content-box-with-border-radius-003.html]
-harness=FAIL
 [css/css-backgrounds/background-clip-padding-box-001.html]
-harness=FAIL
-[css/css-backgrounds/background-clip-padding-box-with-border-radius-003.html]
 harness=FAIL
 [css/css-backgrounds/background-clip-padding-box-with-border-radius.html]
 harness=FAIL
@@ -18241,6 +18177,8 @@ harness=FAIL
 harness=FAIL
 [css/css-backgrounds/background-color-body-propagation-010.html]
 harness=FAIL
+[css/css-backgrounds/background-color-clip.html]
+harness=FAIL
 [css/css-backgrounds/background-color-root-propagation-003.html]
 harness=FAIL
 [css/css-backgrounds/background-gradient-interpolation-001.html]
@@ -18281,6 +18219,8 @@ harness=FAIL
 [css/css-backgrounds/background-origin-004.html]
 harness=FAIL
 [css/css-backgrounds/background-origin-005.html]
+harness=FAIL
+[css/css-backgrounds/background-origin-006.html]
 harness=FAIL
 [css/css-backgrounds/background-origin-007.html]
 harness=FAIL
@@ -18395,8 +18335,6 @@ FAIL=background-size_percentage_max
 FAIL=background-size_percentage_min
 FAIL=background-size_percentage_normal
 FAIL=background-size_percentage_percentage
-[css/css-backgrounds/background-size-021.html]
-harness=FAIL
 [css/css-backgrounds/background-size-025.html]
 harness=FAIL
 [css/css-backgrounds/background-size-027.html]
@@ -18479,10 +18417,6 @@ harness=FAIL
 harness=FAIL
 [css/css-backgrounds/background-size/vector/background-size-vector-018.html]
 harness=FAIL
-[css/css-backgrounds/background-size/vector/background-size-vector-019.html]
-harness=FAIL
-[css/css-backgrounds/background-size/vector/background-size-vector-020.html]
-harness=FAIL
 [css/css-backgrounds/background-size/vector/background-size-vector-021.html]
 harness=FAIL
 [css/css-backgrounds/background-size/vector/background-size-vector-022.html]
@@ -18517,10 +18451,6 @@ harness=FAIL
 harness=FAIL
 [css/css-backgrounds/background-size/vector/tall--auto--percent-width-percent-height.html]
 harness=FAIL
-[css/css-backgrounds/background-size/vector/tall--auto-32px--nonpercent-width-nonpercent-height-viewbox.html]
-harness=FAIL
-[css/css-backgrounds/background-size/vector/tall--auto-32px--nonpercent-width-nonpercent-height.html]
-harness=FAIL
 [css/css-backgrounds/background-size/vector/tall--auto-32px--nonpercent-width-omitted-height-viewbox.html]
 harness=FAIL
 [css/css-backgrounds/background-size/vector/tall--auto-32px--nonpercent-width-omitted-height.html]
@@ -18533,11 +18463,7 @@ harness=FAIL
 harness=FAIL
 [css/css-backgrounds/background-size/vector/tall--auto-32px--omitted-width-nonpercent-height.html]
 harness=FAIL
-[css/css-backgrounds/background-size/vector/tall--auto-32px--omitted-width-omitted-height-viewbox.html]
-harness=FAIL
 [css/css-backgrounds/background-size/vector/tall--auto-32px--omitted-width-omitted-height.html]
-harness=FAIL
-[css/css-backgrounds/background-size/vector/tall--auto-32px--omitted-width-percent-height-viewbox.html]
 harness=FAIL
 [css/css-backgrounds/background-size/vector/tall--auto-32px--omitted-width-percent-height.html]
 harness=FAIL
@@ -18545,13 +18471,11 @@ harness=FAIL
 harness=FAIL
 [css/css-backgrounds/background-size/vector/tall--auto-32px--percent-width-nonpercent-height.html]
 harness=FAIL
-[css/css-backgrounds/background-size/vector/tall--auto-32px--percent-width-omitted-height-viewbox.html]
-harness=FAIL
 [css/css-backgrounds/background-size/vector/tall--auto-32px--percent-width-omitted-height.html]
 harness=FAIL
-[css/css-backgrounds/background-size/vector/tall--auto-32px--percent-width-percent-height-viewbox.html]
-harness=FAIL
 [css/css-backgrounds/background-size/vector/tall--auto-32px--percent-width-percent-height.html]
+harness=FAIL
+[css/css-backgrounds/background-size/vector/tall--contain--height.html]
 harness=FAIL
 [css/css-backgrounds/background-size/vector/tall--contain--nonpercent-width-nonpercent-height-viewbox.html]
 harness=FAIL
@@ -18588,6 +18512,8 @@ harness=FAIL
 [css/css-backgrounds/background-size/vector/tall--contain--percent-width-percent-height-viewbox.html]
 harness=FAIL
 [css/css-backgrounds/background-size/vector/tall--contain--percent-width-percent-height.html]
+harness=FAIL
+[css/css-backgrounds/background-size/vector/tall--contain--width.html]
 harness=FAIL
 [css/css-backgrounds/background-size/vector/tall--cover--height.html]
 harness=FAIL
@@ -18669,10 +18595,6 @@ harness=FAIL
 harness=FAIL
 [css/css-backgrounds/background-size/vector/wide--12px-auto--percent-width-percent-height.html]
 harness=FAIL
-[css/css-backgrounds/background-size/vector/wide--auto--nonpercent-width-nonpercent-height-viewbox.html]
-harness=FAIL
-[css/css-backgrounds/background-size/vector/wide--auto--nonpercent-width-nonpercent-height.html]
-harness=FAIL
 [css/css-backgrounds/background-size/vector/wide--auto--nonpercent-width-omitted-height-viewbox.html]
 harness=FAIL
 [css/css-backgrounds/background-size/vector/wide--auto--nonpercent-width-omitted-height.html]
@@ -18705,10 +18627,6 @@ harness=FAIL
 harness=FAIL
 [css/css-backgrounds/background-size/vector/wide--auto--percent-width-percent-height.html]
 harness=FAIL
-[css/css-backgrounds/background-size/vector/wide--auto-32px--nonpercent-width-nonpercent-height-viewbox.html]
-harness=FAIL
-[css/css-backgrounds/background-size/vector/wide--auto-32px--nonpercent-width-nonpercent-height.html]
-harness=FAIL
 [css/css-backgrounds/background-size/vector/wide--auto-32px--nonpercent-width-omitted-height-viewbox.html]
 harness=FAIL
 [css/css-backgrounds/background-size/vector/wide--auto-32px--nonpercent-width-omitted-height.html]
@@ -18721,11 +18639,7 @@ harness=FAIL
 harness=FAIL
 [css/css-backgrounds/background-size/vector/wide--auto-32px--omitted-width-nonpercent-height.html]
 harness=FAIL
-[css/css-backgrounds/background-size/vector/wide--auto-32px--omitted-width-omitted-height-viewbox.html]
-harness=FAIL
 [css/css-backgrounds/background-size/vector/wide--auto-32px--omitted-width-omitted-height.html]
-harness=FAIL
-[css/css-backgrounds/background-size/vector/wide--auto-32px--omitted-width-percent-height-viewbox.html]
 harness=FAIL
 [css/css-backgrounds/background-size/vector/wide--auto-32px--omitted-width-percent-height.html]
 harness=FAIL
@@ -18733,13 +18647,11 @@ harness=FAIL
 harness=FAIL
 [css/css-backgrounds/background-size/vector/wide--auto-32px--percent-width-nonpercent-height.html]
 harness=FAIL
-[css/css-backgrounds/background-size/vector/wide--auto-32px--percent-width-omitted-height-viewbox.html]
-harness=FAIL
 [css/css-backgrounds/background-size/vector/wide--auto-32px--percent-width-omitted-height.html]
 harness=FAIL
-[css/css-backgrounds/background-size/vector/wide--auto-32px--percent-width-percent-height-viewbox.html]
-harness=FAIL
 [css/css-backgrounds/background-size/vector/wide--auto-32px--percent-width-percent-height.html]
+harness=FAIL
+[css/css-backgrounds/background-size/vector/wide--contain--height.html]
 harness=FAIL
 [css/css-backgrounds/background-size/vector/wide--contain--nonpercent-width-nonpercent-height-viewbox.html]
 harness=FAIL
@@ -18776,6 +18688,8 @@ harness=FAIL
 [css/css-backgrounds/background-size/vector/wide--contain--percent-width-percent-height-viewbox.html]
 harness=FAIL
 [css/css-backgrounds/background-size/vector/wide--contain--percent-width-percent-height.html]
+harness=FAIL
+[css/css-backgrounds/background-size/vector/wide--contain--width.html]
 harness=FAIL
 [css/css-backgrounds/background-size/vector/wide--cover--height.html]
 harness=FAIL
@@ -19065,16 +18979,6 @@ harness=FAIL
 harness=FAIL
 [css/css-backgrounds/css-box-shadow-001.html]
 harness=FAIL
-[css/css-backgrounds/css3-background-clip-content-box.html]
-harness=FAIL
-[css/css-backgrounds/css3-background-clip-padding-box.html]
-harness=FAIL
-[css/css-backgrounds/css3-background-clip.html]
-harness=FAIL
-[css/css-backgrounds/css3-background-origin-content-box.html]
-harness=FAIL
-[css/css-backgrounds/css3-background-origin-padding-box.html]
-harness=FAIL
 [css/css-backgrounds/css3-background-size-001.html]
 harness=FAIL
 [css/css-backgrounds/css3-background-size-contain.html]
@@ -19197,10 +19101,7 @@ FAIL=Property background-clip value 'text'
 FAIL=e.style['background-clip'] = "border-area text" should set the property value
 FAIL=e.style['background-clip'] = "border-area text, content-box" should set the property value
 FAIL=e.style['background-clip'] = "border-area" should set the property value
-FAIL=e.style['background-clip'] = "border-box" should set the property value
 FAIL=e.style['background-clip'] = "border-box, padding-box, content-box, border-area" should set the property value
-FAIL=e.style['background-clip'] = "content-box" should set the property value
-FAIL=e.style['background-clip'] = "padding-box" should set the property value
 FAIL=e.style['background-clip'] = "text border-area" should set the property value
 FAIL=e.style['background-clip'] = "text" should set the property value
 [css/css-backgrounds/parsing/background-color-computed.html]
@@ -19312,11 +19213,6 @@ FAIL=Property background-origin value 'border-box, padding-box, content-box'
 FAIL=Property background-origin value 'border-box, padding-box, content-box' multiple base values
 FAIL=Property background-origin value 'content-box'
 FAIL=Property background-origin value 'padding-box'
-[css/css-backgrounds/parsing/background-origin-valid.html]
-FAIL=e.style['background-origin'] = "border-box" should set the property value
-FAIL=e.style['background-origin'] = "border-box, padding-box, content-box" should set the property value
-FAIL=e.style['background-origin'] = "content-box" should set the property value
-FAIL=e.style['background-origin'] = "padding-box" should set the property value
 [css/css-backgrounds/parsing/background-position-computed.html]
 FAIL=Property background-position value '-2% -3%'
 FAIL=Property background-position value '12px 13px, 50% 6px, 30px -10px'
@@ -19386,19 +19282,13 @@ FAIL=Property background-position-x value 'right'
 FAIL=Property background-position-x value 'x-end'
 FAIL=Property background-position-x value 'x-start'
 [css/css-backgrounds/parsing/background-position-x-valid.html]
-FAIL=e.style['background-position-x'] = "-20%" should set the property value
 FAIL=e.style['background-position-x'] = "-20%, 10px" should set the property value
-FAIL=e.style['background-position-x'] = "0.5em" should set the property value
 FAIL=e.style['background-position-x'] = "0.5em, x-start, x-end" should set the property value
-FAIL=e.style['background-position-x'] = "10px" should set the property value
 FAIL=e.style['background-position-x'] = "calc(10px - 0.5em)" should set the property value
 FAIL=e.style['background-position-x'] = "calc(10px - 0.5em), left -20%, right 10px" should set the property value
-FAIL=e.style['background-position-x'] = "center" should set the property value
 FAIL=e.style['background-position-x'] = "center, left, right" should set the property value
 FAIL=e.style['background-position-x'] = "left -20%" should set the property value
-FAIL=e.style['background-position-x'] = "left" should set the property value
 FAIL=e.style['background-position-x'] = "right 10px" should set the property value
-FAIL=e.style['background-position-x'] = "right" should set the property value
 FAIL=e.style['background-position-x'] = "x-end" should set the property value
 FAIL=e.style['background-position-x'] = "x-start" should set the property value
 [css/css-backgrounds/parsing/background-position-y-computed.html]
@@ -19422,19 +19312,13 @@ FAIL=Property background-position-y value 'top'
 FAIL=Property background-position-y value 'y-end'
 FAIL=Property background-position-y value 'y-start'
 [css/css-backgrounds/parsing/background-position-y-valid.html]
-FAIL=e.style['background-position-y'] = "-20%" should set the property value
 FAIL=e.style['background-position-y'] = "-20%, 10px" should set the property value
-FAIL=e.style['background-position-y'] = "0.5em" should set the property value
 FAIL=e.style['background-position-y'] = "0.5em, y-start, y-end" should set the property value
-FAIL=e.style['background-position-y'] = "10px" should set the property value
 FAIL=e.style['background-position-y'] = "bottom 10px" should set the property value
-FAIL=e.style['background-position-y'] = "bottom" should set the property value
 FAIL=e.style['background-position-y'] = "calc(10px - 0.5em)" should set the property value
 FAIL=e.style['background-position-y'] = "calc(10px - 0.5em), top -20%, bottom 10px" should set the property value
-FAIL=e.style['background-position-y'] = "center" should set the property value
 FAIL=e.style['background-position-y'] = "center, top, bottom" should set the property value
 FAIL=e.style['background-position-y'] = "top -20%" should set the property value
-FAIL=e.style['background-position-y'] = "top" should set the property value
 FAIL=e.style['background-position-y'] = "y-end" should set the property value
 FAIL=e.style['background-position-y'] = "y-start" should set the property value
 [css/css-backgrounds/parsing/background-repeat-computed.html]
@@ -32166,8 +32050,6 @@ harness=FAIL
 [css/css-flexbox/flex-aspect-ratio-img-row-017.html]
 harness=FAIL
 [css/css-flexbox/flex-aspect-ratio-img-vert-lr.html]
-harness=FAIL
-[css/css-flexbox/flex-aspect-ratio-intrinsic-padding-001.html]
 harness=FAIL
 [css/css-flexbox/flex-aspect-ratio-percentage-height-stale-width.html]
 harness=FAIL
@@ -60355,10 +60237,6 @@ harness=FAIL
 [css/css-overflow/overflow-clip-margin-019.html]
 harness=FAIL
 [css/css-overflow/overflow-clip-margin-020.html]
-harness=FAIL
-[css/css-overflow/overflow-clip-margin-021.html]
-harness=FAIL
-[css/css-overflow/overflow-clip-margin-022.html]
 harness=FAIL
 [css/css-overflow/overflow-clip-margin-border-radius-002.html]
 harness=FAIL
@@ -90225,10 +90103,6 @@ FAIL=testing background-position: calc(18px - 7px) calc(19px - 7px)
 FAIL=testing background-position: calc(2px + 3px) calc(4px + 5px)
 FAIL=testing background-position: calc(4 * 5px) calc(6px * 4)
 FAIL=testing background-position: calc(6px + 21%) calc(7em + 22%)
-[css/css-values/calc-background-position-1.html]
-harness=FAIL
-[css/css-values/calc-background-size-1.html]
-harness=FAIL
 [css/css-values/calc-catch-divide-by-0.html]
 FAIL='calc(100px * (1 / (0)))' as a specified value should serialize as 'calc(infinity * 1px)'.
 FAIL='calc(100px * (1 / (2 - (-62 + 64))))' as a specified value should serialize as 'calc(infinity * 1px)'.

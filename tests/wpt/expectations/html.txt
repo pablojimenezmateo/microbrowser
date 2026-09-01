@@ -22858,8 +22858,6 @@ harness=FAIL
 harness=TIMEOUT
 [html/semantics/embedded-content/the-img-element/available-images.html]
 harness=TIMEOUT
-[html/semantics/embedded-content/the-img-element/content-type-with-parameters.html]
-harness=FAIL
 [html/semantics/embedded-content/the-img-element/current-pixel-density/basic.html]
 FAIL=<img src="/images/green-256x256.png" data-expect="256">
 FAIL=<img srcset="/images/green-256x256.png 1.6x" data-expect="160">

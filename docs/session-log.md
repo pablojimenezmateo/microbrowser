@@ -8514,3 +8514,55 @@ only item nothing this session touched.
 `docs/wpt-plan.md` has now been wrong about a percentage target three times (F6, F7, F1) and each
 time the tell was the same: **a percentage whose denominator is dominated by one subdirectory
 belonging to another milestone.** Check the ceiling before accepting a target, not after.
+
+## WPT task F1 (continued) — background-origin, background-clip, and two bugs that cancelled · 2026-09-01
+
+**Status:** in_progress
+**Check:** restated, because the old one was arithmetically impossible (see the previous entry).
+It is now `css/css-backgrounds/` reftests ≥ 300 of 727 files; today it is **234, from 208**. Both
+halves verify `0 unexpected results`, exit 0: `--reftests-only` over all 20,998, and
+`--testharness-only css/css-backgrounds/`.
+
+**Landed:** `background-origin` and `background-clip` as real properties, `background-position-x`
+and `-y` as longhands, and a `background` shorthand that reads a position at all.
+
+**Found — two bugs were cancelling exactly, and fixing one is what exposed the other.** This
+renderer measured *and* clipped every background from the border box; CSS measures from the
+padding box and clips to the border box, and the two defaults differ on purpose. Correcting that
+broke eight tests in `css/CSS2/margin-padding-clear/` that had been passing. They were not a
+regression: each says `background: url(x) -5px` on an element with a **5px** border, the
+shorthand had never parsed a position at all, and the wrong origin displaced the image by exactly
+the border width the dropped offset would have. Both halves had to land together.
+
+**The transferable rule: a fix that breaks tests in another directory is as likely to be a second
+bug losing its cover as it is to be a mistake.** The tell here was the arithmetic — the offset in
+the test and the border width were the same number — and it took one `grep -A18 '<style'`. I had
+already written the losses off as "honest failures" once before looking.
+
+**Found — where a refusal beats an approximation, twice, and the second is subtle.**
+`background-clip: text` is refused because accepting it makes `@supports (background-clip: text)`
+say yes to a page whose design then depends on a mask we do not have. The other is
+`background-color-clip.html`: CSS clips the background *colour* by the **bottom-most layer**, and
+that is not the last value written — the test's `background-image: none, none` makes two layers,
+so its third `background-clip` entry is *discarded*. A renderer with one layer that answered "the
+last entry" would be wrong there in a way that reads as right. I implemented that rule, measured
+it, and took it back out; the reasoning is in `BackgroundStyle.h` rather than in this log because
+that is where the next person will be standing.
+
+**Left:** F1a is now **independent of F1** — I filed it with a dependency this morning and it was
+wrong, because F1's remainder is `background-repeat: round|space` and backgrounds on inline boxes
+and F1a is SVG intrinsic sizing. Take F1a without waiting. After that, `background` on inline
+boxes is the thing F1's own title names and that neither session has touched.
+
+**Twelve reftests in the area fail honestly now and every one names a feature:**
+`background-attachment: local` (6), `background-attachment: fixed` overriding `background-origin`
+(1), `background-size: contain` (4 — F1a), and the multi-layer colour clip (1).
+
+**Numbers:** area testharness 804 → 879 of 6,181 subtests; area reftests 208 → 234 of 727; the
+area's Firefox gap 538 → **517** files; full-suite reftests **8,312 → 8,352**; the aggregate
+against Firefox 34.6% → 34.7%. Expectation diff: 160 lines out, 32 in.
+
+**Housekeeping worth knowing:** a `--reftests-only --update-expectations` run loads the whole
+expectation set at startup and writes it back at the end, so a `--testharness-only` re-record that
+finishes while one is in flight is silently reverted. It happened here. Run the two halves in
+series, not in parallel.
