@@ -169,6 +169,31 @@ void LayoutEngine::PlaceFloat(Box& child, float content_left, float content_widt
 // its children, which is what keeps a float inside a sidebar from shortening
 // the lines of the article next to it.
 //
+namespace {
+
+// One axis of `aspect-ratio`, given the other.
+//
+// **The ratio describes the box `box-sizing` names, not the content box.** Under
+// `border-box` the padding and border are inside the ratio: a `width: 100px;
+// aspect-ratio: 2/1; box-sizing: border-box; padding-left: 50px` element is
+// 100 by 50 *including* that padding, so its content box is 50 by 50 and not
+// 50 by 25. Applying the ratio to the content box directly gives the second
+// answer, which is right whenever the padding is zero -- which is every test
+// anybody writes first.
+//
+// `from` is the known content size, `from_padding_border` and
+// `to_padding_border` are the two axes' extras, and `ratio` multiplies the
+// known axis to give the wanted one.
+float ContentSizeFromRatio(const css::ComputedStyle& style, float from_padding_border,
+                           float to_padding_border, float from, float ratio) {
+  if (style.box_sizing != css::BoxSizing::BorderBox) {
+    return std::max(0.0f, from * ratio);
+  }
+  return std::max(0.0f, (from + from_padding_border) * ratio - to_padding_border);
+}
+
+}  // namespace
+
 // `center_in_container` is the <center> rule: the containing block centres its
 // block-level children outright, whatever their margins say. It centres this
 // box's lines too, but that part is ordinary `text-align: center` and inherits
@@ -207,12 +232,23 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
                            border_left + border_right;
   float content_width = available_width - horizontal;
   // Needed *before* the width is decided, because `box-sizing: border-box`
-  // takes it out of whatever the declaration said.
+  // takes it out of whatever the declaration said -- and the vertical pair with
+  // it, because `aspect-ratio` turns one axis into the other and under
+  // `border-box` the ratio describes the *border* boxes rather than the content
+  // boxes it is applied to here.
   const float width_padding_border = padding_left + padding_right + border_left + border_right;
+  const float height_padding_border = padding_top + padding_bottom +
+                                      geometry.border.top.Resolve(style.font_size) +
+                                      geometry.border.bottom.Resolve(style.font_size);
   // Measured here when the table's own width depends on it, and handed to
   // LayoutTableChildren so it is measured once rather than once per question
   // asked about it.
   std::optional<TableColumnWidths> table_columns;
+  // Set when the width came from `aspect-ratio` rather than from a declaration
+  // or from the containing block. Shrink-to-fit below must not then overwrite
+  // it: a float with a ratio and a definite height is as wide as the ratio
+  // says, not as wide as its content wants.
+  bool width_from_ratio = false;
   if (box.GetKind() == Box::Kind::Replaced) {
     // CSS 2.1 s10.3.4: a block-level replaced box is as wide as its *content*,
     // not as wide as its containing block -- a `display: block` image does not
@@ -246,6 +282,19 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
       total_max += table_columns->max[i];
     }
     content_width = std::min(std::max(total_min, content_width), total_max);
+  } else if (style.aspect_ratio > 0.0f && !style.height.IsAuto() && !style.height.IsPercent()) {
+    // **`aspect-ratio` in the other direction.** Until now the ratio was read
+    // in exactly one place -- the height path -- so `width: 100px;
+    // aspect-ratio: 1/1` gave a 100px square and `height: 100px;
+    // aspect-ratio: 1/1` gave a box as wide as its containing block. A ratio
+    // that only works one way round is not a ratio; it is a way of computing a
+    // height, and `css/css-sizing/aspect-ratio/block-aspect-ratio-002.html` is
+    // one line of markup that says so.
+    content_width = ContentSizeFromRatio(style, height_padding_border, width_padding_border,
+                                         style.UsedContentSize(style.height, 0.0f,
+                                                               height_padding_border),
+                                         style.aspect_ratio);
+    width_from_ratio = true;
   }
   if (forced != nullptr && forced->content_width.has_value()) {
     // The flex algorithm already decided this, against the other items. The
@@ -258,7 +307,7 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   // beside it, which is the one thing a float is for; an inline-block that
   // filled it would push everything after it onto the next line, which is the
   // one thing an inline-block is for. Same rule, same reason, so one condition.
-  if ((style.IsFloating() || box.IsAtomicInline()) && style.width.IsAuto()) {
+  if ((style.IsFloating() || box.IsAtomicInline()) && style.width.IsAuto() && !width_from_ratio) {
     content_width = std::clamp(MaxContentWidth(box) - horizontal, 0.0f, content_width);
   }
   // The bounds apply to whatever decided the width above -- a declared one,
@@ -325,10 +374,6 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
   }
 
   float content_height = 0.0f;
-  const float border_top = geometry.border.top.Resolve(style.font_size);
-  const float border_bottom = geometry.border.bottom.Resolve(style.font_size);
-  const float height_padding_border = padding_top + padding_bottom + border_top + border_bottom;
-
   // Definite height known before children when it does not depend on them
   // (stated length, or ForcedSize from abspos stretch / flex). Needed for
   // percentage heights on both block children and inline replaced boxes.
@@ -401,13 +446,14 @@ void LayoutEngine::LayoutBlock(Box& box, float container_left, float available_w
                          ? std::max(0.0f, style.height.Resolve(style.font_size, content_height) -
                                               height_padding_border)
                          : style.height.Resolve(style.font_size, content_height);
-  } else if (style.aspect_ratio > 0.0f) {
+  } else if (style.aspect_ratio > 0.0f && !width_from_ratio) {
     // `aspect-ratio` with an automatic height and a width that is known: the
     // height comes from the ratio rather than from the content. This is where
     // a media box reserves its own space before anything is in it, which is
     // what the property is for -- and why it is checked only in the `auto`
     // branch, since a stated height is still the stated height.
-    content_height = content_width / style.aspect_ratio;
+    content_height = ContentSizeFromRatio(style, width_padding_border, height_padding_border,
+                                         content_width, 1.0f / style.aspect_ratio);
   } else if (box.GetKind() == Box::Kind::Replaced) {
     // A replaced box has no child boxes to give it a height, so an automatic
     // one comes from the content: the image's own size, or the row arithmetic

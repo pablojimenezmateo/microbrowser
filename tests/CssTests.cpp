@@ -714,6 +714,22 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
                 100, "while content-box -- the initial value -- leaves the declaration alone");
   });
 
+  AddTest(tests, "Css/AspectRatioIsARatioInBothDirections", [] {
+    // The property was read in exactly one place -- the height path -- so
+    // `width: 100px; aspect-ratio: 1/1` gave a 100px square while
+    // `height: 100px; aspect-ratio: 1/1` gave a box as wide as its containing
+    // block. **A ratio that works one way round is not a ratio**; it is a way of
+    // computing a height, and `block-aspect-ratio-002.html` is one line of
+    // markup that says so. This is the parse half; the layout half is the two
+    // `ContentSizeFromRatio` call sites in `LayoutEngine.cpp`.
+    ComputedStyle parent;
+    ComputedStyle style;
+    Expect(ApplyDeclaration(Declaration{"aspect-ratio", "2/1"}, parent, style),
+           "a ratio parses");
+    Expect(style.aspect_ratio > 1.99f && style.aspect_ratio < 2.01f,
+           "and is stored as width over height, so 2/1 is 2");
+  });
+
   // --- @font-face, ADR 0024 --------------------------------------------------
 
   AddTest(tests, "Css/AtFontFaceIsADescriptorBlockRatherThanARule", [] {
