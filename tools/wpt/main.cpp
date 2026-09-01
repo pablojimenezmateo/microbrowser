@@ -531,6 +531,12 @@ bool PumpUntil(microbrowser::engine::Engine& engine, microbrowser::ipc::UiEndpoi
 struct RenderedPage {
   microbrowser::gfx::DisplayList display_list;
   bool painted = false;
+  // Whether the page asked to say when it was ready, and whether it ever did.
+  // A reftest that never drops `reftest-wait` has not rendered the state it
+  // names, and photographing it anyway is how an accidental pass is made: the
+  // initial state and the final one happen to look alike *today*.
+  bool asked_to_wait = false;
+  bool wait_timed_out = false;
 };
 
 // Loads one URL and returns what the engine reported, using `evaluate` to ask
@@ -608,8 +614,32 @@ RenderedPage RenderPage(microbrowser::platform::SystemFontProvider& fonts, const
   // gstatic fetches hang; that reasoning does not reach here. Every byte a
   // reftest asks for comes from our own server two processes away, and this
   // wait is bounded by the same deadline the rest of the load already spends.
-  PumpUntil(engine, channel.Ui(), &page.display_list, deadline,
-            [&] { return !engine.IsLoading(); });
+  //
+  // And **`reftest-wait` is read after the load, not instead of it.** The class
+  // is a second condition on the same wait rather than a replacement for it:
+  // the page has to have finished loading before it can be asked anything, and
+  // it has to have said it is ready before the picture means anything. The
+  // probe is behind the `IsLoading` test so that it costs one script evaluation
+  // per settled page rather than one per ten milliseconds of every page in the
+  // suite -- 20,998 reftests are two loads each, and the overwhelming majority
+  // of them never had the class at all.
+  const bool ready = PumpUntil(engine, channel.Ui(), &page.display_list, deadline, [&] {
+    if (engine.IsLoading()) {
+      return false;
+    }
+    if (engine.EvaluateScript(microbrowser::wpt::kReftestWaitProbe) != "1") {
+      return true;
+    }
+    page.asked_to_wait = true;
+    return false;
+  });
+  // `PumpUntil` returns false for a page that never settled *or* for one that
+  // settled and is still waiting; only the second is a reftest-wait timeout,
+  // and `asked_to_wait` is what tells them apart. A page that stopped doing
+  // anything at all with the class still on it lands here too, which is right:
+  // it is a test whose script died before it could say it was ready, and it has
+  // no more claim on the deadline than one that hung.
+  page.wait_timed_out = !ready && page.asked_to_wait;
   while (std::optional<microbrowser::ipc::EngineToUi> message = channel.Ui().TryReceive()) {
     if (auto* paint = std::get_if<microbrowser::ipc::PaintFrameMessage>(&*message)) {
       page.display_list = std::move(paint->display_list);
@@ -630,16 +660,35 @@ std::string RunReftest(microbrowser::platform::SystemFontProvider& fonts,
                        microbrowser::gfx::TextRenderer& text, const WptTest& test,
                        const std::string& test_url, const std::string& reference_url,
                        const std::string& artifacts_dir, int timeout_ms) {
-  const auto rasterize = [&](const std::string& url) {
+  // Which of the two pages -- if either -- said it would tell us when it was
+  // ready and then did not. Named rather than counted, because "the test hung"
+  // and "the reference hung" are different bugs and the message is the only
+  // place either is written down.
+  std::string never_ready;
+  const auto rasterize = [&](const std::string& url, const char* which) {
     RenderedPage page = RenderPage(fonts, url, timeout_ms / 2);
+    if (page.wait_timed_out) {
+      never_ready += never_ready.empty() ? which : std::string(" and ") + which;
+    }
     microbrowser::gfx::Canvas canvas{800, 600};
     canvas.Clear(microbrowser::gfx::Color::Rgb(0xFF, 0xFF, 0xFF));
     microbrowser::gfx::Painter painter{canvas};
     microbrowser::gfx::Execute(page.display_list, painter, canvas.Bounds(), &text);
     return canvas;
   };
-  const microbrowser::gfx::Canvas actual = rasterize(test_url);
-  const microbrowser::gfx::Canvas expected = rasterize(reference_url);
+  const microbrowser::gfx::Canvas actual = rasterize(test_url, "the test");
+  const microbrowser::gfx::Canvas expected = rasterize(reference_url, "the reference");
+
+  // **A page that never dropped `reftest-wait` is a TIMEOUT and not a
+  // comparison.** Comparing anyway would be reading a picture the test has
+  // explicitly said is not the one it is about, and the answer would be a pass
+  // exactly when the state before the change and the state after it happen to
+  // look alike -- the accidental pass this whole task exists to remove. It is
+  // the status wptrunner gives it, and it is the honest one: we do not know
+  // what this test renders, because it never got there.
+  if (!never_ready.empty()) {
+    return "H\tTIMEOUT\t" + never_ready + " never removed reftest-wait";
+  }
 
   const microbrowser::wpt::ImageDifference difference =
       microbrowser::wpt::CompareCanvases(actual, expected);

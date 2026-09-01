@@ -26,6 +26,24 @@ namespace microbrowser::wpt {
 // because a tolerance we invented would make our numbers incomparable with
 // Firefox's -- which is the entire reason docs/wpt-firefox-gap.md exists.
 
+// **Is the root element still saying "not yet"?**
+//
+// A reftest may carry `class="reftest-wait"` on its root element, and the
+// contract is that the runner does not photograph it until the page removes
+// the class -- from `load`, from a `requestAnimationFrame`, from an animation
+// event, or through `/common/reftest-wait.js`'s own `takeScreenshot()`, which
+// is that one line and nothing else.
+//
+// This is read from the *class attribute* rather than through `classList`,
+// because the root element of a reftest is as often `<svg>` as `<html>` and a
+// `classList` that is not installed on every element type would answer "not
+// waiting" for the whole SVG half of the suite -- silently, and in the
+// direction that looks like a pass.
+constexpr char kReftestWaitProbe[] =
+    "(function(){var e=self.document&&self.document.documentElement;if(!e)return 0;"
+    "var c=e.getAttribute&&e.getAttribute('class');"
+    "return c&&(' '+c+' ').indexOf(' reftest-wait ')>=0?1:0})()";
+
 // One inclusive range, written `low-high` in a fuzzy annotation. A bare number
 // means `n-n`.
 struct FuzzyRange {

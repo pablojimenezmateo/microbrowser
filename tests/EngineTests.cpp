@@ -15,6 +15,7 @@
 #include "gfx/FontCatalog.h"
 #include "privacy/PrivacyPolicy.h"
 #include "url/Url.h"
+#include "wpt/Reftest.h"
 #include "ipc/InProcessTransport.h"
 #include "ipc/Message.h"
 #include <chrono>
@@ -4436,6 +4437,47 @@ document.addEventListener("DOMContentLoaded",async function(){var e=document.for
     session.Send(ipc::ResizeViewportMessage{gfx::IntSize{500, 400}, 1.0f});
     ExpectEqString(Joined(session.engine.ConsoleOutput()), "resized",
                    "an unchanged viewport is a no-op");
+  });
+
+  AddTest(tests, "Engine/TheReftestWaitProbeReadsAnSvgRootToo", [] {
+    // The WPT runner asks every reftest whether it is ready to be photographed,
+    // and `wpt::kReftestWaitProbe` is that question (task F11). It reads the
+    // *class attribute* rather than `classList`, and this is the test of the
+    // reason: 1,193 files carry `class="reftest-wait"` and the root element
+    // that carries it is as often `<svg>` as `<html>`. A probe that answered
+    // "not waiting" for one of those two would photograph the whole SVG half of
+    // the suite before it was ready -- silently, and in the direction that
+    // reads as a pass.
+    const auto answer = [](Session& session) {
+      return session.engine.EvaluateScript(wpt::kReftestWaitProbe);
+    };
+
+    Session html;
+    html.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    html.Send(ipc::NavigateMessage{"data:text/html,<html class=\"reftest-wait\"><body>x"});
+    ExpectEqString(answer(html), "1", "an HTML root that is still waiting");
+    html.engine.EvaluateScript(
+        "document.documentElement.setAttribute('class', '')");
+    ExpectEqString(answer(html), "0", "and not waiting once the class is gone");
+
+    Session svg;
+    svg.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    svg.Send(ipc::NavigateMessage{
+        "data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" "
+        "class=\"reftest-wait\"><rect width=\"10\" height=\"10\"/></svg>"});
+    ExpectEqString(answer(svg), "1", "an SVG root that is still waiting");
+    svg.engine.EvaluateScript(
+        "document.documentElement.setAttribute('class', 'done')");
+    ExpectEqString(answer(svg), "0", "and not waiting once the class is gone");
+
+    // A class *containing* the word is not the word: `reftest-waiting` and
+    // `no-reftest-wait` are ordinary class names a page may use for its own
+    // reasons, and a substring search would hang the runner on both.
+    Session neighbour;
+    neighbour.Send(ipc::ResizeViewportMessage{gfx::IntSize{400, 300}, 1.0f});
+    neighbour.Send(ipc::NavigateMessage{
+        "data:text/html,<html class=\"reftest-waiting no-reftest-wait\"><body>x"});
+    ExpectEqString(answer(neighbour), "0", "neither neighbouring name is the class");
   });
 }
 
