@@ -42,12 +42,9 @@ FAIL=document.createElement must create an instance of autonomous custom element
 FAIL=document.createElement must report an exception thrown by a custom built-in element constructor
 FAIL=document.createElement with unknown "is" value should create "undefined" state element
 FAIL=document.createElement()'s second argument is to be ignored when it's a string
-[custom-elements/Document-createElement-svg.svg]
-harness=TIMEOUT
 [custom-elements/Document-createElement.html]
 FAIL=document.createElement must not report a NotSupportedError when attribute is added and removed during construction
 FAIL=document.createElement must not report a NotSupportedError when the element is adopted back from a a cloned document during construction
-FAIL=document.createElement must not report a NotSupportedError when the element is adopted back from a an HTML document fetched by XHR during construction
 FAIL=document.createElement must report a NotSupportedError when a Comment child is added during construction
 FAIL=document.createElement must report a NotSupportedError when a Text child is added during construction
 FAIL=document.createElement must report a NotSupportedError when an element child is added during construction
@@ -826,7 +823,8 @@ FAIL=If prototype is not object (undefined), derives the fallback from NewTarget
 FAIL=Rethrow any exceptions thrown while getting the prototype
 FAIL=Use NewTarget's prototype, not the one stored at definition time
 [custom-elements/microtasks-and-constructors.html]
-harness=TIMEOUT
+FAIL=Microtasks evaluate afterward when the stack is not empty using the constructor
+FAIL=Microtasks evaluate immediately when the stack is empty inside the parser, causing the checks on no attributes to fail
 [custom-elements/overwritten-customElements-global.html]
 FAIL=Custom elements can still be constructed after `window.customElements` is deleted.
 FAIL=Custom elements can still be constructed after `window.customElements` is overwritten.
@@ -849,23 +847,46 @@ FAIL=HTML parser should call connectedCallback before appending child nodes.
 FAIL=HTML parser must use the returned value of the custom element constructor instead of the one created before super() call
 FAIL=HTML parser must use the returned value of the custom element constructor instead using the one created in super() call
 [custom-elements/parser/parser-uses-create-an-element-for-a-token-svg.svg]
-harness=TIMEOUT
+FAIL=XML parser should create custom built-in elements.
 [custom-elements/parser/parser-uses-registry-of-owner-document.html]
 harness=TIMEOUT
 [custom-elements/parser/serializing-html-fragments-customized-builtins.html]
 FAIL="is" value should be serialized even for an undefined element
 FAIL="is" value should be serialized if the custom element has no "is" content attribute
 [custom-elements/perform-microtask-checkpoint-before-construction-xml-parser.xhtml]
-harness=TIMEOUT
+FAIL=XML parser must perform a microtask checkpoint before constructing a custom element
 [custom-elements/perform-microtask-checkpoint-before-construction.html]
 FAIL=HTML parser must perform a microtask checkpoint before constructing a custom element
 FAIL=HTML parser must perform a microtask checkpoint before constructing a custom element during the adoption agency algorithm
 [custom-elements/pseudo-class-defined-customized-builtins.html]
-harness=TIMEOUT
+FAIL=Upgraded createElement("abbr", is:"my-abbr") should be :defined
+FAIL=Upgraded createElementNS("http://www.w3.org/1999/xhtml", "abbr", is:"my-abbr") should be :defined
+FAIL=Without browsing context: createElementNS("http://www.w3.org/2000/svg", "abbr", is:"my-abbr") should be :defined
+FAIL=Without browsing context: createElementNS("http://www.w3.org/2000/svg", "p", is:"") should be :defined
+FAIL=createElementNS("http://www.w3.org/2000/svg", "abbr", is:"my-abbr") should be :defined
+FAIL=createElementNS("http://www.w3.org/2000/svg", "p", is:"") should be :defined
 [custom-elements/pseudo-class-defined-print.html]
 harness=FAIL
 [custom-elements/pseudo-class-defined.html]
-harness=TIMEOUT
+FAIL=<div> should be :defined
+FAIL=<font-face> should be :defined
+FAIL=Upgraded createElement("a-a") should be :defined
+FAIL=Upgraded createElementNS("http://www.w3.org/1999/xhtml", "a-a") should be :defined
+FAIL=Without browsing context: createElement("div") should be :defined
+FAIL=Without browsing context: createElement("font-face") should be :defined
+FAIL=Without browsing context: createElementNS("http://www.w3.org/1999/xhtml", "div") should be :defined
+FAIL=Without browsing context: createElementNS("http://www.w3.org/1999/xhtml", "font-face") should be :defined
+FAIL=Without browsing context: createElementNS("http://www.w3.org/2000/svg", "a-a") should be :defined
+FAIL=Without browsing context: createElementNS("http://www.w3.org/2000/svg", "div") should be :defined
+FAIL=Without browsing context: createElementNS("http://www.w3.org/2000/svg", "font-face") should be :defined
+FAIL=createElement("div") should be :defined
+FAIL=createElement("font-face") should be :defined
+FAIL=createElementNS("http://www.w3.org/1999/xhtml", "div") should be :defined
+FAIL=createElementNS("http://www.w3.org/1999/xhtml", "font-face") should be :defined
+FAIL=createElementNS("http://www.w3.org/2000/svg", "a-a") should be :defined
+FAIL=createElementNS("http://www.w3.org/2000/svg", "div") should be :defined
+FAIL=createElementNS("http://www.w3.org/2000/svg", "font-face") should be :defined
+FAIL=this.matches(:defined) should not match during an upgrade
 [custom-elements/range-and-constructors.html]
 FAIL=Range.cloneContents should invoke constructor in tree order
 FAIL=Range.extractContents should invoke constructor in tree order
@@ -896,16 +917,26 @@ FAIL=ariaOwnsElements in Element must enqueue an attributeChanged reaction when 
 FAIL=value on Attr must enqueue an attributeChanged reaction when replacing an existing attribute
 FAIL=value on Attr must not enqueue an attributeChanged reaction when replacing an existing unobserved attribute
 [custom-elements/reactions/CSSStyleDeclaration.html]
+FAIL=A camel case attribute (borderWidth) on CSSStyleDeclaration must enqueue an attributeChanged reaction when it adds the observed style attribute
+FAIL=A camel case attribute (borderWidth) on CSSStyleDeclaration must enqueue an attributeChanged reaction when it mutates the observed style attribute
+FAIL=A dashed property (border-width) on CSSStyleDeclaration must enqueue an attributeChanged reaction when it adds the observed style attribute
+FAIL=A dashed property (border-width) on CSSStyleDeclaration must enqueue an attributeChanged reaction when it mutates the observed style attribute
+FAIL=A webkit prefixed camel case attribute (webkitFilter) on CSSStyleDeclaration must enqueue an attributeChanged reaction when it adds the observed style attribute
+FAIL=A webkit prefixed camel case attribute (webkitFilter) on CSSStyleDeclaration must enqueue an attributeChanged reaction when it mutates the observed style attribute
+FAIL=A webkit prefixed camel case attribute (webkitFilter) on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it adds the style attribute but the style attribute is not observed
+FAIL=A webkit prefixed camel case attribute (webkitFilter) on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it mutates the style attribute but the style attribute is not observed
+FAIL=A webkit prefixed dashed property (-webkit-filter) on CSSStyleDeclaration must enqueue an attributeChanged reaction when it adds the observed style attribute
+FAIL=A webkit prefixed dashed property (-webkit-filter) on CSSStyleDeclaration must enqueue an attributeChanged reaction when it mutates the observed style attribute
+FAIL=A webkit prefixed dashed property (-webkit-filter) on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it adds the style attribute but the style attribute is not observed
+FAIL=A webkit prefixed dashed property (-webkit-filter) on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it mutates the style attribute but the style attribute is not observed
+FAIL=cssFloat on CSSStyleDeclaration must enqueue an attributeChanged reaction when it adds the observed style attribute
+FAIL=cssFloat on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it adds the style attribute but the style attribute is not observed
 FAIL=cssText on CSSStyleDeclaration must enqueue an attributeChanged reaction when it adds the observed style attribute
 FAIL=cssText on CSSStyleDeclaration must enqueue an attributeChanged reaction when it mutates the observed style attribute
-FAIL=cssText on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it adds the style attribute but the style attribute is not observed
-FAIL=cssText on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it mutates the style attribute but the style attribute is not observed
+FAIL=removeProperty on CSSStyleDeclaration must enqueue an attributeChanged reaction when it removes a property from the observed style attribute
 FAIL=setProperty on CSSStyleDeclaration must enqueue an attributeChanged reaction when it adds the observed style attribute
 FAIL=setProperty on CSSStyleDeclaration must enqueue an attributeChanged reaction when it makes a property important and the style attribute is observed
-FAIL=setProperty on CSSStyleDeclaration must enqueue an attributeChanged reaction when it makes a property important but the style attribute is not observed
 FAIL=setProperty on CSSStyleDeclaration must enqueue an attributeChanged reaction when it mutates the observed style attribute
-FAIL=setProperty on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it adds the style attribute but the style attribute is not observed
-FAIL=setProperty on CSSStyleDeclaration must not enqueue an attributeChanged reaction when it mutates the style attribute but the style attribute is not observed
 [custom-elements/reactions/ChildNode.html]
 FAIL=after on ChildNode must enqueue a disconnected reaction, an adopted reaction, and a connected reaction when the custom element was in another document
 FAIL=before on ChildNode must enqueue a disconnected reaction, an adopted reaction, and a connected reaction when the custom element was in another document
@@ -914,11 +945,8 @@ FAIL=replaceWith on ChildNode must enqueue a disconnected reaction, an adopted r
 FAIL=deleter on DOMStringMap must enqueue an attributeChanged reaction when removing an observed data attribute
 [custom-elements/reactions/Document.html]
 FAIL=adoptNode on Document must enqueue an adopted reaction when importing a custom element
-FAIL=body on Document must enqueue connectedCallback when inserting a custom element
-FAIL=body on Document must enqueue disconnectedCallback when removing a custom element
 FAIL=execCommand on Document must enqueue a disconnected reaction when deleting a custom element from a contenteditable element
 FAIL=importNode on Document must construct a new custom element when importing a custom element from a template
-FAIL=importNode on Document must not construct a new custom element when importing a custom element into a window-less document
 FAIL=open on Document must enqueue disconnectedCallback when removing a custom element
 FAIL=title on Document must enqueue disconnectedCallback when removing a custom element
 FAIL=write on Document must enqueue connectedCallback after constructing a custom element
@@ -948,8 +976,6 @@ FAIL=draggable on HTMLElement must enqueue an attributeChanged reaction when add
 FAIL=draggable on HTMLElement must enqueue an attributeChanged reaction when replacing an existing attribute
 FAIL=innerText on HTMLElement must enqueue a disconnected reaction
 FAIL=outerText on HTMLElement must enqueue a disconnected reaction
-PRECONDITION_FAILED=popover on HTMLElement must enqueue an attributeChanged reaction when adding popover content attribute
-PRECONDITION_FAILED=popover on HTMLElement must enqueue an attributeChanged reaction when replacing an existing attribute
 FAIL=spellcheck on HTMLElement must enqueue an attributeChanged reaction when adding spellcheck content attribute
 FAIL=spellcheck on HTMLElement must enqueue an attributeChanged reaction when replacing an existing attribute
 FAIL=translate on HTMLElement must enqueue an attributeChanged reaction when adding translate content attribute
@@ -1022,12 +1048,6 @@ FAIL=cloneContents on Range must enqueue an attributeChanged reaction when cloni
 FAIL=cloneContents on Range must not enqueue an attributeChanged reaction when cloning an element with an unobserved attribute
 FAIL=insertNode on Range must enqueue a disconnected reaction, an adopted reaction, and a connected reaction when the custom element was in another document
 FAIL=surroundContents on Range must enqueue a disconnected reaction, an adopted reaction, and a connected reaction when the custom element was in another document
-[custom-elements/reactions/Selection.html]
-FAIL=deleteFromDocument on Selection must enqueue a disconnected reaction
-[custom-elements/reactions/ShadowRoot.html]
-FAIL=innerHTML on ShadowRoot must enqueue connectedCallback on newly upgraded custom elements when the shadow root is connected
-FAIL=innerHTML on ShadowRoot must enqueue disconnectedCallback when removing a custom element
-FAIL=innerHTML on ShadowRoot must upgrade a custom element
 [custom-elements/reactions/customized-builtins/HTMLAreaElement.html]
 FAIL=alt on HTMLAreaElement must enqueue an attributeChanged reaction when adding a new attribute
 FAIL=alt on HTMLAreaElement must enqueue an attributeChanged reaction when replacing an existing attribute
@@ -1257,8 +1277,6 @@ FAIL=span on HTMLTableColElement must enqueue an attributeChanged reaction when 
 [custom-elements/reactions/customized-builtins/HTMLTimeElement.html]
 FAIL=dateTime on HTMLTimeElement must enqueue an attributeChanged reaction when adding datetime content attribute
 FAIL=dateTime on HTMLTimeElement must enqueue an attributeChanged reaction when replacing an existing attribute
-[custom-elements/reactions/with-exceptions.html]
-FAIL=Reaction must run even after the exception is thrown
 [custom-elements/registries/Construct.html]
 FAIL=A constructor creating an element from another registry before or after super call should work
 FAIL=A constructor uses the global registry to create an element
@@ -1383,10 +1401,6 @@ FAIL=If Type(constructor.prototype) is string, should throw a TypeError
 FAIL=If Type(constructor.prototype) is undefined, should throw a TypeError
 FAIL=If constructor is arrow function, should throw a TypeError
 FAIL=If constructor is method, should throw a TypeError
-FAIL=If constructor is null, should throw a TypeError
-FAIL=If constructor is object, should throw a TypeError
-FAIL=If constructor is string, should throw a TypeError
-FAIL=If constructor is undefined, should throw a TypeError
 FAIL=If constructor.prototype throws, should rethrow
 FAIL=If constructor.prototype.adoptedCallback is integer, should throw a TypeError
 FAIL=If constructor.prototype.adoptedCallback is null, should throw a TypeError
@@ -1405,7 +1419,6 @@ FAIL=If constructor.prototype.disconnectedCallback is null, should throw a TypeE
 FAIL=If constructor.prototype.disconnectedCallback is object, should throw a TypeError
 FAIL=If constructor.prototype.disconnectedCallback throws, should rethrow
 FAIL=If no arguments, should throw a TypeError
-FAIL=If one argument, should throw a TypeError
 FAIL=If the constructor is already defined, should throw a NotSupportedError
 [custom-elements/registries/element-mutation-null-registry-removal.html]
 FAIL=An element's null customElementRegistry should not mutate after removal from a declarative shadow root with shadowrootcustomelementregistry.
@@ -1441,7 +1454,10 @@ FAIL="custom" :defined doesn't care about your registry
 FAIL="custom" :defined should apply after initialize
 FAIL="uncustomized" :defined doesn't care about your registry'
 [custom-elements/registries/scoped-custom-element-registry-customelementregistry-attribute-in-xhtml.xhtml]
-harness=TIMEOUT
+FAIL=XHTML fragment parser should create a custom element candidate with null registry if customelementregistry is set
+FAIL=XHTML fragment parser should create a defined custom element with null registry if customelementregistry is set
+FAIL=XHTML parser should create a custom element candidate with null registry if customelementregistry is set
+FAIL=XHTML parser should create a defined custom element with null registry if customelementregistry is set
 [custom-elements/registries/scoped-custom-element-registry-customelementregistry-attribute.html]
 FAIL=Body with customelementregistry attribute during initial parse should have null registry and propagate to children
 FAIL=Body with customelementregistry in a complete document structure should have null registry
@@ -1555,15 +1571,24 @@ FAIL=state selector only applies to siblings on given ident
 FAIL=states added multiple times counts as one
 FAIL=style is invalided on clear()
 [custom-elements/state/state-pseudo-class.html]
-FAIL=:state() parsing failures
+FAIL=:state() parsing passes
 FAIL=:state(foo) and ::part()
 FAIL=:state(foo) and :host()
 FAIL=:state(foo) and other pseudo classes
 FAIL=:state(foo) in simple cases
 FAIL=:state(foo) serialization
-FAIL=deprecated :--state parsing failures
 [custom-elements/throw-on-dynamic-markup-insertion-counter-construct-xml-parser.xhtml]
-harness=TIMEOUT
+FAIL=document.close() must throw an InvalidStateError when synchronously constructing a custom element
+FAIL=document.close() of another document must not throw an InvalidStateError when synchronously constructing a custom element
+FAIL=document.open("text/html") must throw an InvalidStateError when synchronously constructing a custom element
+FAIL=document.open("text/html") of another document must not throw an InvalidStateError when synchronously constructing a custom element
+FAIL=document.open() must throw an InvalidStateError when synchronously constructing a custom element
+FAIL=document.open() of another document must not throw an InvalidStateError when synchronously constructing a custom element
+FAIL=document.open(URL) must NOT throw an InvalidStateError when synchronously constructing a custom element
+FAIL=document.write must throw an InvalidStateError when synchronously constructing a custom element
+FAIL=document.write of another document must not throw an InvalidStateError when synchronously constructing a custom element
+FAIL=document.writeln must throw an InvalidStateError when synchronously constructing a custom element
+FAIL=document.writeln of another document must not throw an InvalidStateError when synchronously constructing a custom element
 [custom-elements/throw-on-dynamic-markup-insertion-counter-construct.html]
 FAIL=document.close() must throw an InvalidStateError when synchronously constructing a custom element
 FAIL=document.close() of another document must not throw an InvalidStateError when synchronously constructing a custom element
@@ -1577,7 +1602,17 @@ FAIL=document.write of another document must not throw an InvalidStateError when
 FAIL=document.writeln must throw an InvalidStateError when synchronously constructing a custom element
 FAIL=document.writeln of another document must not throw an InvalidStateError when synchronously constructing a custom element
 [custom-elements/throw-on-dynamic-markup-insertion-counter-reactions-xml-parser.xhtml]
-harness=TIMEOUT
+FAIL=document.close() must throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+FAIL=document.close() of another document must not throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+FAIL=document.open("text/html") must throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+FAIL=document.open("text/html") of another document must not throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+FAIL=document.open() must throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+FAIL=document.open() of another document must not throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+FAIL=document.open(URL) must NOT throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+FAIL=document.write must throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+FAIL=document.write of another document must not throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+FAIL=document.writeln must throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
+FAIL=document.writeln of another document must not throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
 [custom-elements/throw-on-dynamic-markup-insertion-counter-reactions.html]
 FAIL=document.close() must throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
 FAIL=document.close() of another document must not throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
@@ -1591,9 +1626,6 @@ FAIL=document.write of another document must not throw an InvalidStateError when
 FAIL=document.writeln must throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
 FAIL=document.writeln of another document must not throw an InvalidStateError when processing custom element reactions for a synchronous constructed custom element
 [custom-elements/upgrading.html]
-FAIL="define" in the document of an iframe must enqueue a custom element upgrade reaction on a connected unresolved custom element
-FAIL="define" in the document of an iframe must not enqueue a custom element upgrade reaction on a disconnected unresolved custom element
-FAIL=Adopting (and leaving disconnceted) an unresolved custom element into the document of an iframe must not enqueue a custom element upgrade reaction
 FAIL=Adopting and inserting an unresolved custom element into the document of an iframe must enqueue a custom element upgrade reaction
 FAIL=Creating an element in a cloned document and adopting back to a document with browsing context must enqueue a custom element upgrade reaction
 FAIL=Creating an element in a cloned document and inserting into the document must not enqueue a custom element upgrade reaction
@@ -1603,7 +1635,6 @@ FAIL=Creating an element in a document created by createHTMLDocument must not en
 FAIL=Creating an element in an HTML document fetched by XHR and adopting back to a document with browsing context must enqueue a custom element upgrade reaction
 FAIL=Creating an element in an HTML document fetched by XHR and inserting into the document must not enqueue a custom element upgrade reaction
 FAIL=Creating an element in an HTML document fetched by XHR must not enqueue a custom element upgrade reaction because the document does not have a browsing context
-FAIL=Creating an element in the document of an iframe must enqueue a custom element upgrade reaction if there is a matching definition
 FAIL=Creating an element in the document of the template elements and adopting back to a document with browsing context must enqueue a custom element upgrade reaction
 FAIL=Creating an element in the document of the template elements must not enqueue a custom element upgrade reaction because the document does not have a browsing context
 FAIL=If definition's disable shadow is true and element's shadow root is non-null, then throw a "NotSupportedError" DOMException.

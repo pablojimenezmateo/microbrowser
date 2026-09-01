@@ -14,7 +14,10 @@ FAIL=Elements are parents of their attributes
 [domxpath/evaluator-constructor.html]
 FAIL=Constructor with 'new'
 [domxpath/evaluator-cross-realm.tentative.html]
-harness=TIMEOUT
+FAIL=evaluator from realm with HTML associated document, context node in HTML document, no namespace resolver
+FAIL=evaluator from realm with HTML associated document, context node in XML document, no namespace resolver
+FAIL=evaluator from realm with XML associated document, context node in HTML document, no namespace resolver
+FAIL=evaluator from realm with XML associated document, context node in XML document, no namespace resolver
 [domxpath/evaluator-different-document.tentative.html]
 FAIL=evaluate operation on HTML document, context node in HTML document, no namespace resolver
 FAIL=evaluate operation on HTML document, context node in HTML document, with namespace resolver
@@ -25,7 +28,10 @@ FAIL=evaluate operation on XML document, context node in HTML document, with nam
 FAIL=evaluate operation on XML document, context node in XML document, no namespace resolver
 FAIL=evaluate operation on XML document, context node in XML document, with namespace resolver
 [domxpath/expression-cross-realm.tentative.html]
-harness=TIMEOUT
+FAIL=expression from realm with HTML associated document, context node in HTML document, no namespace resolver
+FAIL=expression from realm with HTML associated document, context node in XML document, no namespace resolver
+FAIL=expression from realm with XML associated document, context node in HTML document, no namespace resolver
+FAIL=expression from realm with XML associated document, context node in XML document, no namespace resolver
 [domxpath/expression-different-document.tentative.html]
 FAIL=expression from HTML document, context node in HTML document, no namespace resolver
 FAIL=expression from HTML document, context node in HTML document, with namespace resolver

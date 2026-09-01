@@ -1,3 +1,10 @@
+# ADR 0043 §"Refused: SMIL animation". `svg/animations/` is 280 of this area's 769
+# Firefox-gap files and every one of them wants a second animation timeline beside CSS
+# animations -- with its own event set and its own syncbase dependency graph -- plus a
+# clock that a document starts on load and never stops, against a main loop whose whole
+# design is that idle CPU is zero. Deliberate; do not "fix". The condition to revisit is
+# in the ADR and is checkable: the Web Animations timeline exists, and one of ADR 0007's
+# five compatibility targets is *measured* to use SMIL.
 [svg/animations/accumulate-values-width-animation.html]
 FAIL=This tests values animation and accumulate='sum'
 [svg/animations/additive-from-to-width-animation.html]
@@ -323,7 +330,7 @@ FAIL=SVGAnimationElement.getStartTime() returns the start time of the current in
 [svg/animations/scripted/animatetransform-type-missing-value-default.html]
 harness=TIMEOUT
 [svg/animations/scripted/end-element-on-inactive-element.svg]
-harness=TIMEOUT
+FAIL=endElement() on an inactive element
 [svg/animations/scripted/eventbase-after-removal.html]
 harness=TIMEOUT
 [svg/animations/scripted/keypoints-attribute-trailing-semi.html]
@@ -722,7 +729,10 @@ harness=FAIL
 [svg/extensibility/foreignObject/position-svg-root-in-foreign-object.html]
 harness=FAIL
 [svg/extensibility/foreignObject/properties.svg]
-harness=TIMEOUT
+FAIL=attributes set properties
+FAIL=style rules are applied
+FAIL=style rules override attributes
+FAIL=width and height default to auto (which computes to "0px")
 [svg/extensibility/foreignObject/scroll-transform-nested-stacked-children.html]
 harness=FAIL
 [svg/extensibility/foreignObject/stacking-context.html]
@@ -730,7 +740,7 @@ harness=FAIL
 [svg/extensibility/foreignObject/will-change-in-transformed-foreign-object.html]
 harness=FAIL
 [svg/extensibility/interfaces/foreignObject-graphics.svg]
-harness=TIMEOUT
+FAIL=foreignObject-graphics
 [svg/fonts/zero-font-size-adjust-no-glyphs-font.html]
 FAIL=Verify effect of font-size-adjust: 0 on no glyphs SVG Font
 [svg/fonts/zero-font-size-adjust-no-glyphs-zero-height-font.html]
@@ -955,101 +965,297 @@ FAIL=Compositing Web Animations: property <y> underlying [50px] from add [100px]
 FAIL=Compositing Web Animations: property <y> underlying [50px] from add [100px] to replace [200px] at (1) should be [200px]
 FAIL=Compositing Web Animations: property <y> underlying [50px] from add [100px] to replace [200px] at (1.5) should be [225px]
 [svg/geometry/inheritance.svg]
-harness=TIMEOUT
+FAIL=Property cx does not inherit
+FAIL=Property cx has initial value 0px
+FAIL=Property cy does not inherit
+FAIL=Property cy has initial value 0px
+FAIL=Property r does not inherit
+FAIL=Property r has initial value 0px
+FAIL=Property rx does not inherit
+FAIL=Property rx has initial value auto
+FAIL=Property ry does not inherit
+FAIL=Property ry has initial value auto
+FAIL=Property x does not inherit
+FAIL=Property x has initial value 0px
+FAIL=Property y does not inherit
+FAIL=Property y has initial value 0px
 [svg/geometry/parsing/cx-attribute-invalid.svg]
-harness=TIMEOUT
+FAIL=cx="10px 20px" should be an invalid attribute value (ignored)
+FAIL=cx="auto" should be an invalid attribute value (ignored)
+FAIL=cx="garbage" should be an invalid attribute value (ignored)
+FAIL=cx="none" should be an invalid attribute value (ignored)
 [svg/geometry/parsing/cx-attribute-valid.svg]
-harness=TIMEOUT
+FAIL=cx="-10" should be a valid attribute value
+FAIL=cx="-10px" should be a valid attribute value
+FAIL=cx="0" should be a valid attribute value
+FAIL=cx="5" should be a valid attribute value
+FAIL=cx="5%" should be a valid attribute value
+FAIL=cx="5px" should be a valid attribute value
 [svg/geometry/parsing/cx-computed.svg]
-harness=TIMEOUT
-[svg/geometry/parsing/cx-invalid.svg]
-harness=TIMEOUT
+FAIL=Property cx value '-10px'
+FAIL=Property cx value '0.5em'
+FAIL=Property cx value '40%'
+FAIL=Property cx value 'calc(10px + 0.5em)'
+FAIL=Property cx value 'calc(10px - 0.5em)'
+FAIL=Property cx value 'calc(50% + 60px)'
 [svg/geometry/parsing/cx-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['cx'] = "-1px" should set the property value
+FAIL=e.style['cx'] = "0" should set the property value
+FAIL=e.style['cx'] = "4%" should set the property value
+FAIL=e.style['cx'] = "5ch" should set the property value
+FAIL=e.style['cx'] = "calc(2em + 3ex)" should set the property value
 [svg/geometry/parsing/cy-attribute-invalid.svg]
-harness=TIMEOUT
+FAIL=cy="10px 20px" should be an invalid attribute value (ignored)
+FAIL=cy="auto" should be an invalid attribute value (ignored)
+FAIL=cy="garbage" should be an invalid attribute value (ignored)
+FAIL=cy="none" should be an invalid attribute value (ignored)
 [svg/geometry/parsing/cy-attribute-valid.svg]
-harness=TIMEOUT
+FAIL=cy="-10" should be a valid attribute value
+FAIL=cy="-10px" should be a valid attribute value
+FAIL=cy="0" should be a valid attribute value
+FAIL=cy="5" should be a valid attribute value
+FAIL=cy="5%" should be a valid attribute value
+FAIL=cy="5px" should be a valid attribute value
 [svg/geometry/parsing/cy-computed.svg]
-harness=TIMEOUT
-[svg/geometry/parsing/cy-invalid.svg]
-harness=TIMEOUT
+FAIL=Property cy value '-10px'
+FAIL=Property cy value '0.5em'
+FAIL=Property cy value '40%'
+FAIL=Property cy value 'calc(10px + 0.5em)'
+FAIL=Property cy value 'calc(10px - 0.5em)'
+FAIL=Property cy value 'calc(50% + 60px)'
 [svg/geometry/parsing/cy-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['cy'] = "-1px" should set the property value
+FAIL=e.style['cy'] = "0" should set the property value
+FAIL=e.style['cy'] = "4%" should set the property value
+FAIL=e.style['cy'] = "5rem" should set the property value
+FAIL=e.style['cy'] = "calc(2em + 3ex)" should set the property value
 [svg/geometry/parsing/ellipse-rx-attribute-invalid.svg]
-harness=TIMEOUT
+FAIL=rx="-10" should be an invalid attribute value (ignored)
+FAIL=rx="-10%" should be an invalid attribute value (ignored)
+FAIL=rx="-10px" should be an invalid attribute value (ignored)
+FAIL=rx="10px 20px" should be an invalid attribute value (ignored)
+FAIL=rx="garbage" should be an invalid attribute value (ignored)
+FAIL=rx="none" should be an invalid attribute value (ignored)
 [svg/geometry/parsing/ellipse-rx-attribute-valid.svg]
-harness=TIMEOUT
+FAIL=rx="0" should be a valid attribute value
+FAIL=rx="5" should be a valid attribute value
+FAIL=rx="5%" should be a valid attribute value
+FAIL=rx="5px" should be a valid attribute value
+FAIL=rx="auto" should be a valid attribute value
 [svg/geometry/parsing/ellipse-ry-attribute-invalid.svg]
-harness=TIMEOUT
+FAIL=ry="-10" should be an invalid attribute value (ignored)
+FAIL=ry="-10%" should be an invalid attribute value (ignored)
+FAIL=ry="-10px" should be an invalid attribute value (ignored)
+FAIL=ry="10px 20px" should be an invalid attribute value (ignored)
+FAIL=ry="garbage" should be an invalid attribute value (ignored)
+FAIL=ry="none" should be an invalid attribute value (ignored)
 [svg/geometry/parsing/ellipse-ry-attribute-valid.svg]
-harness=TIMEOUT
+FAIL=ry="0" should be a valid attribute value
+FAIL=ry="5" should be a valid attribute value
+FAIL=ry="5%" should be a valid attribute value
+FAIL=ry="5px" should be a valid attribute value
+FAIL=ry="auto" should be a valid attribute value
 [svg/geometry/parsing/height-attribute-invalid.svg]
-harness=TIMEOUT
+FAIL=height="-10" should be an invalid attribute value (ignored)
+FAIL=height="-10%" should be an invalid attribute value (ignored)
+FAIL=height="-10px" should be an invalid attribute value (ignored)
+FAIL=height="10px 20px" should be an invalid attribute value (ignored)
+FAIL=height="auto" should be an invalid attribute value (ignored)
+FAIL=height="garbage" should be an invalid attribute value (ignored)
+FAIL=height="none" should be an invalid attribute value (ignored)
 [svg/geometry/parsing/height-attribute-valid.svg]
-harness=TIMEOUT
+FAIL=height="0" should be a valid attribute value
+FAIL=height="5" should be a valid attribute value
+FAIL=height="5%" should be a valid attribute value
+FAIL=height="5px" should be a valid attribute value
 [svg/geometry/parsing/height-computed.svg]
-harness=TIMEOUT
+FAIL=SVG Geometry Properties: getComputedStyle().height, <foreignObject> initial
+FAIL=SVG Geometry Properties: getComputedStyle().height, <foreignObject> inline style (auto)
+FAIL=SVG Geometry Properties: getComputedStyle().height, <foreignObject> inline style (percentage)
+FAIL=SVG Geometry Properties: getComputedStyle().height, <foreignObject> inline style (pixels)
+FAIL=SVG Geometry Properties: getComputedStyle().height, <foreignObject> inline style but "display: none"
+FAIL=SVG Geometry Properties: getComputedStyle().height, <foreignObject> presentation attribute
+FAIL=SVG Geometry Properties: getComputedStyle().height, <image> initial
+FAIL=SVG Geometry Properties: getComputedStyle().height, <image> inline style (auto)
+FAIL=SVG Geometry Properties: getComputedStyle().height, <image> inline style (percentage)
+FAIL=SVG Geometry Properties: getComputedStyle().height, <image> presentation attribute
+FAIL=SVG Geometry Properties: getComputedStyle().height, <rect> initial
+FAIL=SVG Geometry Properties: getComputedStyle().height, <rect> inline style (auto)
+FAIL=SVG Geometry Properties: getComputedStyle().height, <rect> inline style (percentage)
+FAIL=SVG Geometry Properties: getComputedStyle().height, <rect> presentation attribute
 [svg/geometry/parsing/negative-presentation-attribute-computed.svg]
-harness=TIMEOUT
+FAIL=negative cx presentation attribute is accepted
+FAIL=negative r presentation attribute computes to 0px
+FAIL=negative rx presentation attribute computes to auto
+FAIL=negative ry presentation attribute computes to auto
 [svg/geometry/parsing/r-attribute-invalid.svg]
-harness=TIMEOUT
+FAIL=r="-10" should be an invalid attribute value (ignored)
+FAIL=r="-10%" should be an invalid attribute value (ignored)
+FAIL=r="-10px" should be an invalid attribute value (ignored)
+FAIL=r="10px 20px" should be an invalid attribute value (ignored)
+FAIL=r="auto" should be an invalid attribute value (ignored)
+FAIL=r="garbage" should be an invalid attribute value (ignored)
 [svg/geometry/parsing/r-attribute-valid.svg]
-harness=TIMEOUT
+FAIL=r="0" should be a valid attribute value
+FAIL=r="5" should be a valid attribute value
+FAIL=r="5%" should be a valid attribute value
+FAIL=r="5px" should be a valid attribute value
 [svg/geometry/parsing/r-computed.svg]
-harness=TIMEOUT
-[svg/geometry/parsing/r-invalid.svg]
-harness=TIMEOUT
+FAIL=Property r value '0.5em'
+FAIL=Property r value '10px'
+FAIL=Property r value '40%'
+FAIL=Property r value 'calc(10px + 0.5em)'
+FAIL=Property r value 'calc(10px - 0.5em)'
+FAIL=Property r value 'calc(50% + 60px)'
 [svg/geometry/parsing/r-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['r'] = "0" should set the property value
+FAIL=e.style['r'] = "1px" should set the property value
+FAIL=e.style['r'] = "4%" should set the property value
+FAIL=e.style['r'] = "5vmin" should set the property value
+FAIL=e.style['r'] = "calc(2em + 3ex)" should set the property value
 [svg/geometry/parsing/rx-attribute-invalid.svg]
-harness=TIMEOUT
+FAIL=rx="-10" should be an invalid attribute value (ignored)
+FAIL=rx="-10%" should be an invalid attribute value (ignored)
+FAIL=rx="-10px" should be an invalid attribute value (ignored)
+FAIL=rx="10px 20px" should be an invalid attribute value (ignored)
+FAIL=rx="garbage" should be an invalid attribute value (ignored)
+FAIL=rx="none" should be an invalid attribute value (ignored)
 [svg/geometry/parsing/rx-attribute-valid.svg]
-harness=TIMEOUT
+FAIL=rx="0" should be a valid attribute value
+FAIL=rx="5" should be a valid attribute value
+FAIL=rx="5%" should be a valid attribute value
+FAIL=rx="5px" should be a valid attribute value
+FAIL=rx="auto" should be a valid attribute value
 [svg/geometry/parsing/rx-computed.svg]
-harness=TIMEOUT
-[svg/geometry/parsing/rx-invalid.svg]
-harness=TIMEOUT
+FAIL=Property rx value '0.5em'
+FAIL=Property rx value '10px'
+FAIL=Property rx value '40%'
+FAIL=Property rx value 'auto'
+FAIL=Property rx value 'calc(10px + 0.5em)'
+FAIL=Property rx value 'calc(10px - 0.5em)'
+FAIL=Property rx value 'calc(50% + 60px)'
 [svg/geometry/parsing/rx-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['rx'] = "0" should set the property value
+FAIL=e.style['rx'] = "1px" should set the property value
+FAIL=e.style['rx'] = "4%" should set the property value
+FAIL=e.style['rx'] = "5vw" should set the property value
+FAIL=e.style['rx'] = "auto" should set the property value
+FAIL=e.style['rx'] = "calc(2em + 3ex)" should set the property value
 [svg/geometry/parsing/ry-attribute-invalid.svg]
-harness=TIMEOUT
+FAIL=ry="-10" should be an invalid attribute value (ignored)
+FAIL=ry="-10%" should be an invalid attribute value (ignored)
+FAIL=ry="-10px" should be an invalid attribute value (ignored)
+FAIL=ry="10px 20px" should be an invalid attribute value (ignored)
+FAIL=ry="garbage" should be an invalid attribute value (ignored)
+FAIL=ry="none" should be an invalid attribute value (ignored)
 [svg/geometry/parsing/ry-attribute-valid.svg]
-harness=TIMEOUT
+FAIL=ry="0" should be a valid attribute value
+FAIL=ry="5" should be a valid attribute value
+FAIL=ry="5%" should be a valid attribute value
+FAIL=ry="5px" should be a valid attribute value
+FAIL=ry="auto" should be a valid attribute value
 [svg/geometry/parsing/ry-computed.svg]
-harness=TIMEOUT
-[svg/geometry/parsing/ry-invalid.svg]
-harness=TIMEOUT
+FAIL=Property ry value '0.5em'
+FAIL=Property ry value '10px'
+FAIL=Property ry value '40%'
+FAIL=Property ry value 'auto'
+FAIL=Property ry value 'calc(10px + 0.5em)'
+FAIL=Property ry value 'calc(10px - 0.5em)'
+FAIL=Property ry value 'calc(50% + 60px)'
 [svg/geometry/parsing/ry-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['ry'] = "0" should set the property value
+FAIL=e.style['ry'] = "1px" should set the property value
+FAIL=e.style['ry'] = "4%" should set the property value
+FAIL=e.style['ry'] = "5vh" should set the property value
+FAIL=e.style['ry'] = "auto" should set the property value
+FAIL=e.style['ry'] = "calc(2em + 3ex)" should set the property value
 [svg/geometry/parsing/sizing-properties-computed.svg]
-harness=TIMEOUT
+FAIL=Property height value '40%'
+FAIL=Property height value 'calc(10px - 0.5em)'
+FAIL=Property height value 'calc(50% + 1.5em)'
+FAIL=Property width value '40%'
+FAIL=Property width value 'calc(10px - 0.5em)'
+FAIL=Property width value 'calc(50% + 1.5em)'
+FAIL=resolved value is computed value when display is contents
+FAIL=resolved value is computed value when display is none
 [svg/geometry/parsing/width-attribute-invalid.svg]
-harness=TIMEOUT
+FAIL=width="-10" should be an invalid attribute value (ignored)
+FAIL=width="-10%" should be an invalid attribute value (ignored)
+FAIL=width="-10px" should be an invalid attribute value (ignored)
+FAIL=width="10px 20px" should be an invalid attribute value (ignored)
+FAIL=width="auto" should be an invalid attribute value (ignored)
+FAIL=width="garbage" should be an invalid attribute value (ignored)
+FAIL=width="none" should be an invalid attribute value (ignored)
 [svg/geometry/parsing/width-attribute-valid.svg]
-harness=TIMEOUT
+FAIL=width="0" should be a valid attribute value
+FAIL=width="5" should be a valid attribute value
+FAIL=width="5%" should be a valid attribute value
+FAIL=width="5px" should be a valid attribute value
 [svg/geometry/parsing/width-computed.svg]
-harness=TIMEOUT
+FAIL=SVG Geometry Properties: getComputedStyle().width, <foreignObject> initial
+FAIL=SVG Geometry Properties: getComputedStyle().width, <foreignObject> inline style (auto)
+FAIL=SVG Geometry Properties: getComputedStyle().width, <foreignObject> inline style (percentage)
+FAIL=SVG Geometry Properties: getComputedStyle().width, <foreignObject> inline style (pixels)
+FAIL=SVG Geometry Properties: getComputedStyle().width, <foreignObject> inline style but "display: none"
+FAIL=SVG Geometry Properties: getComputedStyle().width, <foreignObject> presentation attribute
+FAIL=SVG Geometry Properties: getComputedStyle().width, <image> initial
+FAIL=SVG Geometry Properties: getComputedStyle().width, <image> inline style (auto)
+FAIL=SVG Geometry Properties: getComputedStyle().width, <image> inline style (percentage)
+FAIL=SVG Geometry Properties: getComputedStyle().width, <image> presentation attribute
+FAIL=SVG Geometry Properties: getComputedStyle().width, <rect> initial
+FAIL=SVG Geometry Properties: getComputedStyle().width, <rect> inline style (auto)
+FAIL=SVG Geometry Properties: getComputedStyle().width, <rect> inline style (percentage)
+FAIL=SVG Geometry Properties: getComputedStyle().width, <rect> presentation attribute
 [svg/geometry/parsing/x-attribute-invalid.svg]
-harness=TIMEOUT
+FAIL=x="10px 20px" should be an invalid attribute value (ignored)
+FAIL=x="auto" should be an invalid attribute value (ignored)
+FAIL=x="garbage" should be an invalid attribute value (ignored)
+FAIL=x="none" should be an invalid attribute value (ignored)
 [svg/geometry/parsing/x-attribute-valid.svg]
-harness=TIMEOUT
+FAIL=x="-10" should be a valid attribute value
+FAIL=x="-10px" should be a valid attribute value
+FAIL=x="0" should be a valid attribute value
+FAIL=x="5" should be a valid attribute value
+FAIL=x="5%" should be a valid attribute value
+FAIL=x="5px" should be a valid attribute value
 [svg/geometry/parsing/x-computed.svg]
-harness=TIMEOUT
-[svg/geometry/parsing/x-invalid.svg]
-harness=TIMEOUT
+FAIL=Property x value '-10px'
+FAIL=Property x value '0.5em'
+FAIL=Property x value '40%'
+FAIL=Property x value 'calc(10px + 0.5em)'
+FAIL=Property x value 'calc(10px - 0.5em)'
+FAIL=Property x value 'calc(50% + 60px)'
 [svg/geometry/parsing/x-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['x'] = "-1px" should set the property value
+FAIL=e.style['x'] = "0" should set the property value
+FAIL=e.style['x'] = "4%" should set the property value
+FAIL=e.style['x'] = "5cm" should set the property value
+FAIL=e.style['x'] = "calc(2em + 3ex)" should set the property value
 [svg/geometry/parsing/y-attribute-invalid.svg]
-harness=TIMEOUT
+FAIL=y="10px 20px" should be an invalid attribute value (ignored)
+FAIL=y="auto" should be an invalid attribute value (ignored)
+FAIL=y="garbage" should be an invalid attribute value (ignored)
+FAIL=y="none" should be an invalid attribute value (ignored)
 [svg/geometry/parsing/y-attribute-valid.svg]
-harness=TIMEOUT
+FAIL=y="-10" should be a valid attribute value
+FAIL=y="-10px" should be a valid attribute value
+FAIL=y="0" should be a valid attribute value
+FAIL=y="5" should be a valid attribute value
+FAIL=y="5%" should be a valid attribute value
+FAIL=y="5px" should be a valid attribute value
 [svg/geometry/parsing/y-computed.svg]
-harness=TIMEOUT
-[svg/geometry/parsing/y-invalid.svg]
-harness=TIMEOUT
+FAIL=Property y value '-10px'
+FAIL=Property y value '0.5em'
+FAIL=Property y value '40%'
+FAIL=Property y value 'calc(10px + 0.5em)'
+FAIL=Property y value 'calc(10px - 0.5em)'
+FAIL=Property y value 'calc(50% + 60px)'
 [svg/geometry/parsing/y-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['y'] = "-1px" should set the property value
+FAIL=e.style['y'] = "0" should set the property value
+FAIL=e.style['y'] = "4%" should set the property value
+FAIL=e.style['y'] = "5mm" should set the property value
+FAIL=e.style['y'] = "calc(2em + 3ex)" should set the property value
 [svg/geometry/reftests/circle-001.svg]
 harness=FAIL
 [svg/geometry/reftests/circle-002.svg]
@@ -2845,21 +3051,28 @@ FAIL=Hidden SVG Tab focus test
 [svg/interact/image-load-error-events.html]
 harness=TIMEOUT
 [svg/interact/inheritance.svg]
-harness=TIMEOUT
+FAIL=Property pointer-events inherits
 [svg/interact/parsing/pointer-events-computed.svg]
-harness=TIMEOUT
-[svg/interact/parsing/pointer-events-invalid.svg]
-harness=TIMEOUT
+FAIL=Property pointer-events value 'all'
+FAIL=Property pointer-events value 'bounding-box'
+FAIL=Property pointer-events value 'fill'
+FAIL=Property pointer-events value 'painted'
+FAIL=Property pointer-events value 'stroke'
+FAIL=Property pointer-events value 'visible'
+FAIL=Property pointer-events value 'visiblefill'
+FAIL=Property pointer-events value 'visiblepainted'
+FAIL=Property pointer-events value 'visiblestroke'
 [svg/interact/parsing/pointer-events-valid.svg]
-harness=TIMEOUT
-[svg/interact/script-content.svg]
-harness=TIMEOUT
+FAIL=e.style['pointer-events'] = "bounding-box" should set the property value
+FAIL=e.style['pointer-events'] = "visibleFill" should set the property value
+FAIL=e.style['pointer-events'] = "visiblePainted" should set the property value
+FAIL=e.style['pointer-events'] = "visibleStroke" should set the property value
 [svg/interact/script-load-error-events.html]
 harness=TIMEOUT
 [svg/interact/scripted/async-01.svg]
-harness=TIMEOUT
+FAIL=An async script does not block the parser while downloading
 [svg/interact/scripted/composed.window.svg]
-harness=TIMEOUT
+FAIL=Focus events are composed
 [svg/interact/scripted/defer-01.svg]
 harness=TIMEOUT
 [svg/interact/scripted/ellipse-hittest.html]
@@ -2881,11 +3094,57 @@ FAIL=elementFromPoint(...) on <ellipse>s with continuous strokes, element at (45
 [svg/interact/scripted/focus-events.svg]
 harness=TIMEOUT
 [svg/interact/scripted/focus-tabindex-default-value.svg]
-harness=TIMEOUT
+FAIL=The default value of tabIndex attribute must be -1 for elements that are not focusable
+FAIL=The default value of tabIndex attribute must be 0 for elements that are focusable
 [svg/interact/scripted/focus-tabindex-invalid-value.svg]
-harness=TIMEOUT
-[svg/interact/scripted/module-01.svg]
-harness=TIMEOUT
+FAIL=changing tabindex from "3" to " " resets anchor.tabIndex
+FAIL=changing tabindex from "3" to " " resets circle.tabIndex
+FAIL=changing tabindex from "3" to " " resets g.tabIndex
+FAIL=changing tabindex from "3" to " " resets nested.tabIndex
+FAIL=changing tabindex from "3" to " " resets rect.tabIndex
+FAIL=changing tabindex from "3" to " " resets text.tabIndex
+FAIL=changing tabindex from "3" to "" resets anchor.tabIndex
+FAIL=changing tabindex from "3" to "" resets circle.tabIndex
+FAIL=changing tabindex from "3" to "" resets g.tabIndex
+FAIL=changing tabindex from "3" to "" resets nested.tabIndex
+FAIL=changing tabindex from "3" to "" resets rect.tabIndex
+FAIL=changing tabindex from "3" to "" resets text.tabIndex
+FAIL=changing tabindex from "3" to "-9999999999" resets anchor.tabIndex
+FAIL=changing tabindex from "3" to "-9999999999" resets circle.tabIndex
+FAIL=changing tabindex from "3" to "-9999999999" resets g.tabIndex
+FAIL=changing tabindex from "3" to "-9999999999" resets nested.tabIndex
+FAIL=changing tabindex from "3" to "-9999999999" resets rect.tabIndex
+FAIL=changing tabindex from "3" to "-9999999999" resets text.tabIndex
+FAIL=changing tabindex from "3" to "9999999999" resets anchor.tabIndex
+FAIL=changing tabindex from "3" to "9999999999" resets circle.tabIndex
+FAIL=changing tabindex from "3" to "9999999999" resets g.tabIndex
+FAIL=changing tabindex from "3" to "9999999999" resets nested.tabIndex
+FAIL=changing tabindex from "3" to "9999999999" resets rect.tabIndex
+FAIL=changing tabindex from "3" to "9999999999" resets text.tabIndex
+FAIL=changing tabindex from "3" to "invalid" resets anchor.tabIndex
+FAIL=changing tabindex from "3" to "invalid" resets circle.tabIndex
+FAIL=changing tabindex from "3" to "invalid" resets g.tabIndex
+FAIL=changing tabindex from "3" to "invalid" resets nested.tabIndex
+FAIL=changing tabindex from "3" to "invalid" resets rect.tabIndex
+FAIL=changing tabindex from "3" to "invalid" resets text.tabIndex
+FAIL=default value of anchor.tabIndex
+FAIL=default value of circle.tabIndex
+FAIL=default value of g.tabIndex
+FAIL=default value of nested.tabIndex
+FAIL=default value of rect.tabIndex
+FAIL=default value of text.tabIndex
+FAIL=removing tabindex resets anchor.tabIndex
+FAIL=removing tabindex resets circle.tabIndex
+FAIL=removing tabindex resets g.tabIndex
+FAIL=removing tabindex resets nested.tabIndex
+FAIL=removing tabindex resets rect.tabIndex
+FAIL=removing tabindex resets text.tabIndex
+FAIL=trailing garbage after the digits of anchor's tabindex is ignored
+FAIL=trailing garbage after the digits of circle's tabindex is ignored
+FAIL=trailing garbage after the digits of g's tabindex is ignored
+FAIL=trailing garbage after the digits of nested's tabindex is ignored
+FAIL=trailing garbage after the digits of rect's tabindex is ignored
+FAIL=trailing garbage after the digits of text's tabindex is ignored
 [svg/interact/scripted/rect-hittest-001.html]
 FAIL=elementFromPoint(...) on <rect>s, element at (40, 40)
 FAIL=elementFromPoint(...) on <rect>s, element at (50, 30)
@@ -2947,7 +3206,45 @@ FAIL=Hit-test on a path whose x/y ranges have different magnitude, path contains
 FAIL=Hit-test on a path whose x/y ranges have different magnitude, path contains point at (5, 107)
 FAIL=Hit-test on a path whose x/y ranges have different magnitude, path contains point at (5, 110)
 [svg/interact/scripted/tabindex-focus-flag.svg]
-harness=TIMEOUT
+FAIL=The document root element should be focusable.
+FAIL=a should not be focusable.
+FAIL=a[href] should be focusable.
+FAIL=audio[controls] should be focusable.
+FAIL=canvas[tabindex] should be focusable.
+FAIL=circle[tabindex] should be focusable.
+FAIL=clipPath[tabindex] should not be focusable.
+FAIL=defs[tabindex] should not be focusable.
+FAIL=desc[tabindex] should not be focusable.
+FAIL=ellipse[tabindex] should be focusable.
+FAIL=foreignObject[tabindex] should be focusable.
+FAIL=g[tabindex] should be focusable.
+FAIL=iframe should be focusable.
+FAIL=image[tabindex] should be focusable.
+FAIL=line[tabindex] should be focusable.
+FAIL=linearGradient[tabindex] should not be focusable.
+FAIL=marker[tabindex] should not be focusable.
+FAIL=mask[tabindex] should not be focusable.
+FAIL=mesh[tabindex] should be focusable.
+FAIL=metadata[tabindex] should not be focusable.
+FAIL=path[tabindex] should be focusable.
+FAIL=pattern[tabindex] should not be focusable.
+FAIL=polygon[tabindex] should be focusable.
+FAIL=radialGradient[tabindex] should not be focusable.
+FAIL=rect should not be focusable.
+FAIL=rect[tabindex] should be focusable.
+FAIL=script[tabindex] should not be focusable.
+FAIL=style[tabindex] should not be focusable.
+FAIL=svg should not be focusable.
+FAIL=svg[tabindex] should be focusable.
+FAIL=switch[tabindex] should be focusable.
+FAIL=symbol[tabindex] should not be focusable.
+FAIL=textPath[tabindex] should be focusable.
+FAIL=text[tabindex] should be focusable.
+FAIL=title[tabindex] should not be focusable.
+FAIL=tspan[tabindex] should be focusable.
+FAIL=unknown[tabindex] should be focusable.
+FAIL=use[tabindex] should be focusable.
+FAIL=video[controls] should be focusable.
 [svg/interact/scripted/text-hittest-001.html]
 FAIL=Hit-test of <text> with overlapping <tspan> hits the top-most node
 [svg/interact/scripted/text-hittest-002.html]
@@ -3011,31 +3308,31 @@ harness=FAIL
 [svg/linking/reftests/view-viewbox-override.html]
 harness=FAIL
 [svg/linking/scripted/a-download-click.svg]
-harness=TIMEOUT
+FAIL=Clicking on an <a> element with a download attribute must not throw an exception
 [svg/linking/scripted/a.hreflang-getter-01.svg]
-harness=TIMEOUT
+FAIL=Test anchor's hreflang getter
 [svg/linking/scripted/a.hreflang-setter-01.svg]
-harness=TIMEOUT
+FAIL=Test anchor's hreflang setter
 [svg/linking/scripted/a.hyperlink-getter-01.svg]
-harness=TIMEOUT
+FAIL=Test anchor's hostname getter
+FAIL=Test anchor's port getter
+FAIL=Test anchor's protocol getter
 [svg/linking/scripted/a.ping-functionality.html]
 FAIL=SVG anchor ping attribute should be settable via ping IDL attribute
 FAIL=SVG anchor with multiple ping URLs should send multiple pings
 FAIL=SVG anchor with ping attribute should send ping on click
 [svg/linking/scripted/a.rel-getter-01.svg]
-harness=TIMEOUT
+FAIL=Test anchor's rel getter
 [svg/linking/scripted/a.rel-noopener-policy.html]
 harness=TIMEOUT
 [svg/linking/scripted/a.rel-noreferrer-policy.html]
 harness=TIMEOUT
-[svg/linking/scripted/a.rel-setter-01.svg]
-harness=TIMEOUT
 [svg/linking/scripted/a.type-getter-01.svg]
-harness=TIMEOUT
+FAIL=Test anchor's type getter when type attribute missing
 [svg/linking/scripted/a.type-getter-02.svg]
-harness=TIMEOUT
+FAIL=Test anchor's type getter
 [svg/linking/scripted/a.type-setter-01.svg]
-harness=TIMEOUT
+FAIL=Test anchor's type setter
 [svg/linking/scripted/href-animate-element.html]
 FAIL=Test for animate element when removing href but we still have xlink:href
 FAIL=Test for animate element when removing xlink:href but we still have href
@@ -3050,7 +3347,7 @@ FAIL=Test for loading external script from href by adding href and then xlink:hr
 FAIL=Test for loading external script from href when setting href and then xlink:href
 FAIL=Test for loading external script from xlnk:href by adding xlink:href and then href
 [svg/linking/scripted/rellist-feature-detection.svg]
-harness=TIMEOUT
+FAIL=Make sure that relList based feature detection is working
 [svg/linking/scripted/xlink-href-compat.html]
 FAIL=XLink 'href' backwards compatibility, IDL href backed by "href" after baseVal setter.
 FAIL=XLink 'href' backwards compatibility, IDL href backed by "href" after setAttribute(href).
@@ -3354,7 +3651,44 @@ FAIL=Web Animations: property <fill-rule> from [initial] to [evenodd] at (0.6) s
 FAIL=Web Animations: property <fill-rule> from [initial] to [evenodd] at (1) should be [evenodd]
 FAIL=Web Animations: property <fill-rule> from [initial] to [evenodd] at (1.5) should be [evenodd]
 [svg/painting/inheritance.svg]
-harness=TIMEOUT
+FAIL=Property color-interpolation has initial value srgb
+FAIL=Property color-interpolation inherits
+FAIL=Property fill has initial value rgb(0, 0, 0)
+FAIL=Property fill inherits
+FAIL=Property fill-opacity has initial value 1
+FAIL=Property fill-opacity inherits
+FAIL=Property fill-rule has initial value nonzero
+FAIL=Property fill-rule inherits
+FAIL=Property image-rendering has initial value auto
+FAIL=Property image-rendering inherits
+FAIL=Property marker-end has initial value none
+FAIL=Property marker-end inherits
+FAIL=Property marker-mid has initial value none
+FAIL=Property marker-mid inherits
+FAIL=Property marker-start has initial value none
+FAIL=Property marker-start inherits
+FAIL=Property paint-order has initial value normal
+FAIL=Property paint-order inherits
+FAIL=Property shape-rendering has initial value auto
+FAIL=Property shape-rendering inherits
+FAIL=Property stroke has initial value none
+FAIL=Property stroke inherits
+FAIL=Property stroke-dasharray has initial value none
+FAIL=Property stroke-dasharray inherits
+FAIL=Property stroke-dashoffset has initial value 0px
+FAIL=Property stroke-dashoffset inherits
+FAIL=Property stroke-linecap has initial value butt
+FAIL=Property stroke-linecap inherits
+FAIL=Property stroke-linejoin has initial value miter
+FAIL=Property stroke-linejoin inherits
+FAIL=Property stroke-miterlimit has initial value 4
+FAIL=Property stroke-miterlimit inherits
+FAIL=Property stroke-opacity has initial value 1
+FAIL=Property stroke-opacity inherits
+FAIL=Property stroke-width has initial value 1px
+FAIL=Property stroke-width inherits
+FAIL=Property text-rendering has initial value auto
+FAIL=Property text-rendering inherits
 [svg/painting/marker-001.svg]
 harness=FAIL
 [svg/painting/marker-004.svg]
@@ -3372,127 +3706,279 @@ harness=FAIL
 [svg/painting/marker-orient-001.svg]
 harness=FAIL
 [svg/painting/parsing/color-interpolation-computed.svg]
-harness=TIMEOUT
-[svg/painting/parsing/color-interpolation-invalid.svg]
-harness=TIMEOUT
+FAIL=Property color-interpolation value 'auto'
+FAIL=Property color-interpolation value 'linearrgb'
+FAIL=Property color-interpolation value 'srgb'
 [svg/painting/parsing/color-interpolation-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['color-interpolation'] = "auto" should set the property value
+FAIL=e.style['color-interpolation'] = "linearrgb" should set the property value
+FAIL=e.style['color-interpolation'] = "srgb" should set the property value
 [svg/painting/parsing/fill-computed.svg]
-harness=TIMEOUT
-[svg/painting/parsing/fill-invalid.svg]
-harness=TIMEOUT
+FAIL=Property fill value 'none'
+FAIL=Property fill value 'rgb(12, 34, 56)'
+FAIL=Property fill value 'url("https://example.com/") none'
+FAIL=Property fill value 'url("https://example.com/") rgb(12, 34, 56)'
+FAIL=Property fill value 'url("https://example.com/")'
+FAIL=url values are made absolute
 [svg/painting/parsing/fill-opacity-computed.svg]
-harness=TIMEOUT
-[svg/painting/parsing/fill-opacity-invalid.svg]
-harness=TIMEOUT
+FAIL=Property fill-opacity value '-1'
+FAIL=Property fill-opacity value '-100%'
+FAIL=Property fill-opacity value '0.5'
+FAIL=Property fill-opacity value '3'
+FAIL=Property fill-opacity value '300%'
+FAIL=Property fill-opacity value '50%'
 [svg/painting/parsing/fill-opacity-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['fill-opacity'] = "-1" should set the property value
+FAIL=e.style['fill-opacity'] = "-100%" should set the property value
+FAIL=e.style['fill-opacity'] = "0.5" should set the property value
+FAIL=e.style['fill-opacity'] = "3" should set the property value
+FAIL=e.style['fill-opacity'] = "300%" should set the property value
+FAIL=e.style['fill-opacity'] = "50%" should set the property value
 [svg/painting/parsing/fill-rule-computed.svg]
-harness=TIMEOUT
-[svg/painting/parsing/fill-rule-invalid.svg]
-harness=TIMEOUT
+FAIL=Property fill-rule value 'evenodd'
+FAIL=Property fill-rule value 'nonzero'
 [svg/painting/parsing/fill-rule-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['fill-rule'] = "evenodd" should set the property value
+FAIL=e.style['fill-rule'] = "nonzero" should set the property value
 [svg/painting/parsing/fill-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['fill'] = "context-fill" should set the property value
+FAIL=e.style['fill'] = "context-stroke" should set the property value
+FAIL=e.style['fill'] = "none" should set the property value
+FAIL=e.style['fill'] = "rgb(12, 34, 56)" should set the property value
+FAIL=e.style['fill'] = "url(\"https://example.com/\") none" should set the property value
+FAIL=e.style['fill'] = "url(\"https://example.com/\") rgb(12, 34, 56)" should set the property value
+FAIL=e.style['fill'] = "url(\"https://example.com/\")" should set the property value
 [svg/painting/parsing/image-rendering-computed.svg]
-harness=TIMEOUT
-[svg/painting/parsing/image-rendering-invalid.svg]
-harness=TIMEOUT
+FAIL=Property image-rendering value 'auto'
+FAIL=Property image-rendering value 'optimizequality'
+FAIL=Property image-rendering value 'optimizespeed'
 [svg/painting/parsing/image-rendering-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['image-rendering'] = "auto" should set the property value
+FAIL=e.style['image-rendering'] = "optimizequality" should set the property value
+FAIL=e.style['image-rendering'] = "optimizespeed" should set the property value
 [svg/painting/parsing/marker-computed.svg]
-harness=TIMEOUT
+FAIL=Property marker value 'none'
+FAIL=Property marker value 'url("https://example.com/")'
+FAIL=url values are made absolute
 [svg/painting/parsing/marker-end-computed.svg]
-harness=TIMEOUT
-[svg/painting/parsing/marker-end-invalid.svg]
-harness=TIMEOUT
+FAIL=Property marker-end value 'none'
+FAIL=Property marker-end value 'url("https://example.com/")'
+FAIL=url values are made absolute
 [svg/painting/parsing/marker-end-valid.svg]
-harness=TIMEOUT
-[svg/painting/parsing/marker-invalid.svg]
-harness=TIMEOUT
+FAIL=e.style['marker-end'] = "none" should set the property value
+FAIL=e.style['marker-end'] = "url(\"https://example.com/\")" should set the property value
 [svg/painting/parsing/marker-mid-computed.svg]
-harness=TIMEOUT
-[svg/painting/parsing/marker-mid-invalid.svg]
-harness=TIMEOUT
+FAIL=Property marker-mid value 'none'
+FAIL=Property marker-mid value 'url("https://example.com/")'
+FAIL=url values are made absolute
 [svg/painting/parsing/marker-mid-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['marker-mid'] = "none" should set the property value
+FAIL=e.style['marker-mid'] = "url(\"https://example.com/\")" should set the property value
 [svg/painting/parsing/marker-shorthand.svg]
-harness=TIMEOUT
+FAIL=e.style['marker'] = "none" should not set unrelated longhands
+FAIL=e.style['marker'] = "none" should set marker-end
+FAIL=e.style['marker'] = "none" should set marker-mid
+FAIL=e.style['marker'] = "none" should set marker-start
+FAIL=e.style['marker'] = "url(\"https://example.com/\")" should not set unrelated longhands
+FAIL=e.style['marker'] = "url(\"https://example.com/\")" should set marker-end
+FAIL=e.style['marker'] = "url(\"https://example.com/\")" should set marker-mid
+FAIL=e.style['marker'] = "url(\"https://example.com/\")" should set marker-start
 [svg/painting/parsing/marker-start-computed.svg]
-harness=TIMEOUT
-[svg/painting/parsing/marker-start-invalid.svg]
-harness=TIMEOUT
+FAIL=Property marker-start value 'none'
+FAIL=Property marker-start value 'url("https://example.com/")'
+FAIL=url values are made absolute
 [svg/painting/parsing/marker-start-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['marker-start'] = "none" should set the property value
+FAIL=e.style['marker-start'] = "url(\"https://example.com/\")" should set the property value
 [svg/painting/parsing/marker-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['marker'] = "none" should set the property value
+FAIL=e.style['marker'] = "url(\"https://example.com/\")" should set the property value
 [svg/painting/parsing/paint-order-computed.svg]
-harness=TIMEOUT
-[svg/painting/parsing/paint-order-invalid.svg]
-harness=TIMEOUT
+FAIL=Property paint-order value 'fill markers stroke'
+FAIL=Property paint-order value 'fill markers'
+FAIL=Property paint-order value 'fill stroke markers'
+FAIL=Property paint-order value 'fill stroke'
+FAIL=Property paint-order value 'fill'
+FAIL=Property paint-order value 'markers fill stroke'
+FAIL=Property paint-order value 'markers fill'
+FAIL=Property paint-order value 'markers stroke fill'
+FAIL=Property paint-order value 'markers stroke'
+FAIL=Property paint-order value 'markers'
+FAIL=Property paint-order value 'normal'
+FAIL=Property paint-order value 'stroke fill markers'
+FAIL=Property paint-order value 'stroke fill'
+FAIL=Property paint-order value 'stroke markers fill'
+FAIL=Property paint-order value 'stroke markers'
+FAIL=Property paint-order value 'stroke'
 [svg/painting/parsing/paint-order-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['paint-order'] = "fill markers stroke" should set the property value
+FAIL=e.style['paint-order'] = "fill markers" should set the property value
+FAIL=e.style['paint-order'] = "fill stroke markers" should set the property value
+FAIL=e.style['paint-order'] = "fill stroke" should set the property value
+FAIL=e.style['paint-order'] = "fill" should set the property value
+FAIL=e.style['paint-order'] = "markers fill stroke" should set the property value
+FAIL=e.style['paint-order'] = "markers fill" should set the property value
+FAIL=e.style['paint-order'] = "markers stroke fill" should set the property value
+FAIL=e.style['paint-order'] = "markers stroke" should set the property value
+FAIL=e.style['paint-order'] = "markers" should set the property value
+FAIL=e.style['paint-order'] = "normal" should set the property value
+FAIL=e.style['paint-order'] = "stroke fill markers" should set the property value
+FAIL=e.style['paint-order'] = "stroke fill" should set the property value
+FAIL=e.style['paint-order'] = "stroke markers fill" should set the property value
+FAIL=e.style['paint-order'] = "stroke markers" should set the property value
+FAIL=e.style['paint-order'] = "stroke" should set the property value
 [svg/painting/parsing/shape-rendering-computed.svg]
-harness=TIMEOUT
-[svg/painting/parsing/shape-rendering-invalid.svg]
-harness=TIMEOUT
+FAIL=Property shape-rendering value 'auto'
+FAIL=Property shape-rendering value 'crispedges'
+FAIL=Property shape-rendering value 'geometricprecision'
+FAIL=Property shape-rendering value 'optimizespeed'
 [svg/painting/parsing/shape-rendering-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['shape-rendering'] = "auto" should set the property value
+FAIL=e.style['shape-rendering'] = "crispedges" should set the property value
+FAIL=e.style['shape-rendering'] = "geometricprecision" should set the property value
+FAIL=e.style['shape-rendering'] = "optimizespeed" should set the property value
 [svg/painting/parsing/stroke-computed.svg]
-harness=TIMEOUT
+FAIL=Property stroke value 'none'
+FAIL=Property stroke value 'rgb(12, 34, 56)'
+FAIL=Property stroke value 'url("https://example.com/") none'
+FAIL=Property stroke value 'url("https://example.com/") rgb(12, 34, 56)'
+FAIL=Property stroke value 'url("https://example.com/")'
+FAIL=url values are made absolute
 [svg/painting/parsing/stroke-dasharray-computed.svg]
-harness=TIMEOUT
-[svg/painting/parsing/stroke-dasharray-invalid.svg]
-harness=TIMEOUT
+FAIL=Property stroke-dasharray value '0, 5'
+FAIL=Property stroke-dasharray value '10'
+FAIL=Property stroke-dasharray value '10px 20% 30px'
+FAIL=Property stroke-dasharray value '40%'
+FAIL=Property stroke-dasharray value 'calc(10px + 0.5em)'
+FAIL=Property stroke-dasharray value 'calc(10px - 0.5em)'
+FAIL=Property stroke-dasharray value 'calc(50% + 60px)'
+FAIL=Property stroke-dasharray value 'none'
 [svg/painting/parsing/stroke-dasharray-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['stroke-dasharray'] = "0, 5" should set the property value
+FAIL=e.style['stroke-dasharray'] = "10pt 20% 30pc 40in" should set the property value
+FAIL=e.style['stroke-dasharray'] = "10px" should set the property value
+FAIL=e.style['stroke-dasharray'] = "10vmin, 20vmax, 30em, 40ex" should set the property value
+FAIL=e.style['stroke-dasharray'] = "20%" should set the property value
+FAIL=e.style['stroke-dasharray'] = "calc(2 + (7 - 5))" should set the property value
+FAIL=e.style['stroke-dasharray'] = "calc(2 + 1)" should set the property value
+FAIL=e.style['stroke-dasharray'] = "calc(2em + 3ex)" should set the property value
+FAIL=e.style['stroke-dasharray'] = "calc(3)" should set the property value
+FAIL=e.style['stroke-dasharray'] = "none" should set the property value
 [svg/painting/parsing/stroke-dashoffset-computed.svg]
-harness=TIMEOUT
-[svg/painting/parsing/stroke-dashoffset-invalid.svg]
-harness=TIMEOUT
+FAIL=Property stroke-dashoffset value '-40%'
+FAIL=Property stroke-dashoffset value '0.5em'
+FAIL=Property stroke-dashoffset value '10'
+FAIL=Property stroke-dashoffset value '10160Q'
+FAIL=Property stroke-dashoffset value '1in'
+FAIL=Property stroke-dashoffset value '2540mm'
+FAIL=Property stroke-dashoffset value '254cm'
+FAIL=Property stroke-dashoffset value '6pc'
+FAIL=Property stroke-dashoffset value '72pt'
+FAIL=Property stroke-dashoffset value 'calc(10px + 0.5em)'
+FAIL=Property stroke-dashoffset value 'calc(10px - 0.5em)'
+FAIL=Property stroke-dashoffset value 'calc(50% + 60px)'
 [svg/painting/parsing/stroke-dashoffset-valid.svg]
-harness=TIMEOUT
-[svg/painting/parsing/stroke-invalid.svg]
-harness=TIMEOUT
+FAIL=e.style['stroke-dashoffset'] = "-20%" should set the property value
+FAIL=e.style['stroke-dashoffset'] = "0" should set the property value
+FAIL=e.style['stroke-dashoffset'] = "10px" should set the property value
+FAIL=e.style['stroke-dashoffset'] = "30" should set the property value
+FAIL=e.style['stroke-dashoffset'] = "40Q" should set the property value
+FAIL=e.style['stroke-dashoffset'] = "calc(2 + (7 - 5))" should set the property value
+FAIL=e.style['stroke-dashoffset'] = "calc(2 + 1)" should set the property value
+FAIL=e.style['stroke-dashoffset'] = "calc(2em + 3ex)" should set the property value
+FAIL=e.style['stroke-dashoffset'] = "calc(3)" should set the property value
 [svg/painting/parsing/stroke-linecap-computed.svg]
-harness=TIMEOUT
-[svg/painting/parsing/stroke-linecap-invalid.svg]
-harness=TIMEOUT
+FAIL=Property stroke-linecap value 'butt'
+FAIL=Property stroke-linecap value 'round'
+FAIL=Property stroke-linecap value 'square'
 [svg/painting/parsing/stroke-linecap-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['stroke-linecap'] = "butt" should set the property value
+FAIL=e.style['stroke-linecap'] = "round" should set the property value
+FAIL=e.style['stroke-linecap'] = "square" should set the property value
 [svg/painting/parsing/stroke-linejoin-computed.svg]
-harness=TIMEOUT
-[svg/painting/parsing/stroke-linejoin-invalid.svg]
-harness=TIMEOUT
+FAIL=Property stroke-linejoin value 'bevel'
+FAIL=Property stroke-linejoin value 'miter'
+FAIL=Property stroke-linejoin value 'round'
 [svg/painting/parsing/stroke-linejoin-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['stroke-linejoin'] = "arcs" should set the property value
+FAIL=e.style['stroke-linejoin'] = "bevel" should set the property value
+FAIL=e.style['stroke-linejoin'] = "miter" should set the property value
+FAIL=e.style['stroke-linejoin'] = "miter-clip" should set the property value
+FAIL=e.style['stroke-linejoin'] = "round" should set the property value
 [svg/painting/parsing/stroke-miterlimit-computed.svg]
-harness=TIMEOUT
-[svg/painting/parsing/stroke-miterlimit-invalid.svg]
-harness=TIMEOUT
+FAIL=Property stroke-miterlimit value '0'
+FAIL=Property stroke-miterlimit value '0.5'
+FAIL=Property stroke-miterlimit value '1'
+FAIL=Property stroke-miterlimit value '7.5'
 [svg/painting/parsing/stroke-miterlimit-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['stroke-miterlimit'] = "0" should set the property value
+FAIL=e.style['stroke-miterlimit'] = "0.5" should set the property value
+FAIL=e.style['stroke-miterlimit'] = "1" should set the property value
+FAIL=e.style['stroke-miterlimit'] = "7.5" should set the property value
 [svg/painting/parsing/stroke-opacity-computed.svg]
-harness=TIMEOUT
-[svg/painting/parsing/stroke-opacity-invalid.svg]
-harness=TIMEOUT
+FAIL=Property stroke-opacity value '-1'
+FAIL=Property stroke-opacity value '-100%'
+FAIL=Property stroke-opacity value '0.5'
+FAIL=Property stroke-opacity value '3'
+FAIL=Property stroke-opacity value '300%'
+FAIL=Property stroke-opacity value '50%'
 [svg/painting/parsing/stroke-opacity-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['stroke-opacity'] = "-1" should set the property value
+FAIL=e.style['stroke-opacity'] = "-100%" should set the property value
+FAIL=e.style['stroke-opacity'] = "0.5" should set the property value
+FAIL=e.style['stroke-opacity'] = "3" should set the property value
+FAIL=e.style['stroke-opacity'] = "300%" should set the property value
+FAIL=e.style['stroke-opacity'] = "50%" should set the property value
 [svg/painting/parsing/stroke-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['stroke'] = "context-fill" should set the property value
+FAIL=e.style['stroke'] = "context-stroke" should set the property value
+FAIL=e.style['stroke'] = "none" should set the property value
+FAIL=e.style['stroke'] = "rgb(12, 34, 56)" should set the property value
+FAIL=e.style['stroke'] = "url(\"https://example.com/\") none" should set the property value
+FAIL=e.style['stroke'] = "url(\"https://example.com/\") rgb(12, 34, 56)" should set the property value
+FAIL=e.style['stroke'] = "url(\"https://example.com/\")" should set the property value
 [svg/painting/parsing/stroke-width-computed.svg]
-harness=TIMEOUT
-[svg/painting/parsing/stroke-width-invalid.svg]
-harness=TIMEOUT
+FAIL=Property stroke-width value '10'
+FAIL=Property stroke-width value '40%'
+FAIL=Property stroke-width value 'calc(10px + 0.5em)'
+FAIL=Property stroke-width value 'calc(10px - 0.5em)'
+FAIL=Property stroke-width value 'calc(50% + 60px)'
+FAIL=stroke-width computes Q lengths
+FAIL=stroke-width computes ch lengths
+FAIL=stroke-width computes cm lengths
+FAIL=stroke-width computes em lengths
+FAIL=stroke-width computes ex lengths
+FAIL=stroke-width computes in lengths
+FAIL=stroke-width computes mm lengths
+FAIL=stroke-width computes pc lengths
+FAIL=stroke-width computes pt lengths
+FAIL=stroke-width computes px lengths
+FAIL=stroke-width computes rem lengths
+FAIL=stroke-width computes vh lengths
+FAIL=stroke-width computes vmax lengths
+FAIL=stroke-width computes vmin lengths
+FAIL=stroke-width computes vw lengths
 [svg/painting/parsing/stroke-width-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['stroke-width'] = "0" should set the property value
+FAIL=e.style['stroke-width'] = "10" should set the property value
+FAIL=e.style['stroke-width'] = "1px" should set the property value
+FAIL=e.style['stroke-width'] = "4%" should set the property value
+FAIL=e.style['stroke-width'] = "5vmin" should set the property value
+FAIL=e.style['stroke-width'] = "calc(2 + (7 - 5))" should set the property value
+FAIL=e.style['stroke-width'] = "calc(2 + 1)" should set the property value
+FAIL=e.style['stroke-width'] = "calc(2em + 3ex)" should set the property value
+FAIL=e.style['stroke-width'] = "calc(3)" should set the property value
+FAIL=e.style['stroke-width'] = "calc(50% + 60px)" should set the property value
 [svg/painting/parsing/text-rendering-computed.svg]
-harness=TIMEOUT
-[svg/painting/parsing/text-rendering-invalid.svg]
-harness=TIMEOUT
+FAIL=Property text-rendering value 'auto'
+FAIL=Property text-rendering value 'geometricprecision'
+FAIL=Property text-rendering value 'optimizelegibility'
+FAIL=Property text-rendering value 'optimizespeed'
 [svg/painting/parsing/text-rendering-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['text-rendering'] = "auto" should set the property value
+FAIL=e.style['text-rendering'] = "geometricprecision" should set the property value
+FAIL=e.style['text-rendering'] = "optimizelegibility" should set the property value
+FAIL=e.style['text-rendering'] = "optimizespeed" should set the property value
 [svg/painting/reftests/display-none-mask.html]
 harness=FAIL
 [svg/painting/reftests/marker-implicit-subpaths.html]
@@ -3529,8 +4015,6 @@ harness=FAIL
 harness=FAIL
 [svg/painting/reftests/paint-context-004.svg]
 harness=FAIL
-[svg/painting/reftests/paint-context-005.svg]
-harness=TIMEOUT
 [svg/painting/reftests/paint-order-002.svg]
 harness=FAIL
 [svg/painting/reftests/small-nested-viewbox.html]
@@ -3552,7 +4036,50 @@ FAIL=SVGMarkerElement.orientType synchronization, setting orientType to 'auto'
 [svg/painting/scripted/marker-element-added.html]
 harness=FAIL
 [svg/painting/scripted/paint-order-computed-value-01.svg]
-harness=TIMEOUT
+FAIL='paint-order' computed style serialization, "fill foo" => "normal" (presentation attribute)
+FAIL='paint-order' computed style serialization, "fill foo" => "normal" (property)
+FAIL='paint-order' computed style serialization, "fill markers stroke foo" => "normal" (presentation attribute)
+FAIL='paint-order' computed style serialization, "fill markers stroke foo" => "normal" (property)
+FAIL='paint-order' computed style serialization, "fill markers stroke" => "fill markers" (presentation attribute)
+FAIL='paint-order' computed style serialization, "fill markers stroke" => "fill markers" (property)
+FAIL='paint-order' computed style serialization, "fill markers" => "fill markers" (presentation attribute)
+FAIL='paint-order' computed style serialization, "fill markers" => "fill markers" (property)
+FAIL='paint-order' computed style serialization, "fill stroke markers" => "fill" (presentation attribute)
+FAIL='paint-order' computed style serialization, "fill stroke markers" => "fill" (property)
+FAIL='paint-order' computed style serialization, "fill stroke" => "fill" (presentation attribute)
+FAIL='paint-order' computed style serialization, "fill stroke" => "fill" (property)
+FAIL='paint-order' computed style serialization, "fill" => "fill" (presentation attribute)
+FAIL='paint-order' computed style serialization, "fill" => "fill" (property)
+FAIL='paint-order' computed style serialization, "foo" => "normal" (presentation attribute)
+FAIL='paint-order' computed style serialization, "foo" => "normal" (property)
+FAIL='paint-order' computed style serialization, "markers fill stroke" => "markers" (presentation attribute)
+FAIL='paint-order' computed style serialization, "markers fill stroke" => "markers" (property)
+FAIL='paint-order' computed style serialization, "markers fill" => "markers" (presentation attribute)
+FAIL='paint-order' computed style serialization, "markers fill" => "markers" (property)
+FAIL='paint-order' computed style serialization, "markers foo" => "normal" (presentation attribute)
+FAIL='paint-order' computed style serialization, "markers foo" => "normal" (property)
+FAIL='paint-order' computed style serialization, "markers stroke fill" => "markers stroke" (presentation attribute)
+FAIL='paint-order' computed style serialization, "markers stroke fill" => "markers stroke" (property)
+FAIL='paint-order' computed style serialization, "markers stroke" => "markers stroke" (presentation attribute)
+FAIL='paint-order' computed style serialization, "markers stroke" => "markers stroke" (property)
+FAIL='paint-order' computed style serialization, "markers" => "markers" (presentation attribute)
+FAIL='paint-order' computed style serialization, "markers" => "markers" (property)
+FAIL='paint-order' computed style serialization, "normal foo" => "normal" (presentation attribute)
+FAIL='paint-order' computed style serialization, "normal foo" => "normal" (property)
+FAIL='paint-order' computed style serialization, "normal" => "normal" (presentation attribute)
+FAIL='paint-order' computed style serialization, "normal" => "normal" (property)
+FAIL='paint-order' computed style serialization, "stroke fill markers" => "stroke" (presentation attribute)
+FAIL='paint-order' computed style serialization, "stroke fill markers" => "stroke" (property)
+FAIL='paint-order' computed style serialization, "stroke fill" => "stroke" (presentation attribute)
+FAIL='paint-order' computed style serialization, "stroke fill" => "stroke" (property)
+FAIL='paint-order' computed style serialization, "stroke foo" => "normal" (presentation attribute)
+FAIL='paint-order' computed style serialization, "stroke foo" => "normal" (property)
+FAIL='paint-order' computed style serialization, "stroke markers fill" => "stroke markers" (presentation attribute)
+FAIL='paint-order' computed style serialization, "stroke markers fill" => "stroke markers" (property)
+FAIL='paint-order' computed style serialization, "stroke markers" => "stroke markers" (presentation attribute)
+FAIL='paint-order' computed style serialization, "stroke markers" => "stroke markers" (property)
+FAIL='paint-order' computed style serialization, "stroke" => "stroke" (presentation attribute)
+FAIL='paint-order' computed style serialization, "stroke" => "stroke" (property)
 [svg/painting/subpixel-clip-path-transform.html]
 harness=FAIL
 [svg/painting/svg-child-will-change-transform-invalidation.html]
@@ -3607,11 +4134,18 @@ harness=FAIL
 [svg/path/distance/pathlength-rect-mutating.svg]
 harness=FAIL
 [svg/path/error-handling/bounding.svg]
-harness=TIMEOUT
+FAIL=bounding
 [svg/path/interfaces/SVGAnimatedPathData-removed.svg]
-harness=TIMEOUT
+FAIL=SVGAnimatedPathData-removed
 [svg/path/interfaces/SVGPathSegment.svg]
-harness=TIMEOUT
+FAIL=SVGPathSegment interface exists
+FAIL=Test path.getPathData() arc
+FAIL=Test path.getPathData() cubic
+FAIL=Test path.getPathData() straight lines
+FAIL=Test path.getPathData({normalize: true}) cubic
+FAIL=Test path.getPathData({normalize: true}) elliptical arc
+FAIL=Test path.getPathData({normalize: true}) quadratic
+FAIL=Test path.getPathData({normalize: true}) straight lines
 [svg/path/interfaces/getPathData-css-d-vs-attribute.html]
 FAIL=path.getPathData() returns [] when only CSS d is set (no d attribute)
 FAIL=path.getPathData() returns attribute value, not CSS d value
@@ -3782,11 +4316,21 @@ FAIL=Number parsing: Negative exponent (e-1)
 FAIL=Number parsing: Positive exponent (e+2)
 FAIL=Number parsing: Zero exponent (5e0 = 5)
 [svg/path/parsing/path-length-computed.tentative.svg]
-harness=TIMEOUT
-[svg/path/parsing/path-length-invalid.tentative.svg]
-harness=TIMEOUT
+FAIL=Property path-length value '0'
+FAIL=Property path-length value '100px'
+FAIL=Property path-length value '10em'
+FAIL=Property path-length value '2rem'
+FAIL=Property path-length value 'calc(-1px)'
+FAIL=Property path-length value 'calc(1px + 2px)'
+FAIL=Property path-length value 'none'
 [svg/path/parsing/path-length-valid.tentative.svg]
-harness=TIMEOUT
+FAIL=e.style['path-length'] = "0" should set the property value
+FAIL=e.style['path-length'] = "100px" should set the property value
+FAIL=e.style['path-length'] = "10em" should set the property value
+FAIL=e.style['path-length'] = "2rem" should set the property value
+FAIL=e.style['path-length'] = "calc(10px + 2em)" should set the property value
+FAIL=e.style['path-length'] = "calc(1px + 2px)" should set the property value
+FAIL=e.style['path-length'] = "none" should set the property value
 [svg/path/parsing/quadratic-bezier-commands.html]
 FAIL=Absolute quadratic bezier: Q 100,25 150,50
 FAIL=Chain of T commands: each T reflects previous control point
@@ -3818,21 +4362,245 @@ FAIL=Whitespace: Spaces before comma
 FAIL=Whitespace: Tab (0x09) as separator
 FAIL=Whitespace: Trailing whitespace in path data
 [svg/path/property/d-interpolation-discrete.svg]
-harness=TIMEOUT
+FAIL="path("M 0 0 H 1 H 2")" and "path("M 0 0 H 3")" are valid d values
+FAIL="path("M 1 2 L 3 4 Z")" and "none" are valid d values
+FAIL="path("M 1 2 L 4 6 Z")" and "path("M 1 2 H 4 V 6")" are valid d values
+FAIL="path("M 10 0 H 11")" and "path("M 20 0 V 2")" are valid d values
+FAIL=Animation between "path("M 0 0 H 1 H 2")" and "path("M 0 0 H 3")" at progress -1
+FAIL=Animation between "path("M 0 0 H 1 H 2")" and "path("M 0 0 H 3")" at progress 0
+FAIL=Animation between "path("M 0 0 H 1 H 2")" and "path("M 0 0 H 3")" at progress 0.125
+FAIL=Animation between "path("M 0 0 H 1 H 2")" and "path("M 0 0 H 3")" at progress 0.875
+FAIL=Animation between "path("M 0 0 H 1 H 2")" and "path("M 0 0 H 3")" at progress 1
+FAIL=Animation between "path("M 0 0 H 1 H 2")" and "path("M 0 0 H 3")" at progress 2
+FAIL=Animation between "path("M 1 2 L 3 4 Z")" and "none" at progress -1
+FAIL=Animation between "path("M 1 2 L 3 4 Z")" and "none" at progress 0
+FAIL=Animation between "path("M 1 2 L 3 4 Z")" and "none" at progress 0.125
+FAIL=Animation between "path("M 1 2 L 3 4 Z")" and "none" at progress 0.875
+FAIL=Animation between "path("M 1 2 L 3 4 Z")" and "none" at progress 1
+FAIL=Animation between "path("M 1 2 L 3 4 Z")" and "none" at progress 2
+FAIL=Animation between "path("M 1 2 L 4 6 Z")" and "path("M 1 2 H 4 V 6")" at progress -1
+FAIL=Animation between "path("M 1 2 L 4 6 Z")" and "path("M 1 2 H 4 V 6")" at progress 0
+FAIL=Animation between "path("M 1 2 L 4 6 Z")" and "path("M 1 2 H 4 V 6")" at progress 0.125
+FAIL=Animation between "path("M 1 2 L 4 6 Z")" and "path("M 1 2 H 4 V 6")" at progress 0.875
+FAIL=Animation between "path("M 1 2 L 4 6 Z")" and "path("M 1 2 H 4 V 6")" at progress 1
+FAIL=Animation between "path("M 1 2 L 4 6 Z")" and "path("M 1 2 H 4 V 6")" at progress 2
+FAIL=Animation between "path("M 10 0 H 11")" and "path("M 20 0 V 2")" at progress -1
+FAIL=Animation between "path("M 10 0 H 11")" and "path("M 20 0 V 2")" at progress 0
+FAIL=Animation between "path("M 10 0 H 11")" and "path("M 20 0 V 2")" at progress 0.125
+FAIL=Animation between "path("M 10 0 H 11")" and "path("M 20 0 V 2")" at progress 0.875
+FAIL=Animation between "path("M 10 0 H 11")" and "path("M 20 0 V 2")" at progress 1
+FAIL=Animation between "path("M 10 0 H 11")" and "path("M 20 0 V 2")" at progress 2
 [svg/path/property/d-interpolation-relative-absolute.svg]
-harness=TIMEOUT
+FAIL="path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 100 -100 z")" are valid d values
+FAIL="path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 300 100 z")" are valid d values
+FAIL="path("m 10 20 a 10 20 30 1 0 40 50 a 110 120 30 1 1 140 50")" and "path("M 18 12 A 50 100 70 0 1 90 110 A 150 160 70 0 1 70 80")" are valid d values
+FAIL="path("m 10 20 c 40 50 30 60 80 70 c 120 130 170 140 110 160")" and "path("M 130 100 C 130 150 120 160 210 170 C 290 300 340 310 320 330")" are valid d values
+FAIL="path("m 10 20 h 30 v 60 h 10 v -10 l 110 60 Z")" and "path("M 130 140 H 120 V 160 H 130 V 150 L 200 170 Z")" are valid d values
+FAIL="path("m 10 20 l 40 50 z l 40 60 z m 60 70 l 90 60 z t 70 130")" and "path("M 210 220 L 170 190 Z L 90 120 Z M 110 130 L 200 230 Z T 220 220")" are valid d values
+FAIL="path("m 10 20 q 30 60 40 50 q 110 80 90 80")" and "path("M 130 100 Q 120 160 130 150 Q 200 150 180 190")" are valid d values
+FAIL="path("m 10 20 s 30 60 40 50 s 110 60 90 70")" and "path("M 130 140 S 120 160 130 150 S 200 170 140 180")" are valid d values
+FAIL=Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 100 -100 z")" at progress -1
+FAIL=Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 100 -100 z")" at progress 0
+FAIL=Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 100 -100 z")" at progress 0.125
+FAIL=Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 100 -100 z")" at progress 0.875
+FAIL=Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 100 -100 z")" at progress 1
+FAIL=Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 100 -100 z")" at progress 2
+FAIL=Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 300 100 z")" at progress -1
+FAIL=Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 300 100 z")" at progress 0
+FAIL=Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 300 100 z")" at progress 0.125
+FAIL=Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 300 100 z")" at progress 0.875
+FAIL=Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 300 100 z")" at progress 1
+FAIL=Animation between "path("M 0 0 L 100 100 M 100 200 L 200 200 Z L 200 100 Z")" and "path("M 0 0 L 100 100 m 0 100 l 100 0 z l 300 100 z")" at progress 2
+FAIL=Animation between "path("m 10 20 a 10 20 30 1 0 40 50 a 110 120 30 1 1 140 50")" and "path("M 18 12 A 50 100 70 0 1 90 110 A 150 160 70 0 1 70 80")" at progress -1
+FAIL=Animation between "path("m 10 20 a 10 20 30 1 0 40 50 a 110 120 30 1 1 140 50")" and "path("M 18 12 A 50 100 70 0 1 90 110 A 150 160 70 0 1 70 80")" at progress 0
+FAIL=Animation between "path("m 10 20 a 10 20 30 1 0 40 50 a 110 120 30 1 1 140 50")" and "path("M 18 12 A 50 100 70 0 1 90 110 A 150 160 70 0 1 70 80")" at progress 0.125
+FAIL=Animation between "path("m 10 20 a 10 20 30 1 0 40 50 a 110 120 30 1 1 140 50")" and "path("M 18 12 A 50 100 70 0 1 90 110 A 150 160 70 0 1 70 80")" at progress 0.875
+FAIL=Animation between "path("m 10 20 a 10 20 30 1 0 40 50 a 110 120 30 1 1 140 50")" and "path("M 18 12 A 50 100 70 0 1 90 110 A 150 160 70 0 1 70 80")" at progress 1
+FAIL=Animation between "path("m 10 20 a 10 20 30 1 0 40 50 a 110 120 30 1 1 140 50")" and "path("M 18 12 A 50 100 70 0 1 90 110 A 150 160 70 0 1 70 80")" at progress 2
+FAIL=Animation between "path("m 10 20 c 40 50 30 60 80 70 c 120 130 170 140 110 160")" and "path("M 130 100 C 130 150 120 160 210 170 C 290 300 340 310 320 330")" at progress -1
+FAIL=Animation between "path("m 10 20 c 40 50 30 60 80 70 c 120 130 170 140 110 160")" and "path("M 130 100 C 130 150 120 160 210 170 C 290 300 340 310 320 330")" at progress 0
+FAIL=Animation between "path("m 10 20 c 40 50 30 60 80 70 c 120 130 170 140 110 160")" and "path("M 130 100 C 130 150 120 160 210 170 C 290 300 340 310 320 330")" at progress 0.125
+FAIL=Animation between "path("m 10 20 c 40 50 30 60 80 70 c 120 130 170 140 110 160")" and "path("M 130 100 C 130 150 120 160 210 170 C 290 300 340 310 320 330")" at progress 0.875
+FAIL=Animation between "path("m 10 20 c 40 50 30 60 80 70 c 120 130 170 140 110 160")" and "path("M 130 100 C 130 150 120 160 210 170 C 290 300 340 310 320 330")" at progress 1
+FAIL=Animation between "path("m 10 20 c 40 50 30 60 80 70 c 120 130 170 140 110 160")" and "path("M 130 100 C 130 150 120 160 210 170 C 290 300 340 310 320 330")" at progress 2
+FAIL=Animation between "path("m 10 20 h 30 v 60 h 10 v -10 l 110 60 Z")" and "path("M 130 140 H 120 V 160 H 130 V 150 L 200 170 Z")" at progress -1
+FAIL=Animation between "path("m 10 20 h 30 v 60 h 10 v -10 l 110 60 Z")" and "path("M 130 140 H 120 V 160 H 130 V 150 L 200 170 Z")" at progress 0
+FAIL=Animation between "path("m 10 20 h 30 v 60 h 10 v -10 l 110 60 Z")" and "path("M 130 140 H 120 V 160 H 130 V 150 L 200 170 Z")" at progress 0.125
+FAIL=Animation between "path("m 10 20 h 30 v 60 h 10 v -10 l 110 60 Z")" and "path("M 130 140 H 120 V 160 H 130 V 150 L 200 170 Z")" at progress 0.875
+FAIL=Animation between "path("m 10 20 h 30 v 60 h 10 v -10 l 110 60 Z")" and "path("M 130 140 H 120 V 160 H 130 V 150 L 200 170 Z")" at progress 1
+FAIL=Animation between "path("m 10 20 h 30 v 60 h 10 v -10 l 110 60 Z")" and "path("M 130 140 H 120 V 160 H 130 V 150 L 200 170 Z")" at progress 2
+FAIL=Animation between "path("m 10 20 l 40 50 z l 40 60 z m 60 70 l 90 60 z t 70 130")" and "path("M 210 220 L 170 190 Z L 90 120 Z M 110 130 L 200 230 Z T 220 220")" at progress -1
+FAIL=Animation between "path("m 10 20 l 40 50 z l 40 60 z m 60 70 l 90 60 z t 70 130")" and "path("M 210 220 L 170 190 Z L 90 120 Z M 110 130 L 200 230 Z T 220 220")" at progress 0
+FAIL=Animation between "path("m 10 20 l 40 50 z l 40 60 z m 60 70 l 90 60 z t 70 130")" and "path("M 210 220 L 170 190 Z L 90 120 Z M 110 130 L 200 230 Z T 220 220")" at progress 0.125
+FAIL=Animation between "path("m 10 20 l 40 50 z l 40 60 z m 60 70 l 90 60 z t 70 130")" and "path("M 210 220 L 170 190 Z L 90 120 Z M 110 130 L 200 230 Z T 220 220")" at progress 0.875
+FAIL=Animation between "path("m 10 20 l 40 50 z l 40 60 z m 60 70 l 90 60 z t 70 130")" and "path("M 210 220 L 170 190 Z L 90 120 Z M 110 130 L 200 230 Z T 220 220")" at progress 1
+FAIL=Animation between "path("m 10 20 l 40 50 z l 40 60 z m 60 70 l 90 60 z t 70 130")" and "path("M 210 220 L 170 190 Z L 90 120 Z M 110 130 L 200 230 Z T 220 220")" at progress 2
+FAIL=Animation between "path("m 10 20 q 30 60 40 50 q 110 80 90 80")" and "path("M 130 100 Q 120 160 130 150 Q 200 150 180 190")" at progress -1
+FAIL=Animation between "path("m 10 20 q 30 60 40 50 q 110 80 90 80")" and "path("M 130 100 Q 120 160 130 150 Q 200 150 180 190")" at progress 0
+FAIL=Animation between "path("m 10 20 q 30 60 40 50 q 110 80 90 80")" and "path("M 130 100 Q 120 160 130 150 Q 200 150 180 190")" at progress 0.125
+FAIL=Animation between "path("m 10 20 q 30 60 40 50 q 110 80 90 80")" and "path("M 130 100 Q 120 160 130 150 Q 200 150 180 190")" at progress 0.875
+FAIL=Animation between "path("m 10 20 q 30 60 40 50 q 110 80 90 80")" and "path("M 130 100 Q 120 160 130 150 Q 200 150 180 190")" at progress 1
+FAIL=Animation between "path("m 10 20 q 30 60 40 50 q 110 80 90 80")" and "path("M 130 100 Q 120 160 130 150 Q 200 150 180 190")" at progress 2
+FAIL=Animation between "path("m 10 20 s 30 60 40 50 s 110 60 90 70")" and "path("M 130 140 S 120 160 130 150 S 200 170 140 180")" at progress -1
+FAIL=Animation between "path("m 10 20 s 30 60 40 50 s 110 60 90 70")" and "path("M 130 140 S 120 160 130 150 S 200 170 140 180")" at progress 0
+FAIL=Animation between "path("m 10 20 s 30 60 40 50 s 110 60 90 70")" and "path("M 130 140 S 120 160 130 150 S 200 170 140 180")" at progress 0.125
+FAIL=Animation between "path("m 10 20 s 30 60 40 50 s 110 60 90 70")" and "path("M 130 140 S 120 160 130 150 S 200 170 140 180")" at progress 0.875
+FAIL=Animation between "path("m 10 20 s 30 60 40 50 s 110 60 90 70")" and "path("M 130 140 S 120 160 130 150 S 200 170 140 180")" at progress 1
+FAIL=Animation between "path("m 10 20 s 30 60 40 50 s 110 60 90 70")" and "path("M 130 140 S 120 160 130 150 S 200 170 140 180")" at progress 2
 [svg/path/property/d-interpolation-single.svg]
-harness=TIMEOUT
+FAIL="path("M 100 400 A 10 20 30 1 0 140 450")" and "path("M 300 200 A 50 60 70 0 1 380 290")" are valid d values
+FAIL="path("M 12 34 S 45 67 89 123")" and "path("M 20 26 S 61 51 113 99")" are valid d values
+FAIL="path("M 12 34 T 45 67")" and "path("M 20 26 T 61 51")" are valid d values
+FAIL="path("M 20 10 C 32 42 52 62 120 2200")" and "path("M 20 10 C 40 50 60 70 200 3000")" are valid d values
+FAIL="path("M 20 10 Q 32 42 120 2200")" and "path("M 20 10 Q 40 50 200 3000")" are valid d values
+FAIL="path("M 20 70")" and "path("M 100 30")" are valid d values
+FAIL="path("M 50 60 H 70")" and "path("M 10 140 H 270")" are valid d values
+FAIL="path("M 50 60 V 70")" and "path("M 10 140 V 270")" are valid d values
+FAIL="path("m 100 200 L 120 270")" and "path("m 100 200 L 200 230")" are valid d values
+FAIL="path("m 100 200 l 20 70")" and "path("m 100 200 l 100 30")" are valid d values
+FAIL="path("m 100 400 a 10 20 30 1 0 40 50")" and "path("m 300 200 a 50 60 70 0 1 80 90")" are valid d values
+FAIL="path("m 12 34 s 33 33 77 89")" and "path("m 20 26 s 41 25 93 73")" are valid d values
+FAIL="path("m 12 34 t 33 33")" and "path("m 20 26 t 41 25")" are valid d values
+FAIL="path("m 20 10 c 12 32 32 52 100 2190")" and "path("m 20 10 c 20 40 40 60 180 2990")" are valid d values
+FAIL="path("m 20 10 q 12 32 100 2190")" and "path("m 20 10 q 20 40 180 2990")" are valid d values
+FAIL="path("m 20 70")" and "path("m 100 30")" are valid d values
+FAIL="path("m 50 60 h 20")" and "path("m 10 140 h 260")" are valid d values
+FAIL="path("m 50 60 v 10")" and "path("m 10 140 v 130")" are valid d values
+FAIL=Animation between "path("M 100 400 A 10 20 30 1 0 140 450")" and "path("M 300 200 A 50 60 70 0 1 380 290")" at progress -1
+FAIL=Animation between "path("M 100 400 A 10 20 30 1 0 140 450")" and "path("M 300 200 A 50 60 70 0 1 380 290")" at progress 0
+FAIL=Animation between "path("M 100 400 A 10 20 30 1 0 140 450")" and "path("M 300 200 A 50 60 70 0 1 380 290")" at progress 0.125
+FAIL=Animation between "path("M 100 400 A 10 20 30 1 0 140 450")" and "path("M 300 200 A 50 60 70 0 1 380 290")" at progress 0.875
+FAIL=Animation between "path("M 100 400 A 10 20 30 1 0 140 450")" and "path("M 300 200 A 50 60 70 0 1 380 290")" at progress 1
+FAIL=Animation between "path("M 100 400 A 10 20 30 1 0 140 450")" and "path("M 300 200 A 50 60 70 0 1 380 290")" at progress 2
+FAIL=Animation between "path("M 12 34 S 45 67 89 123")" and "path("M 20 26 S 61 51 113 99")" at progress -1
+FAIL=Animation between "path("M 12 34 S 45 67 89 123")" and "path("M 20 26 S 61 51 113 99")" at progress 0
+FAIL=Animation between "path("M 12 34 S 45 67 89 123")" and "path("M 20 26 S 61 51 113 99")" at progress 0.125
+FAIL=Animation between "path("M 12 34 S 45 67 89 123")" and "path("M 20 26 S 61 51 113 99")" at progress 0.875
+FAIL=Animation between "path("M 12 34 S 45 67 89 123")" and "path("M 20 26 S 61 51 113 99")" at progress 1
+FAIL=Animation between "path("M 12 34 S 45 67 89 123")" and "path("M 20 26 S 61 51 113 99")" at progress 2
+FAIL=Animation between "path("M 12 34 T 45 67")" and "path("M 20 26 T 61 51")" at progress -1
+FAIL=Animation between "path("M 12 34 T 45 67")" and "path("M 20 26 T 61 51")" at progress 0
+FAIL=Animation between "path("M 12 34 T 45 67")" and "path("M 20 26 T 61 51")" at progress 0.125
+FAIL=Animation between "path("M 12 34 T 45 67")" and "path("M 20 26 T 61 51")" at progress 0.875
+FAIL=Animation between "path("M 12 34 T 45 67")" and "path("M 20 26 T 61 51")" at progress 1
+FAIL=Animation between "path("M 12 34 T 45 67")" and "path("M 20 26 T 61 51")" at progress 2
+FAIL=Animation between "path("M 20 10 C 32 42 52 62 120 2200")" and "path("M 20 10 C 40 50 60 70 200 3000")" at progress -1
+FAIL=Animation between "path("M 20 10 C 32 42 52 62 120 2200")" and "path("M 20 10 C 40 50 60 70 200 3000")" at progress 0
+FAIL=Animation between "path("M 20 10 C 32 42 52 62 120 2200")" and "path("M 20 10 C 40 50 60 70 200 3000")" at progress 0.125
+FAIL=Animation between "path("M 20 10 C 32 42 52 62 120 2200")" and "path("M 20 10 C 40 50 60 70 200 3000")" at progress 0.875
+FAIL=Animation between "path("M 20 10 C 32 42 52 62 120 2200")" and "path("M 20 10 C 40 50 60 70 200 3000")" at progress 1
+FAIL=Animation between "path("M 20 10 C 32 42 52 62 120 2200")" and "path("M 20 10 C 40 50 60 70 200 3000")" at progress 2
+FAIL=Animation between "path("M 20 10 Q 32 42 120 2200")" and "path("M 20 10 Q 40 50 200 3000")" at progress -1
+FAIL=Animation between "path("M 20 10 Q 32 42 120 2200")" and "path("M 20 10 Q 40 50 200 3000")" at progress 0
+FAIL=Animation between "path("M 20 10 Q 32 42 120 2200")" and "path("M 20 10 Q 40 50 200 3000")" at progress 0.125
+FAIL=Animation between "path("M 20 10 Q 32 42 120 2200")" and "path("M 20 10 Q 40 50 200 3000")" at progress 0.875
+FAIL=Animation between "path("M 20 10 Q 32 42 120 2200")" and "path("M 20 10 Q 40 50 200 3000")" at progress 1
+FAIL=Animation between "path("M 20 10 Q 32 42 120 2200")" and "path("M 20 10 Q 40 50 200 3000")" at progress 2
+FAIL=Animation between "path("M 20 70")" and "path("M 100 30")" at progress -1
+FAIL=Animation between "path("M 20 70")" and "path("M 100 30")" at progress 0
+FAIL=Animation between "path("M 20 70")" and "path("M 100 30")" at progress 0.125
+FAIL=Animation between "path("M 20 70")" and "path("M 100 30")" at progress 0.875
+FAIL=Animation between "path("M 20 70")" and "path("M 100 30")" at progress 1
+FAIL=Animation between "path("M 20 70")" and "path("M 100 30")" at progress 2
+FAIL=Animation between "path("M 50 60 H 70")" and "path("M 10 140 H 270")" at progress -1
+FAIL=Animation between "path("M 50 60 H 70")" and "path("M 10 140 H 270")" at progress 0
+FAIL=Animation between "path("M 50 60 H 70")" and "path("M 10 140 H 270")" at progress 0.125
+FAIL=Animation between "path("M 50 60 H 70")" and "path("M 10 140 H 270")" at progress 0.875
+FAIL=Animation between "path("M 50 60 H 70")" and "path("M 10 140 H 270")" at progress 1
+FAIL=Animation between "path("M 50 60 H 70")" and "path("M 10 140 H 270")" at progress 2
+FAIL=Animation between "path("M 50 60 V 70")" and "path("M 10 140 V 270")" at progress -1
+FAIL=Animation between "path("M 50 60 V 70")" and "path("M 10 140 V 270")" at progress 0
+FAIL=Animation between "path("M 50 60 V 70")" and "path("M 10 140 V 270")" at progress 0.125
+FAIL=Animation between "path("M 50 60 V 70")" and "path("M 10 140 V 270")" at progress 0.875
+FAIL=Animation between "path("M 50 60 V 70")" and "path("M 10 140 V 270")" at progress 1
+FAIL=Animation between "path("M 50 60 V 70")" and "path("M 10 140 V 270")" at progress 2
+FAIL=Animation between "path("m 100 200 L 120 270")" and "path("m 100 200 L 200 230")" at progress -1
+FAIL=Animation between "path("m 100 200 L 120 270")" and "path("m 100 200 L 200 230")" at progress 0
+FAIL=Animation between "path("m 100 200 L 120 270")" and "path("m 100 200 L 200 230")" at progress 0.125
+FAIL=Animation between "path("m 100 200 L 120 270")" and "path("m 100 200 L 200 230")" at progress 0.875
+FAIL=Animation between "path("m 100 200 L 120 270")" and "path("m 100 200 L 200 230")" at progress 1
+FAIL=Animation between "path("m 100 200 L 120 270")" and "path("m 100 200 L 200 230")" at progress 2
+FAIL=Animation between "path("m 100 200 l 20 70")" and "path("m 100 200 l 100 30")" at progress -1
+FAIL=Animation between "path("m 100 200 l 20 70")" and "path("m 100 200 l 100 30")" at progress 0
+FAIL=Animation between "path("m 100 200 l 20 70")" and "path("m 100 200 l 100 30")" at progress 0.125
+FAIL=Animation between "path("m 100 200 l 20 70")" and "path("m 100 200 l 100 30")" at progress 0.875
+FAIL=Animation between "path("m 100 200 l 20 70")" and "path("m 100 200 l 100 30")" at progress 1
+FAIL=Animation between "path("m 100 200 l 20 70")" and "path("m 100 200 l 100 30")" at progress 2
+FAIL=Animation between "path("m 100 400 a 10 20 30 1 0 40 50")" and "path("m 300 200 a 50 60 70 0 1 80 90")" at progress -1
+FAIL=Animation between "path("m 100 400 a 10 20 30 1 0 40 50")" and "path("m 300 200 a 50 60 70 0 1 80 90")" at progress 0
+FAIL=Animation between "path("m 100 400 a 10 20 30 1 0 40 50")" and "path("m 300 200 a 50 60 70 0 1 80 90")" at progress 0.125
+FAIL=Animation between "path("m 100 400 a 10 20 30 1 0 40 50")" and "path("m 300 200 a 50 60 70 0 1 80 90")" at progress 0.875
+FAIL=Animation between "path("m 100 400 a 10 20 30 1 0 40 50")" and "path("m 300 200 a 50 60 70 0 1 80 90")" at progress 1
+FAIL=Animation between "path("m 100 400 a 10 20 30 1 0 40 50")" and "path("m 300 200 a 50 60 70 0 1 80 90")" at progress 2
+FAIL=Animation between "path("m 12 34 s 33 33 77 89")" and "path("m 20 26 s 41 25 93 73")" at progress -1
+FAIL=Animation between "path("m 12 34 s 33 33 77 89")" and "path("m 20 26 s 41 25 93 73")" at progress 0
+FAIL=Animation between "path("m 12 34 s 33 33 77 89")" and "path("m 20 26 s 41 25 93 73")" at progress 0.125
+FAIL=Animation between "path("m 12 34 s 33 33 77 89")" and "path("m 20 26 s 41 25 93 73")" at progress 0.875
+FAIL=Animation between "path("m 12 34 s 33 33 77 89")" and "path("m 20 26 s 41 25 93 73")" at progress 1
+FAIL=Animation between "path("m 12 34 s 33 33 77 89")" and "path("m 20 26 s 41 25 93 73")" at progress 2
+FAIL=Animation between "path("m 12 34 t 33 33")" and "path("m 20 26 t 41 25")" at progress -1
+FAIL=Animation between "path("m 12 34 t 33 33")" and "path("m 20 26 t 41 25")" at progress 0
+FAIL=Animation between "path("m 12 34 t 33 33")" and "path("m 20 26 t 41 25")" at progress 0.125
+FAIL=Animation between "path("m 12 34 t 33 33")" and "path("m 20 26 t 41 25")" at progress 0.875
+FAIL=Animation between "path("m 12 34 t 33 33")" and "path("m 20 26 t 41 25")" at progress 1
+FAIL=Animation between "path("m 12 34 t 33 33")" and "path("m 20 26 t 41 25")" at progress 2
+FAIL=Animation between "path("m 20 10 c 12 32 32 52 100 2190")" and "path("m 20 10 c 20 40 40 60 180 2990")" at progress -1
+FAIL=Animation between "path("m 20 10 c 12 32 32 52 100 2190")" and "path("m 20 10 c 20 40 40 60 180 2990")" at progress 0
+FAIL=Animation between "path("m 20 10 c 12 32 32 52 100 2190")" and "path("m 20 10 c 20 40 40 60 180 2990")" at progress 0.125
+FAIL=Animation between "path("m 20 10 c 12 32 32 52 100 2190")" and "path("m 20 10 c 20 40 40 60 180 2990")" at progress 0.875
+FAIL=Animation between "path("m 20 10 c 12 32 32 52 100 2190")" and "path("m 20 10 c 20 40 40 60 180 2990")" at progress 1
+FAIL=Animation between "path("m 20 10 c 12 32 32 52 100 2190")" and "path("m 20 10 c 20 40 40 60 180 2990")" at progress 2
+FAIL=Animation between "path("m 20 10 q 12 32 100 2190")" and "path("m 20 10 q 20 40 180 2990")" at progress -1
+FAIL=Animation between "path("m 20 10 q 12 32 100 2190")" and "path("m 20 10 q 20 40 180 2990")" at progress 0
+FAIL=Animation between "path("m 20 10 q 12 32 100 2190")" and "path("m 20 10 q 20 40 180 2990")" at progress 0.125
+FAIL=Animation between "path("m 20 10 q 12 32 100 2190")" and "path("m 20 10 q 20 40 180 2990")" at progress 0.875
+FAIL=Animation between "path("m 20 10 q 12 32 100 2190")" and "path("m 20 10 q 20 40 180 2990")" at progress 1
+FAIL=Animation between "path("m 20 10 q 12 32 100 2190")" and "path("m 20 10 q 20 40 180 2990")" at progress 2
+FAIL=Animation between "path("m 20 70")" and "path("m 100 30")" at progress -1
+FAIL=Animation between "path("m 20 70")" and "path("m 100 30")" at progress 0
+FAIL=Animation between "path("m 20 70")" and "path("m 100 30")" at progress 0.125
+FAIL=Animation between "path("m 20 70")" and "path("m 100 30")" at progress 0.875
+FAIL=Animation between "path("m 20 70")" and "path("m 100 30")" at progress 1
+FAIL=Animation between "path("m 20 70")" and "path("m 100 30")" at progress 2
+FAIL=Animation between "path("m 50 60 h 20")" and "path("m 10 140 h 260")" at progress -1
+FAIL=Animation between "path("m 50 60 h 20")" and "path("m 10 140 h 260")" at progress 0
+FAIL=Animation between "path("m 50 60 h 20")" and "path("m 10 140 h 260")" at progress 0.125
+FAIL=Animation between "path("m 50 60 h 20")" and "path("m 10 140 h 260")" at progress 0.875
+FAIL=Animation between "path("m 50 60 h 20")" and "path("m 10 140 h 260")" at progress 1
+FAIL=Animation between "path("m 50 60 h 20")" and "path("m 10 140 h 260")" at progress 2
+FAIL=Animation between "path("m 50 60 v 10")" and "path("m 10 140 v 130")" at progress -1
+FAIL=Animation between "path("m 50 60 v 10")" and "path("m 10 140 v 130")" at progress 0
+FAIL=Animation between "path("m 50 60 v 10")" and "path("m 10 140 v 130")" at progress 0.125
+FAIL=Animation between "path("m 50 60 v 10")" and "path("m 10 140 v 130")" at progress 0.875
+FAIL=Animation between "path("m 50 60 v 10")" and "path("m 10 140 v 130")" at progress 1
+FAIL=Animation between "path("m 50 60 v 10")" and "path("m 10 140 v 130")" at progress 2
 [svg/path/property/getComputedStyle.svg]
-harness=TIMEOUT
+FAIL=d property of g0 should be none.
+FAIL=d property of g5 should be path("M 10 5 H 50").
+FAIL=d property of p1 should be none.
+FAIL=d property of p2 should be path("M 10 2 H 20").
+FAIL=d property of p3 should be path("M 10 3 H 30").
+FAIL=d property of p4 should be path("M 10 4 H 40").
+FAIL=d property of p6 should be path("M 10 5 H 50").
+FAIL=d property of p7 should be none.
 [svg/path/property/inheritance.tentative.svg]
-harness=TIMEOUT
+FAIL=Property path-length does not inherit
+FAIL=Property path-length has initial value none
 [svg/path/property/marker-path.svg]
 harness=FAIL
 [svg/path/property/mpath.svg]
 harness=FAIL
 [svg/path/property/serialization.svg]
-harness=TIMEOUT
+FAIL=Property d value '  path(  "m 10 20 a 10 20 30 1 0 40 50 a 110 120 30 1 1 140 50"  )'
+FAIL=Property d value 'path("M 0 0 L 100 100 m 0 100 l 100 0 Z l 160 20 Z")'
+FAIL=Property d value 'path("m 10 20   l 20 30   Z   l 50 60   Z   m 70 80   l 90 60   Z   t 70 120")'
+FAIL=Property d value 'path("m 10 20 q 30 60 40 50 q 100 70 90 80")'
+FAIL=Property d value 'path("m 10.0 170.0 h 90.00 v 30.00 m 0 0 s 1 2 3 4 z c 9 8 7 6 5 4")'
+FAIL=e.style['d'] = "  path(  \"m 10 20 a 10 20 30 1 0 40 50 a 110 120 30 1 1 140 50\"  )" should set the property value
+FAIL=e.style['d'] = "path(\"M 0 0 L 100 100 m 0 100 l 100 0 Z l 160 20 Z\")" should set the property value
+FAIL=e.style['d'] = "path(\"m 10 20   l 20 30   Z   l 50 60   Z   m 70 80   l 90 60   Z   t 70 120\")" should set the property value
+FAIL=e.style['d'] = "path(\"m 10 20 q 30 60 40 50 q 100 70 90 80\")" should set the property value
+FAIL=e.style['d'] = "path(\"m 10.0 170.0 h 90.00 v 30.00 m 0 0 s 1 2 3 4 z c 9 8 7 6 5 4\")" should set the property value
 [svg/path/property/test_style_flush_on_dom_api_with_d_property.html]
 FAIL=getPointAtLength() with d property
 FAIL=getTotalLength() with d property
@@ -3841,19 +4609,40 @@ FAIL=isPointInStroke() with d property
 [svg/print/svg-use-page-break-crash-print.html]
 harness=FAIL
 [svg/pservers/inheritance.svg]
-harness=TIMEOUT
+FAIL=Property stop-color does not inherit
+FAIL=Property stop-color has initial value rgb(0, 0, 0)
+FAIL=Property stop-opacity does not inherit
+FAIL=Property stop-opacity has initial value 1
 [svg/pservers/parsing/stop-color-computed.svg]
-harness=TIMEOUT
-[svg/pservers/parsing/stop-color-invalid.svg]
-harness=TIMEOUT
+FAIL=Property stop-color value '#ffffff'
+FAIL=Property stop-color value 'currentcolor'
+FAIL=Property stop-color value 'hsl(0deg, 100%, 100%)'
+FAIL=Property stop-color value 'hsla(0deg, 100%, 100%, 0.4)'
+FAIL=Property stop-color value 'hsla(0deg, 100%, 100%, 1.0)'
+FAIL=Property stop-color value 'rgb(255, 255, 255)'
+FAIL=Property stop-color value 'rgba(255, 255, 255, 0.4)'
+FAIL=Property stop-color value 'rgba(255, 255, 255, 1.0)'
+FAIL=Property stop-color value 'transparent'
+FAIL=Property stop-color value 'white'
 [svg/pservers/parsing/stop-color-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['stop-color'] = "hsl(0deg, 100%, 100%)" should set the property value
+FAIL=e.style['stop-color'] = "hsla(0deg, 100%, 100%, 0.4)" should set the property value
+FAIL=e.style['stop-color'] = "hsla(0deg, 100%, 100%, 1.0)" should set the property value
+FAIL=e.style['stop-color'] = "rgba(255, 255, 255, 1.0)" should set the property value
 [svg/pservers/parsing/stop-opacity-computed.svg]
-harness=TIMEOUT
-[svg/pservers/parsing/stop-opacity-invalid.svg]
-harness=TIMEOUT
+FAIL=Property stop-opacity value '-1'
+FAIL=Property stop-opacity value '-100%'
+FAIL=Property stop-opacity value '0.5'
+FAIL=Property stop-opacity value '3'
+FAIL=Property stop-opacity value '300%'
+FAIL=Property stop-opacity value '50%'
 [svg/pservers/parsing/stop-opacity-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['stop-opacity'] = "-1" should set the property value
+FAIL=e.style['stop-opacity'] = "-100%" should set the property value
+FAIL=e.style['stop-opacity'] = "0.5" should set the property value
+FAIL=e.style['stop-opacity'] = "3" should set the property value
+FAIL=e.style['stop-opacity'] = "300%" should set the property value
+FAIL=e.style['stop-opacity'] = "50%" should set the property value
 [svg/pservers/pattern-with-invalid-base-cloned-thcrash.html]
 harness=TIMEOUT
 [svg/pservers/radial-gradient-undefined-fx-fy.html]
@@ -3875,7 +4664,7 @@ FAIL=clip-path: url(#%6d%79%20%63%6c%69%70) resolves to clipPath id="my clip"
 FAIL=filter: url(#%66%31) resolves to filter id="f1"
 FAIL=mask: url(#%6d%31) resolves to mask id="m1"
 [svg/pservers/scripted/stop-color-inheritance-currentcolor.svg]
-harness=TIMEOUT
+FAIL="currentcolor" is inherited as a keyword
 [svg/pservers/scripted/svg-fill-currentcolor-visited-getcomputedstyle.html]
 FAIL=Property fill value 'currentColor' should not leak :visited for SVG fill with currentColor
 [svg/render/order/clip-path-filter-order.svg]
@@ -3900,17 +4689,17 @@ FAIL=fetchpriority attribute on SVG <script> elements should reflect valid IDL v
 [svg/scripted/script-invalid-script-type.html]
 FAIL=svg:script runs after valid script type is set
 [svg/scripted/text-attrs-dxdy-have-length.svg]
-harness=TIMEOUT
+FAIL=text-attrs-dxdy-have-length
 [svg/scripted/text-attrs-xyrotate-have-length.svg]
-harness=TIMEOUT
+FAIL=text-attrs-xyrotate-have-length
 [svg/scripted/text-tspan-attrs-have-length.svg]
-harness=TIMEOUT
+FAIL=text-tspan-attrs-have-length
 [svg/scripted/text-tspan-attrs-indexed-access.svg]
-harness=TIMEOUT
+FAIL=text-tspan-attrs-indexed-access
 [svg/scripted/tspan-attrs-dxdy-have-length.svg]
-harness=TIMEOUT
+FAIL=tspan-attrs-dxdy-have-length
 [svg/scripted/tspan-attrs-xyrotate-have-length.svg]
-harness=TIMEOUT
+FAIL=tspan-attrs-xyrotate-have-length
 [svg/shapes/ellipse-01.svg]
 harness=FAIL
 [svg/shapes/ellipse-02.svg]
@@ -3926,9 +4715,10 @@ harness=FAIL
 [svg/shapes/ellipse-08.svg]
 harness=FAIL
 [svg/shapes/line-getPointAtLength.svg]
-harness=TIMEOUT
+FAIL=line getPointAtLength ignores pathLength
+FAIL=line supports getPointAtLength
 [svg/shapes/line-pathLength.svg]
-harness=TIMEOUT
+FAIL=line supports pathLength attribute
 [svg/shapes/rect-01.svg]
 harness=FAIL
 [svg/shapes/rect-02.svg]
@@ -3948,15 +4738,25 @@ harness=FAIL
 [svg/shapes/reftests/polygon-with-filtered-marker.html]
 harness=FAIL
 [svg/shapes/rx-ry-not-inherited.svg]
-harness=TIMEOUT
+FAIL=rx-ry-not-inherited
 [svg/shapes/scripted/disabled-shapes-not-hit.svg]
-harness=TIMEOUT
+FAIL=Disabled shapes are not rendered and cannot be hit: <circle>
+FAIL=Disabled shapes are not rendered and cannot be hit: <ellipse>
+FAIL=Disabled shapes are not rendered and cannot be hit: <rect>
 [svg/shapes/scripted/ellipse-auto-radii.svg]
-harness=TIMEOUT
+FAIL=SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, getPointAtLength(0) at the 3 o'clock starting point.
+FAIL=SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, getPointAtLength(0) with percentage ry uses height-axis resolution.
+FAIL=SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, getTotalLength resolves auto rx/ry against percentage values on the correct axis.
+FAIL=SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, getTotalLength resolves auto rx/ry.
+FAIL=SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, getTotalLength returns 0 when both rx and ry are auto.
+FAIL=SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, isPointInFill resolves auto rx/ry.
+FAIL=SVG ellipse rx/ry auto resolution affects SVGGeometryElement methods, isPointInStroke with dasharray resolves auto rx/ry.
 [svg/shapes/scripted/shapes-clip-path.svg]
-harness=TIMEOUT
+FAIL=Clipped shapes can be hit when rendered: circle
+FAIL=Clipped shapes can be hit when rendered: ellipse
+FAIL=Clipped shapes can be hit when rendered: rect
 [svg/shapes/scripted/stroke-dashes-hit-at-high-scale.svg]
-harness=TIMEOUT
+FAIL=Strokes w/dashes are properly hit-tested, even at large scale factors
 [svg/struct/SVGSVGElement-currentTranslate-SameObject.html]
 FAIL=currentTranslate identity is stable across value changes
 FAIL=currentTranslate is readonly; assignment does not change the value
@@ -4024,23 +4824,23 @@ harness=FAIL
 [svg/struct/reftests/use-symbol-inline-css-003.svg]
 harness=FAIL
 [svg/struct/scripted/autofocus-attribute.svg]
-harness=TIMEOUT
-[svg/struct/scripted/svg-checkIntersection-001.svg]
-harness=TIMEOUT
+FAIL=<a> should support autofocus
+FAIL=Never-rendered element with tabindex should not support autofocus
+FAIL=Renderable element with tabindex should support autofocus
 [svg/struct/scripted/svg-checkIntersection-002.svg]
-harness=TIMEOUT
+FAIL=checkIntersection()
 [svg/struct/scripted/svg-getIntersectionList-001.svg]
-harness=TIMEOUT
+FAIL=SVGSVGElement.getIntersectionList()
 [svg/struct/scripted/svg-getIntersectionList-002.svg]
-harness=TIMEOUT
+FAIL=getIntersectionList() on clipped element
 [svg/struct/scripted/svg-getIntersectionList-003.svg]
-harness=TIMEOUT
+FAIL=getIntersectionList() crash test
 [svg/struct/scripted/svg-getIntersectionList-004.svg]
-harness=TIMEOUT
+FAIL=getIntersectionList() with nested <svg>
 [svg/struct/scripted/svg-getIntersectionList-005.svg]
-harness=TIMEOUT
+FAIL=getIntersectionList() on element with intersecting bounding box
 [svg/struct/scripted/svg-getIntersectionList-006.svg]
-harness=TIMEOUT
+FAIL=getIntersectionList() with <use>
 [svg/struct/scripted/use-external-reload-in-iframe.html]
 harness=TIMEOUT
 [svg/struct/scripted/use-load-error-events.tentative.html]
@@ -4157,9 +4957,95 @@ harness=FAIL
 [svg/styling/render/transform.svg]
 harness=FAIL
 [svg/styling/required-properties.svg]
-harness=TIMEOUT
+FAIL=Property "alignment-baseline" is supported
+FAIL=Property "baseline-shift" is supported
+FAIL=Property "clip" is supported
+FAIL=Property "clip-path" is supported
+FAIL=Property "clip-rule" is supported
+FAIL=Property "color" is supported
+FAIL=Property "color-interpolation" is supported
+FAIL=Property "color-interpolation-filters" is supported
+FAIL=Property "cursor" is supported
+FAIL=Property "direction" is supported
+FAIL=Property "display" is supported
+FAIL=Property "dominant-baseline" is supported
+FAIL=Property "fill" is supported
+FAIL=Property "fill-opacity" is supported
+FAIL=Property "fill-rule" is supported
+FAIL=Property "filter" is supported
+FAIL=Property "flood-color" is supported
+FAIL=Property "flood-opacity" is supported
+FAIL=Property "font" is supported
+FAIL=Property "font-family" is supported
+FAIL=Property "font-feature-settings" is supported
+FAIL=Property "font-kerning" is supported
+FAIL=Property "font-size" is supported
+FAIL=Property "font-size-adjust" is supported
+FAIL=Property "font-stretch" is supported
+FAIL=Property "font-style" is supported
+FAIL=Property "font-variant" is supported
+FAIL=Property "font-variant-caps" is supported
+FAIL=Property "font-variant-east-asian" is supported
+FAIL=Property "font-variant-ligatures" is supported
+FAIL=Property "font-variant-numeric" is supported
+FAIL=Property "font-variant-position" is supported
+FAIL=Property "font-weight" is supported
+FAIL=Property "glyph-orientation-vertical" is supported
+FAIL=Property "image-rendering" is supported
+FAIL=Property "isolation" is supported
+FAIL=Property "letter-spacing" is supported
+FAIL=Property "lighting-color" is supported
+FAIL=Property "line-height" is supported
+FAIL=Property "marker" is supported
+FAIL=Property "marker-end" is supported
+FAIL=Property "marker-mid" is supported
+FAIL=Property "marker-start" is supported
+FAIL=Property "mask" is supported
+FAIL=Property "opacity" is supported
+FAIL=Property "overflow" is supported
+FAIL=Property "paint-order" is supported
+FAIL=Property "pointer-events" is supported
+FAIL=Property "shape-rendering" is supported
+FAIL=Property "stop-color" is supported
+FAIL=Property "stop-opacity" is supported
+FAIL=Property "stroke" is supported
+FAIL=Property "stroke-dasharray" is supported
+FAIL=Property "stroke-dashoffset" is supported
+FAIL=Property "stroke-linecap" is supported
+FAIL=Property "stroke-linejoin" is supported
+FAIL=Property "stroke-miterlimit" is supported
+FAIL=Property "stroke-opacity" is supported
+FAIL=Property "stroke-width" is supported
+FAIL=Property "text-align" is supported
+FAIL=Property "text-align-all" is supported
+FAIL=Property "text-align-last" is supported
+FAIL=Property "text-anchor" is supported
+FAIL=Property "text-decoration" is supported
+FAIL=Property "text-decoration-color" is supported
+FAIL=Property "text-decoration-line" is supported
+FAIL=Property "text-decoration-style" is supported
+FAIL=Property "text-indent" is supported
+FAIL=Property "text-orientation" is supported
+FAIL=Property "text-overflow" is supported
+FAIL=Property "text-rendering" is supported
+FAIL=Property "transform" is supported
+FAIL=Property "transform-box" is supported
+FAIL=Property "transform-origin" is supported
+FAIL=Property "unicode-bidi" is supported
+FAIL=Property "vector-effect" is supported
+FAIL=Property "vertical-align" is supported
+FAIL=Property "visibility" is supported
+FAIL=Property "white-space" is supported
+FAIL=Property "white-space-collapse" is supported
+FAIL=Property "word-spacing" is supported
+FAIL=Property "writing-mode" is supported
 [svg/styling/style-sheet-interfaces.svg]
-harness=TIMEOUT
+FAIL=CSSStyleSheet_properties
+FAIL=CSSStyleSheet_property_values
+FAIL=StyleSheet_properties
+FAIL=StyleSheet_property_values
+FAIL=sheet_property
+FAIL=sheet_property_updates
 [svg/styling/svg-filter-render-same-origin-frame-in-same-origin-frame.tentative.https.html]
 harness=FAIL
 [svg/styling/svg-filter-render-same-origin-frame.tentative.https.html]
@@ -4170,35 +5056,78 @@ harness=FAIL
 FAIL=<g> element has transform presentation style from being an SVGGraphicsElement
 FAIL=<symbol> element has transform presentation style from being an SVGGraphicsElement
 [svg/text/inheritance.svg]
-harness=TIMEOUT
-[svg/text/parsing/inline-size-invalid.svg]
-harness=TIMEOUT
+FAIL=Property inline-size does not inherit
+FAIL=Property inline-size has initial value auto
+FAIL=Property shape-inside does not inherit
+FAIL=Property shape-inside has initial value auto
+FAIL=Property shape-margin does not inherit
+FAIL=Property shape-margin has initial value 0px
+FAIL=Property shape-subtract does not inherit
+FAIL=Property shape-subtract has initial value auto
+FAIL=Property text-anchor has initial value start
+FAIL=Property text-anchor inherits
 [svg/text/parsing/inline-size-valid.svg]
-harness=TIMEOUT
-[svg/text/parsing/shape-inside-invalid.svg]
-harness=TIMEOUT
+FAIL=e.style['inline-size'] = "0" should set the property value
+FAIL=e.style['inline-size'] = "10px" should set the property value
+FAIL=e.style['inline-size'] = "20%" should set the property value
+FAIL=e.style['inline-size'] = "auto" should set the property value
+FAIL=e.style['inline-size'] = "calc(2em + 3ex)" should set the property value
 [svg/text/parsing/shape-inside-valid.svg]
-harness=TIMEOUT
-[svg/text/parsing/shape-margin-invalid.svg]
-harness=TIMEOUT
+FAIL=e.style['shape-inside'] = "auto" should set the property value
+FAIL=e.style['shape-inside'] = "circle(10px at 20px -30px) url(\"https://example.com/\") ellipse(10px 20px at -30px 40px)" should set the property value
+FAIL=e.style['shape-inside'] = "circle(10px at 20px -30px)" should set the property value
+FAIL=e.style['shape-inside'] = "ellipse(10px 20px at -30px 40px)" should set the property value
+FAIL=e.style['shape-inside'] = "polygon(10px 20px, -30px 40px, 50px 60px)" should set the property value
+FAIL=e.style['shape-inside'] = "url(\"https://example.com/\")" should set the property value
 [svg/text/parsing/shape-margin-valid.svg]
-harness=TIMEOUT
-[svg/text/parsing/shape-subtract-invalid.svg]
-harness=TIMEOUT
+FAIL=e.style['shape-margin'] = "0" should set the property value
+FAIL=e.style['shape-margin'] = "10px" should set the property value
+FAIL=e.style['shape-margin'] = "20%" should set the property value
+FAIL=e.style['shape-margin'] = "calc(2em + 3ex)" should set the property value
 [svg/text/parsing/shape-subtract-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['shape-subtract'] = "auto" should set the property value
+FAIL=e.style['shape-subtract'] = "circle(10px at 20px -30px) url(\"https://example.com/\") ellipse(10px 20px at -30px 40px)" should set the property value
+FAIL=e.style['shape-subtract'] = "circle(10px at 20px -30px)" should set the property value
+FAIL=e.style['shape-subtract'] = "ellipse(10px 20px at -30px 40px)" should set the property value
+FAIL=e.style['shape-subtract'] = "polygon(10px 20px, -30px 40px, 50px 60px)" should set the property value
+FAIL=e.style['shape-subtract'] = "url(\"https://example.com/\")" should set the property value
 [svg/text/parsing/text-anchor-computed.svg]
-harness=TIMEOUT
-[svg/text/parsing/text-anchor-invalid.svg]
-harness=TIMEOUT
+FAIL=Property text-anchor value 'end'
+FAIL=Property text-anchor value 'middle'
+FAIL=Property text-anchor value 'start'
 [svg/text/parsing/text-anchor-valid.svg]
-harness=TIMEOUT
+FAIL=e.style['text-anchor'] = "end" should set the property value
+FAIL=e.style['text-anchor'] = "middle" should set the property value
+FAIL=e.style['text-anchor'] = "start" should set the property value
 [svg/text/parsing/text-decoration-color-computed.svg]
-harness=TIMEOUT
+FAIL=Property text-decoration-color value 'currentcolor'
+FAIL=Property text-decoration-color value 'inherit'
+FAIL=Property text-decoration-color value 'rgb(0, 0, 255)'
 [svg/text/parsing/text-decoration-line-computed.svg]
-harness=TIMEOUT
+FAIL=Property text-decoration-line value 'blink'
+FAIL=Property text-decoration-line value 'grammar-error'
+FAIL=Property text-decoration-line value 'line-through blink'
+FAIL=Property text-decoration-line value 'line-through'
+FAIL=Property text-decoration-line value 'none'
+FAIL=Property text-decoration-line value 'overline blink'
+FAIL=Property text-decoration-line value 'overline line-through blink'
+FAIL=Property text-decoration-line value 'overline line-through'
+FAIL=Property text-decoration-line value 'overline'
+FAIL=Property text-decoration-line value 'spelling-error'
+FAIL=Property text-decoration-line value 'underline blink'
+FAIL=Property text-decoration-line value 'underline line-through blink'
+FAIL=Property text-decoration-line value 'underline line-through'
+FAIL=Property text-decoration-line value 'underline overline blink'
+FAIL=Property text-decoration-line value 'underline overline line-through blink'
+FAIL=Property text-decoration-line value 'underline overline line-through'
+FAIL=Property text-decoration-line value 'underline overline'
+FAIL=Property text-decoration-line value 'underline'
 [svg/text/parsing/text-decoration-style-computed.svg]
-harness=TIMEOUT
+FAIL=Property text-decoration-style value 'dashed'
+FAIL=Property text-decoration-style value 'dotted'
+FAIL=Property text-decoration-style value 'double'
+FAIL=Property text-decoration-style value 'solid'
+FAIL=Property text-decoration-style value 'wavy'
 [svg/text/reftests/lang-attribute.svg]
 harness=FAIL
 [svg/text/reftests/text-context-fill.svg]
@@ -4286,11 +5215,11 @@ FAIL=SVGTextContentElement.getSubStringLength on Emoji with ligatures
 FAIL=Tests dynamic updates of the "lengthAdjust" IDL attribute
 FAIL=Tests dynamic updates of the "lengthAdjust" content attribute
 [svg/text/scripted/textlength-inconsistent.svg]
-harness=TIMEOUT
+FAIL=The first characters should be on the left of the second character.
 [svg/text/scripted/textpath-href-path-mutated.html]
 FAIL=Mutation of 'd' on a 'display: none' <path> referenced by <textPath>
 [svg/text/scripted/textpath-textlength-text-anchor-001.tentative.svg]
-harness=TIMEOUT
+FAIL='textLength' on <textPath> with 'text-anchor' adjustments
 [svg/text/scripted/transform-dynamic-update.html]
 FAIL=Dynamic update of transform CSS property
 [svg/text/scripted/tspan-xml-space-preserve-position.html]
@@ -4328,7 +5257,9 @@ FAIL=SVGAnimatedLengthList.baseVal: text.x.baseVal
 FAIL=SVGAnimatedNumberList.baseVal: text.rotate.baseVal
 FAIL=SVGAnimatedTransformList.baseVal: rect.transform.baseVal
 [svg/types/elements/SVGGeometryElement-rect.svg]
-harness=TIMEOUT
+FAIL=getPointAtLength() returns instance of SVGPoint
+FAIL=getTotalLength and getPointAtLength are not affected by zoom
+FAIL=getTotalLength and getPointAtLength do not take pathLength into account
 [svg/types/scripted/SVGAnimatedAngle-initial-values.html]
 FAIL=SVGAnimatedAngle, initial values, SVGMarkerElement.prototype.orientAngle (invalid value)
 FAIL=SVGAnimatedAngle, initial values, SVGMarkerElement.prototype.orientAngle (remove)
@@ -4640,31 +5571,91 @@ FAIL=baseVal/animVal return the same SVGRect across reads
 FAIL=removeAttribute('viewBox') resets baseVal/animVal to a zero rect
 FAIL=setAttribute('viewBox', ...) is reflected in baseVal/animVal
 [svg/types/scripted/SVGElement.className-01.svg]
-harness=TIMEOUT
+FAIL=SVGElement.prototype.className: Reflects to .classList
 [svg/types/scripted/SVGGeometryElement.getPointAtLength-01.svg]
-harness=TIMEOUT
+FAIL=SVGGeometryElement.prototype.getPointAtLength clamps its argument to [0, length], greater than 'length' (SVGLineElement).
+FAIL=SVGGeometryElement.prototype.getPointAtLength clamps its argument to [0, length], greater than 'length' (SVGPathElement).
+FAIL=SVGGeometryElement.prototype.getPointAtLength clamps its argument to [0, length], less than zero (SVGLineElement).
+FAIL=SVGGeometryElement.prototype.getPointAtLength clamps its argument to [0, length], less than zero (SVGPathElement).
 [svg/types/scripted/SVGGeometryElement.getPointAtLength-02.svg]
-harness=TIMEOUT
+FAIL=SVGGeometryElement.prototype.getPointAtLength() query with 'pathLength'
 [svg/types/scripted/SVGGeometryElement.getPointAtLength-03.svg]
-harness=TIMEOUT
+FAIL=When SVGGeometryElement.getPointAtLength is called with an element that is not in the document, either succeed or throw exception with SVGCircleElement
+FAIL=When SVGGeometryElement.getPointAtLength is called with an element that is not in the document, either succeed or throw exception with SVGPathElement
+FAIL=When SVGGeometryElement.getPointAtLength is called with an element that is not in the document, either succeed or throw exception with SVGRectElement
 [svg/types/scripted/SVGGeometryElement.getPointAtLength-04.svg]
-harness=TIMEOUT
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and a valid path, circle with display: default
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and a valid path, circle with display: none
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and a valid path, ellipse with display: default
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and a valid path, ellipse with display: none
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and a valid path, path with display: default
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and a valid path, path with display: none
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and a valid path, path with display: none and inline style
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and a valid path, polygon with display: default
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and a valid path, polygon with display: none
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and a valid path, polyline with display: default
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and a valid path, polyline with display: none
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and a valid path, rect with display: default
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and a valid path, rect with display: none
 [svg/types/scripted/SVGGeometryElement.getPointAtLength-05.svg]
-harness=TIMEOUT
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and empty path, circle with display: default and an empty path
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and empty path, circle with display: none and an empty path
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and empty path, ellipse with display: default and an empty path
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and empty path, ellipse with display: none and an empty path
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and empty path, path with display: default and an empty path
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and empty path, path with display: none and an empty path
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and empty path, polygon with display: default and an empty path
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and empty path, polygon with display: none and an empty path
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and empty path, polyline with display: default and an empty path
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and empty path, polyline with display: none and an empty path
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and empty path, rect with display: default and an empty path
+FAIL=SVGGeometryElement.getPointAtLength: 'display' and empty path, rect with display: none and an empty path
 [svg/types/scripted/SVGGeometryElement.getTotalLength-01.svg]
-harness=TIMEOUT
+FAIL=SVGGeometryElement.prototype.getTotalLength(), getTotalLength - path modified with setPathData
+FAIL=SVGGeometryElement.prototype.getTotalLength(), getTotalLength - path with pathLength
+FAIL=SVGGeometryElement.prototype.getTotalLength(), getTotalLength - rect
+FAIL=SVGGeometryElement.prototype.getTotalLength(), getTotalLength - rect in document
+FAIL=SVGGeometryElement.prototype.getTotalLength(), getTotalLength - rect in document with display none
+FAIL=SVGGeometryElement.prototype.getTotalLength(), getTotalLength - rect in document with percent units
 [svg/types/scripted/SVGGeometryElement.getTotalLength-02.html]
 FAIL=SVGGeometryElement.getTotalLength: 'display:none'
 [svg/types/scripted/SVGGeometryElement.isPointInFill-01.svg]
-harness=TIMEOUT
+FAIL=SVGGeometryElement.prototype.isPointInFill, 'clip-rule' never overrides 'fill-rule'.
+FAIL=SVGGeometryElement.prototype.isPointInFill, 'fill-rule'.
+FAIL=SVGGeometryElement.prototype.isPointInFill, 'visibility' and 'pointer-events' have no effect.
+FAIL=SVGGeometryElement.prototype.isPointInFill, functional test with zoom.
+FAIL=SVGGeometryElement.prototype.isPointInFill, functional test.
+FAIL=SVGGeometryElement.prototype.isPointInFill, no arguments.
+FAIL=SVGGeometryElement.prototype.isPointInFill, non-finite argument.
+FAIL=SVGGeometryElement.prototype.isPointInFill, null/undefined.
+FAIL=SVGGeometryElement.prototype.isPointInFill, points on the shape boundary are inside.
 [svg/types/scripted/SVGGeometryElement.isPointInStroke-01.svg]
-harness=TIMEOUT
+FAIL=SVGGeometryElement.prototype.isPointInStroke, 'pathLength'.
+FAIL=SVGGeometryElement.prototype.isPointInStroke, 'stroke-dasharray'.
+FAIL=SVGGeometryElement.prototype.isPointInStroke, 'stroke-dashoffset'.
+FAIL=SVGGeometryElement.prototype.isPointInStroke, 'stroke-linecap'.
+FAIL=SVGGeometryElement.prototype.isPointInStroke, 'stroke-linejoin'.
+FAIL=SVGGeometryElement.prototype.isPointInStroke, 'stroke-miterlimit'.
+FAIL=SVGGeometryElement.prototype.isPointInStroke, 'vector-effect'.
+FAIL=SVGGeometryElement.prototype.isPointInStroke, 'visibility' and 'pointer-events' have no effect.
+FAIL=SVGGeometryElement.prototype.isPointInStroke, functional test with zoom.
+FAIL=SVGGeometryElement.prototype.isPointInStroke, functional test.
+FAIL=SVGGeometryElement.prototype.isPointInStroke, no arguments.
+FAIL=SVGGeometryElement.prototype.isPointInStroke, non-finite argument.
+FAIL=SVGGeometryElement.prototype.isPointInStroke, null/undefined.
 [svg/types/scripted/SVGGeometryElement.isPointInStroke-02.svg]
-harness=TIMEOUT
+FAIL=isPointInStroke w/dashes works properly at large scale factors
 [svg/types/scripted/SVGGraphicsElement-clone.svg]
-harness=TIMEOUT
+FAIL=check animVal equals baseVal by default
+FAIL=check clone does not copy the animated value
 [svg/types/scripted/SVGGraphicsElement-padding.svg]
-harness=TIMEOUT
+FAIL=getScreenCTM with border-width and rotation
+FAIL=getScreenCTM with padding and rotation
+FAIL=getScreenCTM with padding-left and rotation
+FAIL=getScreenCTM with padding-left, rotation and content-box
+FAIL=getScreenCTM with padding-left, scale
+FAIL=getScreenCTM with padding-right and rotation
+FAIL=getScreenCTM with padding-top and rotation
 [svg/types/scripted/SVGGraphicsElement.getBBox-01.html]
 FAIL=arc bbox should be tight
 FAIL=empty foreignObject does not contribute to parent bbox
@@ -4836,7 +5827,9 @@ FAIL=<svg> should give correct screen CTM with many forms of offsets on self, an
 FAIL=<svg> should give correct screen CTM with many forms of offsets on self, and rotated self
 FAIL=<svg> should give identity screen CTM with friendly rotations on ancestor and self that add up to 360deg
 [svg/types/scripted/SVGGraphicsElement.svg]
-harness=TIMEOUT
+FAIL=getBBox() returns instance of SVGRect
+FAIL=getCTM() returns instance of SVGMatrix
+FAIL=getScreenCTM() returns instance of SVGMatrix
 [svg/types/scripted/SVGLength-cap.html]
 harness=TIMEOUT
 [svg/types/scripted/SVGLength-ch.html]
@@ -4923,4 +5916,15 @@ FAIL=SVGRect interface, assignment, invalid values
 FAIL=SVGRect interface, assignment, numeric values
 FAIL=SVGRect interface, initial values
 [svg/types/scripted/event-handler-all-document-element-events.svg]
-harness=TIMEOUT
+FAIL=oncontextmenu: property must be on SVGElement not Element
+FAIL=oncontextmenu: the content attribute must be compiled into a function as the corresponding property
+FAIL=oncontextmenu: the default value must be null
+FAIL=oncopy: property must be on SVGElement not Element
+FAIL=oncopy: the content attribute must be compiled into a function as the corresponding property
+FAIL=oncopy: the default value must be null
+FAIL=oncut: property must be on SVGElement not Element
+FAIL=oncut: the content attribute must be compiled into a function as the corresponding property
+FAIL=oncut: the default value must be null
+FAIL=onpaste: property must be on SVGElement not Element
+FAIL=onpaste: the content attribute must be compiled into a function as the corresponding property
+FAIL=onpaste: the default value must be null

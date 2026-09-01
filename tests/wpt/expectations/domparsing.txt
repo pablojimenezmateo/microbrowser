@@ -1,68 +1,41 @@
-[domparsing/DOMParser-parseFromString-encoding.html]
-harness=ERROR
-[domparsing/DOMParser-parseFromString-stylesheets.html]
-FAIL=DOMParser-created document should expose multiple style elements in styleSheets
-FAIL=DOMParser-created document should have accessible styleSheets collection with one style element
-FAIL=DOMParser-created document styleSheets should contain CSSStyleSheet objects
-FAIL=DOMParser-created document styleSheets should have accessible cssRules
-FAIL=DOMParser-created document with full HTML structure should have accessible styleSheets
-FAIL=DOMParser-created document without style elements should have empty styleSheets collection
 [domparsing/DOMParser-parseFromString-url-base-pushstate.html]
 FAIL=application/xhtml+xml invalid XML: created using a parser from the iframe and the method from this frame
 FAIL=application/xhtml+xml invalid XML: created using a parser from this frame and the method from the iframe
-FAIL=application/xhtml+xml invalid XML: created using another iframe's DOMParser from that frame
 FAIL=application/xhtml+xml valid: created using a parser from the iframe and the method from this frame
 FAIL=application/xhtml+xml valid: created using a parser from this frame and the method from the iframe
-FAIL=application/xhtml+xml valid: created using another iframe's DOMParser from that frame
 FAIL=application/xml invalid XML: created using a parser from the iframe and the method from this frame
 FAIL=application/xml invalid XML: created using a parser from this frame and the method from the iframe
-FAIL=application/xml invalid XML: created using another iframe's DOMParser from that frame
 FAIL=application/xml valid: created using a parser from the iframe and the method from this frame
 FAIL=application/xml valid: created using a parser from this frame and the method from the iframe
-FAIL=application/xml valid: created using another iframe's DOMParser from that frame
 FAIL=image/svg+xml invalid XML: created using a parser from the iframe and the method from this frame
 FAIL=image/svg+xml invalid XML: created using a parser from this frame and the method from the iframe
-FAIL=image/svg+xml invalid XML: created using another iframe's DOMParser from that frame
 FAIL=image/svg+xml valid: created using a parser from the iframe and the method from this frame
 FAIL=image/svg+xml valid: created using a parser from this frame and the method from the iframe
-FAIL=image/svg+xml valid: created using another iframe's DOMParser from that frame
 FAIL=text/html valid: created using a parser from the iframe and the method from this frame
 FAIL=text/html valid: created using a parser from this frame and the method from the iframe
-FAIL=text/html valid: created using another iframe's DOMParser from that frame
 FAIL=text/xml invalid XML: created using a parser from the iframe and the method from this frame
 FAIL=text/xml invalid XML: created using a parser from this frame and the method from the iframe
-FAIL=text/xml invalid XML: created using another iframe's DOMParser from that frame
 FAIL=text/xml valid: created using a parser from the iframe and the method from this frame
 FAIL=text/xml valid: created using a parser from this frame and the method from the iframe
-FAIL=text/xml valid: created using another iframe's DOMParser from that frame
 [domparsing/DOMParser-parseFromString-url-base.html]
 FAIL=application/xhtml+xml invalid XML: created using a parser from the iframe and the method from this frame
 FAIL=application/xhtml+xml invalid XML: created using a parser from this frame and the method from the iframe
-FAIL=application/xhtml+xml invalid XML: created using another iframe's DOMParser from that frame
 FAIL=application/xhtml+xml valid: created using a parser from the iframe and the method from this frame
 FAIL=application/xhtml+xml valid: created using a parser from this frame and the method from the iframe
-FAIL=application/xhtml+xml valid: created using another iframe's DOMParser from that frame
 FAIL=application/xml invalid XML: created using a parser from the iframe and the method from this frame
 FAIL=application/xml invalid XML: created using a parser from this frame and the method from the iframe
-FAIL=application/xml invalid XML: created using another iframe's DOMParser from that frame
 FAIL=application/xml valid: created using a parser from the iframe and the method from this frame
 FAIL=application/xml valid: created using a parser from this frame and the method from the iframe
-FAIL=application/xml valid: created using another iframe's DOMParser from that frame
 FAIL=image/svg+xml invalid XML: created using a parser from the iframe and the method from this frame
 FAIL=image/svg+xml invalid XML: created using a parser from this frame and the method from the iframe
-FAIL=image/svg+xml invalid XML: created using another iframe's DOMParser from that frame
 FAIL=image/svg+xml valid: created using a parser from the iframe and the method from this frame
 FAIL=image/svg+xml valid: created using a parser from this frame and the method from the iframe
-FAIL=image/svg+xml valid: created using another iframe's DOMParser from that frame
 FAIL=text/html valid: created using a parser from the iframe and the method from this frame
 FAIL=text/html valid: created using a parser from this frame and the method from the iframe
-FAIL=text/html valid: created using another iframe's DOMParser from that frame
 FAIL=text/xml invalid XML: created using a parser from the iframe and the method from this frame
 FAIL=text/xml invalid XML: created using a parser from this frame and the method from the iframe
-FAIL=text/xml invalid XML: created using another iframe's DOMParser from that frame
 FAIL=text/xml valid: created using a parser from the iframe and the method from this frame
 FAIL=text/xml valid: created using a parser from this frame and the method from the iframe
-FAIL=text/xml valid: created using another iframe's DOMParser from that frame
 [domparsing/DOMParser-parseFromString-url-moretests.html]
 FAIL=Child window after navigation (application/xhtml+xml)
 FAIL=Child window after navigation (application/xml)
@@ -87,65 +60,47 @@ FAIL=Parent window with child method (text/xml)
 [domparsing/DOMParser-parseFromString-url-pushstate.html]
 FAIL=application/xhtml+xml invalid XML: created using a parser from the iframe and the method from this frame
 FAIL=application/xhtml+xml invalid XML: created using a parser from this frame and the method from the iframe
-FAIL=application/xhtml+xml invalid XML: created using another iframe's DOMParser from that frame
 FAIL=application/xhtml+xml valid: created using a parser from the iframe and the method from this frame
 FAIL=application/xhtml+xml valid: created using a parser from this frame and the method from the iframe
-FAIL=application/xhtml+xml valid: created using another iframe's DOMParser from that frame
 FAIL=application/xml invalid XML: created using a parser from the iframe and the method from this frame
 FAIL=application/xml invalid XML: created using a parser from this frame and the method from the iframe
-FAIL=application/xml invalid XML: created using another iframe's DOMParser from that frame
 FAIL=application/xml valid: created using a parser from the iframe and the method from this frame
 FAIL=application/xml valid: created using a parser from this frame and the method from the iframe
-FAIL=application/xml valid: created using another iframe's DOMParser from that frame
 FAIL=image/svg+xml invalid XML: created using a parser from the iframe and the method from this frame
 FAIL=image/svg+xml invalid XML: created using a parser from this frame and the method from the iframe
-FAIL=image/svg+xml invalid XML: created using another iframe's DOMParser from that frame
 FAIL=image/svg+xml valid: created using a parser from the iframe and the method from this frame
 FAIL=image/svg+xml valid: created using a parser from this frame and the method from the iframe
-FAIL=image/svg+xml valid: created using another iframe's DOMParser from that frame
 FAIL=text/html valid: created using a parser from the iframe and the method from this frame
 FAIL=text/html valid: created using a parser from this frame and the method from the iframe
-FAIL=text/html valid: created using another iframe's DOMParser from that frame
 FAIL=text/xml invalid XML: created using a parser from the iframe and the method from this frame
 FAIL=text/xml invalid XML: created using a parser from this frame and the method from the iframe
-FAIL=text/xml invalid XML: created using another iframe's DOMParser from that frame
 FAIL=text/xml valid: created using a parser from the iframe and the method from this frame
 FAIL=text/xml valid: created using a parser from this frame and the method from the iframe
-FAIL=text/xml valid: created using another iframe's DOMParser from that frame
 [domparsing/DOMParser-parseFromString-url.html]
 FAIL=application/xhtml+xml invalid XML: created using a parser from the iframe and the method from this frame
 FAIL=application/xhtml+xml invalid XML: created using a parser from this frame and the method from the iframe
-FAIL=application/xhtml+xml invalid XML: created using another iframe's DOMParser from that frame
 FAIL=application/xhtml+xml valid: created using a parser from the iframe and the method from this frame
 FAIL=application/xhtml+xml valid: created using a parser from this frame and the method from the iframe
-FAIL=application/xhtml+xml valid: created using another iframe's DOMParser from that frame
 FAIL=application/xml invalid XML: created using a parser from the iframe and the method from this frame
 FAIL=application/xml invalid XML: created using a parser from this frame and the method from the iframe
-FAIL=application/xml invalid XML: created using another iframe's DOMParser from that frame
 FAIL=application/xml valid: created using a parser from the iframe and the method from this frame
 FAIL=application/xml valid: created using a parser from this frame and the method from the iframe
-FAIL=application/xml valid: created using another iframe's DOMParser from that frame
 FAIL=image/svg+xml invalid XML: created using a parser from the iframe and the method from this frame
 FAIL=image/svg+xml invalid XML: created using a parser from this frame and the method from the iframe
-FAIL=image/svg+xml invalid XML: created using another iframe's DOMParser from that frame
 FAIL=image/svg+xml valid: created using a parser from the iframe and the method from this frame
 FAIL=image/svg+xml valid: created using a parser from this frame and the method from the iframe
-FAIL=image/svg+xml valid: created using another iframe's DOMParser from that frame
 FAIL=text/html valid: created using a parser from the iframe and the method from this frame
 FAIL=text/html valid: created using a parser from this frame and the method from the iframe
-FAIL=text/html valid: created using another iframe's DOMParser from that frame
 FAIL=text/xml invalid XML: created using a parser from the iframe and the method from this frame
 FAIL=text/xml invalid XML: created using a parser from this frame and the method from the iframe
-FAIL=text/xml invalid XML: created using another iframe's DOMParser from that frame
 FAIL=text/xml valid: created using a parser from the iframe and the method from this frame
 FAIL=text/xml valid: created using a parser from this frame and the method from the iframe
-FAIL=text/xml valid: created using another iframe's DOMParser from that frame
 [domparsing/XMLSerializer-serializeToString.html]
 FAIL=Attribute nodes are serialized as the empty string
 FAIL=Check if a prefix bound to an empty namespace URI ("no namespace") serialize
 FAIL=Check if no special handling for XLink namespace unlike HTML serializer.
 [domparsing/createContextualFragment-xhtml.xhtml]
-harness=TIMEOUT
+FAIL=<html>, <head> and <body> in a different namespace must not be special
 [domparsing/createContextualFragment.html]
 FAIL=<html> in a different namespace shouldn't be special
 FAIL=<script>s should be run when appended to the document (but not before)
@@ -155,16 +110,14 @@ FAIL=Using ">" and "\r" in an attribute creates no unexpected attributes.
 FAIL=innerHTML in XHTML: getting while the document is in an invalid state
 FAIL=innerHTML in XHTML: getting while the document is in an invalid state 1
 [domparsing/innerhtml-03.xhtml]
-harness=TIMEOUT
+FAIL=innerHTML in XHTML
+FAIL=innerHTML in XHTML 1
+FAIL=innerHTML in XHTML 3
+FAIL=innerHTML in XHTML 4
 [domparsing/innerhtml-05.xhtml]
-harness=TIMEOUT
+FAIL=innerHTML in XHTML
 [domparsing/insert_adjacent_html-xhtml.xhtml]
-harness=TIMEOUT
-[domparsing/style_attribute_html.html]
-FAIL=Parsing of initial style attribute
-FAIL=Parsing of invalid style attribute
-FAIL=Parsing of style attribute
-FAIL=Update style.backgroundColor
+FAIL=insertAdjacentHTML in HTML
 [domparsing/tentative/all-stream-methods-with-trusted-types-no-policy.html]
 FAIL=streamAfterHTML with trusted types and no default policy returns a WritableStream.
 FAIL=streamAppendHTML with trusted types and no default policy returns a WritableStream.
@@ -1080,4 +1033,8 @@ FAIL=Sanitizer bypass check for streamPrependHTMLUnsafe with removeElements img
 FAIL=DOMParser and XMLSerializer should round trip with CDATA sections: large CDATA
 FAIL=DOMParser and XMLSerializer should round trip with CDATA sections: multiple CDATAs
 [domparsing/xml-serialization.xhtml]
-harness=TIMEOUT
+FAIL=DocumentType: 'APOSTROPHE' (U+0027) and 'QUOTATION MARK' (U+0022)
+FAIL=DocumentType: 'QUOTATION MARK' (U+0022)
+FAIL=DocumentType: empty system id
+FAIL=Element: href attributes are not percent-encoded
+FAIL=Element: query parts in href attributes are not percent-encoded
