@@ -337,6 +337,13 @@ bool ApplyDeclaration(std::string_view property, std::string_view value,
 // obvious alternative and is the trap ADR 0014 §3 names: it starts correct and
 // then a property is added without it, and the page is told no about something
 // that works -- or, worse, yes about something that does not.
+// The declarations an element in the SVG namespace's presentation attributes
+// stand for (ADR 0043 §2): the attribute name *is* the property name, for the
+// sixty attributes SVG 2 lists and for nothing else. Beside the properties it
+// names rather than beside HTML's mapping, because `StyleResolver.cpp` is at
+// this module's line cap.
+std::vector<Declaration> SvgPresentationDeclarations(const dom::Element& element);
+
 bool SupportsDeclaration(std::string_view property, std::string_view value,
                          const MediaContext& context = {});
 

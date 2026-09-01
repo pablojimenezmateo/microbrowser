@@ -955,6 +955,71 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
     ExpectEqString(css::SerializeCssIdent("0a"), "\\30 a", "a leading digit is hex-escaped");
     ExpectEqString(css::SerializeCssIdent("-0a"), "-\\30 a", "and after a leading dash too");
   });
+
+  AddTest(tests, "Css/SvgPresentationPropertiesAreOrdinaryProperties", [] {
+    // ADR 0043 §2. Before this, `getComputedStyle(rect).fill` was the empty
+    // string -- which is not "black" and not "unknown", it is the answer a
+    // property that does not exist gives.
+    const ComputedStyle parent;
+    ComputedStyle style;
+    Expect(ApplyDeclaration(Declaration{"fill", "rebeccapurple"}, parent, style), "fill parses");
+    ExpectEqInt(static_cast<long long>(style.svg.fill.color.Red()), 102, "and is the right colour");
+    Expect(style.svg.fill.kind == css::SvgStyle::PaintKind::Color, "as a colour");
+    Expect(ApplyDeclaration(Declaration{"fill", "url(#grad)"}, parent, style), "a reference parses");
+    Expect(style.svg.fill.kind == css::SvgStyle::PaintKind::Reference &&
+               style.svg.fill.reference == "#grad",
+           "and is kept as text rather than resolved -- the cascade cannot see the tree");
+    Expect(ApplyDeclaration(Declaration{"stroke", "none"}, parent, style), "`none` is a paint");
+    Expect(style.svg.stroke.kind == css::SvgStyle::PaintKind::None, "and its own kind");
+
+    // A bare number is a length here and nowhere else in CSS. `stroke-width="2"`
+    // is how the property is written more often than not, and refusing it would
+    // drop the common case.
+    Expect(ApplyDeclaration(Declaration{"stroke-width", "2"}, parent, style), "a unitless width");
+    ExpectEqInt(static_cast<long long>(style.svg.stroke_width.Resolve(16.0f)), 2, "is 2px");
+    Expect(!ApplyDeclaration(Declaration{"stroke-width", "-1"}, parent, style), "negative is invalid");
+
+    // Clamped rather than refused, which is the difference between a value out
+    // of range and a value that is not one.
+    Expect(ApplyDeclaration(Declaration{"fill-opacity", "2"}, parent, style), "over 1 is accepted");
+    Expect(style.svg.fill_opacity == 1.0f, "and clamped");
+    Expect(ApplyDeclaration(Declaration{"fill-opacity", "50%"}, parent, style), "a percentage");
+    Expect(style.svg.fill_opacity == 0.5f, "is a fraction");
+    Expect(!ApplyDeclaration(Declaration{"stroke-miterlimit", "0.5"}, parent, style),
+           "but a miterlimit below 1 is invalid rather than clamped -- the spec says so");
+
+    // A dash pattern of zeros is an infinite loop in any stroker that takes it
+    // at face value, so SVG makes it invalid rather than a no-op.
+    Expect(ApplyDeclaration(Declaration{"stroke-dasharray", "4, 2 1"}, parent, style),
+           "commas and spaces both separate");
+    ExpectEqInt(static_cast<long long>(style.svg.stroke_dasharray.size()), 3, "three dashes");
+    Expect(!ApplyDeclaration(Declaration{"stroke-dasharray", "0 0"}, parent, style), "all zeros");
+    Expect(!ApplyDeclaration(Declaration{"stroke-dasharray", "1 -1"}, parent, style), "or negative");
+
+    // `pixelated` belongs to `image-rendering` and to no other `*-rendering`
+    // property. A shared enum would make that a check somebody has to remember.
+    Expect(ApplyDeclaration(Declaration{"image-rendering", "pixelated"}, parent, style), "image");
+    Expect(!ApplyDeclaration(Declaration{"shape-rendering", "pixelated"}, parent, style), "shape");
+    Expect(!ApplyDeclaration(Declaration{"text-rendering", "pixelated"}, parent, style), "text");
+
+    // `normal` and the full list are the same order and must be the same value:
+    // nothing downstream may be able to tell which keyword the page wrote.
+    ComputedStyle named;
+    ComputedStyle spelled;
+    Expect(ApplyDeclaration(Declaration{"paint-order", "normal"}, parent, named), "normal");
+    Expect(ApplyDeclaration(Declaration{"paint-order", "fill stroke markers"}, parent, spelled),
+           "the same order spelled out");
+    ExpectEqInt(named.svg.paint_order, spelled.svg.paint_order, "is the same value");
+    Expect(!ApplyDeclaration(Declaration{"paint-order", "fill fill"}, parent, style), "a repeat");
+
+    // Every one of them inherits, which is SVG's painting model: a `<g>` sets
+    // the paint for everything under it.
+    ComputedStyle painted;
+    Expect(ApplyDeclaration(Declaration{"fill", "blue"}, parent, painted), "fill on the parent");
+    ComputedStyle child;
+    css::InheritInto(painted, child);
+    ExpectEqInt(static_cast<long long>(child.svg.fill.color.Blue()), 255, "reaches the child");
+  });
 }
 
 }  // namespace microbrowser::tests

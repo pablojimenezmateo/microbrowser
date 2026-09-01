@@ -24,6 +24,7 @@
 #include "css/ComputedStyle.h"
 #include "dom/FlatTree.h"
 #include "engine/Page.h"
+#include "engine/SvgComputedValues.h"
 #include "gfx/ColorText.h"
 #include "util/PerformanceCounters.h"
 #include "util/PerformanceTrace.h"
@@ -508,6 +509,14 @@ std::optional<std::string> ComputedValueOf(const css::ComputedStyle& style,
   }
   if (property == "opacity") {
     return Number(style.opacity);
+  }
+  // The SVG presentation properties, in their own translation unit because this
+  // one is at the module's line cap. Asked here rather than earlier in the
+  // chain: there are twenty-eight of them, the chain is a linear scan, and an
+  // ordinary page asks for none of them.
+  if (const std::optional<std::string> svg = SvgComputedValueOf(style, property);
+      svg.has_value()) {
+    return svg;
   }
   if (property == "flex-direction") {
     switch (style.flex.direction) {

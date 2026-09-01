@@ -12,6 +12,7 @@
 #include "css/Animation.h"
 #include "css/BoxEdges.h"
 #include "css/Length.h"
+#include "css/SvgStyle.h"
 #include "css/MediaQuery.h"
 #include "css/Transform.h"
 #include "gfx/Color.h"
@@ -765,6 +766,11 @@ struct ComputedStyle {
   }
   bool GeneratesBox() const { return display != Display::None; }
 
+  // The SVG painting properties (ADR 0043 §2), in `SvgStyle.h` because this
+  // file is at its module's line cap and a file over its cap means a missing
+  // header rather than a bigger one. Grouped for the reason `FlexStyle` is.
+  SvgStyle svg;
+
   // The custom properties in scope on this element, by name (with the leading
   // `--`), holding *unparsed* text.
   //
@@ -830,6 +836,12 @@ std::optional<Length> ParseLength(std::string_view text, const MediaContext& con
 // an all-or-nothing error rule that no other property here has.
 bool ApplyTransformDeclaration(std::string_view property, std::string_view value,
                                const ComputedStyle& parent, ComputedStyle& style);
+
+// The SVG presentation properties (ADR 0043 §2), in their own translation unit
+// for the reason the box ones are: this module's files are at their line cap.
+bool ApplySvgDeclaration(std::string_view property, std::string_view value,
+                         const ComputedStyle& parent, ComputedStyle& style,
+                         const MediaContext& context = {});
 
 bool ApplyBoxDeclaration(std::string_view property, std::string_view value,
                          const ComputedStyle& parent, ComputedStyle& style,

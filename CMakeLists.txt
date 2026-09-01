@@ -267,6 +267,7 @@ microbrowser_module(dom
 microbrowser_module(css
   SOURCES
     src/css/BoxDeclarations.cpp
+    src/css/SvgDeclarations.cpp
     src/css/Calc.cpp
     src/css/Declarations.cpp
   src/css/DeclarationText.cpp
@@ -428,6 +429,7 @@ microbrowser_module(engine
     src/engine/EngineSubresources.cpp
     src/engine/FormAlgorithms.cpp
     src/engine/GeometryQueries.cpp
+    src/engine/SvgComputedValues.cpp
     src/engine/ImageSelection.cpp
     src/engine/SessionHistory.cpp
     src/engine/Loader.cpp

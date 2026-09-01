@@ -6,7 +6,7 @@ purpose: CSS tokenizing, parsing, selectors. Spec-literal, because CSS error rec
 # font or a document, so nothing about layout can reach the cascade through it.
 allow: util dom gfx text
 
-public: Token.h Tokenizer.h StyleSheet.h Cssom.h ComputedStyle.h Length.h Transform.h Timing.h Animation.h StyleResolver.h MediaQuery.h DeclarationText.h
+public: Token.h Tokenizer.h StyleSheet.h Cssom.h ComputedStyle.h SvgStyle.h Length.h Transform.h Timing.h Animation.h StyleResolver.h MediaQuery.h DeclarationText.h
 
 extern:
 
@@ -123,7 +123,23 @@ budget: CustomProperties header_lines=70 public_methods=8 members=1
 # by element, a re-parse at box-tree time -- would be a second copy of a value the cascade already
 # resolved, with a second chance to disagree with it. The header lines are the paragraph saying why
 # `Empty` stays a value of its own rather than becoming a String holding "".
-budget: ComputedStyle    header_lines=372 public_methods=27 members=45
+# 45 -> 46 members for ADR 0043 §2, the SVG presentation properties. One member,
+# not twenty-two: `SvgStyle` is grouped for the reason `FlexStyle` and
+# `GridStyle` are, and it lives in `SvgStyle.h` because this header is at the
+# module's 900-line cap -- a file over its cap means a missing header, not a
+# bigger one. Nine enums rather than one shared "SVG keyword" enum, because a
+# value that belongs to one property must be refused on the others, and a shared
+# enum makes that a check somebody has to remember instead of a type the
+# compiler enforces.
+budget: ComputedStyle    header_lines=376 public_methods=27 members=46
+# Every field inherits, so the struct is copied whole by `InheritInto` -- which
+# is why a field added here is inherited by default and why that default is
+# correct for this group and for no other.
+# The third "method" is `kPaintOrderNormal`, the packing `normal` and
+# `fill stroke markers` share. A constant rather than a zero of its own, because
+# the two spell the same order and nothing downstream may tell them apart.
+budget: SvgStyle         header_lines=75  public_methods=3  members=22
+budget: Paint            header_lines=20  public_methods=2  members=3
 budget: TransformOperation header_lines=50 public_methods=2 members=9
 budget: TransformList    header_lines=60 public_methods=4 members=1
 budget: Length           header_lines=40 public_methods=8 members=3

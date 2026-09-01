@@ -172,6 +172,17 @@ std::vector<Declaration> PresentationalDeclarations(const dom::Element& element)
     return value == nullptr ? std::string_view{} : std::string_view{*value};
   };
 
+  // An element in the SVG namespace maps its presentation attributes to the
+  // properties of the same name (ADR 0043 §2). Handled first and returned from,
+  // because none of the HTML mappings below apply to an SVG element -- `width`
+  // on a `<rect>` is a geometry attribute, not a `width` declaration, and
+  // running the HTML branch on it would make `<rect width="1">` a one-pixel-wide
+  // CSS box. The list itself is in `SvgDeclarations.cpp`, beside the properties
+  // it names, because this file is at its module's line cap.
+  if (element.Namespace() == dom::NamespaceRef(dom::NamespaceRef::kSvg)) {
+    return SvgPresentationDeclarations(element);
+  }
+
   if (tag == "body" || IsTablePart(tag)) {
     if (const std::string* bgcolor = element.GetAttribute("bgcolor")) {
       add("background-color", *bgcolor);

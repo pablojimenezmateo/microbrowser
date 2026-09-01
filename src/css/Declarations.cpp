@@ -51,6 +51,10 @@ void InheritInto(const ComputedStyle& parent, ComputedStyle& child, bool with_cu
   child.tab_size = parent.tab_size;
   child.visibility = parent.visibility;
   child.pointer_events = parent.pointer_events;
+  // Every SVG painting property inherits (ADR 0043 §2), which is why the group
+  // is copied whole rather than field by field: a field added to `SvgStyle`
+  // inherits by construction, and for this one group that is the right default.
+  child.svg = parent.svg;
   if (with_custom_properties) {
     // Custom properties inherit, which is the entire basis of how a modern stylesheet is written:
     // set on `:root` once, referenced everywhere below.
@@ -624,6 +628,9 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     return true;
   }
   if (ApplyBoxDeclaration(property, value, parent, style, context)) {
+    return true;
+  }
+  if (ApplySvgDeclaration(property, value, parent, style, context)) {
     return true;
   }
 
