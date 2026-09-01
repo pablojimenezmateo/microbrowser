@@ -3651,15 +3651,10 @@ FAIL=Web Animations: property <fill-rule> from [initial] to [evenodd] at (0.6) s
 FAIL=Web Animations: property <fill-rule> from [initial] to [evenodd] at (1) should be [evenodd]
 FAIL=Web Animations: property <fill-rule> from [initial] to [evenodd] at (1.5) should be [evenodd]
 [svg/painting/inheritance.svg]
-FAIL=Property color-interpolation has initial value srgb
 FAIL=Property color-interpolation inherits
-FAIL=Property fill has initial value rgb(0, 0, 0)
 FAIL=Property fill inherits
-FAIL=Property fill-opacity has initial value 1
 FAIL=Property fill-opacity inherits
-FAIL=Property fill-rule has initial value nonzero
 FAIL=Property fill-rule inherits
-FAIL=Property image-rendering has initial value auto
 FAIL=Property image-rendering inherits
 FAIL=Property marker-end has initial value none
 FAIL=Property marker-end inherits
@@ -3667,27 +3662,16 @@ FAIL=Property marker-mid has initial value none
 FAIL=Property marker-mid inherits
 FAIL=Property marker-start has initial value none
 FAIL=Property marker-start inherits
-FAIL=Property paint-order has initial value normal
 FAIL=Property paint-order inherits
-FAIL=Property shape-rendering has initial value auto
 FAIL=Property shape-rendering inherits
-FAIL=Property stroke has initial value none
 FAIL=Property stroke inherits
-FAIL=Property stroke-dasharray has initial value none
 FAIL=Property stroke-dasharray inherits
-FAIL=Property stroke-dashoffset has initial value 0px
 FAIL=Property stroke-dashoffset inherits
-FAIL=Property stroke-linecap has initial value butt
 FAIL=Property stroke-linecap inherits
-FAIL=Property stroke-linejoin has initial value miter
 FAIL=Property stroke-linejoin inherits
-FAIL=Property stroke-miterlimit has initial value 4
 FAIL=Property stroke-miterlimit inherits
-FAIL=Property stroke-opacity has initial value 1
 FAIL=Property stroke-opacity inherits
-FAIL=Property stroke-width has initial value 1px
 FAIL=Property stroke-width inherits
-FAIL=Property text-rendering has initial value auto
 FAIL=Property text-rendering inherits
 [svg/painting/marker-001.svg]
 harness=FAIL
@@ -3705,57 +3689,24 @@ harness=FAIL
 harness=FAIL
 [svg/painting/marker-orient-001.svg]
 harness=FAIL
-[svg/painting/parsing/color-interpolation-computed.svg]
-FAIL=Property color-interpolation value 'auto'
-FAIL=Property color-interpolation value 'linearrgb'
-FAIL=Property color-interpolation value 'srgb'
-[svg/painting/parsing/color-interpolation-valid.svg]
-FAIL=e.style['color-interpolation'] = "auto" should set the property value
-FAIL=e.style['color-interpolation'] = "linearrgb" should set the property value
-FAIL=e.style['color-interpolation'] = "srgb" should set the property value
 [svg/painting/parsing/fill-computed.svg]
-FAIL=Property fill value 'none'
-FAIL=Property fill value 'rgb(12, 34, 56)'
 FAIL=Property fill value 'url("https://example.com/") none'
 FAIL=Property fill value 'url("https://example.com/") rgb(12, 34, 56)'
-FAIL=Property fill value 'url("https://example.com/")'
 FAIL=url values are made absolute
-[svg/painting/parsing/fill-opacity-computed.svg]
-FAIL=Property fill-opacity value '-1'
-FAIL=Property fill-opacity value '-100%'
-FAIL=Property fill-opacity value '0.5'
-FAIL=Property fill-opacity value '3'
-FAIL=Property fill-opacity value '300%'
-FAIL=Property fill-opacity value '50%'
+[svg/painting/parsing/fill-invalid.svg]
+FAIL=e.style['fill'] = "url(\"https://example.com/\") none red" should not set the property value
+[svg/painting/parsing/fill-opacity-invalid.svg]
+FAIL=e.style['fill-opacity'] = "1." should not set the property value
 [svg/painting/parsing/fill-opacity-valid.svg]
-FAIL=e.style['fill-opacity'] = "-1" should set the property value
 FAIL=e.style['fill-opacity'] = "-100%" should set the property value
-FAIL=e.style['fill-opacity'] = "0.5" should set the property value
-FAIL=e.style['fill-opacity'] = "3" should set the property value
 FAIL=e.style['fill-opacity'] = "300%" should set the property value
 FAIL=e.style['fill-opacity'] = "50%" should set the property value
-[svg/painting/parsing/fill-rule-computed.svg]
-FAIL=Property fill-rule value 'evenodd'
-FAIL=Property fill-rule value 'nonzero'
-[svg/painting/parsing/fill-rule-valid.svg]
-FAIL=e.style['fill-rule'] = "evenodd" should set the property value
-FAIL=e.style['fill-rule'] = "nonzero" should set the property value
 [svg/painting/parsing/fill-valid.svg]
 FAIL=e.style['fill'] = "context-fill" should set the property value
 FAIL=e.style['fill'] = "context-stroke" should set the property value
-FAIL=e.style['fill'] = "none" should set the property value
-FAIL=e.style['fill'] = "rgb(12, 34, 56)" should set the property value
-FAIL=e.style['fill'] = "url(\"https://example.com/\") none" should set the property value
-FAIL=e.style['fill'] = "url(\"https://example.com/\") rgb(12, 34, 56)" should set the property value
-FAIL=e.style['fill'] = "url(\"https://example.com/\")" should set the property value
 [svg/painting/parsing/image-rendering-computed.svg]
-FAIL=Property image-rendering value 'auto'
 FAIL=Property image-rendering value 'optimizequality'
 FAIL=Property image-rendering value 'optimizespeed'
-[svg/painting/parsing/image-rendering-valid.svg]
-FAIL=e.style['image-rendering'] = "auto" should set the property value
-FAIL=e.style['image-rendering'] = "optimizequality" should set the property value
-FAIL=e.style['image-rendering'] = "optimizespeed" should set the property value
 [svg/painting/parsing/marker-computed.svg]
 FAIL=Property marker value 'none'
 FAIL=Property marker value 'url("https://example.com/")'
@@ -3804,7 +3755,6 @@ FAIL=Property paint-order value 'markers fill'
 FAIL=Property paint-order value 'markers stroke fill'
 FAIL=Property paint-order value 'markers stroke'
 FAIL=Property paint-order value 'markers'
-FAIL=Property paint-order value 'normal'
 FAIL=Property paint-order value 'stroke fill markers'
 FAIL=Property paint-order value 'stroke fill'
 FAIL=Property paint-order value 'stroke markers fill'
@@ -3812,173 +3762,81 @@ FAIL=Property paint-order value 'stroke markers'
 FAIL=Property paint-order value 'stroke'
 [svg/painting/parsing/paint-order-valid.svg]
 FAIL=e.style['paint-order'] = "fill markers stroke" should set the property value
-FAIL=e.style['paint-order'] = "fill markers" should set the property value
 FAIL=e.style['paint-order'] = "fill stroke markers" should set the property value
 FAIL=e.style['paint-order'] = "fill stroke" should set the property value
-FAIL=e.style['paint-order'] = "fill" should set the property value
 FAIL=e.style['paint-order'] = "markers fill stroke" should set the property value
 FAIL=e.style['paint-order'] = "markers fill" should set the property value
 FAIL=e.style['paint-order'] = "markers stroke fill" should set the property value
-FAIL=e.style['paint-order'] = "markers stroke" should set the property value
-FAIL=e.style['paint-order'] = "markers" should set the property value
-FAIL=e.style['paint-order'] = "normal" should set the property value
 FAIL=e.style['paint-order'] = "stroke fill markers" should set the property value
 FAIL=e.style['paint-order'] = "stroke fill" should set the property value
 FAIL=e.style['paint-order'] = "stroke markers fill" should set the property value
-FAIL=e.style['paint-order'] = "stroke markers" should set the property value
-FAIL=e.style['paint-order'] = "stroke" should set the property value
 [svg/painting/parsing/shape-rendering-computed.svg]
-FAIL=Property shape-rendering value 'auto'
 FAIL=Property shape-rendering value 'crispedges'
 FAIL=Property shape-rendering value 'geometricprecision'
 FAIL=Property shape-rendering value 'optimizespeed'
-[svg/painting/parsing/shape-rendering-valid.svg]
-FAIL=e.style['shape-rendering'] = "auto" should set the property value
-FAIL=e.style['shape-rendering'] = "crispedges" should set the property value
-FAIL=e.style['shape-rendering'] = "geometricprecision" should set the property value
-FAIL=e.style['shape-rendering'] = "optimizespeed" should set the property value
 [svg/painting/parsing/stroke-computed.svg]
-FAIL=Property stroke value 'none'
-FAIL=Property stroke value 'rgb(12, 34, 56)'
 FAIL=Property stroke value 'url("https://example.com/") none'
 FAIL=Property stroke value 'url("https://example.com/") rgb(12, 34, 56)'
-FAIL=Property stroke value 'url("https://example.com/")'
 FAIL=url values are made absolute
 [svg/painting/parsing/stroke-dasharray-computed.svg]
-FAIL=Property stroke-dasharray value '0, 5'
-FAIL=Property stroke-dasharray value '10'
-FAIL=Property stroke-dasharray value '10px 20% 30px'
 FAIL=Property stroke-dasharray value '40%'
 FAIL=Property stroke-dasharray value 'calc(10px + 0.5em)'
 FAIL=Property stroke-dasharray value 'calc(10px - 0.5em)'
 FAIL=Property stroke-dasharray value 'calc(50% + 60px)'
-FAIL=Property stroke-dasharray value 'none'
 [svg/painting/parsing/stroke-dasharray-valid.svg]
-FAIL=e.style['stroke-dasharray'] = "0, 5" should set the property value
 FAIL=e.style['stroke-dasharray'] = "10pt 20% 30pc 40in" should set the property value
-FAIL=e.style['stroke-dasharray'] = "10px" should set the property value
-FAIL=e.style['stroke-dasharray'] = "10vmin, 20vmax, 30em, 40ex" should set the property value
 FAIL=e.style['stroke-dasharray'] = "20%" should set the property value
 FAIL=e.style['stroke-dasharray'] = "calc(2 + (7 - 5))" should set the property value
 FAIL=e.style['stroke-dasharray'] = "calc(2 + 1)" should set the property value
 FAIL=e.style['stroke-dasharray'] = "calc(2em + 3ex)" should set the property value
 FAIL=e.style['stroke-dasharray'] = "calc(3)" should set the property value
-FAIL=e.style['stroke-dasharray'] = "none" should set the property value
 [svg/painting/parsing/stroke-dashoffset-computed.svg]
-FAIL=Property stroke-dashoffset value '-40%'
-FAIL=Property stroke-dashoffset value '0.5em'
-FAIL=Property stroke-dashoffset value '10'
-FAIL=Property stroke-dashoffset value '10160Q'
-FAIL=Property stroke-dashoffset value '1in'
-FAIL=Property stroke-dashoffset value '2540mm'
-FAIL=Property stroke-dashoffset value '254cm'
-FAIL=Property stroke-dashoffset value '6pc'
-FAIL=Property stroke-dashoffset value '72pt'
-FAIL=Property stroke-dashoffset value 'calc(10px + 0.5em)'
-FAIL=Property stroke-dashoffset value 'calc(10px - 0.5em)'
 FAIL=Property stroke-dashoffset value 'calc(50% + 60px)'
+[svg/painting/parsing/stroke-dashoffset-invalid.svg]
+FAIL=e.style['stroke-dashoffset'] = "-10.px" should not set the property value
+FAIL=e.style['stroke-dashoffset'] = "auto" should not set the property value
 [svg/painting/parsing/stroke-dashoffset-valid.svg]
-FAIL=e.style['stroke-dashoffset'] = "-20%" should set the property value
-FAIL=e.style['stroke-dashoffset'] = "0" should set the property value
-FAIL=e.style['stroke-dashoffset'] = "10px" should set the property value
-FAIL=e.style['stroke-dashoffset'] = "30" should set the property value
 FAIL=e.style['stroke-dashoffset'] = "40Q" should set the property value
 FAIL=e.style['stroke-dashoffset'] = "calc(2 + (7 - 5))" should set the property value
 FAIL=e.style['stroke-dashoffset'] = "calc(2 + 1)" should set the property value
-FAIL=e.style['stroke-dashoffset'] = "calc(2em + 3ex)" should set the property value
 FAIL=e.style['stroke-dashoffset'] = "calc(3)" should set the property value
-[svg/painting/parsing/stroke-linecap-computed.svg]
-FAIL=Property stroke-linecap value 'butt'
-FAIL=Property stroke-linecap value 'round'
-FAIL=Property stroke-linecap value 'square'
-[svg/painting/parsing/stroke-linecap-valid.svg]
-FAIL=e.style['stroke-linecap'] = "butt" should set the property value
-FAIL=e.style['stroke-linecap'] = "round" should set the property value
-FAIL=e.style['stroke-linecap'] = "square" should set the property value
-[svg/painting/parsing/stroke-linejoin-computed.svg]
-FAIL=Property stroke-linejoin value 'bevel'
-FAIL=Property stroke-linejoin value 'miter'
-FAIL=Property stroke-linejoin value 'round'
-[svg/painting/parsing/stroke-linejoin-valid.svg]
-FAIL=e.style['stroke-linejoin'] = "arcs" should set the property value
-FAIL=e.style['stroke-linejoin'] = "bevel" should set the property value
-FAIL=e.style['stroke-linejoin'] = "miter" should set the property value
-FAIL=e.style['stroke-linejoin'] = "miter-clip" should set the property value
-FAIL=e.style['stroke-linejoin'] = "round" should set the property value
+[svg/painting/parsing/stroke-invalid.svg]
+FAIL=e.style['stroke'] = "url(\"https://example.com/\") none red" should not set the property value
 [svg/painting/parsing/stroke-miterlimit-computed.svg]
 FAIL=Property stroke-miterlimit value '0'
 FAIL=Property stroke-miterlimit value '0.5'
-FAIL=Property stroke-miterlimit value '1'
-FAIL=Property stroke-miterlimit value '7.5'
+[svg/painting/parsing/stroke-miterlimit-invalid.svg]
+FAIL=e.style['stroke-miterlimit'] = "1." should not set the property value
 [svg/painting/parsing/stroke-miterlimit-valid.svg]
 FAIL=e.style['stroke-miterlimit'] = "0" should set the property value
 FAIL=e.style['stroke-miterlimit'] = "0.5" should set the property value
-FAIL=e.style['stroke-miterlimit'] = "1" should set the property value
-FAIL=e.style['stroke-miterlimit'] = "7.5" should set the property value
-[svg/painting/parsing/stroke-opacity-computed.svg]
-FAIL=Property stroke-opacity value '-1'
-FAIL=Property stroke-opacity value '-100%'
-FAIL=Property stroke-opacity value '0.5'
-FAIL=Property stroke-opacity value '3'
-FAIL=Property stroke-opacity value '300%'
-FAIL=Property stroke-opacity value '50%'
+[svg/painting/parsing/stroke-opacity-invalid.svg]
+FAIL=e.style['stroke-opacity'] = "1." should not set the property value
 [svg/painting/parsing/stroke-opacity-valid.svg]
-FAIL=e.style['stroke-opacity'] = "-1" should set the property value
 FAIL=e.style['stroke-opacity'] = "-100%" should set the property value
-FAIL=e.style['stroke-opacity'] = "0.5" should set the property value
-FAIL=e.style['stroke-opacity'] = "3" should set the property value
 FAIL=e.style['stroke-opacity'] = "300%" should set the property value
 FAIL=e.style['stroke-opacity'] = "50%" should set the property value
 [svg/painting/parsing/stroke-valid.svg]
 FAIL=e.style['stroke'] = "context-fill" should set the property value
 FAIL=e.style['stroke'] = "context-stroke" should set the property value
-FAIL=e.style['stroke'] = "none" should set the property value
-FAIL=e.style['stroke'] = "rgb(12, 34, 56)" should set the property value
-FAIL=e.style['stroke'] = "url(\"https://example.com/\") none" should set the property value
-FAIL=e.style['stroke'] = "url(\"https://example.com/\") rgb(12, 34, 56)" should set the property value
-FAIL=e.style['stroke'] = "url(\"https://example.com/\")" should set the property value
 [svg/painting/parsing/stroke-width-computed.svg]
-FAIL=Property stroke-width value '10'
-FAIL=Property stroke-width value '40%'
-FAIL=Property stroke-width value 'calc(10px + 0.5em)'
 FAIL=Property stroke-width value 'calc(10px - 0.5em)'
 FAIL=Property stroke-width value 'calc(50% + 60px)'
 FAIL=stroke-width computes Q lengths
-FAIL=stroke-width computes ch lengths
 FAIL=stroke-width computes cm lengths
-FAIL=stroke-width computes em lengths
-FAIL=stroke-width computes ex lengths
-FAIL=stroke-width computes in lengths
 FAIL=stroke-width computes mm lengths
-FAIL=stroke-width computes pc lengths
-FAIL=stroke-width computes pt lengths
-FAIL=stroke-width computes px lengths
 FAIL=stroke-width computes rem lengths
-FAIL=stroke-width computes vh lengths
-FAIL=stroke-width computes vmax lengths
-FAIL=stroke-width computes vmin lengths
-FAIL=stroke-width computes vw lengths
+[svg/painting/parsing/stroke-width-invalid.svg]
+FAIL=e.style['stroke-width'] = "-10%" should not set the property value
+FAIL=e.style['stroke-width'] = "auto" should not set the property value
 [svg/painting/parsing/stroke-width-valid.svg]
-FAIL=e.style['stroke-width'] = "0" should set the property value
-FAIL=e.style['stroke-width'] = "10" should set the property value
-FAIL=e.style['stroke-width'] = "1px" should set the property value
-FAIL=e.style['stroke-width'] = "4%" should set the property value
-FAIL=e.style['stroke-width'] = "5vmin" should set the property value
 FAIL=e.style['stroke-width'] = "calc(2 + (7 - 5))" should set the property value
 FAIL=e.style['stroke-width'] = "calc(2 + 1)" should set the property value
-FAIL=e.style['stroke-width'] = "calc(2em + 3ex)" should set the property value
 FAIL=e.style['stroke-width'] = "calc(3)" should set the property value
-FAIL=e.style['stroke-width'] = "calc(50% + 60px)" should set the property value
 [svg/painting/parsing/text-rendering-computed.svg]
-FAIL=Property text-rendering value 'auto'
 FAIL=Property text-rendering value 'geometricprecision'
 FAIL=Property text-rendering value 'optimizelegibility'
 FAIL=Property text-rendering value 'optimizespeed'
-[svg/painting/parsing/text-rendering-valid.svg]
-FAIL=e.style['text-rendering'] = "auto" should set the property value
-FAIL=e.style['text-rendering'] = "geometricprecision" should set the property value
-FAIL=e.style['text-rendering'] = "optimizelegibility" should set the property value
-FAIL=e.style['text-rendering'] = "optimizespeed" should set the property value
 [svg/painting/reftests/display-none-mask.html]
 harness=FAIL
 [svg/painting/reftests/marker-implicit-subpaths.html]
@@ -4036,10 +3894,6 @@ FAIL=SVGMarkerElement.orientType synchronization, setting orientType to 'auto'
 [svg/painting/scripted/marker-element-added.html]
 harness=FAIL
 [svg/painting/scripted/paint-order-computed-value-01.svg]
-FAIL='paint-order' computed style serialization, "fill foo" => "normal" (presentation attribute)
-FAIL='paint-order' computed style serialization, "fill foo" => "normal" (property)
-FAIL='paint-order' computed style serialization, "fill markers stroke foo" => "normal" (presentation attribute)
-FAIL='paint-order' computed style serialization, "fill markers stroke foo" => "normal" (property)
 FAIL='paint-order' computed style serialization, "fill markers stroke" => "fill markers" (presentation attribute)
 FAIL='paint-order' computed style serialization, "fill markers stroke" => "fill markers" (property)
 FAIL='paint-order' computed style serialization, "fill markers" => "fill markers" (presentation attribute)
@@ -4050,30 +3904,20 @@ FAIL='paint-order' computed style serialization, "fill stroke" => "fill" (presen
 FAIL='paint-order' computed style serialization, "fill stroke" => "fill" (property)
 FAIL='paint-order' computed style serialization, "fill" => "fill" (presentation attribute)
 FAIL='paint-order' computed style serialization, "fill" => "fill" (property)
-FAIL='paint-order' computed style serialization, "foo" => "normal" (presentation attribute)
-FAIL='paint-order' computed style serialization, "foo" => "normal" (property)
 FAIL='paint-order' computed style serialization, "markers fill stroke" => "markers" (presentation attribute)
 FAIL='paint-order' computed style serialization, "markers fill stroke" => "markers" (property)
 FAIL='paint-order' computed style serialization, "markers fill" => "markers" (presentation attribute)
 FAIL='paint-order' computed style serialization, "markers fill" => "markers" (property)
-FAIL='paint-order' computed style serialization, "markers foo" => "normal" (presentation attribute)
-FAIL='paint-order' computed style serialization, "markers foo" => "normal" (property)
 FAIL='paint-order' computed style serialization, "markers stroke fill" => "markers stroke" (presentation attribute)
 FAIL='paint-order' computed style serialization, "markers stroke fill" => "markers stroke" (property)
 FAIL='paint-order' computed style serialization, "markers stroke" => "markers stroke" (presentation attribute)
 FAIL='paint-order' computed style serialization, "markers stroke" => "markers stroke" (property)
 FAIL='paint-order' computed style serialization, "markers" => "markers" (presentation attribute)
 FAIL='paint-order' computed style serialization, "markers" => "markers" (property)
-FAIL='paint-order' computed style serialization, "normal foo" => "normal" (presentation attribute)
-FAIL='paint-order' computed style serialization, "normal foo" => "normal" (property)
-FAIL='paint-order' computed style serialization, "normal" => "normal" (presentation attribute)
-FAIL='paint-order' computed style serialization, "normal" => "normal" (property)
 FAIL='paint-order' computed style serialization, "stroke fill markers" => "stroke" (presentation attribute)
 FAIL='paint-order' computed style serialization, "stroke fill markers" => "stroke" (property)
 FAIL='paint-order' computed style serialization, "stroke fill" => "stroke" (presentation attribute)
 FAIL='paint-order' computed style serialization, "stroke fill" => "stroke" (property)
-FAIL='paint-order' computed style serialization, "stroke foo" => "normal" (presentation attribute)
-FAIL='paint-order' computed style serialization, "stroke foo" => "normal" (property)
 FAIL='paint-order' computed style serialization, "stroke markers fill" => "stroke markers" (presentation attribute)
 FAIL='paint-order' computed style serialization, "stroke markers fill" => "stroke markers" (property)
 FAIL='paint-order' computed style serialization, "stroke markers" => "stroke markers" (presentation attribute)
@@ -4610,37 +4454,16 @@ FAIL=isPointInStroke() with d property
 harness=FAIL
 [svg/pservers/inheritance.svg]
 FAIL=Property stop-color does not inherit
-FAIL=Property stop-color has initial value rgb(0, 0, 0)
 FAIL=Property stop-opacity does not inherit
-FAIL=Property stop-opacity has initial value 1
-[svg/pservers/parsing/stop-color-computed.svg]
-FAIL=Property stop-color value '#ffffff'
-FAIL=Property stop-color value 'currentcolor'
-FAIL=Property stop-color value 'hsl(0deg, 100%, 100%)'
-FAIL=Property stop-color value 'hsla(0deg, 100%, 100%, 0.4)'
-FAIL=Property stop-color value 'hsla(0deg, 100%, 100%, 1.0)'
-FAIL=Property stop-color value 'rgb(255, 255, 255)'
-FAIL=Property stop-color value 'rgba(255, 255, 255, 0.4)'
-FAIL=Property stop-color value 'rgba(255, 255, 255, 1.0)'
-FAIL=Property stop-color value 'transparent'
-FAIL=Property stop-color value 'white'
 [svg/pservers/parsing/stop-color-valid.svg]
 FAIL=e.style['stop-color'] = "hsl(0deg, 100%, 100%)" should set the property value
 FAIL=e.style['stop-color'] = "hsla(0deg, 100%, 100%, 0.4)" should set the property value
 FAIL=e.style['stop-color'] = "hsla(0deg, 100%, 100%, 1.0)" should set the property value
 FAIL=e.style['stop-color'] = "rgba(255, 255, 255, 1.0)" should set the property value
-[svg/pservers/parsing/stop-opacity-computed.svg]
-FAIL=Property stop-opacity value '-1'
-FAIL=Property stop-opacity value '-100%'
-FAIL=Property stop-opacity value '0.5'
-FAIL=Property stop-opacity value '3'
-FAIL=Property stop-opacity value '300%'
-FAIL=Property stop-opacity value '50%'
+[svg/pservers/parsing/stop-opacity-invalid.svg]
+FAIL=e.style['stop-opacity'] = "1." should not set the property value
 [svg/pservers/parsing/stop-opacity-valid.svg]
-FAIL=e.style['stop-opacity'] = "-1" should set the property value
 FAIL=e.style['stop-opacity'] = "-100%" should set the property value
-FAIL=e.style['stop-opacity'] = "0.5" should set the property value
-FAIL=e.style['stop-opacity'] = "3" should set the property value
 FAIL=e.style['stop-opacity'] = "300%" should set the property value
 FAIL=e.style['stop-opacity'] = "50%" should set the property value
 [svg/pservers/pattern-with-invalid-base-cloned-thcrash.html]
@@ -4940,14 +4763,8 @@ harness=FAIL
 harness=FAIL
 [svg/styling/css-var-on-length-attributes-quirk.html]
 harness=FAIL
-[svg/styling/presentation-attributes-irrelevant.html]
-FAIL=font-family presentation attribute supported on an irrelevant element
-[svg/styling/presentation-attributes-relevant.html]
-FAIL=font-family presentation attribute supported on a relevant element
 [svg/styling/presentation-attributes-special-cases.html]
 harness=TIMEOUT
-[svg/styling/presentation-attributes-unknown.html]
-FAIL=font-family presentation attribute supported on an unknown SVG element
 [svg/styling/render/transform-box.svg]
 harness=FAIL
 [svg/styling/render/transform-origin-not-explicit-style-visual.svg]
@@ -5064,7 +4881,6 @@ FAIL=Property shape-margin does not inherit
 FAIL=Property shape-margin has initial value 0px
 FAIL=Property shape-subtract does not inherit
 FAIL=Property shape-subtract has initial value auto
-FAIL=Property text-anchor has initial value start
 FAIL=Property text-anchor inherits
 [svg/text/parsing/inline-size-valid.svg]
 FAIL=e.style['inline-size'] = "0" should set the property value
@@ -5091,14 +4907,6 @@ FAIL=e.style['shape-subtract'] = "circle(10px at 20px -30px)" should set the pro
 FAIL=e.style['shape-subtract'] = "ellipse(10px 20px at -30px 40px)" should set the property value
 FAIL=e.style['shape-subtract'] = "polygon(10px 20px, -30px 40px, 50px 60px)" should set the property value
 FAIL=e.style['shape-subtract'] = "url(\"https://example.com/\")" should set the property value
-[svg/text/parsing/text-anchor-computed.svg]
-FAIL=Property text-anchor value 'end'
-FAIL=Property text-anchor value 'middle'
-FAIL=Property text-anchor value 'start'
-[svg/text/parsing/text-anchor-valid.svg]
-FAIL=e.style['text-anchor'] = "end" should set the property value
-FAIL=e.style['text-anchor'] = "middle" should set the property value
-FAIL=e.style['text-anchor'] = "start" should set the property value
 [svg/text/parsing/text-decoration-color-computed.svg]
 FAIL=Property text-decoration-color value 'currentcolor'
 FAIL=Property text-decoration-color value 'inherit'

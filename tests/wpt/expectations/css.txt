@@ -54390,7 +54390,6 @@ harness=FAIL
 [css/css-images/inheritance.html]
 FAIL=Property image-orientation has initial value from-image
 FAIL=Property image-orientation inherits
-FAIL=Property image-rendering has initial value auto
 FAIL=Property image-rendering inherits
 FAIL=Property object-fit does not inherit
 FAIL=Property object-fit has initial value fill
@@ -57318,17 +57317,8 @@ FAIL=Property image-orientation value 'none'
 FAIL=e.style['image-orientation'] = "from-image" should set the property value
 FAIL=e.style['image-orientation'] = "none" should set the property value
 [css/css-images/parsing/image-rendering-computed.html]
-FAIL=Property image-rendering value 'auto'
 FAIL=Property image-rendering value 'crisp-edges'
 FAIL=Property image-rendering value 'high-quality'
-FAIL=Property image-rendering value 'pixelated'
-FAIL=Property image-rendering value 'smooth'
-[css/css-images/parsing/image-rendering-valid.html]
-FAIL=e.style['image-rendering'] = "auto" should set the property value
-FAIL=e.style['image-rendering'] = "crisp-edges" should set the property value
-FAIL=e.style['image-rendering'] = "high-quality" should set the property value
-FAIL=e.style['image-rendering'] = "pixelated" should set the property value
-FAIL=e.style['image-rendering'] = "smooth" should set the property value
 [css/css-images/parsing/image-resolution-valid.html]
 FAIL=e.style['image-resolution'] = "1dpi" should set the property value
 FAIL=e.style['image-resolution'] = "2dpcm from-image" should set the property value
@@ -104027,14 +104017,6 @@ FAIL=Universal selector with namespace equal to default namespace followed by id
 FAIL=Universal selector with namespace equal to default namespace followed by pseudo class
 FAIL=Universal selector with namespace equal to default namespace followed by pseudo element
 [css/cssom/serialize-values.html]
-FAIL=alignment-baseline: alphabetic
-FAIL=alignment-baseline: baseline
-FAIL=alignment-baseline: central
-FAIL=alignment-baseline: ideographic
-FAIL=alignment-baseline: mathematical
-FAIL=alignment-baseline: middle
-FAIL=alignment-baseline: text-bottom
-FAIL=alignment-baseline: text-top
 FAIL=background-attachment: fixed
 FAIL=background-attachment: scroll
 FAIL=baseline-shift: .1em
@@ -104204,16 +104186,12 @@ FAIL=@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' s] <div {h
 FAIL=@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A'] /* sanity check (match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in XML
 FAIL=@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A'] /* sanity check (match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in quirks mode
 FAIL=@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A'] /* sanity check (match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in standards mode
-FAIL=[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> in XML
 FAIL=[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> in quirks mode
 FAIL=[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> in standards mode
-FAIL=[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> with querySelector in XML
 FAIL=[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> with querySelector in quirks mode
 FAIL=[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> with querySelector in standards mode
-FAIL=[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in XML
 FAIL=[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in quirks mode
 FAIL=[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in standards mode
-FAIL=[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> with querySelector in XML
 FAIL=[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> with querySelector in quirks mode
 FAIL=[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> with querySelector in standards mode
 [css/selectors/attribute-selectors/attribute-case/syntax.html]
