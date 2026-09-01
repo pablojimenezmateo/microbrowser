@@ -8608,3 +8608,32 @@ wins over the ratio (18 files). Then the ratio against the border box under `box
 the three declared-length sites that still bypass `UsedContentSize` — replaced elements, a table
 row's height, an inline box's. **36 of the aspect-ratio gap files are `grid-aspect-ratio-*` and
 belong to E3.**
+
+## WPT task E4 (continued) — aspect-ratio in both directions · 2026-09-01
+
+**Status:** in_progress
+**Check:** `css/css-sizing/` reftests ≥ 250 of 562; now **137, from 126 this morning and 123 at
+the start of the task**. Both halves verify `0 unexpected results`, exit 0.
+
+**Landed:** `aspect-ratio` is a ratio in both directions.
+
+**Found — the property was read in exactly one place: the `height: auto` branch.** So
+`width: 100px; aspect-ratio: 1/1` gave a 100px square and `height: 100px; aspect-ratio: 1/1` gave
+a box as wide as its containing block. A ratio that works one way round is not a ratio; it is a
+way of computing a height. Full suite **8,372 → 8,383, eleven gains and zero losses**; the area's
+Firefox gap **435 → 424**.
+
+**Found — the ratio describes the box `box-sizing` names, not the content box.** `width: 100px;
+aspect-ratio: 2/1; box-sizing: border-box; padding-left: 50px` is 100 by 50 *including* the
+padding, so the content box is 50 by 50 and not 50 by 25. Applying the ratio to the content box
+is right whenever the padding is zero — which is every test anybody writes first, and is why both
+directions go through one `ContentSizeFromRatio` rather than two expressions.
+
+**Left:** `aspect-ratio` on absolutely positioned boxes, where `top: 0; bottom: 0` inset-stretch
+still beats the ratio (18 `abspos-*` files). Then `contain-intrinsic-size` (51 gap files,
+untouched). Then the three declared-length sites still bypassing `UsedContentSize` — replaced
+elements, a table row's height, an inline box's. **Two new subtest failures arrived with this and
+name the next thing precisely: `min-width: auto`'s automatic minimum interacting with a ratio.**
+
+**36 of the aspect-ratio gap files are `grid-aspect-ratio-*` and belong to E3, not here** — worth
+subtracting before anyone reads 206 as this task's remaining work.

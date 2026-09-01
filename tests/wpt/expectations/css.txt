@@ -70407,7 +70407,7 @@ FAIL=Web Animations: property <width> from neutral to [min-content] at (1.5) sho
 [css/css-sizing/aspect-ratio-affects-container-width-when-height-changes.html]
 FAIL=#container 1
 [css/css-sizing/aspect-ratio-automatic-minimum.html]
-FAIL=min-width:0 disables automatic minimum
+FAIL=min-width:auto enables automatic minimum
 [css/css-sizing/aspect-ratio/abspos-001.html]
 harness=FAIL
 [css/css-sizing/aspect-ratio/abspos-002.html]
@@ -70452,12 +70452,8 @@ FAIL=aspect-ratio 1/1 with padding on abspos
 FAIL=aspect-ratio 1/1 without border on abspos (sanity)
 FAIL=aspect-ratio 2/1 with border on abspos
 [css/css-sizing/aspect-ratio/aspect-ratio-minimum-size-single-axis-scroll-container.html]
-FAIL=.target 1
+FAIL=.target 2
 FAIL=.target 4
-[css/css-sizing/aspect-ratio/auto-margins-001.html]
-harness=FAIL
-[css/css-sizing/aspect-ratio/block-aspect-ratio-002.html]
-harness=FAIL
 [css/css-sizing/aspect-ratio/block-aspect-ratio-004.html]
 harness=FAIL
 [css/css-sizing/aspect-ratio/block-aspect-ratio-005.html]
@@ -70472,11 +70468,7 @@ harness=FAIL
 harness=FAIL
 [css/css-sizing/aspect-ratio/block-aspect-ratio-015.html]
 harness=FAIL
-[css/css-sizing/aspect-ratio/block-aspect-ratio-016.html]
-harness=FAIL
 [css/css-sizing/aspect-ratio/block-aspect-ratio-017.html]
-harness=FAIL
-[css/css-sizing/aspect-ratio/block-aspect-ratio-018.html]
 harness=FAIL
 [css/css-sizing/aspect-ratio/block-aspect-ratio-020.html]
 harness=FAIL
@@ -70502,15 +70494,7 @@ harness=FAIL
 harness=FAIL
 [css/css-sizing/aspect-ratio/block-aspect-ratio-035.html]
 harness=FAIL
-[css/css-sizing/aspect-ratio/block-aspect-ratio-036.html]
-harness=FAIL
 [css/css-sizing/aspect-ratio/block-aspect-ratio-042.html]
-harness=FAIL
-[css/css-sizing/aspect-ratio/block-aspect-ratio-043.html]
-harness=FAIL
-[css/css-sizing/aspect-ratio/block-aspect-ratio-047.html]
-harness=FAIL
-[css/css-sizing/aspect-ratio/block-aspect-ratio-049.html]
 harness=FAIL
 [css/css-sizing/aspect-ratio/block-aspect-ratio-052.html]
 harness=FAIL
@@ -70536,18 +70520,12 @@ FAIL=The computed width of box is 100px
 FAIL=.item 1
 FAIL=.item 3
 FAIL=.item 4
-FAIL=.item 6
 FAIL=.item 7
 FAIL=.item 8
 [css/css-sizing/aspect-ratio/box-sizing-squashed.html]
 FAIL=.item 1
-FAIL=.item 10
-FAIL=.item 11
 FAIL=.item 12
-FAIL=.item 13
-FAIL=.item 14
 FAIL=.item 15
-FAIL=.item 16
 FAIL=.item 2
 FAIL=.item 3
 FAIL=.item 4
@@ -70555,7 +70533,6 @@ FAIL=.item 5
 FAIL=.item 6
 FAIL=.item 7
 FAIL=.item 8
-FAIL=.item 9
 [css/css-sizing/aspect-ratio/fieldset-element-001.html]
 harness=FAIL
 [css/css-sizing/aspect-ratio/fieldset-element-002.html]
@@ -70722,10 +70699,6 @@ FAIL=Property aspect-ratio does not inherit
 harness=FAIL
 [css/css-sizing/aspect-ratio/intrinsic-size-002.html]
 harness=FAIL
-[css/css-sizing/aspect-ratio/intrinsic-size-003.html]
-harness=FAIL
-[css/css-sizing/aspect-ratio/intrinsic-size-004.html]
-harness=FAIL
 [css/css-sizing/aspect-ratio/intrinsic-size-005.html]
 harness=FAIL
 [css/css-sizing/aspect-ratio/intrinsic-size-006.html]
@@ -70735,8 +70708,6 @@ harness=FAIL
 [css/css-sizing/aspect-ratio/intrinsic-size-008.html]
 harness=FAIL
 [css/css-sizing/aspect-ratio/intrinsic-size-010.html]
-harness=FAIL
-[css/css-sizing/aspect-ratio/intrinsic-size-011.html]
 harness=FAIL
 [css/css-sizing/aspect-ratio/intrinsic-size-012.html]
 harness=FAIL

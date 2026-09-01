@@ -4,7 +4,7 @@
 
 Firefox version: 157.0a1
 Firefox run date: 2026-09-01
-Firefox's WPT revision: `10d18c6d8c6d`
+Firefox's WPT revision: `384c6d4cc3ee`
 Our pinned WPT revision: `4120ac0deb57`
 
 The unit is a **test file**, and a file counts as passed only when every
@@ -22,8 +22,8 @@ than a specification gap.
 |---|--:|--:|--:|
 | in our scope | 23146 | 20998 | 44144 |
 | Firefox passes | 19232 | 17918 | 37150 |
-| **we pass** | **5308** | **7608** | **12916** |
-| **Firefox passes, we fail** | **13924** | **10310** | **24234** |
+| **we pass** | **5308** | **7619** | **12927** |
+| **Firefox passes, we fail** | **13924** | **10299** | **24223** |
 | both fail | 3435 | 2252 | 5687 |
 | we pass, Firefox fails (audit) | 339 | 751 | 1090 |
 
@@ -84,7 +84,7 @@ distinction. A refused area is a decision with a name
 | `css/css-transforms` | 562 | 2 | 77 | 483 | 317 | 879 | 896 |  |
 | `html/browsers` | 551 | 298 | 251 | 2 | 60 | 611 | 757 | **partial** ADR 0026 §6 -- window.open returns null, opener absent |
 | `css/css-backgrounds` | 516 | 0 | 78 | 438 | 250 | 766 | 848 |  |
-| `css/css-sizing` | 435 | 7 | 72 | 356 | 147 | 582 | 745 |  |
+| `css/css-sizing` | 424 | 7 | 72 | 345 | 158 | 582 | 745 |  |
 | `websockets` | 364 | 285 | 79 | 0 | 6 | 370 | 382 | **partial** infrastructure -- our server does not speak the WebSocket protocol |
 | `css/css-multicol` | 328 | 0 | 44 | 284 | 123 | 451 | 561 |  |
 | `css/css-shapes` | 316 | 17 | 92 | 207 | 30 | 346 | 375 |  |
