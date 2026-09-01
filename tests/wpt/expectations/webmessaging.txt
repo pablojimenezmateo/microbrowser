@@ -1,27 +1,21 @@
 [webmessaging/Channel_postMessage_Blob.any.html]
 FAIL=Test Description: Messages can contain Blobs.
 [webmessaging/Channel_postMessage_Blob.any.worker.html]
-harness=ERROR
-[webmessaging/Channel_postMessage_DataCloneErr.any.worker.html]
-FAIL=Throw a DataCloneError when a host object (e.g. a DOM node) is used with postMessage.
+FAIL=Test Description: Messages can contain Blobs.
 [webmessaging/Channel_postMessage_clone_port.any.html]
 harness=TIMEOUT
 [webmessaging/Channel_postMessage_clone_port.any.worker.html]
 harness=ERROR
-[webmessaging/Channel_postMessage_clone_port_error.any.worker.html]
-FAIL=Test Description: Throw a DataCloneError if transfer array in postMessage contains source port.
 [webmessaging/Channel_postMessage_event_properties.any.html]
 FAIL=Test Description: The postMessage() method - Create an event that uses the MessageEvent interface, with the name message, which does not bubble and is not cancelable.
 [webmessaging/Channel_postMessage_event_properties.any.worker.html]
-harness=ERROR
+FAIL=Test Description: The postMessage() method - Create an event that uses the MessageEvent interface, with the name message, which does not bubble and is not cancelable.
 [webmessaging/Channel_postMessage_ports_readonly_array.any.html]
 harness=TIMEOUT
 [webmessaging/Channel_postMessage_ports_readonly_array.any.worker.html]
 harness=ERROR
-[webmessaging/Channel_postMessage_target_source.any.worker.html]
-harness=ERROR
 [webmessaging/Channel_postMessage_transfer_xsite_incoming_messages.window.html]
-harness=TIMEOUT
+FAIL:esc=Tasks enqueued on the port-message-queue of an enabled port,\n  are transferred along with the port, when the transfer happens in the same task\n  during which postMessage is called
 [webmessaging/Channel_postMessage_with_transfer_entangled.any.html]
 FAIL=An entangled port transferred to the same origin receives messages in order
 [webmessaging/Channel_postMessage_with_transfer_entangled.any.worker.html]
@@ -41,17 +35,8 @@ FAIL=With a BroadcastChannel
 FAIL=With a MessageChannel and its MessagePorts
 [webmessaging/MessageEvent-trusted.window.html]
 FAIL=With window
-[webmessaging/MessageEvent.any.worker.html]
-FAIL=mozInitMessageEvent on the prototype
-FAIL=msInitMessageEvent on the prototype
-FAIL=oInitMessageEvent on the prototype
-FAIL=webkitInitMessageEvent on the prototype
 [webmessaging/MessageEvent_properties.htm]
 harness=TIMEOUT
-[webmessaging/MessagePort_initial_disabled.any.worker.html]
-FAIL=MessagePort_initial_disabled
-[webmessaging/MessagePort_onmessage_start.any.worker.html]
-FAIL=MessagePort_onmessage_start
 [webmessaging/Transferred_objects_unusable.sub.htm]
 harness=TIMEOUT
 [webmessaging/broadcastchannel/basics.any.html]
@@ -101,8 +86,6 @@ harness=TIMEOUT
 FAIL=Messages are delivered in port creation order across multiple frames
 [webmessaging/broadcastchannel/origin.window.html]
 harness=TIMEOUT
-[webmessaging/broadcastchannel/sandbox.html]
-harness=TIMEOUT
 [webmessaging/broadcastchannel/service-worker.https.html]
 FAIL=BroadcastChannel works in service workers
 [webmessaging/broadcastchannel/workers.html]
@@ -117,8 +100,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [webmessaging/event.source.xorigin.sub.htm]
 harness=TIMEOUT
-[webmessaging/message-channels/basics.any.worker.html]
-FAIL=basics
 [webmessaging/message-channels/close-event/document-destroyed.tentative.window.html]
 harness=TIMEOUT
 [webmessaging/message-channels/close-event/entangled-after-back-forward-cache-restore.https.tentative.window.html]
@@ -128,28 +109,18 @@ harness=TIMEOUT
 [webmessaging/message-channels/close-event/garbage-collected.tentative.any.html]
 harness=TIMEOUT
 [webmessaging/message-channels/close-event/garbage-collected.tentative.any.worker.html]
-FAIL=Entangled port is garbage collected, and the close event is fired.
+harness=TIMEOUT
 [webmessaging/message-channels/close.any.html]
 FAIL=Message sent to closed port from transferred port should not arrive.
 FAIL=close() detaches a MessagePort (but not the one its entangled with)
 [webmessaging/message-channels/close.any.worker.html]
-FAIL=Close in onmessage should not cancel inflight messages.
-FAIL=Inflight messages should be delivered even when sending port is closed afterwards.
-FAIL=Message sent from closed port should not arrive.
 FAIL=Message sent to closed port from transferred port should not arrive.
-FAIL=Message sent to closed port should not arrive.
 FAIL=close() detaches a MessagePort (but not the one its entangled with)
 [webmessaging/message-channels/cross-document.html]
-FAIL=cross-document channel
+harness=TIMEOUT
 [webmessaging/message-channels/detached-iframe.window.html]
 FAIL=MessageChannel created from a detached iframe should not send messages (remove after create)
 FAIL=MessageChannel created from a detached iframe should not send messages (remove before create)
-[webmessaging/message-channels/dictionary-transferrable.any.worker.html]
-FAIL=dictionary-transferrable
-[webmessaging/message-channels/implied-start.any.worker.html]
-FAIL=implied-start
-[webmessaging/message-channels/no-start.any.worker.html]
-FAIL=no-start
 [webmessaging/message-channels/user-activation.tentative.any.html]
 FAIL=user activation messagechannel test
 [webmessaging/message-channels/user-activation.tentative.any.worker.html]
@@ -170,10 +141,6 @@ FAIL=The onmessageerror content attribute must execute when an event is dispatch
 FAIL=The current page being cross-origin must prevent the BroadcastChannel message from being seen
 [webmessaging/multi-globals/broadcastchannel-incumbent.sub.html]
 FAIL=The incumbent page being cross-origin must not prevent the BroadcastChannel message from being seen
-[webmessaging/multi-globals/messageport-current.html]
-FAIL=Making the current page become non-active must prevent message transmission
-[webmessaging/multi-globals/messageport-incumbent.html]
-FAIL=Making the incumbent page become non-active must not prevent message transmission
 [webmessaging/postMessage-to-target-not-fully-active-on-reload.html]
 harness=TIMEOUT
 [webmessaging/postMessage_ArrayBuffer.sub.htm]
@@ -183,15 +150,15 @@ harness=TIMEOUT
 [webmessaging/postMessage_Date.sub.htm]
 harness=TIMEOUT
 [webmessaging/postMessage_Document.htm]
-harness=TIMEOUT
+FAIL=Test Description: postMessage with Document object: Throw a DataCloneError if message could not be cloned.
 [webmessaging/postMessage_Function.htm]
-harness=TIMEOUT
+FAIL=Test Description: postMessage with Function object: Throw a DataCloneError if message could not be cloned.
 [webmessaging/postMessage_MessagePorts_sorigin.htm]
 harness=TIMEOUT
 [webmessaging/postMessage_MessagePorts_xorigin.sub.htm]
 harness=TIMEOUT
 [webmessaging/postMessage_MessagePorts_xsite.sub.window.html]
-harness=TIMEOUT
+FAIL=Test Description: postMessage to cross-site iframe with MessagePort array containing 100 ports.
 [webmessaging/postMessage_arrays.sub.htm]
 harness=TIMEOUT
 [webmessaging/postMessage_asterisk_xorigin.sub.htm]
@@ -201,9 +168,9 @@ harness=ERROR
 [webmessaging/postMessage_crosssite.sub.htm]
 harness=TIMEOUT
 [webmessaging/postMessage_dup_transfer_objects.htm]
-harness=TIMEOUT
+FAIL=Test Description: postMessage with duplicate transfer objects raises DataCloneError exception.
 [webmessaging/postMessage_invalid_targetOrigin.htm]
-harness=TIMEOUT
+FAIL=Test Description: If the value of the targetOrigin argument is neither a single U+002A ASTERISK character (*), a single U+002F SOLIDUS character (/), nor an absolute URL, then throw a SyntaxError exception and abort the overall set of steps.
 [webmessaging/postMessage_objects.sub.htm]
 harness=TIMEOUT
 [webmessaging/postMessage_origin_mismatch.sub.htm]
@@ -263,7 +230,7 @@ FAIL=origin of the script that invoked the method, about:blank
 [webmessaging/with-ports/018.html]
 FAIL=origin of the script that invoked the method, javascript:
 [webmessaging/with-ports/019.html]
-FAIL=origin of the script that invoked the method, scheme/host/port
+harness=TIMEOUT
 [webmessaging/with-ports/020.html]
 harness=TIMEOUT
 [webmessaging/with-ports/021.html]
@@ -312,7 +279,7 @@ FAIL=origin of the script that invoked the method, about:blank
 [webmessaging/without-ports/018.html]
 FAIL=origin of the script that invoked the method, javascript:
 [webmessaging/without-ports/019.html]
-FAIL=origin of the script that invoked the method, scheme/host/port
+harness=TIMEOUT
 [webmessaging/without-ports/020.html]
 harness=TIMEOUT
 [webmessaging/without-ports/021.html]

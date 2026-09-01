@@ -28,7 +28,6 @@ FAIL=InputEvent construtor with InputEventInit where data is empty string
 FAIL=InputEvent construtor with InputEventInit where data is non empty string
 [uievents/idlharness.window.html]
 FAIL=CompositionEvent interface object length
-FAIL=CompositionEvent interface object name
 FAIL=CompositionEvent interface: attribute data
 FAIL=CompositionEvent interface: calling initCompositionEvent(DOMString, optional boolean, optional boolean, optional WindowProxy?, optional DOMString) on new CompositionEvent("event") with too few arguments must throw TypeError
 FAIL=CompositionEvent interface: existence and properties of interface object
@@ -38,14 +37,12 @@ FAIL=CompositionEvent interface: new CompositionEvent("event") must inherit prop
 FAIL=CompositionEvent interface: new CompositionEvent("event") must inherit property "initCompositionEvent(DOMString, optional boolean, optional boolean, optional WindowProxy?, optional DOMString)" with the proper type
 FAIL=CompositionEvent interface: operation initCompositionEvent(DOMString, optional boolean, optional boolean, optional WindowProxy?, optional DOMString)
 FAIL=FocusEvent interface object length
-FAIL=FocusEvent interface object name
 FAIL=FocusEvent interface: attribute relatedTarget
 FAIL=FocusEvent interface: existence and properties of interface object
 FAIL=FocusEvent interface: existence and properties of interface prototype object
 FAIL=FocusEvent interface: existence and properties of interface prototype object's "constructor" property
 FAIL=FocusEvent interface: new FocusEvent("event") must inherit property "relatedTarget" with the proper type
 FAIL=InputEvent interface object length
-FAIL=InputEvent interface object name
 FAIL=InputEvent interface: attribute data
 FAIL=InputEvent interface: attribute inputType
 FAIL=InputEvent interface: attribute isComposing
@@ -56,7 +53,6 @@ FAIL=InputEvent interface: new InputEvent("event") must inherit property "data" 
 FAIL=InputEvent interface: new InputEvent("event") must inherit property "inputType" with the proper type
 FAIL=InputEvent interface: new InputEvent("event") must inherit property "isComposing" with the proper type
 FAIL=KeyboardEvent interface object length
-FAIL=KeyboardEvent interface object name
 FAIL=KeyboardEvent interface: attribute altKey
 FAIL=KeyboardEvent interface: attribute charCode
 FAIL=KeyboardEvent interface: attribute code
@@ -119,7 +115,6 @@ FAIL=TextEvent interface: existence and properties of interface prototype object
 FAIL=TextEvent interface: operation initTextEvent(DOMString, optional boolean, optional boolean, optional Window?, optional DOMString)
 FAIL=TextEvent must be primary interface of (() => { const ev = document.createEvent("TextEvent"); ev.initTextEvent("event"); return ev; })()
 FAIL=UIEvent interface object length
-FAIL=UIEvent interface object name
 FAIL=UIEvent interface: (() => { const ev = document.createEvent("TextEvent"); ev.initTextEvent("event"); return ev; })() must inherit property "detail" with the proper type
 FAIL=UIEvent interface: (() => { const ev = document.createEvent("TextEvent"); ev.initTextEvent("event"); return ev; })() must inherit property "initUIEvent(DOMString, optional boolean, optional boolean, optional Window?, optional long)" with the proper type
 FAIL=UIEvent interface: (() => { const ev = document.createEvent("TextEvent"); ev.initTextEvent("event"); return ev; })() must inherit property "view" with the proper type
@@ -167,8 +162,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [uievents/keyboard/keypress-not-fired-for-modifier-shortcuts.html]
 FAIL=keypress must be dispatched for a plain key
-FAIL=keypress must not be dispatched for Control + v
-FAIL=keypress must not be dispatched for Meta + v
 [uievents/keyboard/modifier-keys-combinations.html]
 FAIL=Check sending "Alt + y" key combination
 FAIL=Check sending "Control + y" key combination
@@ -194,7 +187,7 @@ harness=TIMEOUT
 FAIL=layer-coords-transform
 FAIL=layer-coords-transform 1
 [uievents/mouse/layout_change_should_fire_mouseover.html]
-harness=TIMEOUT
+FAIL=Tests that the mouseover event is fired and the element has a hover effect when the element underneath the mouse cursor is changed.
 [uievents/mouse/mouse_boundary_events_after_reappending_last_over_target.tentative.html]
 FAIL=After re-appending the last over element after mouseover, mouse boundary events should not be fired
 FAIL=After re-appending the last over element at mouseenter, mouse boundary events should not be fired
@@ -215,6 +208,26 @@ FAIL=Test undefined of mouse boundary events (modifiers are changed after move):
 FAIL=Test undefined of mouse boundary events (modifiers are changed after move): undefined of mouseover should be true
 FAIL=Test undefined of mouse boundary events (modifiers are changed before move): undefined of mouseout should be true
 FAIL=Test undefined of mouse boundary events (modifiers are changed before move): undefined of mouseover should be true
+[uievents/mouse/mouse_boundary_events_modifier_no_mouse_movement.html?Alt]
+FAIL=Test altKey of mouse boundary events (modifiers are changed after move): altKey of mouseout should be true
+FAIL=Test altKey of mouse boundary events (modifiers are changed after move): altKey of mouseover should be true
+FAIL=Test altKey of mouse boundary events (modifiers are changed before move): altKey of mouseout should be true
+FAIL=Test altKey of mouse boundary events (modifiers are changed before move): altKey of mouseover should be true
+[uievents/mouse/mouse_boundary_events_modifier_no_mouse_movement.html?Control]
+FAIL=Test ctrlKey of mouse boundary events (modifiers are changed after move): ctrlKey of mouseout should be true
+FAIL=Test ctrlKey of mouse boundary events (modifiers are changed after move): ctrlKey of mouseover should be true
+FAIL=Test ctrlKey of mouse boundary events (modifiers are changed before move): ctrlKey of mouseout should be true
+FAIL=Test ctrlKey of mouse boundary events (modifiers are changed before move): ctrlKey of mouseover should be true
+[uievents/mouse/mouse_boundary_events_modifier_no_mouse_movement.html?Meta]
+FAIL=Test metaKey of mouse boundary events (modifiers are changed after move): metaKey of mouseout should be true
+FAIL=Test metaKey of mouse boundary events (modifiers are changed after move): metaKey of mouseover should be true
+FAIL=Test metaKey of mouse boundary events (modifiers are changed before move): metaKey of mouseout should be true
+FAIL=Test metaKey of mouse boundary events (modifiers are changed before move): metaKey of mouseover should be true
+[uievents/mouse/mouse_boundary_events_modifier_no_mouse_movement.html?Shift]
+FAIL=Test shiftKey of mouse boundary events (modifiers are changed after move): shiftKey of mouseout should be true
+FAIL=Test shiftKey of mouse boundary events (modifiers are changed after move): shiftKey of mouseover should be true
+FAIL=Test shiftKey of mouse boundary events (modifiers are changed before move): shiftKey of mouseout should be true
+FAIL=Test shiftKey of mouse boundary events (modifiers are changed before move): shiftKey of mouseover should be true
 [uievents/mouse/mouse_boundary_events_on_image_map.html]
 FAIL=mouse boundary events when both <area> and <img> are resized
 FAIL=mouse boundary events when moved from an <area> to the same <area> shared by another <img>
@@ -273,24 +286,84 @@ FAIL=mouseover should be fired before mouseup if mousedown target is removed (6)
 FAIL=mouseover should be fired before mouseup if mousedown target is removed (7)
 FAIL=mouseover should be fired before mouseup if mousedown target is removed (8)
 FAIL=mouseover should be fired before mouseup if mousedown target is removed (9)
+[uievents/mouse/mouseover-at-removing-mousedown-target.html?duration=16]
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (0)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (1)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (10)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (11)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (12)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (13)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (14)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (15)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (16)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (17)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (18)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (19)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (2)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (20)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (21)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (22)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (23)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (24)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (25)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (26)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (27)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (28)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (29)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (3)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (4)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (5)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (6)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (7)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (8)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (9)
+[uievents/mouse/mouseover-at-removing-mousedown-target.html?duration=42]
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (0)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (1)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (10)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (11)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (12)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (13)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (14)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (15)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (16)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (17)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (18)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (19)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (2)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (20)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (21)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (22)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (23)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (24)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (25)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (26)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (27)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (28)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (29)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (3)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (4)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (5)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (6)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (7)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (8)
+FAIL=mouseover should be fired before mouseup if mousedown target is removed (9)
 [uievents/mouse/synthetic-mouse-enter-leave-over-out-button-state-after-target-removed.tentative.html]
 FAIL=Removing an element at mousedown
 FAIL=Removing an element at mousedown: mousedown should've been fired
 FAIL=Removing an element at mouseup
 FAIL=Removing an element at mouseup: mousedown should've been fired
+[uievents/mouse/synthetic-mouse-enter-leave-over-out-button-state-after-target-removed.tentative.html?buttonType=LEFT&button=0&buttons=1]
+FAIL=Removing an element at mousedown
+FAIL=Removing an element at mouseup
+FAIL=Removing an element at mouseup: mousedown should've been fired
+[uievents/mouse/synthetic-mouse-enter-leave-over-out-button-state-after-target-removed.tentative.html?buttonType=MIDDLE&button=1&buttons=4]
+FAIL=Removing an element at mousedown
+FAIL=Removing an element at mouseup
 [uievents/order-of-events/focus-events/focus-automated-blink-webkit.html]
-FAIL=Focus-related events should fire in the correct order (different DocumentOwner)
-FAIL=Focus-related events should fire in the correct order (same DocumentOwner)
-[uievents/order-of-events/focus-events/focus-management-expectations.html]
 harness=TIMEOUT
 [uievents/order-of-events/focus-events/focus.html]
 FAIL=Focus-related events should fire in the correct order
-[uievents/order-of-events/mouse-events/click-cancel.html]
-FAIL=Default action is canceled if the click event is canceled.
-[uievents/order-of-events/mouse-events/click-on-body.html]
-FAIL=Clicking on the body element itself should fire a click event targeted at the body element
-[uievents/order-of-events/mouse-events/click-on-div.html]
-FAIL=Clicking on a div element and having a click event listener on only document
 [uievents/order-of-events/mouse-events/click-order.html]
 FAIL=Click-related events should fire in the correct order
 [uievents/order-of-events/mouse-events/mouseevents-mousemove.htm]
@@ -322,9 +395,7 @@ FAIL=textInput: backspace, <div contenteditable="true">
 FAIL=textInput: backspace, <input>
 FAIL=textInput: backspace, <textarea>
 [uievents/textInput/basic.html]
-FAIL=textInput: basic, <div contenteditable="true">
-FAIL=textInput: basic, <input>
-FAIL=textInput: basic, <textarea>
+harness=TIMEOUT
 [uievents/textInput/delete-selection.html]
 FAIL=textInput: delete selection, <div contenteditable="true">
 FAIL=textInput: delete selection, <input>
@@ -333,11 +404,8 @@ FAIL=textInput: delete selection, <textarea>
 FAIL=textInput: delete, <div contenteditable="true">
 FAIL=textInput: delete, <input>
 FAIL=textInput: delete, <textarea>
-[uievents/textInput/enter-input.html]
-FAIL=textInput: Enter key for input element, <input>
 [uievents/textInput/enter-textarea-contenteditable.html]
-FAIL=textInput: Enter key for textarea and contenteditable, <div contenteditable="true">
-FAIL=textInput: Enter key for textarea and contenteditable, <textarea>
+harness=TIMEOUT
 [uievents/ui_event_pseudo_target.html]
 FAIL=MouseEvent inherits pseudoTarget
 FAIL=pseudoTarget on UIEvent.prototype

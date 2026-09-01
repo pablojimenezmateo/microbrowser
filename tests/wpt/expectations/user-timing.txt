@@ -1,23 +1,55 @@
 [user-timing/buffered-flag.any.worker.html]
 harness=TIMEOUT
 [user-timing/clearMarks.html]
-harness=TIMEOUT
+FAIL=First loop: checking entries after removing "". There should be 2 entries.
+FAIL=First loop: checking entries after removing "1". There should be 1 entries.
+FAIL=First loop: marks that we cleared for "" should not exist anymore.
+FAIL=Second loop: checking entries after removing "". There should be 4 entries.
+FAIL=Second loop: checking entries after removing "1". There should be 2 entries.
+FAIL=Second loop: marks that we cleared for "" should not exist anymore.
 [user-timing/clearMeasures.html]
-harness=TIMEOUT
-[user-timing/mark-l3.any.worker.html]
-FAIL=mark entries' detail and startTime are customizable.
+FAIL=First loop: checking entries after removing "". There should be 2 entries.
+FAIL=First loop: checking entries after removing "2". There should be 1 entries.
+FAIL=First loop: measure "" should not exist anymore after we cleared it.
+FAIL=Second loop: checking entries after removing "". There should be 4 entries.
+FAIL=Second loop: checking entries after removing "2". There should be 2 entries.
+FAIL=Second loop: measure "" should not exist anymore after we cleared it.
 [user-timing/mark.html]
-harness=TIMEOUT
-[user-timing/measure-with-dict.any.worker.html]
-FAIL=measure entries' detail and start/end are customizable
-FAIL=measure should throw a TypeError when passed an invalid argument combination
+FAIL=First loop: checking entry of name "".Entry_list 0. duration of mark should be 0.
+FAIL=First loop: checking entry of name "".Entry_list 0. entryType should be "mark".
+FAIL=First loop: checking entry of name "".Entry_list 0. startTime should greater than 0.
+FAIL=First loop: checking entry of name "".There should be 1 entries.
+FAIL=Second loop step 0: checking entries of name "".Entry_list 0. duration of mark should be 0.
+FAIL=Second loop step 0: checking entries of name "".Entry_list 0. entryType should be "mark".
+FAIL=Second loop step 0: checking entries of name "".Entry_list 0. startTime should greater than 0.
+FAIL=Second loop step 0: checking entries of name "".There should be 2 entries.
+FAIL=Second loop step 3: checking entries of name "".Entry_list 0. duration of mark should be 0.
+FAIL=Second loop step 3: checking entries of name "".Entry_list 0. entryType should be "mark".
+FAIL=Second loop step 3: checking entries of name "".Entry_list 0. startTime should greater than 0.
+FAIL=Second loop step 3: checking entries of name "".There should be 2 entries.
 [user-timing/measure.html]
-harness=TIMEOUT
+FAIL=window.performance.getEntries() returns an object containing all test measures in order.
+FAIL=window.performance.getEntriesByType("measure") returns an object containing all test measures in order.
 [user-timing/measure_associated_with_navigation_timing.html]
-harness=TIMEOUT
-[user-timing/measure_navigation_timing.html]
-harness=TIMEOUT
+FAIL=Measure from domComplete event to most recent mark "a" should have longer duration.
+FAIL=Measure from most recent mark to navigationStart should have longer duration.
+FAIL=Second measure of current mark to navigationStart should be negative value.
 [user-timing/measures.html]
-harness=TIMEOUT
+FAIL=Checking all doubly measured entries.Entries in entrylist should be in order.
+FAIL=Checking all entries.Entries in entrylist should be in order.
+FAIL=First loop: checking entry of name "".Entries in entrylist should be in order.
+FAIL=First loop: checking entry of name "".Entry_list 0. entryType should be "measure".
+FAIL=First loop: checking entry of name "".Entry_list 1. entryType should be "measure".
+FAIL=First loop: checking entry of name "".There should be 1 entries.
+FAIL=Second loop step 0: checking entry of name "".Entries in entrylist should be in order.
+FAIL=Second loop step 0: checking entry of name "".Entry_list 0. entryType should be "measure".
+FAIL=Second loop step 0: checking entry of name "".Entry_list 1. entryType should be "measure".
+FAIL=Second loop step 0: checking entry of name "".Entry_list 3. entryType should be "measure".
+FAIL=Second loop step 0: checking entry of name "".There should be 2 entries.
+FAIL=Second loop step 3: checking entry of name "".Entries in entrylist should be in order.
+FAIL=Second loop step 3: checking entry of name "".Entry_list 0. entryType should be "measure".
+FAIL=Second loop step 3: checking entry of name "".Entry_list 1. entryType should be "measure".
+FAIL=Second loop step 3: checking entry of name "".Entry_list 3. entryType should be "measure".
+FAIL=Second loop step 3: checking entry of name "".There should be 2 entries.
 [user-timing/supported-usertiming-types.any.worker.html]
 harness=TIMEOUT

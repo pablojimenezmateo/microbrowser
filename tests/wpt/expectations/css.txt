@@ -102643,20 +102643,15 @@ FAIL=HTMLImageElement interface: attribute y
 FAIL=HTMLImageElement interface: document.createElement("img") must inherit property "x" with the proper type
 FAIL=HTMLImageElement interface: document.createElement("img") must inherit property "y" with the proper type
 FAIL=MediaQueryList interface object length
-FAIL=MediaQueryList interface object name
 FAIL=MediaQueryList interface: attribute matches
 FAIL=MediaQueryList interface: attribute media
 FAIL=MediaQueryList interface: attribute onchange
 FAIL=MediaQueryList interface: calling addListener(EventListener?) on matchMedia("all") with too few arguments must throw TypeError
 FAIL=MediaQueryList interface: calling removeListener(EventListener?) on matchMedia("all") with too few arguments must throw TypeError
 FAIL=MediaQueryList interface: existence and properties of interface object
-FAIL=MediaQueryList interface: existence and properties of interface prototype object
-FAIL=MediaQueryList interface: existence and properties of interface prototype object's "constructor" property
-FAIL=MediaQueryList interface: existence and properties of interface prototype object's @@unscopables property
 FAIL=MediaQueryList interface: matchMedia("all") must inherit property "media" with the proper type
 FAIL=MediaQueryList interface: operation addListener(EventListener?)
 FAIL=MediaQueryList interface: operation removeListener(EventListener?)
-FAIL=MediaQueryList must be primary interface of matchMedia("all")
 FAIL=MediaQueryListEvent interface object length
 FAIL=MediaQueryListEvent interface object name
 FAIL=MediaQueryListEvent interface: attribute matches
@@ -103927,7 +103922,6 @@ FAIL=ProcessingInstruction interface: xmlss_pi must inherit property "sheet" wit
 FAIL=SVGElement interface: attribute style
 FAIL=SVGStyleElement interface: attribute sheet
 FAIL=ShadowRoot interface: attribute adoptedStyleSheets
-FAIL=ShadowRoot interface: attribute styleSheets
 FAIL=Window interface: operation getComputedStyle(Element, optional CSSOMString?)
 [css/cssom/inline-style-001.html]
 FAIL=shorthand_properties
@@ -104186,12 +104180,16 @@ FAIL=@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A' s] <div {h
 FAIL=@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A'] /* sanity check (match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in XML
 FAIL=@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A'] /* sanity check (match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in quirks mode
 FAIL=@namespace x 'http://www.w3.org/XML/1998/namespace'; [x|lang='A'] /* sanity check (match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in standards mode
+FAIL=[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> in XML
 FAIL=[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> in quirks mode
 FAIL=[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> in standards mode
+FAIL=[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> with querySelector in XML
 FAIL=[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> with querySelector in quirks mode
 FAIL=[*|lang='A'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="a"> with querySelector in standards mode
+FAIL=[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in XML
 FAIL=[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in quirks mode
 FAIL=[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> in standards mode
+FAIL=[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> with querySelector in XML
 FAIL=[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> with querySelector in quirks mode
 FAIL=[*|lang='a'] /* sanity check (no match) */ <div {http://www.w3.org/XML/1998/namespace}lang="A"> with querySelector in standards mode
 [css/selectors/attribute-selectors/attribute-case/syntax.html]

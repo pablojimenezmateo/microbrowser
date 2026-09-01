@@ -1036,5 +1036,3 @@ FAIL=DOMParser and XMLSerializer should round trip with CDATA sections: multiple
 FAIL=DocumentType: 'APOSTROPHE' (U+0027) and 'QUOTATION MARK' (U+0022)
 FAIL=DocumentType: 'QUOTATION MARK' (U+0022)
 FAIL=DocumentType: empty system id
-FAIL=Element: href attributes are not percent-encoded
-FAIL=Element: query parts in href attributes are not percent-encoded

@@ -2,28 +2,18 @@
 FAIL=PerformanceObserver with buffered flag sees previous navigation entry.
 [navigation-timing/content-encoding.https.html]
 FAIL=contentEncoding should be gzip.
+[navigation-timing/content-encoding.https.html?pipe=gzip]
+FAIL=contentEncoding should be gzip.
 [navigation-timing/dom-interactive-image-document.html]
 harness=TIMEOUT
 [navigation-timing/dom-interactive-media-document.html]
 harness=TIMEOUT
 [navigation-timing/idlharness.window.html]
-FAIL=Performance interface object length
-FAIL=Performance interface object name
 FAIL=Performance interface: attribute navigation
-FAIL=Performance interface: attribute timeOrigin
 FAIL=Performance interface: attribute timing
 FAIL=Performance interface: existence and properties of interface object
-FAIL=Performance interface: existence and properties of interface prototype object
-FAIL=Performance interface: existence and properties of interface prototype object's "constructor" property
-FAIL=Performance interface: existence and properties of interface prototype object's @@unscopables property
-FAIL=Performance interface: operation now()
-FAIL=Performance interface: operation toJSON()
 FAIL=Performance interface: performance must inherit property "navigation" with the proper type
-FAIL=Performance interface: performance must inherit property "now()" with the proper type
-FAIL=Performance interface: performance must inherit property "timeOrigin" with the proper type
 FAIL=Performance interface: performance must inherit property "timing" with the proper type
-FAIL=Performance interface: performance must inherit property "toJSON()" with the proper type
-FAIL=Performance must be primary interface of performance
 FAIL=PerformanceNavigation interface object length
 FAIL=PerformanceNavigation interface object name
 FAIL=PerformanceNavigation interface: attribute redirectCount
@@ -80,7 +70,6 @@ FAIL=PerformanceNavigationTiming interface: performance.getEntriesByType("naviga
 FAIL=PerformanceNavigationTiming interface: performance.getEntriesByType("navigation")[0] must inherit property "loadEventStart" with the proper type
 FAIL=PerformanceNavigationTiming interface: performance.getEntriesByType("navigation")[0] must inherit property "notRestoredReasons" with the proper type
 FAIL=PerformanceNavigationTiming interface: performance.getEntriesByType("navigation")[0] must inherit property "redirectCount" with the proper type
-FAIL=PerformanceNavigationTiming interface: performance.getEntriesByType("navigation")[0] must inherit property "toJSON()" with the proper type
 FAIL=PerformanceNavigationTiming interface: performance.getEntriesByType("navigation")[0] must inherit property "type" with the proper type
 FAIL=PerformanceNavigationTiming interface: performance.getEntriesByType("navigation")[0] must inherit property "unloadEventEnd" with the proper type
 FAIL=PerformanceNavigationTiming interface: performance.getEntriesByType("navigation")[0] must inherit property "unloadEventStart" with the proper type
@@ -145,7 +134,6 @@ FAIL=PerformanceTimingConfidence interface: existence and properties of interfac
 FAIL=PerformanceTimingConfidence interface: existence and properties of interface prototype object's "constructor" property
 FAIL=PerformanceTimingConfidence interface: existence and properties of interface prototype object's @@unscopables property
 FAIL=PerformanceTimingConfidence interface: operation toJSON()
-FAIL=Stringification of performance
 FAIL=Stringification of performance.getEntriesByType("navigation")[0]
 FAIL=Stringification of performance.navigation
 FAIL=Stringification of performance.timing
@@ -159,13 +147,13 @@ harness=TIMEOUT
 [navigation-timing/nav2-test-document-replaced.html]
 harness=TIMEOUT
 [navigation-timing/nav2-test-frame-removed.html]
-harness=TIMEOUT
+FAIL=Navigation Timing 2 WPT
 [navigation-timing/nav2-test-instance-accessible-from-the-start.html]
 FAIL=PerformanceNavigationTiming instance exists with reasonable values.
 [navigation-timing/nav2-test-instance-accessors.html]
 FAIL=Performance navigation timing entries are accessible through three different accessors.
 [navigation-timing/nav2-test-navigate-iframe.html]
-harness=TIMEOUT
+FAIL=navigation.name updated when iframe URL changes
 [navigation-timing/nav2-test-navigate-within-document.html]
 harness=TIMEOUT
 [navigation-timing/nav2-test-navigation-type-backforward.html]
@@ -212,17 +200,11 @@ FAIL=Test that the attributes have a proper value during onload
 [navigation-timing/test-document-open.html]
 harness=TIMEOUT
 [navigation-timing/test-document-readiness-exist.html]
-harness=TIMEOUT
-[navigation-timing/test-navigation-attributes-exist.html]
-FAIL=window.performance.navigation is defined
-FAIL=window.performance.navigation.redirectCount is defined.
-FAIL=window.performance.navigation.type is defined.
-[navigation-timing/test-navigation-redirectCount-none.html]
-FAIL=window.performance.navigation is defined
+FAIL=Document readiness has complete state.
+FAIL=Document readiness has interactive state.
 [navigation-timing/test-navigation-type-backforward.html]
 harness=TIMEOUT
 [navigation-timing/test-navigation-type-enums.html]
-FAIL=window.performance.navigation is defined
 FAIL=window.performance.navigation.TYPE_BACK_FORWARD = 2
 FAIL=window.performance.navigation.TYPE_BACK_FORWARD is defined.
 FAIL=window.performance.navigation.TYPE_NAVIGATE = 0
@@ -234,11 +216,9 @@ FAIL=window.performance.navigation.TYPE_RESERVED is defined.
 [navigation-timing/test-navigation-type-reload.html]
 harness=TIMEOUT
 [navigation-timing/test-no-previous-document.html]
-harness=TIMEOUT
+FAIL=timing.navigation.type is TYPE_NAVIGATE
 [navigation-timing/test-performance-attributes-exist-in-object.html]
 harness=TIMEOUT
-[navigation-timing/test-performance-attributes-exist.html]
-FAIL=window.performance.navigation is defined
 [navigation-timing/test-performance-attributes.sub.html]
 harness=TIMEOUT
 [navigation-timing/test-timing-attributes-dependent-on-document-load.html]
@@ -250,8 +230,15 @@ harness=TIMEOUT
 [navigation-timing/test-timing-reload.html]
 harness=TIMEOUT
 [navigation-timing/test-timing-server-redirect.html]
-harness=TIMEOUT
+FAIL=navigation.redirectCount == 1 on an server redirected navigation
+FAIL=timing.navigation.type is TYPE_NAVIGATE
+FAIL=window.performance.timing.fetchStart > 0
+FAIL=window.performance.timing.navigationStart > 0
+FAIL=window.performance.timing.redirectEnd > 0
+FAIL=window.performance.timing.redirectStart > 0
+FAIL=window.performance.timing.requestStart > 0
 [navigation-timing/test-timing-xserver-redirect.html]
-harness=TIMEOUT
+FAIL=timing.navigation.type is TYPE_NAVIGATE
+FAIL=window.performance.timing.navigationStart > 0
 [navigation-timing/unload-event-same-origin-check.html]
 harness=TIMEOUT

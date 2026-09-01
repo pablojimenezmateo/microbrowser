@@ -1,7 +1,5 @@
 [performance-timeline/back-forward-cache-restoration.tentative.html]
 harness=TIMEOUT
-[performance-timeline/buffered-flag-after-timeout.any.worker.html]
-harness=TIMEOUT
 [performance-timeline/buffered-flag-observer.any.html]
 harness=TIMEOUT
 [performance-timeline/buffered-flag-observer.any.worker.html]
@@ -14,9 +12,37 @@ harness=TIMEOUT
 [performance-timeline/droppedentriescount.any.worker.html]
 harness=TIMEOUT
 [performance-timeline/idlharness.any.html]
-harness=TIMEOUT
-[performance-timeline/multiple-buffered-flag-observers.any.worker.html]
-harness=TIMEOUT
+FAIL=Performance interface: calling getEntriesByName(DOMString, optional DOMString) on performance with too few arguments must throw TypeError
+FAIL=Performance interface: calling getEntriesByType(DOMString) on performance with too few arguments must throw TypeError
+FAIL=PerformanceEntry interface: attribute duration
+FAIL=PerformanceEntry interface: attribute entryType
+FAIL=PerformanceEntry interface: attribute id
+FAIL=PerformanceEntry interface: attribute name
+FAIL=PerformanceEntry interface: attribute navigationId
+FAIL=PerformanceEntry interface: attribute startTime
+FAIL=PerformanceObserver interface object length
+FAIL=PerformanceObserver interface: existence and properties of interface object
+FAIL=PerformanceObserver interface: existence and properties of interface prototype object
+FAIL=PerformanceObserver interface: operation disconnect()
+FAIL=PerformanceObserver interface: operation observe(optional PerformanceObserverInit)
+FAIL=PerformanceObserver interface: operation takeRecords()
+FAIL=PerformanceObserverEntryList interface object length
+FAIL=PerformanceObserverEntryList interface object name
+FAIL=PerformanceObserverEntryList interface: calling getEntriesByName(DOMString, optional DOMString) on entryList with too few arguments must throw TypeError
+FAIL=PerformanceObserverEntryList interface: calling getEntriesByType(DOMString) on entryList with too few arguments must throw TypeError
+FAIL=PerformanceObserverEntryList interface: entryList must inherit property "getEntries()" with the proper type
+FAIL=PerformanceObserverEntryList interface: entryList must inherit property "getEntriesByName(DOMString, optional DOMString)" with the proper type
+FAIL=PerformanceObserverEntryList interface: entryList must inherit property "getEntriesByType(DOMString)" with the proper type
+FAIL=PerformanceObserverEntryList interface: existence and properties of interface object
+FAIL=PerformanceObserverEntryList interface: existence and properties of interface prototype object
+FAIL=PerformanceObserverEntryList interface: existence and properties of interface prototype object's "constructor" property
+FAIL=PerformanceObserverEntryList interface: existence and properties of interface prototype object's @@unscopables property
+FAIL=PerformanceObserverEntryList interface: operation getEntries()
+FAIL=PerformanceObserverEntryList interface: operation getEntriesByName(DOMString, optional DOMString)
+FAIL=PerformanceObserverEntryList interface: operation getEntriesByType(DOMString)
+FAIL=PerformanceObserverEntryList must be primary interface of entryList
+FAIL=Stringification of entryList
+FAIL=Stringification of observer
 [performance-timeline/navigation-id-detached-frame.tentative.html]
 harness=TIMEOUT
 [performance-timeline/navigation-id-element-timing.tentative.html]
@@ -61,10 +87,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [performance-timeline/not-restored-reasons/performance-navigation-timing-same-origin-replace.tentative.window.html]
 harness=TIMEOUT
-[performance-timeline/performanceentry-tojson.any.html]
-FAIL=Test toJSON() in PerformanceEntry
-[performance-timeline/performanceentry-tojson.any.worker.html]
-FAIL=Test toJSON() in PerformanceEntry
 [performance-timeline/po-callback-mutate.any.html]
 FAIL=PerformanceObserver modifications inside callback should update filtering and not clear buffer
 [performance-timeline/po-callback-mutate.any.worker.html]
@@ -72,7 +94,7 @@ harness=TIMEOUT
 [performance-timeline/po-disconnect-removes-observed-types.any.html]
 FAIL=Types observed are forgotten when disconnect() is called.
 [performance-timeline/po-disconnect-removes-observed-types.any.worker.html]
-harness=TIMEOUT
+FAIL=Types observed are forgotten when disconnect() is called.
 [performance-timeline/po-entries-sort.any.html]
 FAIL=getEntries, getEntriesByType, getEntriesByName sort order
 [performance-timeline/po-entries-sort.any.worker.html]
@@ -80,24 +102,25 @@ harness=ERROR
 [performance-timeline/po-getentries.any.html]
 FAIL=getEntries, getEntriesByType and getEntriesByName work
 [performance-timeline/po-getentries.any.worker.html]
-harness=TIMEOUT
-[performance-timeline/po-mark-measure.any.worker.html]
-harness=TIMEOUT
-[performance-timeline/po-observe-repeated-type.any.worker.html]
-harness=TIMEOUT
+FAIL=getEntries, getEntriesByType and getEntriesByName work
 [performance-timeline/po-observe-type.any.html]
 FAIL=Calling observe() with entryTypes and then type should throw an InvalidModificationError
 FAIL=Calling observe() with type and entryTypes should throw a TypeError
 FAIL=Calling observe() with type and then entryTypes should throw an InvalidModificationError
 FAIL=Calling observe() without 'type' or 'entryTypes' throws a TypeError
 [performance-timeline/po-observe-type.any.worker.html]
-harness=TIMEOUT
+FAIL=Calling observe() with entryTypes and then type should throw an InvalidModificationError
+FAIL=Calling observe() with type and entryTypes should throw a TypeError
+FAIL=Calling observe() with type and then entryTypes should throw an InvalidModificationError
+FAIL=Calling observe() without 'type' or 'entryTypes' throws a TypeError
 [performance-timeline/po-observe.any.html]
 FAIL=Check observer callback parameter and this values
 FAIL=entryTypes must be a sequence or throw a TypeError
 FAIL=replace observer if already present
 [performance-timeline/po-observe.any.worker.html]
-harness=TIMEOUT
+FAIL=Check observer callback parameter and this values
+FAIL=entryTypes must be a sequence or throw a TypeError
+FAIL=replace observer if already present
 [performance-timeline/po-observe.html]
 harness=TIMEOUT
 [performance-timeline/po-resource.html]

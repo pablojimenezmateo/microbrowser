@@ -2,3 +2,7 @@
 harness=TIMEOUT
 [url/javascript-urls.window.html]
 harness=TIMEOUT
+[url/url-searchparams.any.html]
+FAIL=URL.searchParams setter, invalid values
+[url/url-searchparams.any.worker.html]
+FAIL=URL.searchParams setter, invalid values

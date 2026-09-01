@@ -87,7 +87,8 @@ FAIL=ResizeObserver content-box size and scrollbars
 [resize-observer/svg-with-css-box-001.html]
 harness=TIMEOUT
 [resize-observer/svg-with-css-box-002.svg]
-harness=TIMEOUT
+FAIL=test0: Root SVG resize observed
+FAIL=test1: `foreignObject` SVG resize observed
 [resize-observer/svg.html]
 harness=TIMEOUT
 [resize-observer/zoom.html]
