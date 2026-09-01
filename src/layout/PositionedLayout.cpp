@@ -141,6 +141,15 @@ void LayoutEngine::LayoutAbsoluteBox(Box& box, const gfx::FloatRect& containing_
       resolve(style.margin.top, 0.0f) + resolve(style.margin.bottom, 0.0f) +
       resolve(style.padding.top, 0.0f) + resolve(style.padding.bottom, 0.0f) +
       resolve(border.top, 0.0f) + resolve(border.bottom, 0.0f);
+  // Without the margins: `box-sizing: border-box` puts the padding and border
+  // inside a declared length and the margin outside it, so the two sums are not
+  // interchangeable and reusing `*_extra` here would eat the margin twice.
+  const float width_padding_border = resolve(style.padding.left, 0.0f) +
+                                     resolve(style.padding.right, 0.0f) +
+                                     resolve(border.left, 0.0f) + resolve(border.right, 0.0f);
+  const float height_padding_border = resolve(style.padding.top, 0.0f) +
+                                      resolve(style.padding.bottom, 0.0f) +
+                                      resolve(border.top, 0.0f) + resolve(border.bottom, 0.0f);
 
   const bool has_left = !inset.left.IsAuto();
   const bool has_right = !inset.right.IsAuto();
@@ -156,7 +165,9 @@ void LayoutEngine::LayoutAbsoluteBox(Box& box, const gfx::FloatRect& containing_
   // `left: 0; right: 0` means, and it is the one an overlay is written with.
   float outer_width = 0.0f;
   if (!style.width.IsAuto()) {
-    outer_width = resolve(style.width, containing_block.width) + horizontal_extra;
+    outer_width = style.UsedContentSize(style.width, containing_block.width,
+                                        width_padding_border) +
+                  horizontal_extra;
   } else if (has_left && has_right) {
     outer_width = std::max(0.0f, containing_block.width - left - right);
   } else {
@@ -171,10 +182,41 @@ void LayoutEngine::LayoutAbsoluteBox(Box& box, const gfx::FloatRect& containing_
   if (!style.height.IsAuto()) {
     // Includes percentages: against the containing block, which is definite
     // for an absolutely positioned box (unlike normal flow).
-    forced_content_height = resolve(style.height, containing_block.height);
+    forced_content_height =
+        style.UsedContentSize(style.height, containing_block.height, height_padding_border);
   } else if (has_top && has_bottom) {
     forced_content_height =
         std::max(0.0f, containing_block.height - top - bottom - vertical_extra);
+  }
+
+  // **`aspect-ratio` decides the axis that has no size of its own, and it beats
+  // the inset stretch.** `left: 0; right: 0; top: 0; bottom: 0` with a declared
+  // width is not a box stretched to its containing block: the width is
+  // definite, so the ratio gives the height and the insets are over-constrained
+  // and ignored. Without this, `width: 100px; aspect-ratio: 1/1` inside a
+  // 100x500 block was a 100 by 500 rectangle -- the ratio applied to nothing at
+  // all, because both axes were already decided before it was consulted.
+  //
+  // The ratio applies to the *border* boxes, which here is what
+  // `outer_width - horizontal_extra` and `forced_content_height` are measured
+  // around; the padding and border go in and come back out for the same reason
+  // they do in `LayoutEngine::ContentSizeFromRatio`.
+  if (style.aspect_ratio > 0.0f) {
+    const auto across = [&](float from, float from_padding_border, float to_padding_border,
+                            float ratio) {
+      return style.box_sizing == css::BoxSizing::BorderBox
+                 ? std::max(0.0f, (from + from_padding_border) * ratio - to_padding_border)
+                 : std::max(0.0f, from * ratio);
+    };
+    if (style.width.IsAuto() && !style.height.IsAuto() && forced_content_height.has_value()) {
+      outer_width = across(*forced_content_height, height_padding_border, width_padding_border,
+                           style.aspect_ratio) +
+                    horizontal_extra;
+      outer_width = std::max(horizontal_extra, outer_width);
+    } else if (style.height.IsAuto() && !style.width.IsAuto()) {
+      forced_content_height = across(outer_width - horizontal_extra, width_padding_border,
+                                     height_padding_border, 1.0f / style.aspect_ratio);
+    }
   }
 
   // Placed from whichever edge was given. With neither, the static position --
@@ -207,9 +249,6 @@ void LayoutEngine::LayoutAbsoluteBox(Box& box, const gfx::FloatRect& containing_
   // height as that container, which makes `min-height: 100%` a no-op — and
   // that is how `ytd-app { position:absolute; min-height:100% }` stayed at its
   // intrinsic ~128px instead of filling the viewport ICB.
-  const float height_padding_border =
-      resolve(style.padding.top, 0.0f) + resolve(style.padding.bottom, 0.0f) +
-      resolve(border.top, 0.0f) + resolve(border.bottom, 0.0f);
   const float content_h = box.Geometry().content.height;
   const float clamped =
       style.ClampHeight(content_h, containing_block.height, height_padding_border);
