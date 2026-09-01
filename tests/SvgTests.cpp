@@ -192,6 +192,46 @@ void RegisterSvgTests(std::vector<TestCase>& tests) {
            "with no size requested the document's own width and height are used");
   });
 
+  AddTest(tests, "Svg/APercentageLengthIsAPercentageOfTheViewport", [] {
+    // `<rect width="100%" height="50%">` is how almost every generated SVG says
+    // "fill me", and a decoder that cannot parse the length draws **nothing** --
+    // a shape of width zero, not a shape of the wrong width. 183 of
+    // `css/css-backgrounds`'s 538 Firefox-gap files were one directory of images
+    // written exactly that way, every one rendering as a blank rectangle of
+    // precisely the right size, which is the failure that looks like a
+    // `background-size` bug and is not one.
+    //
+    // The viewport is in **user units**, so a viewBox is what the percentage is
+    // against when there is one.
+    const Image boxed = Render(
+        R"SVG(<svg viewBox="0 0 4 64" preserveAspectRatio="none">)SVG"
+        R"SVG(<rect width="100%" height="50%" fill="#00ff00"/>)SVG"
+        R"SVG(<rect y="50%" width="100%" height="50%" fill="#0000ff"/></svg>)SVG",
+        16, 64);
+    Expect(At(boxed, 8, 10) == Color::Rgb(0, 0xFF, 0), "the top half is the first rect");
+    Expect(At(boxed, 8, 50) == Color::Rgb(0, 0, 0xFF), "and the bottom half the second");
+
+    // With no viewBox the surface is the viewport, because user units are then
+    // device units.
+    const Image plain = Render(
+        R"SVG(<svg><rect width="50%" height="100%" fill="#00ff00"/></svg>)SVG", 40, 20);
+    Expect(At(plain, 10, 10) == Color::Rgb(0, 0xFF, 0), "the left half is filled");
+    Expect(At(plain, 30, 10).IsFullyTransparent(), "and the right half is not");
+
+    // `r` and `stroke-width` are neither horizontal nor vertical: the basis is
+    // `sqrt(vw^2 + vh^2) / sqrt(2)`, which for a 100x700 viewport is 500 --
+    // the suite's own `support/diagonal-scaled.svg` states that arithmetic in a
+    // comment. A decoder using the width for all three draws a correct picture
+    // on a square viewport and a wrong one on every other.
+    const Image circle = Render(
+        R"SVG(<svg><circle cx="50%" cy="50%" r="10%" fill="#00ff00"/></svg>)SVG", 100, 700);
+    Expect(At(circle, 50, 350) == Color::Rgb(0, 0xFF, 0), "the circle is drawn at the centre");
+    Expect(At(circle, 50, 350 - 40) == Color::Rgb(0, 0xFF, 0),
+           "40 above the centre is inside a radius of 50");
+    Expect(At(circle, 50, 350 - 60).IsFullyTransparent(),
+           "60 above it is outside one, which a width-based basis of 10 would not be");
+  });
+
   AddTest(tests, "Svg/FillDefaultsToBlackAndNoneMeansNone", [] {
     const Image filled = Render(R"SVG(<svg viewBox="0 0 2 2"><rect width="2" height="2"/></svg>)SVG",
                                 10, 10);

@@ -77,6 +77,45 @@ std::optional<float> ParseNumber(std::string_view text) {
   return std::nullopt;
 }
 
+// The viewport a percentage length is a percentage *of* (SVG 1.1 §7.10), in
+// **user units** -- so it is the `viewBox` when there is one, and the surface
+// otherwise, because a viewBox is precisely a statement that user units are not
+// device units.
+//
+// This exists because without it a percentage length parsed to *nothing* and
+// the shape carrying it drew *nothing*: `<rect width="100%" height="50%">` is
+// how almost every generated SVG says "fill me", and 183 of `css/css-backgrounds`
+// 538 Firefox-gap files are one directory of images written exactly that way,
+// every one of which rendered as a blank rectangle of the right size.
+struct Viewport {
+  float width = 0.0f;
+  float height = 0.0f;
+
+  // The basis for a length that is neither horizontal nor vertical -- `r`,
+  // `stroke-width`, `stroke-dashoffset`. The specification writes it
+  // `sqrt(vw^2 + vh^2) / sqrt(2)`, which is the diagonal normalised so that a
+  // square viewport gives back its own side.
+  float Diagonal() const {
+    return std::sqrt((width * width + height * height) * 0.5f);
+  }
+};
+
+// One length, resolved against `basis` when it is a percentage.
+//
+// A percentage with no basis (`basis` zero) is zero rather than nothing: the
+// viewport genuinely has no extent in that axis, so the length genuinely is
+// zero, and answering "unparseable" would make the caller fall back to a
+// default the document did not write.
+std::optional<float> ParseLength(std::string_view text, float basis) {
+  text = Trim(text);
+  if (text.ends_with("%")) {
+    text.remove_suffix(1);
+    const std::optional<float> percent = ParseNumber(text);
+    return percent.has_value() ? std::optional<float>(*percent * 0.01f * basis) : std::nullopt;
+  }
+  return ParseNumber(text);
+}
+
 // The numbers in a list like `0 0 192 192` or `1,2 3,4`.
 std::vector<float> ParseNumberList(std::string_view text, std::size_t limit) {
   std::vector<float> numbers;
@@ -342,7 +381,8 @@ std::optional<Color> ParsePaint(std::string_view text) {
   return ParseColorText(lowered);
 }
 
-Presentation Inherit(const Presentation& parent, const std::vector<Attribute>& attributes) {
+Presentation Inherit(const Presentation& parent, const std::vector<Attribute>& attributes,
+                     const Viewport& viewport) {
   Presentation state = parent;
   state.transform = AffineTransform{};  // a transform applies once, at its element
 
@@ -361,7 +401,10 @@ Presentation Inherit(const Presentation& parent, const std::vector<Attribute>& a
     }
   }
   if (const std::optional<std::string_view> width = Property(attributes, "stroke-width")) {
-    if (const std::optional<float> value = ParseNumber(*width)) {
+    // The diagonal basis, and `support/diagonal-scaled.svg` in the suite states
+    // the rule in its own comment: a 10% stroke on a 100x700 viewport is 50px,
+    // because `sqrt(100^2 + 700^2) / sqrt(2)` is 500.
+    if (const std::optional<float> value = ParseLength(*width, viewport.Diagonal())) {
       state.stroke_width = std::max(0.0f, value.value());
     }
   }
@@ -396,14 +439,26 @@ Color WithOpacity(Color color, float opacity) {
 
 // The shape an element describes, in user units. Empty for an element that
 // draws nothing.
-Path ShapeFor(std::string_view name, const std::vector<Attribute>& attributes) {
+Path ShapeFor(std::string_view name, const std::vector<Attribute>& attributes,
+              const Viewport& viewport) {
   Path path;
-  const auto number = [&attributes](std::string_view attribute, float fallback) {
+  // **Which basis a percentage uses is a property of the attribute, not of the
+  // element.** `x`, `width`, `cx` and `rx` are horizontal; `y`, `height`, `cy`
+  // and `ry` are vertical; `r` is neither, because a circle has no axis. Using
+  // one basis for all three would draw a correct picture on a square viewport
+  // and a wrong one on every other, which is the shape of bug that survives a
+  // whole test suite of square fixtures.
+  const auto horizontal = [&](std::string_view attribute, float fallback) {
     const std::string_view* text = Find(attributes, attribute);
-    if (text == nullptr) {
-      return fallback;
-    }
-    return ParseNumber(*text).value_or(fallback);
+    return text == nullptr ? fallback : ParseLength(*text, viewport.width).value_or(fallback);
+  };
+  const auto vertical = [&](std::string_view attribute, float fallback) {
+    const std::string_view* text = Find(attributes, attribute);
+    return text == nullptr ? fallback : ParseLength(*text, viewport.height).value_or(fallback);
+  };
+  const auto diagonal = [&](std::string_view attribute, float fallback) {
+    const std::string_view* text = Find(attributes, attribute);
+    return text == nullptr ? fallback : ParseLength(*text, viewport.Diagonal()).value_or(fallback);
   };
 
   if (name == "path") {
@@ -411,14 +466,14 @@ Path ShapeFor(std::string_view name, const std::vector<Attribute>& attributes) {
       ParseSvgPathData(*data, path, kMaxSvgPathCommands);
     }
   } else if (name == "rect") {
-    const float width = number("width", 0.0f);
-    const float height = number("height", 0.0f);
+    const float width = horizontal("width", 0.0f);
+    const float height = vertical("height", 0.0f);
     if (width > 0.0f && height > 0.0f) {
-      const FloatRect rect{number("x", 0.0f), number("y", 0.0f), width, height};
+      const FloatRect rect{horizontal("x", 0.0f), vertical("y", 0.0f), width, height};
       // `ry` defaults to `rx` and vice versa, which is what makes
       // `<rect rx=4>` a rounded rectangle rather than an elliptical one.
-      const float rx = std::max(0.0f, number("rx", number("ry", 0.0f)));
-      const float ry = std::max(0.0f, number("ry", rx));
+      const float rx = std::max(0.0f, horizontal("rx", vertical("ry", 0.0f)));
+      const float ry = std::max(0.0f, vertical("ry", rx));
       if (rx > 0.0f || ry > 0.0f) {
         path.AddRoundedRect(rect, rx, rx, rx, ry > 0.0f && rx == 0.0f ? ry : rx);
       } else {
@@ -426,23 +481,23 @@ Path ShapeFor(std::string_view name, const std::vector<Attribute>& attributes) {
       }
     }
   } else if (name == "circle") {
-    const float r = number("r", 0.0f);
+    const float r = diagonal("r", 0.0f);
     if (r > 0.0f) {
-      const float cx = number("cx", 0.0f);
-      const float cy = number("cy", 0.0f);
+      const float cx = horizontal("cx", 0.0f);
+      const float cy = vertical("cy", 0.0f);
       path.AddEllipse(FloatRect{cx - r, cy - r, r * 2.0f, r * 2.0f});
     }
   } else if (name == "ellipse") {
-    const float rx = number("rx", 0.0f);
-    const float ry = number("ry", 0.0f);
+    const float rx = horizontal("rx", 0.0f);
+    const float ry = vertical("ry", 0.0f);
     if (rx > 0.0f && ry > 0.0f) {
-      const float cx = number("cx", 0.0f);
-      const float cy = number("cy", 0.0f);
+      const float cx = horizontal("cx", 0.0f);
+      const float cy = vertical("cy", 0.0f);
       path.AddEllipse(FloatRect{cx - rx, cy - ry, rx * 2.0f, ry * 2.0f});
     }
   } else if (name == "line") {
-    path.MoveTo(FloatPoint{number("x1", 0.0f), number("y1", 0.0f)});
-    path.LineTo(FloatPoint{number("x2", 0.0f), number("y2", 0.0f)});
+    path.MoveTo(FloatPoint{horizontal("x1", 0.0f), vertical("y1", 0.0f)});
+    path.LineTo(FloatPoint{horizontal("x2", 0.0f), vertical("y2", 0.0f)});
   } else if (name == "polygon" || name == "polyline") {
     if (const std::string_view* points = Find(attributes, "points")) {
       const std::vector<float> numbers = ParseNumberList(*points, kMaxSvgPathCommands);
@@ -564,6 +619,11 @@ SvgDecodeResult DecodeSvg(std::span<const std::byte> bytes, int width, int heigh
                     .Then(AffineTransform::Translation(offset_x, offset_y));
   }
 
+  // The viewport percentages resolve against, in user units: the viewBox when
+  // there is one, since that is what a viewBox *is*, and the surface otherwise.
+  const Viewport viewport{view_box.width > 0.0f ? view_box.width : surface_width,
+                          view_box.height > 0.0f ? view_box.height : surface_height};
+
   Canvas canvas{static_cast<int>(surface_width), static_cast<int>(surface_height)};
   if (canvas.IsEmpty()) {
     result.error = "no size";
@@ -576,7 +636,7 @@ SvgDecodeResult DecodeSvg(std::span<const std::byte> bytes, int width, int heigh
   // recursion: the depth bound is then a length check rather than a stack the
   // document controls.
   std::vector<Presentation> stack;
-  stack.push_back(Inherit(Presentation{}, root.attributes));
+  stack.push_back(Inherit(Presentation{}, root.attributes, viewport));
 
   ElementScanner scanner(text);
   ElementScanner::Element element;
@@ -603,7 +663,7 @@ SvgDecodeResult DecodeSvg(std::span<const std::byte> bytes, int width, int heigh
       continue;
     }
 
-    const Presentation state = Inherit(stack.back(), element.attributes);
+    const Presentation state = Inherit(stack.back(), element.attributes, viewport);
     const AffineTransform transform = state.transform.Then(stack.back().transform);
     if (!element.self_closing) {
       if (stack.size() >= kMaxSvgDepth) {
@@ -614,7 +674,7 @@ SvgDecodeResult DecodeSvg(std::span<const std::byte> bytes, int width, int heigh
       stack.push_back(pushed);
     }
 
-    const Path path = ShapeFor(element.name, element.attributes);
+    const Path path = ShapeFor(element.name, element.attributes, viewport);
     if (path.IsEmpty()) {
       continue;
     }
