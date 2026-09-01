@@ -937,7 +937,8 @@ in these areas failing for a *harness* reason.
 
 | id | task | depends on | target |
 |---|---|---|---|
-| F1 | `background` on inline boxes (a known old.reddit gap), `background-clip`/`origin`/`repeat` in full | — | `css-backgrounds` 70% |
+| F1 | `background` on inline boxes (a known old.reddit gap), `background-clip`/`origin`/`repeat` in full | — | **79 testharness gap files** — see below, the old "70%" target is arithmetically impossible |
+| F1a | An SVG used as an image has *intrinsic dimensions*, and CSS Images §5's default sizing algorithm decides `background-size` from them | F1 | `css/css-backgrounds/background-size/vector/` 150 of 206 |
 | F2 | **Harness:** fuzzy reftests (`<meta name=fuzzy>`), and a reftest failure that writes both PPMs and a diff next to each other | — | **done 2026-08-17** |
 | F3 | `css/css-color/` — `color()`, `lab()`/`lch()`/`oklab()`, `color-mix()`, and the serialization rules | — | 60% |
 | F4 | Gradients — `linear-gradient` interpolation, `repeating-*`, `conic-gradient` | F2 | `css-images` 60% |
@@ -952,6 +953,42 @@ in these areas failing for a *harness* reason.
 | F9 | **Harness:** reftests enter the measurement at all — record them in `tests/wpt/expectations/`, count them in the baseline | F2 | **done 2026-08-17** |
 | F11 | **Harness:** `reftest-wait` — a reftest that says when it is ready | F9 | **done 2026-09-01** · 8,381 → 8,312 passing files, and the fall is the point |
 | F10 | **Harness:** the reftest *gate* — name the eight intermittents, then drop `--testharness-only` from the `ctest` registration | F9 | **done 2026-08-31** · seven of the eight were one font-cache bug; 7,963 → 8,005 files |
+
+**F1's stated target of 70% cannot be reached, and the arithmetic says so in one
+line (measured 2026-09-01).** `css/css-backgrounds/` reports 6,181 testharness
+subtests and passes 804 of them. **4,601 of the 5,377 failures — 86% — are
+`animations/*-interpolation.html`**, which is property interpolation: task G4's
+feature, in another milestone, and nothing to do with backgrounds. If every
+remaining non-animation subtest in the area passed tomorrow the rate would be
+1,580 of 6,181, which is **25.6%**. A target of 70% on this area is a target on
+G4 wearing F1's name, and it has been in this table since the plan was written.
+
+The replacement is stated in the unit the rest of this document uses. `css/css-backgrounds/`
+is **538 Firefox-gap files, 459 of them reftests and 79 testharness**; the 79
+are where the backgrounds work actually is (`parsing/` is 42 of them, and
+`background-position-x`/`-y` are not implemented as properties at all — four
+files fail every subtest on `e.style['background-position-x'] = "10px"` setting
+nothing). **This is the same shape as F6 and F7**: a task whose title names one
+feature and whose failures belong to another. Check the ceiling before accepting
+a percentage target — one `python3` over the expectation file answers it.
+
+**And one third of the area is a single directory that was rendering blank.**
+183 of the 538 gap files are `css/css-backgrounds/background-size/vector/`, which
+tests an SVG background image's intrinsic sizing. Every image in it is written
+`<rect width="100%" height="50%">`, and `gfx::SvgDecoder` could not parse a
+percentage length: the fallback was zero, so the shape drew *nothing* — a
+rectangle of width zero rather than a rectangle of the wrong width. Fixed
+2026-09-01, and it is worth 18 files in `css/` outside this directory too, plus
+2 in `svg/`. **The directory itself still fails, and F1a is why**: the tests need
+CSS Images §5's default sizing algorithm over an SVG's intrinsic width, height
+and ratio — several of the images have *no* intrinsic size at all, so the
+concrete object size is the background positioning area — and they need the
+document rasterized *at* that size rather than at its own and bilinearly scaled,
+because a soft boundary between two flat colours fails an exact comparison.
+Fixing the geometry alone gains **nothing**, which is the reason it is a separate
+task rather than the rest of this one: measured, the failures split into ~25
+files differing by 34-81 pixels (the soft edge) and ~50 differing by the whole
+image area (the geometry), and a file needs both halves to pass.
 
 **`reftest-wait` landed 2026-09-01 (F11) and the honest reftest count went *down*.**
 `class="reftest-wait"` on the root element means "do not photograph me yet", and

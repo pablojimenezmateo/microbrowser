@@ -8459,3 +8459,58 @@ lines and it is what three separate `css/css-backgrounds/` files wait on.
 **Left — read `--reftests-only`'s two closing lines as one sentence.** `8312 passed` and `586 of
 those with both pages blank` answer the same question; the second says how much of the first
 proves nothing. F11 moved both, in the same direction, for the same reason.
+
+## WPT task F1 — css/css-backgrounds/ · 2026-09-01
+
+**Status:** in_progress
+**Check:** `css/css-backgrounds/ >= 70%` — **not run, because it cannot pass, and proving that is
+this session's largest finding.** The area reports 6,181 testharness subtests and passes 804
+(13.0%). 4,601 of the 5,377 failures — 86% — are `animations/*-interpolation.html`. If every
+remaining non-animation subtest passed tomorrow the area would read **25.6%**. A 70% target on
+`css/css-backgrounds/` is a target on task G4 wearing F1's name, and it has been in the plan
+since the plan was written.
+
+**Landed:** `A percentage length in an SVG is a percentage of the viewport, and was nothing at
+all.` · the plan amendment, the F1a split, and this entry.
+
+**Found — the biggest thing in this area was not a backgrounds feature.** 183 of the 538 gap
+files are one directory, `background-size/vector/`, and every single one of them was rendering a
+**blank rectangle of exactly the right size**. Not a wrong size — the right one. The images are
+all written `<rect width="100%" height="50%">`, `gfx::SvgDecoder`'s `ParseNumber` strips `px` and
+nothing else, so a percentage parsed to nothing, fell back to zero, and the shape drew nothing at
+all. From outside, "the tile is 16×64 and empty" reads exactly like a `background-size` bug, and
+`--reftest-artifacts` plus one `microbrowser_snapshot -v` told the two apart in about a minute:
+the display list said `Image 8,8 16x64`, so the geometry was already right and the *bitmap* was
+blank. **A display list that is right and a picture that is wrong means the bug is below layout,
+and printing both is how you find that out in one step rather than three.**
+
+**Found — fixing it is worth more outside the area than inside it.** `css/` reftests went 7,412 →
+7,430 files with the directory itself unchanged at 19 of 206: the gains are
+`css/css-transforms/scale/svg-scale-0*.html` (13 files), the two `skew*/svg-skew*-with-units`
+and `css/css-grid/grid-with-dynamic-img.html`. `svg/` went 275 → 271, and **the blank-page count
+fell by exactly the same four** — so every one of the six losses is an accidental pass exposed,
+which is the same trade F11 made across the whole suite an hour earlier.
+
+**Found — the geometry half gains nothing on its own, and that is why F1a exists.** After the
+percentage fix the directory's 187 failures split into ~25 files differing by 34–81 pixels and
+~50 differing by the whole image area. The first group is the soft boundary a bilinearly-scaled
+8×32 raster leaves when it is drawn at 16×64; the second is CSS Images §5's default sizing
+algorithm, which this browser does not have. **A file needs both halves**, because these reftests
+carry no `<meta name=fuzzy>`, so implementing the sizing algorithm alone would produce the right
+rectangle with a blurred picture in it and move the pass count by zero. I nearly started it
+before running that split.
+
+**Left, ranked, in `docs/wpt-tasks.json` under F1 and F1a.** F1a (183 files, needs a design
+decision about *where* the second rasterization happens — `src/layout` may see `gfx` but has no
+bytes, `src/engine` has the bytes but computes no tile). Then `background-position-x`/`-y`, which
+are **not implemented as properties at all**: four `parsing/` files fail every subtest on
+`e.style['background-position-x'] = "10px"` setting nothing. Then the rest of `parsing/` plus
+`inheritance.sub.html`, 776 subtests, which is the whole of the area's honest testharness
+ceiling. Then `background` on inline boxes — the thing this task's title actually names, and the
+only item nothing this session touched.
+
+**Process note.** Ranking the area by failing subtests took one `python3` over
+`tests/wpt/expectations/css.txt` and immediately said the title was pointing at the wrong work.
+`docs/wpt-plan.md` has now been wrong about a percentage target three times (F6, F7, F1) and each
+time the tell was the same: **a percentage whose denominator is dominated by one subdirectory
+belonging to another milestone.** Check the ceiling before accepting a target, not after.

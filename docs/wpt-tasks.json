@@ -1131,7 +1131,7 @@
       "status": "in_progress",
       "agent": "wpt-f1",
       "adr": "",
-      "notes": "A spoiler span on old.reddit is invisible text on white because of this.",
+      "notes": "**In progress 2026-09-01. The check as written cannot pass and the arithmetic is the finding.** `css/css-backgrounds/` reports 6,181 testharness subtests and passes 804 (13.0%). **4,601 of the 5,377 failures -- 86% -- are `animations/*-interpolation.html`**, which is property interpolation: task G4's feature, another milestone, nothing to do with backgrounds. If every remaining non-animation subtest passed tomorrow the area would read **25.6%**. A 70% target on this area is a target on G4 wearing F1's name. Restated in `docs/wpt-plan.md` as the 79 testharness gap files, which is where the backgrounds work actually is.\n\n**Landed this session:** a percentage length in an SVG is a percentage of the viewport. `gfx::SvgDecoder`'s `ParseNumber` rejects a trailing unit it does not know, so `<rect width=\"100%\">` parsed to nothing, fell back to zero, and drew **nothing** -- a rectangle of width zero rather than one of the wrong width, which is the failure that looks like a `background-size` bug and is not one. `css/` reftests 7,412 -> 7,430 files; `svg/` 275 -> 271 with the blank-page count down by exactly the same four, so every loss is an accidental pass exposed.\n\n**Left, ranked.** (1) **F1a**, split out of this task: 183 gap files in `background-size/vector/` needing CSS Images \u00a75 and a rasterization at the used size -- a third of the whole area, and the single largest thing here. (2) `background-position-x` and `background-position-y` are **not implemented as properties at all**: four `parsing/` files fail every subtest on `e.style['background-position-x'] = \"10px\"` setting nothing, 68 subtests. (3) The rest of `parsing/` plus `inheritance.sub.html`, 776 subtests over ~25 files, which is the whole of the area's honest testharness ceiling. (4) `background` on inline boxes, which this task's own title names and which nothing measured this session touched -- the old.reddit spoiler-span gap in the original note.\n\n**Read the ceiling before accepting a percentage target.** One `python3` over `tests/wpt/expectations/css.txt` answered this in a minute, and the 70% has been in the plan since it was written.",
       "ceiling_source": "firefox",
       "firefox_ceiling": "95.6%",
       "firefox_gap": {
@@ -1144,6 +1144,24 @@
         "reftests_firefox_passes": 661
       },
       "claimed": "2026-09-01"
+    },
+    {
+      "id": "F1a",
+      "milestone": "M-F",
+      "title": "an SVG used as an image has intrinsic dimensions",
+      "area": "css/css-backgrounds/background-size/vector/",
+      "scope": "CSS Images \u00a75's default sizing algorithm over an SVG's intrinsic width, intrinsic height and intrinsic ratio, and the rasterization that follows from it. Three parts and a file needs all three: (1) the decoder reports what the document actually declares -- an absolute `width`/`height` is an intrinsic dimension, a *percentage* one is NOT (it means the axis has no intrinsic size), and a `viewBox` is an intrinsic ratio only when a dimension is missing, because two dimensions already give the ratio; (2) that travels to layout, which today reads `image.Width()` -- the raster's size, which is an answer even when the document has none; (3) the document is rasterized AT the concrete object size rather than at its own and bilinearly scaled.",
+      "check": "css/css-backgrounds/background-size/vector/ >= 150 of 206 reftest files (19 today).",
+      "depends": [
+        "F1"
+      ],
+      "target": "150 of 206",
+      "status": "not_started",
+      "agent": null,
+      "adr": "",
+      "notes": "**Split out of F1 on 2026-09-01, after the measurement that made it a separate task.** 183 of `css/css-backgrounds/`'s 538 Firefox-gap files are this one directory -- a third of the area.\n\nUntil 2026-09-01 all 206 of them rendered a **blank rectangle of exactly the right size**, because every image in the directory is written `<rect width=\"100%\" height=\"50%\">` and `gfx::SvgDecoder` could not parse a percentage length. That is fixed (commit `A percentage length in an SVG is a percentage of the viewport`) and the directory is still 19 of 206, which is the point: **the content was one bug and the geometry is another.**\n\n**Do not do half of this.** Measured after the percentage fix, the 187 failures split into ~25 files differing by 34-81 pixels -- the soft boundary a bilinearly-scaled 8x32 raster leaves when it is drawn at 16x64 -- and ~50 differing by the whole image area, which is the sizing algorithm. The rest are between. Fixing the geometry alone gains **nothing**: the tile becomes the right rectangle with a blurred picture in it, and these reftests carry no `<meta name=fuzzy>`.\n\n**Part (3) is the design question and it is why this is not a one-sitting task.** The concrete object size is known only after layout, and `Engine::DecodeImage` decodes on network completion, before it. `Page::RequestedImageSize` is the existing precedent -- it rasterizes an `<img>`'s SVG at the element's `width`/`height` attributes -- but a background has no element attributes to read, and several of these documents have no intrinsic size at all, so the size *is* the background positioning area. Decide where the second rasterization happens before writing code: `src/layout` may see `gfx` but has no bytes, and `src/engine` has the bytes but computes no tile.\n\n`support/diagonal-scaled.svg` in the checkout is the worked example, with the arithmetic in its own comment: no intrinsic dimensions or ratio, so it fills the positioning area at 100x700, and a 10% stroke on that viewport is 50px.",
+      "ceiling_source": "firefox",
+      "firefox_ceiling": ""
     },
     {
       "id": "F2",

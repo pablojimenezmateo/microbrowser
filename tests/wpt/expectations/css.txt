@@ -19035,8 +19035,6 @@ harness=FAIL
 harness=FAIL
 [css/css-backgrounds/box-shadow-radius-generated.html?width=50&height=50&spread=50&radius=1px]
 harness=FAIL
-[css/css-backgrounds/box-shadow-svg-root-fixed-position.html]
-harness=FAIL
 [css/css-backgrounds/box-shadow-table-border-collapse-001.html]
 harness=FAIL
 [css/css-backgrounds/box-shadow/slice-block-fragmentation-001.html]
@@ -51165,8 +51163,6 @@ FAIL=Tests fractional fr-units which should multiply to whole numbers.
 FAIL=.grid 1
 FAIL=.grid 2
 [css/css-grid/grid-with-aspect-ratio-uses-content-box-height-for-track-sizing.html]
-harness=FAIL
-[css/css-grid/grid-with-dynamic-img.html]
 harness=FAIL
 [css/css-grid/grid-with-orthogonal-child-within-flexbox.html]
 harness=FAIL
@@ -85594,35 +85590,7 @@ harness=FAIL
 harness=FAIL
 [css/css-transforms/scale/svg-scale-001.html]
 harness=FAIL
-[css/css-transforms/scale/svg-scale-002.html]
-harness=FAIL
-[css/css-transforms/scale/svg-scale-003.html]
-harness=FAIL
 [css/css-transforms/scale/svg-scale-004.html]
-harness=FAIL
-[css/css-transforms/scale/svg-scale-006.html]
-harness=FAIL
-[css/css-transforms/scale/svg-scale-007.html]
-harness=FAIL
-[css/css-transforms/scale/svg-scale-008.html]
-harness=FAIL
-[css/css-transforms/scale/svg-scale-009.html]
-harness=FAIL
-[css/css-transforms/scale/svg-scale-010.html]
-harness=FAIL
-[css/css-transforms/scale/svg-scale-011.html]
-harness=FAIL
-[css/css-transforms/scale/svg-scale-012.html]
-harness=FAIL
-[css/css-transforms/scale/svg-scale-013.html]
-harness=FAIL
-[css/css-transforms/scale/svg-scale-014.html]
-harness=FAIL
-[css/css-transforms/scale/svg-scale-015.html]
-harness=FAIL
-[css/css-transforms/scale/svg-scale-016.html]
-harness=FAIL
-[css/css-transforms/scale/svg-scale-017.html]
 harness=FAIL
 [css/css-transforms/scalex.html]
 harness=FAIL
@@ -85644,8 +85612,6 @@ harness=FAIL
 harness=FAIL
 [css/css-transforms/skewX/svg-skewx-021.html]
 harness=FAIL
-[css/css-transforms/skewX/svg-skewx-with-units.html]
-harness=FAIL
 [css/css-transforms/skewX/svg-skewxy-001.html]
 harness=FAIL
 [css/css-transforms/skewY/svg-skewy-001.html]
@@ -85657,8 +85623,6 @@ harness=FAIL
 [css/css-transforms/skewY/svg-skewy-016.html]
 harness=FAIL
 [css/css-transforms/skewY/svg-skewy-021.html]
-harness=FAIL
-[css/css-transforms/skewY/svg-skewy-with-units.html]
 harness=FAIL
 [css/css-transforms/subpixel-transform-changes-001.html]
 harness=FAIL

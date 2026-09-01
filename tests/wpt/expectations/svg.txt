@@ -645,6 +645,8 @@ FAIL=SVGTransformList interface, appendItem() with SVGTransform that already exi
 FAIL=SVGTransformList interface, initialize() with SVGTransform that already exist in a list
 FAIL=SVGTransformList interface, insertItemBefore() with SVGTransform that already exist in a list
 FAIL=SVGTransformList interface, replaceItem() with SVGTransform that already exist in a list
+[svg/coordinate-systems/abspos.html]
+harness=FAIL
 [svg/coordinate-systems/out-of-flow-svg-root.html]
 harness=FAIL
 [svg/coordinate-systems/outer-svg-intrinsic-size-001.html]
@@ -716,6 +718,8 @@ harness=FAIL
 harness=FAIL
 [svg/embedded/image-embedding-nesteder-data-url.html]
 harness=FAIL
+[svg/embedded/image-embedding-svg-with-near-integral-width.html]
+harness=FAIL
 [svg/embedded/image-modify-href-1.svg]
 harness=TIMEOUT
 [svg/embedded/image-modify-href-2.svg]
@@ -735,6 +739,8 @@ FAIL=position
 [svg/extensibility/foreignObject/foreign-object-containing-svg-in-svg-in-object.html]
 harness=FAIL
 [svg/extensibility/foreignObject/foreign-object-margin-collapsing.html]
+harness=FAIL
+[svg/extensibility/foreignObject/foreign-object-paints-before-rect.html]
 harness=FAIL
 [svg/extensibility/foreignObject/foreign-object-size.html]
 harness=FAIL
@@ -1301,8 +1307,6 @@ harness=FAIL
 [svg/geometry/reftests/ellipse-006.svg]
 harness=FAIL
 [svg/geometry/reftests/ellipse-calc-dynamic-viewport.html]
-harness=FAIL
-[svg/geometry/reftests/percentage-attribute.svg]
 harness=FAIL
 [svg/geometry/reftests/percentage.svg]
 harness=FAIL
@@ -3026,6 +3030,8 @@ harness=FAIL
 harness=FAIL
 [svg/layout/svg-foreign-relayout-002.html]
 harness=FAIL
+[svg/layout/svg-intrinsic-size-invalidation.html]
+harness=FAIL
 [svg/layout/svg-intrinsic-size-min-size.html]
 harness=FAIL
 [svg/layout/svg-use-symbol-animateMotion-print.html]
@@ -3073,6 +3079,8 @@ harness=FAIL
 [svg/linking/reftests/media-fragment-spatial-viewbox-width.html]
 harness=FAIL
 [svg/linking/reftests/svgview-viewbox-override-multiple.html]
+harness=FAIL
+[svg/linking/reftests/use-keyframes.html]
 harness=FAIL
 [svg/linking/reftests/use-template.html]
 harness=FAIL
@@ -3625,8 +3633,6 @@ harness=TIMEOUT
 [svg/painting/reftests/non-scaling-stroke-003.html]
 harness=FAIL
 [svg/painting/reftests/non-scaling-stroke-005.html]
-harness=FAIL
-[svg/painting/reftests/non-scaling-stroke-006.html]
 harness=FAIL
 [svg/painting/reftests/non-scaling-stroke-007.html]
 harness=FAIL
@@ -4542,6 +4548,8 @@ harness=FAIL
 harness=TIMEOUT
 [svg/styling/invalidation/nth-last-child-of-class.svg]
 harness=TIMEOUT
+[svg/styling/outermost-svg-sizing-viewport-units.svg]
+harness=FAIL
 [svg/styling/presentation-attributes-special-cases.html]
 harness=TIMEOUT
 [svg/styling/render/transform-box.svg]
