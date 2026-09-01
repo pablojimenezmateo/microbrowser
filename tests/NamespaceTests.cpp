@@ -121,6 +121,29 @@ void RegisterNamespaceTests(std::vector<TestCase>& tests) {
            "and it is removable by namespace");
     ExpectEqInt(static_cast<long long>(element.Attributes().size()), 1, "leaving the un-namespaced one");
   });
+
+  AddTest(tests, "Namespaces/AScriptElementIsALocalNameAndNotATagName", [] {
+    // ADR 0043 §1. An SVG document writes its external scripts as
+    // `<h:script src="…"/>` with `h` bound to the XHTML namespace, so the
+    // qualified name is `h:script` and every `TagName() == "script"` in the
+    // engine missed it. 214 of the 262 files in `svg/` whose harness never
+    // reported were that one comparison: testharness.js was never fetched.
+    Expect(dom::IsScriptElement(NamespaceRef::kHtml, "script"), "an HTML script");
+    Expect(dom::IsScriptElement(NamespaceRef::kSvg, "script"), "SVG has one of its own (SVG 2 §5.7)");
+    Expect(!dom::IsScriptElement(NamespaceRef::kMathMl, "script"), "MathML does not");
+    Expect(!dom::IsScriptElement(NamespaceRef::kNone, "script"),
+           "and neither does an element in no namespace");
+    Expect(!dom::IsScriptElement(NamespaceRef::kHtml, "h:script"),
+           "the qualified name is not the local name -- which is the whole bug");
+    Expect(!dom::IsScriptElement(NamespaceRef::kHtml, "scripts"), "nor a prefix of it");
+
+    // And the element the parser actually builds answers it.
+    dom::Element prefixed(NamespaceRef::kHtml, "h:script", 1);
+    ExpectEqString(prefixed.TagName(), "h:script", "the qualified name is kept as written");
+    ExpectEqString(std::string(prefixed.LocalName()), "script", "the local name is what matters");
+    Expect(dom::IsScriptElement(prefixed.Namespace(), prefixed.LocalName()),
+           "so a prefixed XHTML script element is a script element");
+  });
 }
 
 }  // namespace microbrowser::tests

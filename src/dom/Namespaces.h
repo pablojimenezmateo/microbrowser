@@ -77,6 +77,21 @@ class NamespaceRef {
   std::uint32_t id_ = kNone;
 };
 
+// Whether (namespace, local name) names a script element: one whose `src` the
+// loader fetches and whose text the interpreter runs.
+//
+// **Not a `tagName` comparison**, because the two disagree the moment a
+// document is not HTML: an SVG document writes its external scripts as
+// `<h:script src="…"/>` with `h` bound to the XHTML namespace, so the qualified
+// name is `h:script` and `tagName == "script"` misses every one of them. Both
+// namespaces answer true -- SVG has a `script` element of its own (SVG 2 §5.7)
+// and it executes for the same reason HTML's does.
+//
+// Here rather than at its four callers for the reason `CanHostShadowRoot` is in
+// `dom`: the loader, the tree mutation path and two binding collections all ask,
+// and four copies of the question are four chances to answer it differently.
+bool IsScriptElement(const NamespaceRef& name_space, std::string_view local_name);
+
 // How many URIs are interned right now. For the test that says the table is
 // reference counted rather than append-only; nothing else should care.
 std::size_t InternedNamespaceCount();

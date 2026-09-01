@@ -285,7 +285,7 @@ void DomBindings::InstallFormApis() {
   // scripts" read `document.scripts`; without it the name is `undefined` and
   // feature detection takes the branch written for browsers that have none.
   document_collection("scripts", [](const dom::Element& element) {
-    return element.TagName() == "script";
+    return dom::IsScriptElement(element.Namespace(), element.LocalName());
   });
   document_collection("images", [](const dom::Element& element) {
     return element.TagName() == "img";

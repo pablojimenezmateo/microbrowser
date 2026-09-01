@@ -627,7 +627,7 @@ js::Value DomBindings::InsertNodeBefore(dom::Node& parent, dom::Node* child,
   }
   if (child->IsElement()) {
     const auto& element = static_cast<const dom::Element&>(*child);
-    if (element.TagName() == "script") {
+    if (dom::IsScriptElement(element.Namespace(), element.LocalName())) {
       if (InTrustedScriptContext()) {
         csp_trusted_scripts_.insert(&element);
       }

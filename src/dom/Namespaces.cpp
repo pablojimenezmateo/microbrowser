@@ -136,6 +136,11 @@ std::string_view NamespaceRef::Uri() const {
   return Interned().entries[id_ - kFirstInterned]->uri;
 }
 
+bool IsScriptElement(const NamespaceRef& name_space, std::string_view local_name) {
+  return local_name == "script" &&
+         (name_space.IsHtml() || name_space == NamespaceRef(NamespaceRef::kSvg));
+}
+
 std::size_t InternedNamespaceCount() { return Interned().live; }
 
 }  // namespace microbrowser::dom

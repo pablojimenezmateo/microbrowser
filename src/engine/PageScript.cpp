@@ -197,7 +197,8 @@ void PageScript::Collect(dom::Document& document, const DocumentPolicy& policy) 
 // The CSP check is the same one `CollectInserted` makes, in the same order, because it is the same
 // decision: whether this text may run at all. What moved is only *when*.
 bool PageScript::RunInsertedNow(const dom::Element& element, const DocumentPolicy& policy) {
-  if (interpreter_ == nullptr || element.TagName() != "script" || !IsJavaScript(element) ||
+  if (interpreter_ == nullptr || !dom::IsScriptElement(element.Namespace(), element.LocalName()) ||
+      !IsJavaScript(element) ||
       IsModule(element)) {
     return false;
   }
@@ -268,7 +269,7 @@ bool PageScript::CollectInserted(dom::Document& document, const DocumentPolicy& 
       return;
     }
     const auto& element = static_cast<const dom::Element&>(node);
-    if (element.TagName() != "script" || !IsJavaScript(element)) {
+    if (!dom::IsScriptElement(element.Namespace(), element.LocalName()) || !IsJavaScript(element)) {
       return;
     }
     const std::string* src = element.GetAttribute("src");
