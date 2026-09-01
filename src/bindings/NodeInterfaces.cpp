@@ -32,6 +32,7 @@
 #include "bindings/LiveRanges.h"
 #include "bindings/Reflection.h"
 #include "bindings/ShadowDom.h"
+#include "bindings/SvgInterfaces.h"
 #include "bindings/TagInterfaces.h"
 
 namespace microbrowser::bindings {
@@ -283,7 +284,26 @@ void DomBindings::EnsureInterfaces() {
   // .hasOwnProperty('classList')`, which is how youtube's webcomponents bundle
   // decides whether `classList` needs patching, reached unqualified off `window`
   // and therefore a TypeError rather than a ReferenceError when it is missing.
-  MakeInterface("SVGElement", element);
+  const Value svg_element = MakeInterface("SVGElement", element);
+  // Every SVG interface, in the table's dependency order (ADR 0043 §3). Up
+  // front, for the reason the HTML ones are: `x instanceof SVGRectElement` has
+  // to answer *false* on a page with no rect in it, and a name that does not
+  // exist until the tag does throws a ReferenceError instead.
+  //
+  // The intermediates are the point. `SVGGraphicsElement` and
+  // `SVGGeometryElement` name no tag, and the suite asks about them far more
+  // often than about any leaf: `getBBox` is on the first and `getTotalLength`
+  // on the second, so an engine that skipped them would have to put both on
+  // every shape and would then answer `rect instanceof SVGGeometryElement`
+  // wrongly.
+  for (const SvgInterface& entry : kSvgInterfaces) {
+    if (entry.parent == nullptr) {
+      MakeInterface(entry.interface, svg_element);
+      continue;
+    }
+    const Value* parent = interfaces_.object->GetOwn(entry.parent);
+    MakeInterface(entry.interface, parent == nullptr ? svg_element : *parent);
+  }
   // `HTMLMediaElement` before the loop for the same reason: it is a parent in
   // the table, and `video instanceof HTMLMediaElement` is what a feature check
   // asks. The media API lives on it rather than on each of the two, which is
@@ -945,8 +965,13 @@ js::Value DomBindings::PrototypeFor(const dom::Node& node) {
   // SVG element is an `SVGElement`; anything else foreign is a bare `Element`.
   const auto& element = static_cast<const dom::Element&>(node);
   if (!element.Namespace().IsHtml()) {
-    return named(element.Namespace().Uri() == "http://www.w3.org/2000/svg" ? "SVGElement"
-                                                                        : "Element");
+    if (element.Namespace() == dom::NamespaceRef(dom::NamespaceRef::kSvg)) {
+      // By *local* name and case-sensitively: `clipPath` is the element and
+      // `clippath` is not one. That is the whole reason SVG has a table of its
+      // own rather than rows in HTML's, whose key is a folded tag name.
+      return named(InterfaceForSvgTag(element.LocalName()));
+    }
+    return named("Element");
   }
   // `InterfaceForTag` answers `HTMLUnknownElement` for a name HTML does not define, and it never
   // answers the empty string any more -- reading one as `HTMLElement` is what made `<blink>` and
