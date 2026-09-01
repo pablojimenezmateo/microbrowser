@@ -504,7 +504,12 @@ budget: Realm       header_lines=25  public_methods=1  members=3
 # +1 header line for `InvokeConstructor`: an empty class between two others is
 # still `constructor(...args){ super(...args) }`, and calling only the immediate
 # parent left WebIDL2's Interface/Container/Base chain with `tokens` unset.
-budget: Interpreter header_lines=1363 public_methods=78 members=32
+# +1 method for `GlobalBindingFor` (ADR 0043 §3's neighbour): the half of "a
+# global's bindings are its own properties" that `GetProperty`/`SetProperty`
+# already had and the own-property *predicates* did not. Public because the
+# builtins that ask it -- `hasOwnProperty`, `getOwnPropertyDescriptor` -- live in
+# another translation unit, and one answer is the point.
+budget: Interpreter header_lines=1366 public_methods=79 members=32
 # One module, as the engine sees it: what it is called, its tree, its own
 # top-level scope, what it publishes, what it asked for, and how far it has
 # got. Six fields and a status, and every one of them is something the

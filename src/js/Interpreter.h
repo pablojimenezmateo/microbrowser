@@ -975,6 +975,9 @@ class Interpreter {
   // and deletes too.
   bool DeleteProperty(const Value& base, const PropertyKey& key);
   std::vector<std::string> OwnKeys(const Value& base, bool enumerable_only);
+  // The global-scope binding a global object's own-property lookup should find:
+  // Get/Set fell through to the scope and the predicates did not. See Builtins.cpp.
+  Value* GlobalBindingFor(Object* object, const PropertyKey& key);
 
  private:
 

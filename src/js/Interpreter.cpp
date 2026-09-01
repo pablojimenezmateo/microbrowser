@@ -565,6 +565,17 @@ bool Interpreter::DeleteProperty(const Value& base, const PropertyKey& key) {
   return !base.IsObject() || base.object->Delete(key);
 }
 
+Value* Interpreter::GlobalBindingFor(Object* object, const PropertyKey& key) {
+  if (object == nullptr || key.IsSymbol() || object->GetOwnProperty(key) != nullptr) {
+    return nullptr;
+  }
+  if (GlobalOf(object->RealmIndex()) != object) {
+    return nullptr;
+  }
+  Environment* const scope = GlobalScopeOf(object->RealmIndex());
+  return scope == nullptr ? nullptr : scope->Lookup(key.Text());
+}
+
 std::vector<std::string> Interpreter::OwnKeys(const Value& base, bool enumerable_only) {
   if (base.IsObject() && base.object->GetKind() == Object::Kind::Proxy) {
     Value target;

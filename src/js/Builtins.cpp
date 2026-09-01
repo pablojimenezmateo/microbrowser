@@ -463,6 +463,19 @@ void Interpreter::InstallGlobals() {
         return element;
       }
     }
+    // As `hasOwnProperty`: on a global a binding is a non-enumerable own property.
+    if (target.object->GetOwnProperty(key) == nullptr) {
+      if (const Value* binding = call.interpreter.GlobalBindingFor(target.object, key)) {
+        const Value described = call.interpreter.NewObjectValue();
+        if (described.IsObject()) {
+          described.object->Set("value", *binding);
+          described.object->Set("writable", Value::Bool(true));
+          described.object->Set("enumerable", Value::Bool(false));
+          described.object->Set("configurable", Value::Bool(true));
+        }
+        return described;
+      }
+    }
     const Object::Property* property = target.object->GetOwnProperty(key);
     if (property == nullptr) {
       return Value::Undefined();
@@ -797,8 +810,13 @@ void Interpreter::InstallGlobals() {
   object_constructor->Set("prototype", Value::Obj(intrinsics().object_prototype));
   intrinsics().object_prototype->SetHidden("constructor", Value::Obj(object_constructor));
   install(intrinsics().object_prototype, "hasOwnProperty", [](NativeCall& call) {
-    return Value::Bool(call.self.IsObject() &&
-                       call.self.object->HasOwn(KeyFrom(Argument(call.arguments, 0))));
+    if (!call.self.IsObject()) {
+      return Value::Bool(false);
+    }
+    const PropertyKey key = KeyFrom(Argument(call.arguments, 0));
+    // A global's bindings *are* its own properties (`GlobalBindingFor`).
+    return Value::Bool(call.self.object->HasOwn(key) ||
+                       call.interpreter.GlobalBindingFor(call.self.object, key) != nullptr);
   });
   install(intrinsics().object_prototype, "isPrototypeOf", [](NativeCall& call) {
     const Value value = Argument(call.arguments, 0);
@@ -819,6 +837,11 @@ void Interpreter::InstallGlobals() {
     // Every own property is enumerable here: the object model has no
     // attributes to say otherwise, so this is `hasOwnProperty` under another
     // name rather than a second answer.
+    //
+    // **Deliberately not extended to a global's bindings**, unlike
+    // `hasOwnProperty` beside it: an interface object is a *non*-enumerable own
+    // property, which is what the descriptor reports, and two answers that
+    // disagree would be worse than the one wrong answer a global `var` gets.
     return Value::Bool(call.self.IsObject() &&
                        call.self.object->HasOwn(KeyFrom(Argument(call.arguments, 0))));
   });
