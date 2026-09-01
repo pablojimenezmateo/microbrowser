@@ -359,6 +359,46 @@ std::optional<std::string> ComputedValueOf(const css::ComputedStyle& style,
   if (property == "transform") {
     return std::string(style.transform.IsNone() ? "none" : "matrix(1, 0, 0, 1, 0, 0)");
   }
+  // CSS Transforms 2's individual properties. Their computed value is the
+  // *specified* one with lengths absolutised -- not a matrix, unlike
+  // `transform` -- which is what makes them separately animatable and is what
+  // `css/css-transforms/parsing/*-computed.html` reads.
+  if (property == "translate" || property == "rotate" || property == "scale") {
+    const std::optional<css::TransformOperation>& operation =
+        property == "translate"
+            ? style.individual_transform.translate
+            : (property == "rotate" ? style.individual_transform.rotate
+                                    : style.individual_transform.scale);
+    if (!operation.has_value()) {
+      return std::string("none");
+    }
+    if (property == "translate") {
+      const std::string x = LengthText(operation->length_x, font_size);
+      // A zero second component is not serialized, which is the shortest form
+      // that round-trips -- `translate: 10px 0` computes to `10px`.
+      if (operation->length_y.unit == css::Length::Unit::Pixels &&
+          operation->length_y.value == 0.0f) {
+        return x;
+      }
+      return x + " " + LengthText(operation->length_y, font_size);
+    }
+    if (property == "rotate") {
+      return Number(operation->a * 180.0f / 3.14159265358979323846f) + "deg";
+    }
+    if (operation->a == operation->b) {
+      return Number(operation->a);
+    }
+    return Number(operation->a) + " " + Number(operation->b);
+  }
+  if (property == "transform-box") {
+    switch (style.transform_box) {
+      case css::TransformBox::ContentBox: return std::string("content-box");
+      case css::TransformBox::BorderBox: return std::string("border-box");
+      case css::TransformBox::FillBox: return std::string("fill-box");
+      case css::TransformBox::StrokeBox: return std::string("stroke-box");
+      case css::TransformBox::ViewBox: return std::string("view-box");
+    }
+  }
   if (property == "overflow-x") return std::string(OverflowText(style.overflow_x));
   if (property == "overflow-y") return std::string(OverflowText(style.overflow_y));
   // Shorthand: when both axes agree, one token; otherwise the two-value form.

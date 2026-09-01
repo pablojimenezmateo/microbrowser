@@ -595,13 +595,26 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
     // it would otherwise push the same matrix once for the div and again for each
     // anonymous wrapper inside it -- applying it two or three times over.
     const bool transformed =
-        !style.transform.IsNone() && !border_box.IsEmpty() && box.Origin() != nullptr;
+        (!style.transform.IsNone() || !style.individual_transform.IsNone()) &&
+        !border_box.IsEmpty() && box.Origin() != nullptr;
     if (transformed) {
       const gfx::FloatPoint origin{
           border_box.x + style.transform_origin_x.Used(border_box.width, style.font_size),
           border_box.y + style.transform_origin_y.Used(border_box.height, style.font_size)};
-      out.PushTransform(style.transform.ToMatrix(
-          gfx::FloatSize{border_box.width, border_box.height}, origin, style.font_size));
+      // `translate`, `rotate`, `scale`, then `transform` -- the specification's
+      // order (CSS Transforms 2 §"Current transformation matrix"), which is not
+      // the order the page declared them in. All four about the same origin, so
+      // the origin translation is applied once around the whole product rather
+      // than once per part.
+      const gfx::FloatSize size{border_box.width, border_box.height};
+      gfx::AffineTransform matrix =
+          style.individual_transform.ToMatrix(size, style.font_size)
+              .Then(style.transform.ToMatrix(size, gfx::FloatPoint{0.0f, 0.0f},
+                                             style.font_size));
+      matrix = gfx::AffineTransform::Translation(-origin.x, -origin.y)
+                   .Then(matrix)
+                   .Then(gfx::AffineTransform::Translation(origin.x, origin.y));
+      out.PushTransform(matrix);
     }
     // Every `return` below this line would leak the push, so the one exit that
     // exists -- the replaced-element branch -- pops explicitly. A scope guard was

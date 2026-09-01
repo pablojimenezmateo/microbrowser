@@ -286,8 +286,200 @@ bool ParseFunction(std::string_view name, const std::vector<Token>& arguments,
 
 }  // namespace
 
+// The non-whitespace tokens of a value, which is what the three individual
+// transform properties are made of: space-separated components rather than a
+// function's argument list.
+std::vector<Token> Components(std::string_view value) {
+  std::vector<Token> out;
+  for (const Token& token : Tokenize(value)) {
+    if (token.kind == Token::Kind::Whitespace || token.kind == Token::Kind::EndOfFile) {
+      continue;
+    }
+    out.push_back(token);
+  }
+  return out;
+}
+
+// `translate: none | <length-percentage> [<length-percentage> <length>?]?`
+bool ParseTranslateProperty(std::string_view value, std::optional<TransformOperation>& out) {
+  const std::vector<Token> parts = Components(value);
+  if (parts.empty() || parts.size() > 3) {
+    return false;
+  }
+  const std::optional<Length> x = ParseTranslation(parts[0]);
+  if (!x.has_value()) {
+    return false;
+  }
+  Length y = Length::Pixels(0.0f);
+  if (parts.size() >= 2) {
+    const std::optional<Length> parsed = ParseTranslation(parts[1]);
+    if (!parsed.has_value()) {
+      return false;
+    }
+    y = *parsed;
+  }
+  if (parts.size() == 3) {
+    // The third component is a *length* and not a percentage, and a non-zero one
+    // is 3D -- refused for the reason the 3D functions are, and not silently
+    // dropped: `translate: 0 0 100px` under a perspective is a box at a
+    // different size, and flattening it to zero is a wrong page.
+    if (parts[2].kind == Token::Kind::Percentage) {
+      return false;
+    }
+    const std::optional<Length> z = ParseTranslation(parts[2]);
+    if (!z.has_value() || z->Resolve(16.0f) != 0.0f) {
+      return false;
+    }
+  }
+  TransformOperation operation;
+  operation.kind = TransformOperation::Kind::Translate;
+  operation.length_x = *x;
+  operation.length_y = y;
+  out = operation;
+  return true;
+}
+
+// `rotate: none | <angle> | [x | y | z | <number>{3}] && <angle>`
+bool ParseRotateProperty(std::string_view value, std::optional<TransformOperation>& out) {
+  const std::vector<Token> parts = Components(value);
+  if (parts.empty() || parts.size() > 4) {
+    return false;
+  }
+  std::optional<float> radians;
+  // The axis, as a vector. `z` is the default and the only one this engine can
+  // render; anything else is a 3D rotation and is refused rather than flattened.
+  float axis[3] = {0.0f, 0.0f, 1.0f};
+  bool axis_seen = false;
+  std::size_t at = 0;
+  while (at < parts.size()) {
+    if (const std::optional<float> angle = ParseAngle(parts[at]);
+        angle.has_value() && parts[at].kind != Token::Kind::Number) {
+      if (radians.has_value()) {
+        return false;
+      }
+      radians = *angle;
+      ++at;
+      continue;
+    }
+    if (axis_seen) {
+      return false;
+    }
+    if (parts[at].kind == Token::Kind::Ident) {
+      const std::string name = AsciiLowerCase(parts[at].value);
+      if (name == "x") {
+        axis[0] = 1.0f;
+        axis[2] = 0.0f;
+      } else if (name == "y") {
+        axis[1] = 1.0f;
+        axis[2] = 0.0f;
+      } else if (name != "z") {
+        return false;
+      }
+      axis_seen = true;
+      ++at;
+      continue;
+    }
+    if (at + 2 >= parts.size()) {
+      return false;
+    }
+    for (std::size_t i = 0; i < 3; ++i) {
+      const std::optional<float> number = ParseNumber(parts[at + i]);
+      if (!number.has_value()) {
+        return false;
+      }
+      axis[i] = *number;
+    }
+    axis_seen = true;
+    at += 3;
+  }
+  if (!radians.has_value()) {
+    // A bare zero is a legal angle everywhere else in this file, so the angle is
+    // required rather than defaulted: `rotate: z` is not a rotation.
+    if (parts.size() != 1 || parts[0].kind != Token::Kind::Number || parts[0].number != 0.0) {
+      return false;
+    }
+    radians = 0.0f;
+  }
+  if (axis[0] != 0.0f || axis[1] != 0.0f) {
+    return false;  // a 3D axis, refused rather than flattened
+  }
+  TransformOperation operation;
+  operation.kind = TransformOperation::Kind::Rotate;
+  // A zero-length axis makes the rotation the identity rather than invalid.
+  operation.a = axis[2] == 0.0f ? 0.0f : (axis[2] < 0.0f ? -*radians : *radians);
+  out = operation;
+  return true;
+}
+
+// `scale: none | [<number> | <percentage>]{1,3}`
+bool ParseScaleProperty(std::string_view value, std::optional<TransformOperation>& out) {
+  const std::vector<Token> parts = Components(value);
+  if (parts.empty() || parts.size() > 3) {
+    return false;
+  }
+  float factors[3] = {1.0f, 1.0f, 1.0f};
+  for (std::size_t i = 0; i < parts.size(); ++i) {
+    if (parts[i].kind == Token::Kind::Percentage) {
+      factors[i] = static_cast<float>(parts[i].number) / 100.0f;
+      continue;
+    }
+    const std::optional<float> number = ParseNumber(parts[i]);
+    if (!number.has_value()) {
+      return false;
+    }
+    factors[i] = *number;
+  }
+  if (parts.size() == 1) {
+    factors[1] = factors[0];  // one number scales both axes
+  }
+  if (parts.size() == 3 && factors[2] != 1.0f) {
+    return false;  // a 3D scale, refused for the reason the 3D functions are
+  }
+  TransformOperation operation;
+  operation.kind = TransformOperation::Kind::Scale;
+  operation.a = factors[0];
+  operation.b = factors[1];
+  out = operation;
+  return true;
+}
+
 bool ApplyTransformDeclaration(std::string_view property, std::string_view value,
                                const ComputedStyle& parent, ComputedStyle& style) {
+  if (property == "translate" || property == "rotate" || property == "scale") {
+    const std::string lowered = AsciiLowerCase(util::TrimAscii(value));
+    std::optional<TransformOperation>& slot =
+        property == "translate" ? style.individual_transform.translate
+                                : (property == "rotate" ? style.individual_transform.rotate
+                                                        : style.individual_transform.scale);
+    if (lowered == "none") {
+      slot.reset();
+      return true;
+    }
+    if (property == "translate") {
+      return ParseTranslateProperty(value, slot);
+    }
+    if (property == "rotate") {
+      return ParseRotateProperty(value, slot);
+    }
+    return ParseScaleProperty(value, slot);
+  }
+  if (property == "transform-box") {
+    const std::string lowered = AsciiLowerCase(util::TrimAscii(value));
+    if (lowered == "content-box") {
+      style.transform_box = TransformBox::ContentBox;
+    } else if (lowered == "border-box") {
+      style.transform_box = TransformBox::BorderBox;
+    } else if (lowered == "fill-box") {
+      style.transform_box = TransformBox::FillBox;
+    } else if (lowered == "stroke-box") {
+      style.transform_box = TransformBox::StrokeBox;
+    } else if (lowered == "view-box") {
+      style.transform_box = TransformBox::ViewBox;
+    } else {
+      return false;
+    }
+    return true;
+  }
   if (property == "transform") {
     const std::string lowered = AsciiLowerCase(value);
     if (lowered == "none") {

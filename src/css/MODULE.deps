@@ -131,7 +131,10 @@ budget: CustomProperties header_lines=70 public_methods=8 members=1
 # value that belongs to one property must be refused on the others, and a shared
 # enum makes that a check somebody has to remember instead of a type the
 # compiler enforces.
-budget: ComputedStyle    header_lines=376 public_methods=27 members=46
+# +2 members for CSS Transforms 2's individual transform properties and
+# `transform-box`. The three properties are one grouped member in Transform.h,
+# beside the operation type they are made of; `transform-box` is one enum.
+budget: ComputedStyle    header_lines=382 public_methods=27 members=48
 # Every field inherits, so the struct is copied whole by `InheritInto` -- which
 # is why a field added here is inherited by default and why that default is
 # correct for this group and for no other.
@@ -142,6 +145,7 @@ budget: SvgStyle         header_lines=75  public_methods=3  members=22
 budget: Paint            header_lines=20  public_methods=2  members=3
 budget: TransformOperation header_lines=50 public_methods=2 members=9
 budget: TransformList    header_lines=60 public_methods=4 members=1
+budget: IndividualTransforms header_lines=45 public_methods=3 members=3
 budget: Length           header_lines=40 public_methods=8 members=3
 budget: FlexStyle        header_lines=50  public_methods=2  members=12
 # The third member is the invalidation index of ADR 0016 §3: which dynamic

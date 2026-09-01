@@ -388,6 +388,186 @@ bool ParseFontShorthandFamily(std::string_view value, std::string* out) {
 // A colour as CSSOM serializes one: `rgb()` when opaque, `rgba()` otherwise, and the same form
 // `getComputedStyle` reports. One function for both, in `gfx`, because two would be two answers to
 // "how is a colour written down".
+// One component of an individual transform property, as CSS serializes a
+// specified value: the number in its shortest form, with the unit it was
+// written with.
+std::string ComponentText(const Token& token, bool negate = false) {
+  double number = token.number;
+  if (negate) {
+    number = -number;
+  }
+  std::string text;
+  if (number == static_cast<double>(static_cast<long long>(number))) {
+    text = std::to_string(static_cast<long long>(number));
+  } else {
+    text = std::to_string(number);
+    while (text.size() > 1 && text.back() == '0') {
+      text.pop_back();
+    }
+    if (!text.empty() && text.back() == '.') {
+      text.pop_back();
+    }
+  }
+  if (token.kind == Token::Kind::Percentage) {
+    return text + "%";
+  }
+  if (token.kind == Token::Kind::Dimension) {
+    return text + util::AsciiLowerCase(token.value);
+  }
+  return text;
+}
+
+bool IsZero(const Token& token) { return token.number == 0.0; }
+
+// Whether a token is a length rather than a percentage -- `translate`'s third
+// component must be one, and its second is dropped only when it is a zero
+// *length*: `100px 0%` keeps its `0%` and `100px 0px` does not.
+bool IsLengthToken(const Token& token) {
+  return token.kind == Token::Kind::Dimension ||
+         (token.kind == Token::Kind::Number && token.number == 0.0);
+}
+
+// `translate`, `rotate` and `scale`, each canonicalised the way the suite's
+// `*-parsing-valid.html` states. Three shapes rather than one, because the rule
+// for dropping a component differs in each: `translate` drops trailing zero
+// lengths, `scale` drops a trailing 1 and then a y equal to x, and `rotate`
+// collapses an axis vector to the keyword it is parallel to -- carrying the
+// sign into the angle when it points the other way.
+bool CanonicaliseIndividualTransform(const std::string& name, const std::vector<Token>& parts,
+                                     std::string* out) {
+  const auto write = [out](std::string text) {
+    if (out != nullptr) {
+      *out = std::move(text);
+    }
+    return true;
+  };
+  if (name == "translate") {
+    if (parts.size() > 3) {
+      return false;
+    }
+    std::size_t count = parts.size();
+    // A trailing zero length disappears; a trailing zero *percentage* does not.
+    while (count > 1 && IsZero(parts[count - 1]) && IsLengthToken(parts[count - 1])) {
+      --count;
+    }
+    std::string text;
+    for (std::size_t i = 0; i < count; ++i) {
+      if (i != 0) {
+        text += ' ';
+      }
+      // A bare `0` is a length and serializes with its unit.
+      text += parts[i].kind == Token::Kind::Number && parts[i].number == 0.0
+                  ? "0px"
+                  : ComponentText(parts[i]);
+    }
+    return write(std::move(text));
+  }
+  if (name == "scale") {
+    if (parts.size() > 3) {
+      return false;
+    }
+    std::vector<std::string> numbers;
+    for (const Token& token : parts) {
+      if (token.kind == Token::Kind::Percentage) {
+        Token as_number = token;
+        as_number.kind = Token::Kind::Number;
+        as_number.number = token.number / 100.0;
+        numbers.push_back(ComponentText(as_number));
+      } else if (token.kind == Token::Kind::Number) {
+        numbers.push_back(ComponentText(token));
+      } else {
+        return false;
+      }
+    }
+    if (numbers.size() == 3 && numbers[2] == "1") {
+      numbers.pop_back();
+    }
+    if (numbers.size() == 2 && numbers[1] == numbers[0]) {
+      numbers.pop_back();
+    }
+    std::string text;
+    for (std::size_t i = 0; i < numbers.size(); ++i) {
+      if (i != 0) {
+        text += ' ';
+      }
+      text += numbers[i];
+    }
+    return write(std::move(text));
+  }
+  // rotate. The angle may come before or after the axis, and there is exactly
+  // one of it.
+  std::size_t angle = parts.size();
+  for (std::size_t i = 0; i < parts.size(); ++i) {
+    if (parts[i].kind == Token::Kind::Dimension ||
+        (parts[i].kind == Token::Kind::Number && parts[i].number == 0.0 && parts.size() == 1)) {
+      if (angle != parts.size()) {
+        return false;
+      }
+      angle = i;
+    }
+  }
+  if (angle == parts.size()) {
+    return false;
+  }
+  std::vector<const Token*> axis;
+  std::string keyword;
+  for (std::size_t i = 0; i < parts.size(); ++i) {
+    if (i == angle) {
+      continue;
+    }
+    if (parts[i].kind == Token::Kind::Ident) {
+      const std::string word = util::AsciiLowerCase(parts[i].value);
+      if (!keyword.empty() || !axis.empty() || (word != "x" && word != "y" && word != "z")) {
+        return false;
+      }
+      keyword = word;
+      continue;
+    }
+    if (parts[i].kind != Token::Kind::Number || !keyword.empty()) {
+      return false;
+    }
+    axis.push_back(&parts[i]);
+  }
+  if (!axis.empty() && axis.size() != 3) {
+    return false;
+  }
+  double components[3] = {0.0, 0.0, 1.0};
+  if (!axis.empty()) {
+    for (std::size_t i = 0; i < 3; ++i) {
+      components[i] = axis[i]->number;
+    }
+  } else if (keyword == "x") {
+    components[0] = 1.0;
+    components[2] = 0.0;
+  } else if (keyword == "y") {
+    components[1] = 1.0;
+    components[2] = 0.0;
+  }
+  // An axis parallel to a basis vector collapses to that keyword, and a
+  // negative one carries its sign into the angle -- which is what makes
+  // `0 0 -1 400grad` and `-400grad` the same declaration.
+  const bool only_x = components[1] == 0.0 && components[2] == 0.0 && components[0] != 0.0;
+  const bool only_y = components[0] == 0.0 && components[2] == 0.0 && components[1] != 0.0;
+  const bool only_z = components[0] == 0.0 && components[1] == 0.0 && components[2] != 0.0;
+  if (only_z) {
+    return write(ComponentText(parts[angle], components[2] < 0.0));
+  }
+  if (only_x) {
+    return write("x " + ComponentText(parts[angle], components[0] < 0.0));
+  }
+  if (only_y) {
+    return write("y " + ComponentText(parts[angle], components[1] < 0.0));
+  }
+  std::string text;
+  for (std::size_t i = 0; i < 3; ++i) {
+    Token number;
+    number.kind = Token::Kind::Number;
+    number.number = components[i];
+    text += ComponentText(number) + " ";
+  }
+  return write(text + ComponentText(parts[angle]));
+}
+
 }  // namespace
 
 DeclarationValidity CanonicaliseDeclaration(std::string_view property, std::string_view value,
@@ -449,6 +629,32 @@ DeclarationValidity CanonicaliseDeclaration(std::string_view property, std::stri
     return DeclarationValidity::Canonical;
   }
 
+  // CSS Transforms 2's individual transform properties. Canonicalised on the
+  // *tokens* rather than by round-tripping through a parsed value, because the
+  // specified value keeps the unit the page wrote -- `400grad` reads back as
+  // `400grad`, not as its degree equivalent -- and a value that went through
+  // radians and back would not.
+  if (name == "translate" || name == "rotate" || name == "scale") {
+    if (lowered == "none") {
+      if (out != nullptr) {
+        *out = "none";
+      }
+      return DeclarationValidity::Canonical;
+    }
+    std::vector<Token> parts;
+    for (const Token& token : Tokenize(trimmed)) {
+      if (token.kind != Token::Kind::Whitespace && token.kind != Token::Kind::EndOfFile) {
+        parts.push_back(token);
+      }
+    }
+    if (parts.empty()) {
+      return DeclarationValidity::Invalid;
+    }
+    if (!CanonicaliseIndividualTransform(name, parts, out)) {
+      return DeclarationValidity::Invalid;
+    }
+    return DeclarationValidity::Canonical;
+  }
   if (name == "font-family") {
     if (!ParseFontFamily(trimmed, out)) {
       return DeclarationValidity::Invalid;

@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 #include "css/Length.h"
@@ -101,5 +102,59 @@ struct TransformList {
     return {};
   }
 };
+
+// CSS Transforms 2's individual transform properties.
+//
+// Separate members rather than three more entries on `transform`, because they
+// are a *different* property each: `transform: none` does not clear them, they
+// animate independently, and `getComputedStyle` reports each on its own. What
+// they share with `transform` is the operation type and the matrix it makes,
+// which is why they live here.
+//
+// The order is the specification's and is not the order they are declared in:
+// translate, then rotate, then scale, then `transform`. A page that writes
+// `scale: 2; translate: 10px` gets the translation first whichever line came
+// first, and that is visible whenever the two are not commutative -- which is
+// whenever the scale is not 1.
+struct IndividualTransforms {
+  // Absent is `none`, which is the initial value and is *not* the same as the
+  // identity for serialization: `getComputedStyle` reports `none` for one and
+  // `0px` or `1` for the other.
+  std::optional<TransformOperation> translate;
+  std::optional<TransformOperation> rotate;
+  std::optional<TransformOperation> scale;
+
+  bool IsNone() const {
+    return !translate.has_value() && !rotate.has_value() && !scale.has_value();
+  }
+
+  // The three, composed in the specification's order and about the origin the
+  // caller has already resolved. `transform` is applied by the caller *after*
+  // this, which is the order CSS Transforms 2 §"Current transformation matrix"
+  // gives.
+  gfx::AffineTransform ToMatrix(gfx::FloatSize size, float font_size) const {
+    TransformList list;
+    if (translate.has_value()) {
+      list.operations.push_back(*translate);
+    }
+    if (rotate.has_value()) {
+      list.operations.push_back(*rotate);
+    }
+    if (scale.has_value()) {
+      list.operations.push_back(*scale);
+    }
+    return list.ToMatrix(size, gfx::FloatPoint{0.0f, 0.0f}, font_size);
+  }
+
+  friend bool operator==(const IndividualTransforms&, const IndividualTransforms&) = default;
+};
+
+// `transform-box`: which box a percentage `transform-origin` is a fraction of.
+// Five values because SVG has three boxes of its own, and this browser stores
+// all five even though only the two CSS ones can differ today -- a value that
+// round-trips through `getComputedStyle` is what the parsing tests ask for, and
+// dropping the three SVG ones would make `transform-box: fill-box` an invalid
+// declaration rather than one whose effect is not yet built.
+enum class TransformBox : std::uint8_t { ContentBox, BorderBox, FillBox, StrokeBox, ViewBox };
 
 }  // namespace microbrowser::css

@@ -1020,6 +1020,53 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
     css::InheritInto(painted, child);
     ExpectEqInt(static_cast<long long>(child.svg.fill.color.Blue()), 255, "reaches the child");
   });
+
+  AddTest(tests, "Css/IndividualTransformPropertiesAreTheirOwnProperties", [] {
+    // CSS Transforms 2. `translate`, `rotate` and `scale` are separate
+    // properties from `transform` -- separately animatable, separately reported
+    // -- and they apply in that order whichever order the page declared them.
+    const ComputedStyle parent;
+    ComputedStyle style;
+    Expect(ApplyDeclaration(Declaration{"translate", "10px 20px"}, parent, style), "translate");
+    Expect(style.individual_transform.translate.has_value(), "is stored");
+    Expect(ApplyDeclaration(Declaration{"rotate", "0 0 1 90deg"}, parent, style),
+           "an explicit z axis is a z rotation");
+    Expect(ApplyDeclaration(Declaration{"scale", "2"}, parent, style), "one number scales both");
+    Expect(style.individual_transform.scale->a == 2.0f &&
+               style.individual_transform.scale->b == 2.0f,
+           "on both axes");
+    Expect(ApplyDeclaration(Declaration{"translate", "none"}, parent, style), "`none` parses");
+    Expect(!style.individual_transform.translate.has_value(),
+           "and is the absent value rather than a zero one -- getComputedStyle must say `none`");
+
+    // 3D is refused rather than flattened, which is the rule the transform
+    // *functions* already follow: `rotateY(90deg)` flattened to 2D is a box at
+    // full width where the page meant an edge-on sliver.
+    Expect(!ApplyDeclaration(Declaration{"rotate", "x 45deg"}, parent, style), "a 3D axis");
+    Expect(!ApplyDeclaration(Declaration{"rotate", "1 0 0 45deg"}, parent, style), "spelled out");
+    Expect(!ApplyDeclaration(Declaration{"translate", "1px 2px 3px"}, parent, style), "a z offset");
+    Expect(ApplyDeclaration(Declaration{"translate", "1px 2px 0"}, parent, style), "but a zero one");
+    Expect(!ApplyDeclaration(Declaration{"scale", "1 1 2"}, parent, style), "a 3D scale");
+
+    // The CSSOM serialization is of the *specified* value, so the unit survives:
+    // `400grad` reads back as `400grad` and not as its degree equivalent. That is
+    // why the canonicaliser works on tokens rather than on a parsed value.
+    const auto canonical = [](const char* property, const char* value) {
+      std::string out;
+      const css::DeclarationValidity validity =
+          css::CanonicaliseDeclaration(property, value, &out);
+      return validity == css::DeclarationValidity::Invalid ? std::string("-") : out;
+    };
+    ExpectEqString(canonical("rotate", "0 0 1 400grad"), "400grad", "a z axis disappears");
+    ExpectEqString(canonical("rotate", "0 0 -1 400grad"), "-400grad",
+                   "and a negative one takes its sign into the angle");
+    ExpectEqString(canonical("rotate", "400grad x"), "x 400grad", "the axis comes first");
+    ExpectEqString(canonical("translate", "100px 0px"), "100px", "a zero y length goes");
+    ExpectEqString(canonical("translate", "100px 0%"), "100px 0%", "a zero y percentage stays");
+    ExpectEqString(canonical("translate", "0"), "0px", "a bare zero is a length");
+    ExpectEqString(canonical("scale", "-100 -100 1"), "-100", "a trailing 1 and an equal y go");
+    ExpectEqString(canonical("scale", "1%"), "0.01", "a percentage is a number");
+  });
 }
 
 }  // namespace microbrowser::tests

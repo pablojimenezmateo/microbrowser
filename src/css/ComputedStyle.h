@@ -508,6 +508,11 @@ struct ComputedStyle {
   std::vector<TransitionSpec> transitions;
   std::vector<AnimationSpec> animations;
 
+  // CSS Transforms 2's `translate`/`rotate`/`scale`, and the box a percentage
+  // origin is a fraction of. Grouped in `Transform.h` beside the operation type
+  // they are made of.
+  IndividualTransforms individual_transform;
+  TransformBox transform_box = TransformBox::ViewBox;
   Length transform_origin_x = Length{50.0f, Length::Unit::Percent};
   Length transform_origin_y = Length{50.0f, Length::Unit::Percent};
   // Per axis, because a page sets them separately as often as together --
