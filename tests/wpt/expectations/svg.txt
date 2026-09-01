@@ -149,6 +149,8 @@ FAIL=calcMode spline with 'to' animation
 FAIL=SMIL from-to animation of the 'pathLength' attribute
 [svg/animations/animate-reset-freeze.html]
 FAIL=SVG Animations: Rewinding fill='freeze' animations
+[svg/animations/animate-rewind-freeze-indefinite.svg]
+harness=TIMEOUT
 [svg/animations/animate-stop-currentcolor-ci.html]
 FAIL=Animating 'stop-color' from 'currentColor'
 [svg/animations/animate-stop-currentcolor-escaped.html]
@@ -228,7 +230,7 @@ FAIL=This tests scripting a CSS property while animation is running
 [svg/animations/change-target-while-animating-SVG-property.html]
 FAIL=This changes the target of an animation while its running
 [svg/animations/conditional-processing-01.html]
-harness=FAIL
+harness=TIMEOUT
 [svg/animations/conditional-processing-02.html]
 FAIL=beginEvent does not fire when ancestor fails conditional processing
 [svg/animations/correct-events-for-short-animations-with-syncbases.html]
@@ -327,7 +329,11 @@ FAIL=SVGAnimationElement exceptions, getSimpleDuration throws with undefined sim
 FAIL=SVGAnimationElement exceptions, getStartTime throws with unresolved interval.
 [svg/animations/scripted/SVGAnimationElement-getStartTime.html]
 FAIL=SVGAnimationElement.getStartTime() returns the start time of the current interval.
+[svg/animations/scripted/animateMotion-animated-line.svg]
+harness=TIMEOUT
 [svg/animations/scripted/animatetransform-type-missing-value-default.html]
+harness=TIMEOUT
+[svg/animations/scripted/clear-mapped-animation.svg]
 harness=TIMEOUT
 [svg/animations/scripted/end-element-on-inactive-element.svg]
 FAIL=endElement() on an inactive element
@@ -367,9 +373,9 @@ FAIL=Seeking backwards to a new interval dispatches both 'endEvent' and 'beginEv
 [svg/animations/seeking-to-large-time.html]
 FAIL=SVGSVGElement.prototype.setCurrentTime: Large time argument
 [svg/animations/set-animation-end-1.html]
-harness=FAIL
+harness=TIMEOUT
 [svg/animations/set-animation-end-2.html]
-harness=FAIL
+harness=TIMEOUT
 [svg/animations/set-dynamic-attributeName-css-property-cleanup.html]
 FAIL=Changing attributeName on set element clears old animated CSS property
 [svg/animations/short-simple-duration-and-fractional-repeatcount.html]
@@ -383,7 +389,7 @@ harness=ERROR
 [svg/animations/smil-values-trailing-semicolon.html]
 FAIL=Trailing semicolons in SMIL values attribute should produce valid path
 [svg/animations/stop-animation-01.html]
-harness=FAIL
+harness=TIMEOUT
 [svg/animations/svgangle-animation-deg-to-grad.html]
 FAIL=Tests SVGAngle animation from deg to grad.
 [svg/animations/svgangle-animation-deg-to-rad.html]
@@ -599,9 +605,9 @@ FAIL=Test SVGTransformList animation with invalid values: String value in transf
 [svg/animations/svgtransformlist-animation-invalid-value-3.html]
 FAIL=Test SVGTransformList animation with invalid values: String value in transform list values for from and to attributes.
 [svg/animations/switch-animation-01.html]
-harness=FAIL
+harness=TIMEOUT
 [svg/animations/switch-animation-02.html]
-harness=FAIL
+harness=TIMEOUT
 [svg/animations/syncbase-escaped-dots.html]
 FAIL=Multiple escaped dots in syncbase ID (begin="a\.b\.c.begin")
 FAIL=Single escaped dot in syncbase ID (begin="my\.anim.begin")
@@ -610,9 +616,9 @@ FAIL=Remove/Add syncbase while animation is running
 [svg/animations/syncbases-with-tangled-dependencies.html]
 FAIL=Syncbases with tangled dependencies
 [svg/animations/use-animate-display-none-symbol-2.html]
-harness=FAIL
+harness=TIMEOUT
 [svg/animations/use-animate-display-none-symbol.html]
-harness=FAIL
+harness=TIMEOUT
 [svg/as-image/external-resource-inline-sheet.html]
 harness=FAIL
 [svg/coordinate-systems/SVGTransformList.consolidate-01.html]
@@ -696,6 +702,12 @@ FAIL=default fetchpriority attribute on <image> elements should be 'auto'
 FAIL=fetchpriority attribute on <image> elements should reflect valid IDL values
 [svg/embedded/image-crossorigin.sub.html]
 harness=TIMEOUT
+[svg/embedded/image-embedding-nested-data-url-from-canvas-post-window-load.html]
+harness=TIMEOUT
+[svg/embedded/image-embedding-nested-data-url-from-canvas-window-load.html]
+harness=TIMEOUT
+[svg/embedded/image-embedding-nested-data-url-from-canvas.html]
+harness=TIMEOUT
 [svg/embedded/image-embedding-nested-data-url-png.html]
 harness=FAIL
 [svg/embedded/image-embedding-nested-data-url.html]
@@ -704,10 +716,20 @@ harness=FAIL
 harness=FAIL
 [svg/embedded/image-embedding-nesteder-data-url.html]
 harness=FAIL
+[svg/embedded/image-modify-href-1.svg]
+harness=TIMEOUT
+[svg/embedded/image-modify-href-2.svg]
+harness=TIMEOUT
+[svg/embedded/image-modify-href-3.svg]
+harness=TIMEOUT
+[svg/embedded/image-modify-href-4.svg]
+harness=TIMEOUT
 [svg/embedded/image-remove-href-1.svg]
-harness=FAIL
+harness=TIMEOUT
+[svg/embedded/image-remove-href-2.svg]
+harness=TIMEOUT
 [svg/embedded/image-remove-href-3.svg]
-harness=FAIL
+harness=TIMEOUT
 [svg/extensibility/foreignObject/containing-block.html]
 FAIL=position
 [svg/extensibility/foreignObject/foreign-object-containing-svg-in-svg-in-object.html]
@@ -2996,6 +3018,8 @@ FAIL=Hit-test of <text> with overlapping <tspan> hits the top-most node
 FAIL=elementFromPoint(...) on <svg:text> with fill=none but fill=black descendants
 [svg/interact/scripted/text-hittest-003.html]
 FAIL=elementFromPoint(...) on visibility=hidden <svg:text> with visible descendants
+[svg/interact/use-instance-hover.html]
+harness=TIMEOUT
 [svg/layout/svg-embed-intrinsic-size-min-size.html]
 harness=FAIL
 [svg/layout/svg-foreign-relayout-001.html]
@@ -3016,6 +3040,8 @@ harness=FAIL
 harness=FAIL
 [svg/layout/svg-use-symbol-width-print.html]
 harness=FAIL
+[svg/linking/reftests/href-a-element-attr-change.html]
+harness=TIMEOUT
 [svg/linking/reftests/href-pattern-element.html]
 harness=FAIL
 [svg/linking/reftests/media-fragment-override-multiple.html]
@@ -3434,6 +3460,8 @@ harness=FAIL
 harness=FAIL
 [svg/painting/marker-orient-001.svg]
 harness=FAIL
+[svg/painting/mask-containing-image-with-clip-path.svg]
+harness=TIMEOUT
 [svg/painting/parsing/fill-computed.svg]
 FAIL=Property fill value 'url("https://example.com/") none'
 FAIL=Property fill value 'url("https://example.com/") rgb(12, 34, 56)'
@@ -3593,7 +3621,7 @@ harness=FAIL
 [svg/painting/reftests/non-scaling-stroke-001.html]
 harness=FAIL
 [svg/painting/reftests/non-scaling-stroke-002.html]
-harness=FAIL
+harness=TIMEOUT
 [svg/painting/reftests/non-scaling-stroke-003.html]
 harness=FAIL
 [svg/painting/reftests/non-scaling-stroke-005.html]
@@ -4244,11 +4272,13 @@ harness=FAIL
 [svg/render/reftests/blending-svg-root.html]
 harness=FAIL
 [svg/render/reftests/change-sync-for-nested-use.html]
-harness=FAIL
+harness=TIMEOUT
 [svg/render/reftests/nested-svg-overflow-clip.html]
 harness=FAIL
 [svg/render/reftests/overflow-clip.html]
 harness=FAIL
+[svg/render/reftests/render-sync-with-font-size.html]
+harness=TIMEOUT
 [svg/scripted/attr-script-fetchpriority.optional.html]
 FAIL=default fetchpriority attribute on SVG <script> elements should be 'auto'
 FAIL=fetchpriority attribute on SVG <script> elements should reflect valid IDL values
@@ -4299,6 +4329,8 @@ harness=FAIL
 harness=FAIL
 [svg/shapes/reftests/pathlength-002.svg]
 harness=FAIL
+[svg/shapes/reftests/pathlength-004b.svg]
+harness=TIMEOUT
 [svg/shapes/reftests/pathlength-005.html]
 harness=FAIL
 [svg/shapes/reftests/polygon-with-filtered-marker.html]
@@ -4364,7 +4396,7 @@ harness=FAIL
 [svg/struct/reftests/use-external-resource-target-pseudo-002.html]
 harness=FAIL
 [svg/struct/reftests/use-external-resource-with-revalidation.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [svg/struct/reftests/use-external-svg-resource-no-fragment-id.html]
 harness=FAIL
 [svg/struct/reftests/use-foreignObject.html]
@@ -4506,6 +4538,10 @@ harness=FAIL
 harness=FAIL
 [svg/styling/css-var-on-length-attributes-quirk.html]
 harness=FAIL
+[svg/styling/invalidation/nth-child-of-class.svg]
+harness=TIMEOUT
+[svg/styling/invalidation/nth-last-child-of-class.svg]
+harness=TIMEOUT
 [svg/styling/presentation-attributes-special-cases.html]
 harness=TIMEOUT
 [svg/styling/render/transform-box.svg]
@@ -4606,8 +4642,12 @@ FAIL=StyleSheet_properties
 FAIL=StyleSheet_property_values
 FAIL=sheet_property
 FAIL=sheet_property_updates
+[svg/styling/svg-filter-render-cross-origin-navigation-in-srcdoc-frame.tentative.sub.https.html]
+harness=TIMEOUT
 [svg/styling/svg-filter-render-same-origin-frame-in-same-origin-frame.tentative.https.html]
 harness=FAIL
+[svg/styling/svg-filter-render-same-origin-frame-reload-as-sandbox.tentative.https.html]
+harness=TIMEOUT
 [svg/styling/svg-filter-render-same-origin-frame.tentative.https.html]
 harness=FAIL
 [svg/styling/svg-filter-render-srcdoc-frame.tentative.https.html]
@@ -4685,6 +4725,12 @@ harness=FAIL
 harness=FAIL
 [svg/text/reftests/text-path-transformed-002.html]
 harness=FAIL
+[svg/text/reftests/textLength-list-x-spacingAndGlyphs.svg]
+harness=TIMEOUT
+[svg/text/reftests/textLength-list-y-spacing.svg]
+harness=TIMEOUT
+[svg/text/reftests/textLength-list-y-spacingAndGlyphs.svg]
+harness=TIMEOUT
 [svg/text/reftests/textpath-path-attr-precedence-over-href.svg]
 harness=FAIL
 [svg/text/reftests/textpath-path-attr-use-up-to-first-error.svg]

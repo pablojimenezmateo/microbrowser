@@ -3266,7 +3266,7 @@ FAIL=HTTP cache updates returned headers from a Last-Modified 304
 FAIL=HTTP cache updates stored headers from a ETag 304
 FAIL=HTTP cache updates stored headers from a Last-Modified 304
 [fetch/http-cache/basic-auth-cache-test.html]
-harness=FAIL
+harness=TIMEOUT
 [fetch/http-cache/cache-mode.any.html]
 FAIL=Fetch doesn't touch Cache-Control when cache mode is no-cache and Cache-Control is already present
 FAIL=Fetch doesn't touch Cache-Control when cache mode is no-store and Cache-Control is already present

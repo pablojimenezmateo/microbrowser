@@ -149,9 +149,11 @@ FAIL=A steps(2, start) function on a keyframe affects the resulting style
 [web-animations/animation-model/keyframe-effects/transform-and-opacity-on-inline-001.html]
 harness=FAIL
 [web-animations/animation-model/side-effects-of-animations-current.html]
-harness=FAIL
+harness=TIMEOUT
 [web-animations/animation-model/side-effects-of-animations-in-effect.html]
-harness=FAIL
+harness=TIMEOUT
+[web-animations/animation-model/side-effects-of-animations-none.html]
+harness=TIMEOUT
 [web-animations/animation-trigger/event-trigger-before-handlers.tentative.html]
 FAIL=Animation triggers are handled before registered event listeners
 [web-animations/animation-trigger/event-trigger-once.tentative.html]
@@ -1214,9 +1216,9 @@ FAIL=lineHeight responsive to style changes
 FAIL=minHeight clamped to 0px on keyframes
 FAIL=minHeight responsive to style changes
 [web-animations/responsive/multiple-properties-delayed-important.html]
-harness=FAIL
+harness=TIMEOUT
 [web-animations/responsive/neutral-keyframe.html]
-harness=FAIL
+harness=TIMEOUT
 [web-animations/responsive/offset-path.html]
 FAIL=offset-path responsive to inherited offset-path changes
 [web-animations/responsive/offsetDistance.html]
@@ -1225,6 +1227,8 @@ FAIL=offsetDistance percentages are supported
 FAIL=offsetDistance responsive to inherited offsetDistance changes
 [web-animations/responsive/offsetRotate.html]
 FAIL=offsetRotate responsive to inherited offsetRotate changes
+[web-animations/responsive/opacity-with-delayed-important.html]
+harness=TIMEOUT
 [web-animations/responsive/opacity.html]
 FAIL=fillOpacity responsive to inherited changes
 FAIL=floodOpacity responsive to inherited changes
@@ -1276,7 +1280,7 @@ FAIL=Lengths responsive to style changes
 FAIL=Numbers responsive to style changes
 FAIL=Percentages responsive to width style changes
 [web-animations/responsive/tramsform-with-delayed-important.html]
-harness=FAIL
+harness=TIMEOUT
 [web-animations/responsive/transform.html]
 FAIL=Transform responsive to font size changes
 [web-animations/responsive/translate.html]
@@ -1429,7 +1433,7 @@ FAIL=The finished promise should NOT be rejected if the animation is already idl
 FAIL=The ready promise should be replaced when the animation is canceled
 FAIL=When an animation is canceled, it should create a resolved Promise
 [web-animations/timing-model/animations/document-timeline-animation.html]
-harness=FAIL
+harness=TIMEOUT
 [web-animations/timing-model/animations/finish-promise-after-reverse-delay.html]
 FAIL=Finish notification steps run when reversing during positive delay
 [web-animations/timing-model/animations/finishing-an-animation.html]
@@ -1452,6 +1456,8 @@ FAIL=Finishing an animation with a current time past the effect end jumps back t
 FAIL=Finishing an animation with a zero playback rate throws
 FAIL=Finishing an animation without a target resolves the finished promise synchronously
 FAIL=Finishing an infinite animation throws
+[web-animations/timing-model/animations/infinite-duration-animation.html]
+harness=TIMEOUT
 [web-animations/timing-model/animations/invalidating-animation-before-start-time-synced.html]
 FAIL=Animation invalidated before startTime is set doesn't affect startTime
 [web-animations/timing-model/animations/pausing-an-animation.html]
@@ -1488,6 +1494,8 @@ FAIL=Playing a finished animation seeks back to the start
 FAIL=Playing a running animation leaves the current time unchanged
 FAIL=Resuming an animation from paused calculates start time from hold time
 FAIL=The ready promise should be replaced if the animation is not already pending
+[web-animations/timing-model/animations/reverse-running-animation.html]
+harness=TIMEOUT
 [web-animations/timing-model/animations/reversing-an-animation.html]
 FAIL=Reversing an animation does not cause it to leave the pending state
 FAIL=Reversing an animation does not cause it to resolve the ready promise
@@ -1580,13 +1588,17 @@ FAIL=After transitioning from a null timeline on an animation with a sufficientl
 [web-animations/timing-model/animations/start-time-compat.html]
 FAIL=Checking the start time of animations started at various times between two page rendering updates
 [web-animations/timing-model/animations/sync-start-times.html]
-harness=FAIL
+harness=TIMEOUT
 [web-animations/timing-model/animations/the-current-time-of-an-animation.html]
 FAIL=The current time does not progress if playback rate is 0
 FAIL=The current time is calculated from the timeline time, start time and playback rate
 FAIL=The current time is unresolved when the start time is unresolved (and no hold time is set)
 FAIL=The current time is unresolved when there is no associated timeline (and no hold time is set)
 FAIL=The current time returns the hold time when set
+[web-animations/timing-model/animations/update-playback-rate-fast.html]
+harness=TIMEOUT
+[web-animations/timing-model/animations/update-playback-rate-zero.html]
+harness=TIMEOUT
 [web-animations/timing-model/animations/updating-the-finished-state.html]
 harness=TIMEOUT
 [web-animations/timing-model/time-transformations/transformed-progress.html]

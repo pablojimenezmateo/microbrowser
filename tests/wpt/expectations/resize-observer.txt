@@ -55,7 +55,7 @@ FAIL=ResizeObserverSize interface: existence and properties of interface prototy
 FAIL=Stringification of entry
 FAIL=Stringification of observer
 [resize-observer/iframe-same-origin.html]
-harness=FAIL
+harness=TIMEOUT
 [resize-observer/notify.html]
 harness=TIMEOUT
 [resize-observer/observe-006.html]

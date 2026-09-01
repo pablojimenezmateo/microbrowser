@@ -2906,7 +2906,7 @@ harness=FAIL
 [html/canvas/element/manual/context-attributes/reset_color_alpha_false.html]
 harness=FAIL
 [html/canvas/element/manual/draw-element-image/anchor-positioning.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/animated-gif-pinned-to-element-image.tentative.html]
 harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/animated-gif.tentative.html]
@@ -2914,66 +2914,68 @@ harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/backdrop-filter-bounds-expansion.tentative.html]
 FAIL=drawElementImage applies backdrop-filter bounds beyond child drawable bounds
 [html/canvas/element/manual/draw-element-image/backdrop-filter-nested.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/backdrop-filter-rounded-bounds.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/basic-rect-zoom.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/basic-rect.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/broken-image.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/canvas-in-custom-element-multiple.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/canvas-in-custom-element.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/captureElementImage.tentative.html]
 FAIL=ElementImage.close() invalidates the image for drawing
 FAIL=captureElementImage on a nested canvas should succeed
 FAIL=captureElementImage should return an object that can be drawn
 FAIL=captureElementImage size should be the most recently painted size
 [html/canvas/element/manual/draw-element-image/changes-in-paint-event.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/changing-size-in-paint-event.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/clips-overflow.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/compositing-op-basic.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/compositing-op-non-opaque-element.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/containment.tentative.html]
 FAIL=canvas child containment
+[html/canvas/element/manual/draw-element-image/css-backdrop-filter-and-mask.tentative.html]
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/css-backdrop-filter-image.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/css-backdrop-filter-on-div.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/css-backdrop-filter-with-sibling.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/css-backdrop-filter.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/css-blend-mode-over-both.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/css-blend-mode-over-content.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/css-blend-mode.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/css-blur-filter-on-div.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/css-clip-path-on-div.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/css-filter-image.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/css-filter-on-div.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/css-filter-reference-on-div.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/css-mask-on-div.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/css-opacity-on-div.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/css-transform-on-div.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/dialog-paints-in-top-layer.tentative.html]
 harness=FAIL
 [html/canvas/element/manual/draw-element-image/draw-element-different-canvas.tentative.html]
@@ -3002,7 +3004,7 @@ FAIL=Draw transform should account for x and y
 FAIL=Draw transform should not be affected by zoom on the canvas
 FAIL=Draw transform should not include transform on the element
 [html/canvas/element/manual/draw-element-image/draw-element-image-scale-variant.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/drawElementImage-zero-size.tentative.html]
 FAIL=drawElementImage with zero size does nothing
 [html/canvas/element/manual/draw-element-image/drawing-display-none-fails.tentative.html]
@@ -3010,11 +3012,13 @@ FAIL=drawElementImage with display:none element
 [html/canvas/element/manual/draw-element-image/element-image-fractional-size.tentative.html]
 FAIL=ElementImage width and height should support fractional values
 [html/canvas/element/manual/draw-element-image/element-shadow.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/error-conditions.tentative.html]
 FAIL=Tests that error conditions cause exceptions
 [html/canvas/element/manual/draw-element-image/filtered-basic.tentative.html]
-harness=FAIL
+harness=TIMEOUT
+[html/canvas/element/manual/draw-element-image/fullscreen-canvas.tentative.html]
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/get-element-transform.tentative.html]
 FAIL=Element transform for identity draw transform should be an identity matrix
 FAIL=Element transform should account for canvas css pixel scale
@@ -3029,7 +3033,7 @@ FAIL=Element transform should not include transform on the element
 FAIL=getElementTransform should preserve is2D.
 FAIL=getElementTransform should throw when called prior to paint.
 [html/canvas/element/manual/draw-element-image/global-alpha-basic.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/hit-test/elementsFromPoint.tentative.html]
 FAIL=CSS transform should be used for hit testing
 FAIL=Pointer-events: none and inert should be excluded from elementsFromPoint
@@ -3043,27 +3047,29 @@ FAIL=Double-clicking on canvas should be able to modify selection.
 FAIL=elementFromPoint should hit the highest z-index element.
 FAIL=elementFromPoint should hit the last element in dom order.
 [html/canvas/element/manual/draw-element-image/iframe-local.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/iframe.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/ink-overflow.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/intersection-observer-visibility.tentative.html]
 FAIL=Elements under canvas should report intersections, but not visibility
+[html/canvas/element/manual/draw-element-image/invalidation-during-onpaint.tentative.html]
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/layout-canvas-children.tentative.html]
 FAIL=canvas children have layout
 [html/canvas/element/manual/draw-element-image/moved-nested-layoutsubtree-canvas.tentative.html]
 FAIL=drawElementImage should succeed if a canvas is moved to be nested
 [html/canvas/element/manual/draw-element-image/nested-canvas-invalidation.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/nested-canvas-reset.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/nested-div-layoutsubtree-canvas.tentative.html]
 FAIL=drawElementImage should succeed if called on a nested canvas in a div
 [html/canvas/element/manual/draw-element-image/nested-layoutsubtree-canvas.tentative.html]
 FAIL=Nested layoutsubtree canvas should draw
 [html/canvas/element/manual/draw-element-image/non-opaque-element.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/onpaint-after-scroll-2.tentative.html]
 FAIL=onpaint should fire when the drawn element scrolls.
 [html/canvas/element/manual/draw-element-image/onpaint-after-scroll.tentative.html]
@@ -3092,9 +3098,9 @@ FAIL=onpaint should not fire after canvas drawing operations
 FAIL=onpaint should respect layoutsubtree attribute mutation
 FAIL=onpaint should work with addEventListener
 [html/canvas/element/manual/draw-element-image/opacity-animation.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/percent-sizing.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/privacy/backdrop-filter-png-images-ignored.tentative.https.sub.html]
 harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/privacy/background-image-in-iframe-ignored.tentative.https.sub.html]
@@ -3164,11 +3170,11 @@ FAIL=drawElementImage does not draw cross-origin picture element images
 [html/canvas/element/manual/draw-element-image/privacy/scrollbar-thumb-images-ignored.tentative.https.sub.html]
 FAIL=drawElementImage does not draw cross-origin scrollbar thumb images
 [html/canvas/element/manual/draw-element-image/privacy/selection-alone-with-decorations-painted.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/privacy/selection-colors-default.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/privacy/selection-painted-overlay-path.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/privacy/shape-image-png-ignored.tentative.https.sub.html]
 FAIL=drawElementImage does not use cross-origin png image for shape-outside
 [html/canvas/element/manual/draw-element-image/privacy/shape-image-svg-ignored.tentative.https.sub.html]
@@ -3191,6 +3197,8 @@ harness=TIMEOUT
 harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/privacy/svg-use-ignored.tentative.https.sub.html]
 FAIL=drawElementImage does not use cross-origin SVG use content
+[html/canvas/element/manual/draw-element-image/privacy/target-text-ignored-overlay-path.tentative.html]
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/privacy/video-ignored.tentative.https.sub.html]
 FAIL=drawElementImage does not draw cross-origin images
 [html/canvas/element/manual/draw-element-image/privacy/visited-link-color-ignored.tentative.html]
@@ -3208,23 +3216,23 @@ FAIL=requestPaint can be called in onpaint
 FAIL=requestPaint should cause onpaint to fire without changes
 FAIL=requestPaint should cause onpaint to fire without changes, with two canvases
 [html/canvas/element/manual/draw-element-image/scale.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/shadow-basic.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/shadow-dom-slot-canvas-child.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/shadow-dom-slotted-moveBefore.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/shadow-dom-slotted.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/shadow-non-opaque-element.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/svg-foreign-object.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/svg-rect.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/top-layer-not-painted-in-canvas.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/draw-element-image/triple-nested-layoutsubtree-canvas.tentative.html]
 FAIL=Triple-nested layoutsubtree canvas fires onpaint on all canvases when innermost child changes
 [html/canvas/element/manual/draw-element-image/video.tentative.html]
@@ -3301,7 +3309,7 @@ harness=FAIL
 [html/canvas/element/manual/drawing-images-to-the-canvas/image-orientation/drawImage-from-bitmap.tentative.html]
 harness=FAIL
 [html/canvas/element/manual/drawing-images-to-the-canvas/image-orientation/drawImage-from-blob.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/drawing-images-to-the-canvas/image-orientation/drawImage-from-element-orientation-none.tentative.html]
 harness=FAIL
 [html/canvas/element/manual/drawing-images-to-the-canvas/image-orientation/drawImage-from-element-swap-width-height.tentative.html]
@@ -3352,11 +3360,11 @@ harness=FAIL
 [html/canvas/element/manual/filters/svg-diffuse-filter-visited-color-taints.html]
 FAIL=Tainting check for visited link in SVG diffuse lighting filter
 [html/canvas/element/manual/filters/svg-displacement-filter-tainted-fillpaint.sub.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/filters/svg-displacement-filter-tainted-sourcealpha.sub.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/filters/svg-displacement-filter-tainted-strokepaint.sub.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/filters/svg-drop-shadow-filter-visited-color-taints.html]
 FAIL=Tainting check for visited link in SVG drop shadowfilter
 [html/canvas/element/manual/filters/svg-filter-feImage-cross-origin-taint.https.sub.html]
@@ -3469,7 +3477,7 @@ FAIL=createImageBitmap does not crash or reject the promise when passing very la
 FAIL=createImageBitmap throws an InvalidStateError error with big imageBitmap scaled up in big height
 FAIL=createImageBitmap throws an InvalidStateError error with big imageBitmap scaled up in big width
 [html/canvas/element/manual/imagebitmap/createImageBitmap-svg-resize.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/element/manual/imagebitmap/createImageBitmap-transfer.html]
 harness=TIMEOUT
 [html/canvas/element/manual/imagebitmap/imageBitmapRendering-transferFromImageBitmap-flipped.html]
@@ -3486,6 +3494,18 @@ FAIL=shadowBlur Gaussian pixel values for large blur
 FAIL=shadowBlur Gaussian pixel values for small blur
 [html/canvas/element/manual/text/canvas.2d.disconnected.html]
 harness=FAIL
+[html/canvas/element/manual/text/canvas.2d.lang.dynamic.html]
+harness=TIMEOUT
+[html/canvas/element/manual/text/canvas.2d.lang.empty.canvas.html]
+harness=TIMEOUT
+[html/canvas/element/manual/text/canvas.2d.lang.html]
+harness=TIMEOUT
+[html/canvas/element/manual/text/canvas.2d.lang.inherit.disconnected.canvas.html]
+harness=TIMEOUT
+[html/canvas/element/manual/text/canvas.2d.lang.inherit.disconnected.canvas.no.lang.html]
+harness=TIMEOUT
+[html/canvas/element/manual/text/canvas.2d.lang.inherit.html]
+harness=TIMEOUT
 [html/canvas/element/manual/the-canvas-state/2d.state.saverestore.imageSmoothingEnabled.html]
 FAIL=Test that restore() undoes any modifications to imageSmoothingEnabled.
 [html/canvas/element/manual/transformations/2d.transformation.getTransform.html]
@@ -6694,14 +6714,14 @@ harness=TIMEOUT
 [html/canvas/offscreen/manual/draw-element-image/drawElementImage-returned-matrix-worker.tentative.html]
 harness=TIMEOUT
 [html/canvas/offscreen/manual/draw-element-image/ink-overflow-worker.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/offscreen/manual/draw-element-image/offscreenCanvas-drawElementImage-worker.tentative.html]
 FAIL=OffscreenCanvas.drawElementImage should work in a worker thread
 [html/canvas/offscreen/manual/draw-element-image/offscreenCanvas-drawElementImage.tentative.html]
 FAIL=OffscreenCanvas.drawElementImage should draw an ElementImage
 FAIL=Passing an Element to OffscreenCanvas methods on the main thread throws InvalidStateError
 [html/canvas/offscreen/manual/draw-element-image/scale-worker.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/offscreen/manual/draw-element-image/video-worker.tentative.html]
 FAIL=captureElementImage repaints video frames in worker
 [html/canvas/offscreen/manual/draw-generic-family/2d.text.draw.generic.family.html]
@@ -6737,27 +6757,41 @@ FAIL=Test that imageSmoothingEnabled = false (nearest-neighbor interpolation) wo
 FAIL=Test that imageSmoothingEnabled = false (nearest-neighbor interpolation) works with stroke() and createPattern().
 FAIL=When the context is created, imageSmoothingEnabled must be set to true.
 [html/canvas/offscreen/manual/layers/unclosed-layers.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/offscreen/manual/layers/unclosed-layers.w.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/offscreen/manual/layers/unclosed-nested-layers.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/offscreen/manual/layers/unclosed-nested-layers.w.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/offscreen/manual/text/canvas.2d.fillText-FontFace.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/offscreen/manual/text/canvas.2d.fillText.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/offscreen/manual/text/canvas.2d.offscreen.direction.html]
-harness=FAIL
+harness=TIMEOUT
+[html/canvas/offscreen/manual/text/canvas.2d.offscreen.lang.html]
+harness=TIMEOUT
+[html/canvas/offscreen/manual/text/canvas.2d.offscreen.lang.inherit.html]
+harness=TIMEOUT
 [html/canvas/offscreen/manual/text/canvas.2d.offscreen.transferred.direction.inherit.document.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/offscreen/manual/text/canvas.2d.offscreen.transferred.direction.inherit.html]
-harness=FAIL
+harness=TIMEOUT
+[html/canvas/offscreen/manual/text/canvas.2d.offscreen.transferred.lang.html]
+harness=TIMEOUT
+[html/canvas/offscreen/manual/text/canvas.2d.offscreen.transferred.lang.inherit.document.html]
+harness=TIMEOUT
+[html/canvas/offscreen/manual/text/canvas.2d.offscreen.transferred.lang.inherit.html]
+harness=TIMEOUT
 [html/canvas/offscreen/manual/text/canvas.2d.offscreen.worker.direction.html]
-harness=FAIL
+harness=TIMEOUT
 [html/canvas/offscreen/manual/text/canvas.2d.offscreen.worker.direction.inherit.html]
-harness=FAIL
+harness=TIMEOUT
+[html/canvas/offscreen/manual/text/canvas.2d.offscreen.worker.lang.html]
+harness=TIMEOUT
+[html/canvas/offscreen/manual/text/canvas.2d.offscreen.worker.lang.inherit.html]
+harness=TIMEOUT
 [html/canvas/offscreen/manual/the-offscreen-canvas/offscreencanvas.constructor.html]
 FAIL=OffscreenCanvas constructor called as normal function
 FAIL=Test that OffscreenCanvas constructor handles invalid arguments correctly
@@ -11588,11 +11622,11 @@ FAIL=slotted non-HTML elements after dynamically assigning dir=auto, and dir att
 FAIL=text changes affecting both slot and ancestor with dir=auto
 FAIL=text input and textarea value changes should only be reflected in :dir() when dir=auto (value changes)
 [html/dom/elements/global-attributes/dir-auto-dynamic-simple-dataChange.html]
-harness=FAIL
+harness=TIMEOUT
 [html/dom/elements/global-attributes/dir-auto-dynamic-simple-replace.html]
-harness=FAIL
+harness=TIMEOUT
 [html/dom/elements/global-attributes/dir-auto-dynamic-simple-textContent.html]
-harness=FAIL
+harness=TIMEOUT
 [html/dom/elements/global-attributes/dir-auto-form-associated.window.html]
 FAIL=<input dir=auto type=button> directionality
 FAIL=<input dir=auto type=hidden> directionality
@@ -21036,8 +21070,6 @@ harness=FAIL
 harness=FAIL
 [html/rendering/widgets/the-select-element/option-only-label.html]
 harness=FAIL
-[html/rendering/widgets/the-select-element/select-invalidation.html]
-harness=FAIL
 [html/rendering/widgets/the-select-element/select-label-appearance.html]
 harness=FAIL
 [html/rendering/widgets/the-select-element/select-size-001.html]
@@ -22099,15 +22131,15 @@ FAIL=Text track cue order, equal start and end times with startTime mutations.
 FAIL=Text track cue order, equal start and end times.
 FAIL=Text track cue order, equal start times varying end times.
 [html/semantics/embedded-content/media-elements/track/track-element/track-cue-rendering-after-controls-added.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/embedded-content/media-elements/track/track-element/track-cue-rendering-after-controls-removed.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/embedded-content/media-elements/track/track-element/track-cue-rendering-empty-cue.html]
 FAIL=Empty cues
 [html/semantics/embedded-content/media-elements/track/track-element/track-cue-rendering-line-doesnt-fit.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/embedded-content/media-elements/track/track-element/track-cue-rendering-transformed-video.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/embedded-content/media-elements/track/track-element/track-cues-add-new-track.html]
 FAIL=Adding a new track with a cue during playback should fire events
 [html/semantics/embedded-content/media-elements/track/track-element/track-cues-cuechange-dynamically-created-track-element.html]
@@ -22235,7 +22267,7 @@ harness=TIMEOUT
 [html/semantics/embedded-content/media-elements/track/track-element/track-webvtt-no-timings.html]
 harness=TIMEOUT
 [html/semantics/embedded-content/media-elements/track/track-element/track-webvtt-non-snap-to-lines.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/embedded-content/media-elements/track/track-element/track-webvtt-positioning.html]
 harness=TIMEOUT
 [html/semantics/embedded-content/media-elements/track/track-element/track-webvtt-settings.html]
@@ -22247,6 +22279,8 @@ FAIL=Cue timings and various syntax errors in timings, with hours
 [html/semantics/embedded-content/media-elements/track/track-element/track-webvtt-timings-no-hours.html]
 FAIL=Cue timings and various syntax errors in timings, without hours
 [html/semantics/embedded-content/media-elements/track/track-element/track-webvtt-timings-whitespace.html]
+harness=TIMEOUT
+[html/semantics/embedded-content/media-elements/track/track-element/track-webvtt-two-cue-layout-after-first-end.html]
 harness=TIMEOUT
 [html/semantics/embedded-content/media-elements/track/track-element/track-webvtt-unsupported-markup.html]
 harness=TIMEOUT
@@ -22564,6 +22598,8 @@ harness=TIMEOUT
 harness=TIMEOUT
 [html/semantics/embedded-content/the-iframe-element/iframe-append-to-child-document.html]
 FAIL=Append iframe element to its own child document
+[html/semantics/embedded-content/the-iframe-element/iframe-initially-empty-is-updated.html]
+harness=TIMEOUT
 [html/semantics/embedded-content/the-iframe-element/iframe-load-event.html]
 FAIL=load event of blob URL
 FAIL=load event of initial about:blank
@@ -22821,7 +22857,7 @@ harness=FAIL
 [html/semantics/embedded-content/the-img-element/available-images-onload.html]
 harness=TIMEOUT
 [html/semantics/embedded-content/the-img-element/available-images.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/embedded-content/the-img-element/content-type-with-parameters.html]
 harness=FAIL
 [html/semantics/embedded-content/the-img-element/current-pixel-density/basic.html]
@@ -22981,7 +23017,7 @@ FAIL=currentSrc of img with picture ancestor but non-picture parent is correct
 [html/semantics/embedded-content/the-img-element/img-src-in-synthetic-document.html]
 FAIL=HTMLImageElement.src should return the string from the attribute in about:blank documents.
 [html/semantics/embedded-content/the-img-element/img-with-containment-and-size.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/embedded-content/the-img-element/img.complete.html]
 harness=TIMEOUT
 [html/semantics/embedded-content/the-img-element/invalid-src.html]
@@ -24013,7 +24049,7 @@ harness=FAIL
 [html/semantics/embedded-content/the-img-element/sizes/sizes-auto-rendering-3.html]
 harness=FAIL
 [html/semantics/embedded-content/the-img-element/sizes/sizes-auto-rendering-dynamic.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/embedded-content/the-img-element/sizes/sizes-auto-rendering.html]
 harness=FAIL
 [html/semantics/embedded-content/the-img-element/sizes/sizes-auto-resize-observer-removes-auto.html]
@@ -24093,6 +24129,8 @@ FAIL=<picture><source srcset="/images/green-1x1.png?picture6 50w, /images/green-
 FAIL=<picture><source srcset="/images/green-1x1.png?picture7 50w, /images/green-16x16.png?picture7 51w"><img loading="lazy" style="max-width: 10px" data-ref="ref2"></picture>
 FAIL=<picture><source srcset="/images/green-1x1.png?picture8 50w, /images/green-16x16.png?picture8 51w"><img loading="lazy" style="width: 100%; max-width: 10px" data-ref="ref2"></picture>
 FAIL=<picture><source srcset="/images/green-1x1.png?picture9 50w, /images/green-16x16.png?picture9 51w"><img loading="lazy" sizes="auto" width="500" data-ref="ref2"></picture>
+[html/semantics/embedded-content/the-img-element/sizes/sizes-dynamic-002.html]
+harness=TIMEOUT
 [html/semantics/embedded-content/the-img-element/source-media-outside-doc.html]
 harness=TIMEOUT
 [html/semantics/embedded-content/the-img-element/source-relevant-mutations.html]
@@ -24549,6 +24587,8 @@ FAIL=Video with loading=lazy and preload=auto that is not visible in viewport do
 FAIL=Video with loading=lazy and preload=metadata that is not visible in viewport does not load video data
 [html/semantics/embedded-content/the-video-element/video-poster-clone-template.html]
 harness=FAIL
+[html/semantics/embedded-content/the-video-element/video-poster-shown-preload-auto.html]
+harness=TIMEOUT
 [html/semantics/embedded-content/the-video-element/video_crash_empty_src.html]
 harness=TIMEOUT
 [html/semantics/embedded-content/the-video-element/video_dynamic_poster_absolute.htm]
@@ -27884,7 +27924,7 @@ FAIL=value must not be smaller than min
 [html/semantics/forms/the-optgroup-element/optgroup-removal.window.html]
 FAIL=<select> needs to be updated when <optgroup> is removed
 [html/semantics/forms/the-option-element/dynamic-content-change-rendering.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-option-element/option-element-constructor.html]
 FAIL=Option constructor creates HTMLOptionElement with specified text and value
 FAIL=Option constructor does not set dirtiness (so, manipulating the selected content attribute still updates the selected IDL attribute)
@@ -28059,7 +28099,7 @@ FAIL=<select>: Typeahead should focus options without checking them.
 [html/semantics/forms/the-select-element/customizable-select-listbox/selectedcontent-listbox.html]
 FAIL=<select size=4> should support <selectedcontent>.
 [html/semantics/forms/the-select-element/customizable-select-multiple-popup/select-multiple-popup-appearance.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select-multiple-popup/select-multiple-popup-keyboard-behavior.tentative.html]
 FAIL=Keyboard behavior for base appearance <select multiple size=1>
 [html/semantics/forms/the-select-element/customizable-select-multiple-popup/select-multiple-popup-mouse-behavior.tentative.html]
@@ -28071,6 +28111,8 @@ FAIL=<selectedcontent> should be up to date after form restoration.
 [html/semantics/forms/the-select-element/customizable-select-multiple-popup/selectedcontent-multiple.tentative.html]
 FAIL=<selectedcontent> should support <select multiple>.
 FAIL=<selectedcontent> should update in response to user interaction.
+[html/semantics/forms/the-select-element/customizable-select/appearance-base-and-base-select.tentative.html]
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/base-appearance-inheritance.html]
 FAIL=base appearance should not propagate to nested elements which support appearance.
 [html/semantics/forms/the-select-element/customizable-select/border-rendering.html]
@@ -28079,7 +28121,7 @@ harness=FAIL
 FAIL=Buttons in the popover should be rendered and should not close the popover when clicked.
 FAIL=Non-interactive content in the popover should not close the popover when clicked.
 [html/semantics/forms/the-select-element/customizable-select/checkmark-animation-002.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/checkmark-animation.html]
 FAIL=::checkmark pseudo-element animates
 [html/semantics/forms/the-select-element/customizable-select/focus-ring-rendering.html]
@@ -28103,16 +28145,16 @@ FAIL=options should check ancestor optgroup for disabled state.
 FAIL=option.form should be null when options are nested in invalid elements.
 FAIL=option.form should look up the ancestor chain for a select element to get its form from.
 [html/semantics/forms/the-select-element/customizable-select/option-label-in-shadow-tree.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/option-list-wrapped-optgroup.html]
 FAIL=nested optgroups inside wrapper still excluded from option list
 FAIL=option inside optgroup inside wrapper div is in the option list
 [html/semantics/forms/the-select-element/customizable-select/option-list.html]
 FAIL=select's option list should not include descendants of options, hrs, or nested optgroups.
 [html/semantics/forms/the-select-element/customizable-select/picker-and-slotted-invalidation.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/picker-and-slotted.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/picker-icon-and-slotted.html]
 harness=FAIL
 [html/semantics/forms/the-select-element/customizable-select/picker-icon-animation-002.html]
@@ -28141,13 +28183,13 @@ harness=FAIL
 [html/semantics/forms/the-select-element/customizable-select/select-appearance-button-after-text.html]
 harness=FAIL
 [html/semantics/forms/the-select-element/customizable-select/select-appearance-custom-button.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-appearance-dark-mode.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-appearance-default-button.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-appearance-disabled-option.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-appearance-disabled.html]
 harness=FAIL
 [html/semantics/forms/the-select-element/customizable-select/select-appearance-fallback-bottom-left-scroller.html]
@@ -28167,27 +28209,27 @@ harness=FAIL
 [html/semantics/forms/the-select-element/customizable-select/select-appearance-fallback-top-right.html]
 harness=FAIL
 [html/semantics/forms/the-select-element/customizable-select/select-appearance-font-inheriting.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-appearance-hover.html]
 harness=FAIL
 [html/semantics/forms/the-select-element/customizable-select/select-appearance-optgroup-legend-and-label.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-appearance-optgroup-legend.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-appearance-optgroup-rendering.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-appearance-option-with-label.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-appearance-picker-select-border.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-appearance-sizing-in-flex.html]
 harness=FAIL
 [html/semantics/forms/the-select-element/customizable-select/select-appearance-switching-invalidation.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-appearance-writing-mode-vertical-lr.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-appearance-writing-mode-vertical-rl.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-base-appearance-computed-style.html]
 harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-base-appearance-ordering.html]
@@ -28293,7 +28335,7 @@ FAIL=topofdocument: Arrow keys on options should not scroll the document.
 [html/semantics/forms/the-select-element/customizable-select/select-option-hover-styles.html]
 FAIL=Hover styles should be present for appearance:base-select options.
 [html/semantics/forms/the-select-element/customizable-select/select-option-images.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-options-id.html]
 FAIL=Option elements should work if they are a descendant of a selects wrapper div.
 FAIL=Options in wrapper div in multiple should work after re-parsing and re-attaching.
@@ -28327,17 +28369,17 @@ FAIL=CSS animations on option elements restart when the base-select picker reope
 FAIL="::picker(select):popover-open" should be an invalid selector
 FAIL="select::picker(select):popover-open" should be an invalid selector
 [html/semantics/forms/the-select-element/customizable-select/select-picker-pseudo-backdrop.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-picker-pseudo-before-after.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-picker-pseudo-first-letter-first-line.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-picker-pseudo-highlight.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-picker-pseudo-selection.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-picker-pseudo-target-text.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-picker-starting-style.html]
 FAIL=@starting-style should work on ::picker(select) just like a popover.
 [html/semantics/forms/the-select-element/customizable-select/select-popover-exit-animation.html]
@@ -28348,9 +28390,9 @@ FAIL=select should not match :open when light dismissed.
 FAIL=select :open and :not(:open) should invalidate correctly.
 FAIL=select should support :open pseudo selector.
 [html/semantics/forms/the-select-element/customizable-select/select-pseudo-ordering.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-second-child-button.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/customizable-select/select-single-base-appearance-rendering.html]
 harness=FAIL
 [html/semantics/forms/the-select-element/customizable-select/select-synthetic-events.html]
@@ -28426,7 +28468,7 @@ FAIL=The select picker is closed if the ::picker() appearance value is changed v
 FAIL=The select picker is closed if the <select> appearance value is changed via CSS while the picker is open
 FAIL=The select picker is closed if the <select> inline appearance value is changed while the picker is open
 [html/semantics/forms/the-select-element/customizable-select/uses-label-dynamic.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/filterable-select/filterable-select-appearance.tentative.html]
 harness=FAIL
 [html/semantics/forms/the-select-element/filterable-select/filterable-select-filtered-pseudo.tentative.html]
@@ -28456,6 +28498,8 @@ FAIL=multi-select responds to option.selected without selected attribute reflect
 FAIL=single-select responds to removing selected attribute from script
 FAIL=single-select responds to setting option.selected from script
 FAIL=single-select responds to setting selected attribute from script
+[html/semantics/forms/the-select-element/reset-algorithm-rendering.html]
+harness=TIMEOUT
 [html/semantics/forms/the-select-element/select-add-optgroup.html]
 FAIL=select.add() with an index should work when the target is inside an optgroup.
 [html/semantics/forms/the-select-element/select-add.html]
@@ -28891,7 +28935,7 @@ FAIL=reparenting a dialog should not cause it to move in the open dialogs list
 [html/semantics/interactive-elements/the-dialog-element/dialog-open-pseudo-invalidation.html]
 harness=FAIL
 [html/semantics/interactive-elements/the-dialog-element/dialog-overlay-re-add-during-transition.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/interactive-elements/the-dialog-element/dialog-overlay.html]
 FAIL=Opening and closing a modal dialog changes computed overlay to 'auto' and back to 'none'
 FAIL=dialog computed overlay initially 'none'
@@ -34213,7 +34257,7 @@ FAIL=import() should not drain the microtask queue if it fails while validating 
 [html/semantics/scripting-1/the-script-element/module/dynamic-import/microtasks/with-import-assertions.any.worker.html]
 harness=TIMEOUT
 [html/semantics/scripting-1/the-script-element/module/dynamic-import/microtasks/worklet.https.html]
-harness=FAIL
+harness=TIMEOUT
 [html/semantics/scripting-1/the-script-element/module/dynamic-import/propagate-nonce-external-classic.html]
 FAIL=Dynamically imported module should eval when imported from script w/ a valid nonce.
 [html/semantics/scripting-1/the-script-element/module/dynamic-import/propagate-nonce-inline-classic.html]

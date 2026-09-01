@@ -23,7 +23,7 @@ FAIL=First rAF.
 [intersection-observer/cross-origin-iframe.sub.html]
 FAIL=Intersection observer test with no explicit root and target in a cross-origin iframe.
 [intersection-observer/cross-origin-tall-iframe-rendering.sub.html]
-harness=FAIL
+harness=TIMEOUT
 [intersection-observer/cross-origin-tall-iframe.sub.html]
 harness=TIMEOUT
 [intersection-observer/display-none.html]

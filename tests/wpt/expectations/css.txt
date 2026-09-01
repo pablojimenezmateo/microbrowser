@@ -3527,8 +3527,6 @@ harness=FAIL
 harness=FAIL
 [css/CSS2/lists/increment-counter-001.xht]
 harness=FAIL
-[css/CSS2/lists/list-item-dynamic-color.html]
-harness=FAIL
 [css/CSS2/lists/list-style-image-005.xht]
 harness=FAIL
 [css/CSS2/lists/list-style-position-023.xht]
@@ -5341,12 +5339,6 @@ harness=FAIL
 [css/CSS2/selectors/universal-selector-004.xht]
 harness=FAIL
 [css/CSS2/selectors/universal-selector-005.xht]
-harness=FAIL
-[css/CSS2/stacking-context/opacity-change-parent-stacking-context.html]
-harness=FAIL
-[css/CSS2/stacking-context/opacity-change-twice-stacking-context.html]
-harness=FAIL
-[css/CSS2/stacking-context/opacity-transition-change-parent-stacking-context.html]
 harness=FAIL
 [css/CSS2/stacking-context/root-element-creates-stacking-context.html]
 harness=FAIL
@@ -12478,6 +12470,10 @@ FAIL=effect.target from the script-generated animation should return the same CS
 FAIL=effect.target should return the same CSSPseudoElement object each time
 [css/css-animations/animate-font-size-with-margin-override.html]
 harness=FAIL
+[css/css-animations/animate-with-background-color-hsla-to-legacy-rgb.html]
+harness=TIMEOUT
+[css/css-animations/animate-with-background-color-oklch-001.html]
+harness=TIMEOUT
 [css/css-animations/animate-with-background-color-oklch-002.html]
 FAIL=Animate from legacy rgb to color-mix oklch
 FAIL=Animate from legacy rgb to oklch
@@ -12526,7 +12522,7 @@ harness=FAIL
 [css/css-animations/animation-delay-009.html]
 harness=FAIL
 [css/css-animations/animation-delay-010.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-animations/animation-delay-011.html]
 harness=FAIL
 [css/css-animations/animation-delay-012.html]
@@ -12570,6 +12566,8 @@ harness=FAIL
 harness=FAIL
 [css/css-animations/animation-name-in-shadow-part.html]
 harness=FAIL
+[css/css-animations/animation-offscreen-to-onscreen.html]
+harness=TIMEOUT
 [css/css-animations/animation-opacity-pause-and-set-time.html]
 harness=FAIL
 [css/css-animations/animation-play-state-005.tentative.html]
@@ -12697,7 +12695,7 @@ FAIL=Elements in a "display: none" tree cannot start CSS Animations.
 [css/css-animations/display-none-to-display-block-dont-cancel.tentative.html]
 FAIL=display:none animating to display:block should be block for the whole animation.
 [css/css-animations/display-none-to-display-block.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-animations/empty-pseudo-class-with-animation.html]
 FAIL=Setting an "animation" style property on an element does not interfere with the :empty pseudo-class.
 [css/css-animations/event-dispatch.tentative.html]
@@ -12741,7 +12739,7 @@ FAIL=Same events on pseudo-elements follow the prescribed order (::marker)
 FAIL=Start and end events are sorted correctly when fired simultaneously
 FAIL=Start and iteration events are ordered by time
 [css/css-animations/flip-running-animation-via-variable.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-animations/idlharness.html]
 FAIL=AnimationEvent interface object length
 FAIL=AnimationEvent interface object name
@@ -12816,7 +12814,7 @@ FAIL=Property animation-play-state has initial value running
 FAIL=Property animation-timing-function does not inherit
 FAIL=Property animation-timing-function has initial value ease
 [css/css-animations/jump-start-animation-before-phase.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-animations/keyframes-rule-caching.html]
 FAIL=Modifying one sheet should not affect the other
 [css/css-animations/keyframes-unrelated-custom-property.html]
@@ -12828,7 +12826,7 @@ FAIL=Missing property values in the last keyframe are correctly interpolated fro
 [css/css-animations/missing-values-middle-keyframe.html]
 FAIL=Animation interpolates correctly when some keyframes don't declare all values
 [css/css-animations/nested-scale-animations.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-animations/parsing/animation-composition-computed.tentative.html]
 FAIL=Property animation-composition value 'replace, add, accumulate'
 [css/css-animations/parsing/animation-composition-valid.tentative.html]
@@ -13303,7 +13301,7 @@ FAIL=Test an animation name that is the same as a possible running state.
 [css/css-animations/svg-transform-animation.html]
 harness=FAIL
 [css/css-animations/svg-use-transform-keyframes-custom-property-override.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-animations/text-decoration-inset-auto.html]
 FAIL=CSS Animations: property <text-decoration-inset> from [0px] to [10px -20px] at (-1) should be [-10px 20px]
 FAIL=CSS Animations: property <text-decoration-inset> from [0px] to [10px -20px] at (0) should be [0px]
@@ -13385,29 +13383,43 @@ harness=FAIL
 [css/css-animations/translation-animation-subpixel-offset.html]
 harness=FAIL
 [css/css-backgrounds/animations/background-color-animation-custom-property.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-backgrounds/animations/background-color-animation-custom-timing-function-reverse.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-backgrounds/animations/background-color-animation-custom-timing-function.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-backgrounds/animations/background-color-animation-fallback-additive-keyframe.html]
 harness=FAIL
+[css/css-backgrounds/animations/background-color-animation-fallback-missing-0-percent.html]
+harness=TIMEOUT
+[css/css-backgrounds/animations/background-color-animation-fallback-missing-100-percent.html]
+harness=TIMEOUT
 [css/css-backgrounds/animations/background-color-animation-fallback-replace.html]
-harness=FAIL
+harness=TIMEOUT
+[css/css-backgrounds/animations/background-color-animation-half-opaque.html]
+harness=TIMEOUT
 [css/css-backgrounds/animations/background-color-animation-offset-position-not-stuck.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-backgrounds/animations/background-color-animation-pseudo-element.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-backgrounds/animations/background-color-animation-single-keyframe.html]
 harness=FAIL
 [css/css-backgrounds/animations/background-color-animation-three-keyframes1.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-backgrounds/animations/background-color-animation-three-keyframes2.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-backgrounds/animations/background-color-animation-three-keyframes3.html]
-harness=FAIL
+harness=TIMEOUT
+[css/css-backgrounds/animations/background-color-animation-will-change-contents.html]
+harness=TIMEOUT
 [css/css-backgrounds/animations/background-color-animation-with-blur.html]
-harness=FAIL
+harness=TIMEOUT
+[css/css-backgrounds/animations/background-color-animation-with-mask.html]
+harness=TIMEOUT
+[css/css-backgrounds/animations/background-color-animation-with-zero-playbackRate.html]
+harness=TIMEOUT
+[css/css-backgrounds/animations/background-color-animation.html]
+harness=TIMEOUT
 [css/css-backgrounds/animations/background-color-interpolation.html]
 FAIL=CSS Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (-0.5) should be [rgba(0, 0, 255, 0.38)]
 FAIL=CSS Animations: property <background-color> from [currentcolor] to [rgba(0, 255, 0, 0.75)] at (0) should be [rgba(0, 0, 255, 0.5)]
@@ -13530,12 +13542,12 @@ FAIL=Web Animations: property <background-color> from neutral to [green] at (0) 
 FAIL=Web Animations: property <background-color> from neutral to [green] at (0.3) should be [rgb(0, 38, 0)]
 FAIL=Web Animations: property <background-color> from neutral to [green] at (0.6) should be [rgb(0, 77, 0)]
 FAIL=Web Animations: property <background-color> from neutral to [green] at (1.5) should be [rgb(0, 192, 0)]
+[css/css-backgrounds/animations/background-color-scroll-into-viewport.html]
+harness=TIMEOUT
 [css/css-backgrounds/animations/background-color-transition-colormix.html]
 FAIL=Transition with currentColor in color-mix
 [css/css-backgrounds/animations/background-color-transition-currentcolor.html]
-harness=FAIL
-[css/css-backgrounds/animations/background-color-transition.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-backgrounds/animations/background-image-interpolation.html]
 FAIL=CSS Animations: property <background-image> from [inherit] to [url(../resources/green-100.png)] at (-0.3) should be [url(../resources/blue-100.png)]
 FAIL=CSS Animations: property <background-image> from [inherit] to [url(../resources/green-100.png)] at (0) should be [url(../resources/blue-100.png)]
@@ -18043,13 +18055,17 @@ FAIL=Web Animations: property <border-image-repeat> from [initial] to [round] at
 FAIL=Web Animations: property <border-image-repeat> from [initial] to [round] at (1) should be [round]
 FAIL=Web Animations: property <border-image-repeat> from [initial] to [round] at (1.5) should be [round]
 [css/css-backgrounds/animations/invalidation/background-color-transition-obscured.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-backgrounds/animations/invalidation/background-color-transition-with-delay.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-backgrounds/animations/invalidation/background-color-transition-with-initially-transparent.html]
-harness=FAIL
+harness=TIMEOUT
+[css/css-backgrounds/animations/two-background-color-animation-diff-length1.html]
+harness=TIMEOUT
+[css/css-backgrounds/animations/two-background-color-animation-diff-length2.html]
+harness=TIMEOUT
 [css/css-backgrounds/animations/two-background-color-animation-diff-length3.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-backgrounds/background-331.html]
 FAIL=background_initial_attachment
 FAIL=background_initial_clip
@@ -18083,11 +18099,19 @@ FAIL=background_specified_box_two_origin
 [css/css-backgrounds/background-attachment-350.html]
 harness=FAIL
 [css/css-backgrounds/background-attachment-353.html]
-harness=FAIL
+harness=TIMEOUT
+[css/css-backgrounds/background-attachment-fixed-block-002.html]
+harness=TIMEOUT
 [css/css-backgrounds/background-attachment-fixed-border-radius-offset.html]
 harness=FAIL
+[css/css-backgrounds/background-attachment-fixed-inline-002.html]
+harness=TIMEOUT
+[css/css-backgrounds/background-attachment-local-block-002.html]
+harness=TIMEOUT
 [css/css-backgrounds/background-attachment-local-hidden.html]
 harness=FAIL
+[css/css-backgrounds/background-attachment-local-inline-002.html]
+harness=TIMEOUT
 [css/css-backgrounds/background-attachment-local/attachment-local-clipping-color-6.html]
 harness=FAIL
 [css/css-backgrounds/background-attachment-local/attachment-local-clipping-image-6.html]
@@ -18167,6 +18191,8 @@ harness=FAIL
 harness=FAIL
 [css/css-backgrounds/background-clip/clip-border-shape-table-part-background.html]
 harness=FAIL
+[css/css-backgrounds/background-clip/clip-text-animated-text.html]
+harness=TIMEOUT
 [css/css-backgrounds/background-clip/clip-text-blend-mode.html]
 harness=FAIL
 [css/css-backgrounds/background-clip/clip-text-constrain-geometry.html]
@@ -18215,8 +18241,6 @@ harness=FAIL
 harness=FAIL
 [css/css-backgrounds/background-color-body-propagation-010.html]
 harness=FAIL
-[css/css-backgrounds/background-color-root-propagation-002.html]
-harness=FAIL
 [css/css-backgrounds/background-color-root-propagation-003.html]
 harness=FAIL
 [css/css-backgrounds/background-gradient-interpolation-001.html]
@@ -18233,20 +18257,16 @@ harness=FAIL
 FAIL=CORS image from variable doesn't cause re-downloads
 [css/css-backgrounds/background-image-cover-zoomed-1.html]
 harness=FAIL
+[css/css-backgrounds/background-image-first-letter.html]
+harness=TIMEOUT
 [css/css-backgrounds/background-image-first-line.html]
-harness=FAIL
-[css/css-backgrounds/background-image-gradient-currentcolor-conic-repaint.html]
-harness=FAIL
-[css/css-backgrounds/background-image-gradient-currentcolor-linear-repaint.html]
-harness=FAIL
-[css/css-backgrounds/background-image-gradient-currentcolor-radial-repaint.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-backgrounds/background-image-gradient-currentcolor-visited.html]
 harness=FAIL
 [css/css-backgrounds/background-image-none-gradient-repaint.html]
 harness=FAIL
 [css/css-backgrounds/background-image-shared-stylesheet.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-backgrounds/background-image-table-cells-straddling-no-repeat.html]
 harness=FAIL
 [css/css-backgrounds/background-origin-001.html]
@@ -18939,8 +18959,6 @@ harness=FAIL
 harness=FAIL
 [css/css-backgrounds/border-radius-css-text.html]
 FAIL=Setting border-radius does not expand to longhand properties in cssText.
-[css/css-backgrounds/border-radius-dynamic-from-no-radius.html]
-harness=FAIL
 [css/css-backgrounds/border-top-width-medium.html]
 harness=FAIL
 [css/css-backgrounds/border-top-width-thick.html]
@@ -19032,8 +19050,6 @@ harness=FAIL
 [css/css-backgrounds/box-shadow/slice-inline-fragmentation-002.html]
 harness=FAIL
 [css/css-backgrounds/box-shadow/slice-inline-fragmentation-003.html]
-harness=FAIL
-[css/css-backgrounds/child-move-reveals-parent-background.html]
 harness=FAIL
 [css/css-backgrounds/color-mix-currentcolor-background-repaint-parent.html]
 harness=FAIL
@@ -21768,9 +21784,9 @@ FAIL=Web Animations: property <color> from neutral to [green] at (1.5) should be
 [css/css-color/animation/contrast-color-interpolation.html]
 harness=FAIL
 [css/css-color/animation/opacity-animation-ending-correctly-001.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-color/animation/opacity-animation-ending-correctly-002.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-color/animation/opacity-interpolation.html]
 FAIL=CSS Animations: property <opacity> from [0] to [1] at (-0.3) should be [0]
 FAIL=CSS Animations: property <opacity> from [0] to [1] at (0) should be [0]
@@ -21935,8 +21951,6 @@ harness=FAIL
 [css/css-color/currentcolor-003.html]
 harness=FAIL
 [css/css-color/currentcolor-004.html]
-harness=FAIL
-[css/css-color/currentcolor-005.html]
 harness=FAIL
 [css/css-color/currentcolor-visited-fallback.html]
 harness=FAIL
@@ -28254,7 +28268,7 @@ harness=FAIL
 [css/css-conditional/at-media-content-004.html]
 harness=FAIL
 [css/css-conditional/at-media-dynamic-001.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-conditional/at-supports-007.html]
 harness=FAIL
 [css/css-conditional/at-supports-012.html]
@@ -28369,6 +28383,8 @@ harness=ERROR
 harness=ERROR
 [css/css-conditional/container-queries/container-computed.html]
 harness=ERROR
+[css/css-conditional/container-queries/container-for-cue.html]
+harness=TIMEOUT
 [css/css-conditional/container-queries/container-for-shadow-dom.html]
 harness=ERROR
 [css/css-conditional/container-queries/container-ident-function.html]
@@ -28613,11 +28629,11 @@ harness=ERROR
 [css/css-conditional/container-queries/pseudo-elements-009.html]
 harness=FAIL
 [css/css-conditional/container-queries/pseudo-elements-010.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-conditional/container-queries/pseudo-elements-011.html]
 harness=FAIL
 [css/css-conditional/container-queries/pseudo-elements-012.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-conditional/container-queries/pseudo-elements-013.html]
 harness=ERROR
 [css/css-conditional/container-queries/query-container-name-dynamic.html]
@@ -29026,7 +29042,7 @@ FAIL=Web Animations: property <display> from [grid] to [flex] at (1.5) should be
 [css/css-display/display-change-iframe.html]
 harness=FAIL
 [css/css-display/display-change-object-iframe.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-display/display-contents-before-after-001.html]
 harness=FAIL
 [css/css-display/display-contents-before-after-002.html]
@@ -29185,8 +29201,6 @@ FAIL=computed style for float
 [css/css-display/inheritance.html]
 FAIL=Property display does not inherit
 FAIL=Property display has initial value inline
-[css/css-display/order-dynamic.html]
-harness=FAIL
 [css/css-display/parsing/display-computed.html]
 FAIL=Property display value 'block flex'
 FAIL=Property display value 'block flow list-item'
@@ -33479,7 +33493,7 @@ FAIL=Property justify-content does not inherit
 FAIL=Property justify-content has initial value normal
 FAIL=Property order does not inherit
 [css/css-flexbox/inline-flex-column-image-load.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-flexbox/inline-flexbox-vertical-rl-image-flexitem-crash-print.html]
 harness=FAIL
 [css/css-flexbox/inline-flexbox-wrap-vertically-width-calculation.html]
@@ -37403,6 +37417,8 @@ harness=FAIL
 harness=FAIL
 [css/css-fonts/font-default-04.html]
 harness=FAIL
+[css/css-fonts/font-display/font-display-change.html]
+harness=TIMEOUT
 [css/css-fonts/font-display/font-display-failure-fallback.html]
 FAIL=Fallback for font failure period
 [css/css-fonts/font-display/font-display-preload.html]
@@ -37518,12 +37534,18 @@ harness=FAIL
 harness=FAIL
 [css/css-fonts/font-palette-9.html]
 harness=FAIL
+[css/css-fonts/font-palette-add-2.html]
+harness=TIMEOUT
 [css/css-fonts/font-palette-add.html]
-harness=FAIL
+harness=TIMEOUT
+[css/css-fonts/font-palette-modify-2.html]
+harness=TIMEOUT
 [css/css-fonts/font-palette-modify.html]
-harness=FAIL
+harness=TIMEOUT
+[css/css-fonts/font-palette-remove-2.html]
+harness=TIMEOUT
 [css/css-fonts/font-palette-remove.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-fonts/font-palette-vs-shorthand.html]
 FAIL=CSS Fonts Module Level 4: interaction of font-palette and font shorthand
 FAIL=CSS Fonts Module Level 4: interaction of font-palette and font shorthand 1
@@ -37620,7 +37642,7 @@ harness=FAIL
 [css/css-fonts/font-size-adjust-order-001.html]
 harness=FAIL
 [css/css-fonts/font-size-adjust-reload.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-fonts/font-size-adjust-units-001.html]
 harness=FAIL
 [css/css-fonts/font-size-adjust-zero-1.html]
@@ -38157,10 +38179,14 @@ FAIL=Property font-palette value 'palette-mix(in srgb-linear, light 10%, dark)'
 FAIL=Property font-palette value 'palette-mix(in xyz, light 10%, dark)'
 FAIL=Property font-palette value 'palette-mix(in xyz-d50, light 10%, dark)'
 FAIL=Property font-palette value 'palette-mix(in xyz-d65, light 10%, dark)'
+[css/css-fonts/palette-values-rule-add-2.html]
+harness=TIMEOUT
 [css/css-fonts/palette-values-rule-add.html]
-harness=FAIL
+harness=TIMEOUT
+[css/css-fonts/palette-values-rule-delete-2.html]
+harness=TIMEOUT
 [css/css-fonts/palette-values-rule-delete.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-fonts/parsing/font-computed.html]
 FAIL=Property font value '100 extra-condensed small-caps 20%/1.2 cursive'
 FAIL=Property font value '100 italic semi-condensed small-caps xx-large/1.2 fantasy'
@@ -54186,8 +54212,10 @@ harness=FAIL
 harness=FAIL
 [css/css-images/image-orientation/image-orientation-none-computed-style.html]
 FAIL=image-orientation:none computed style reports correct values
+[css/css-images/image-orientation/image-orientation-none-cross-origin-canvas-css-image-value.sub.html]
+harness=TIMEOUT
 [css/css-images/image-orientation/image-orientation-none-cross-origin-svg.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-images/image-orientation/image-orientation-none.html]
 harness=FAIL
 [css/css-images/image-rendering-border-image.html]
@@ -54426,7 +54454,7 @@ harness=FAIL
 [css/css-images/normalization-radial.html]
 harness=FAIL
 [css/css-images/object-fit-contain-png-001c.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-images/object-fit-contain-png-001e.html]
 harness=FAIL
 [css/css-images/object-fit-contain-png-001i.html]
@@ -54436,7 +54464,7 @@ harness=FAIL
 [css/css-images/object-fit-contain-png-001p.html]
 harness=FAIL
 [css/css-images/object-fit-contain-png-002c.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-images/object-fit-contain-png-002e.html]
 harness=FAIL
 [css/css-images/object-fit-contain-png-002i.html]
@@ -54494,7 +54522,7 @@ harness=FAIL
 [css/css-images/object-fit-contain-svg-006p.html]
 harness=FAIL
 [css/css-images/object-fit-containcontainintrinsicsize-png-001c.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-images/object-fit-containcontainintrinsicsize-png-001e.tentative.html]
 harness=FAIL
 [css/css-images/object-fit-containcontainintrinsicsize-png-001i.tentative.html]
@@ -54502,7 +54530,7 @@ harness=FAIL
 [css/css-images/object-fit-containcontainintrinsicsize-png-001p.tentative.html]
 harness=FAIL
 [css/css-images/object-fit-containsize-png-001c.tentative.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-images/object-fit-containsize-png-001e.tentative.html]
 harness=FAIL
 [css/css-images/object-fit-containsize-png-001i.tentative.html]
@@ -54510,7 +54538,7 @@ harness=FAIL
 [css/css-images/object-fit-containsize-png-001p.tentative.html]
 harness=FAIL
 [css/css-images/object-fit-cover-png-001c.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-images/object-fit-cover-png-001e.html]
 harness=FAIL
 [css/css-images/object-fit-cover-png-001i.html]
@@ -54520,7 +54548,7 @@ harness=FAIL
 [css/css-images/object-fit-cover-png-001p.html]
 harness=FAIL
 [css/css-images/object-fit-cover-png-002c.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-images/object-fit-cover-png-002e.html]
 harness=FAIL
 [css/css-images/object-fit-cover-png-002i.html]
@@ -54582,7 +54610,7 @@ harness=FAIL
 [css/css-images/object-fit-dyn-aspect-ratio-002.html]
 harness=FAIL
 [css/css-images/object-fit-fill-png-001c.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-images/object-fit-fill-png-001e.html]
 harness=FAIL
 [css/css-images/object-fit-fill-png-001i.html]
@@ -54592,7 +54620,7 @@ harness=FAIL
 [css/css-images/object-fit-fill-png-001p.html]
 harness=FAIL
 [css/css-images/object-fit-fill-png-002c.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-images/object-fit-fill-png-002e.html]
 harness=FAIL
 [css/css-images/object-fit-fill-png-002i.html]
@@ -54650,7 +54678,7 @@ harness=FAIL
 [css/css-images/object-fit-fill-svg-006p.html]
 harness=FAIL
 [css/css-images/object-fit-none-png-001c.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-images/object-fit-none-png-001e.html]
 harness=FAIL
 [css/css-images/object-fit-none-png-001i.html]
@@ -54660,7 +54688,7 @@ harness=FAIL
 [css/css-images/object-fit-none-png-001p.html]
 harness=FAIL
 [css/css-images/object-fit-none-png-002c.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-images/object-fit-none-png-002e.html]
 harness=FAIL
 [css/css-images/object-fit-none-png-002i.html]
@@ -54718,7 +54746,7 @@ harness=FAIL
 [css/css-images/object-fit-none-svg-006p.html]
 harness=FAIL
 [css/css-images/object-fit-scale-down-png-001c.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-images/object-fit-scale-down-png-001e.html]
 harness=FAIL
 [css/css-images/object-fit-scale-down-png-001i.html]
@@ -54728,7 +54756,7 @@ harness=FAIL
 [css/css-images/object-fit-scale-down-png-001p.html]
 harness=FAIL
 [css/css-images/object-fit-scale-down-png-002c.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-images/object-fit-scale-down-png-002e.html]
 harness=FAIL
 [css/css-images/object-fit-scale-down-png-002i.html]
@@ -54785,8 +54813,10 @@ harness=FAIL
 harness=FAIL
 [css/css-images/object-fit-scale-down-svg-006p.html]
 harness=FAIL
+[css/css-images/object-fit-stale-image-while-revalidating.html]
+harness=TIMEOUT
 [css/css-images/object-position-png-001c.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-images/object-position-png-001e.html]
 harness=FAIL
 [css/css-images/object-position-png-001i.html]
@@ -54796,7 +54826,7 @@ harness=FAIL
 [css/css-images/object-position-png-001p.html]
 harness=FAIL
 [css/css-images/object-position-png-002c.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-images/object-position-png-002e.html]
 harness=FAIL
 [css/css-images/object-position-png-002i.html]
@@ -58918,8 +58948,6 @@ FAIL=Going out of flow and still fragmented
 FAIL=test
 [css/css-multicol/hit-test-in-vertical-rl.html]
 FAIL=Hit-testing in vertical-rl writing-mode
-[css/css-multicol/increase-prev-sibling-height.html]
-harness=FAIL
 [css/css-multicol/inheritance.html]
 FAIL=Property column-count does not inherit
 FAIL=Property column-count has initial value auto
@@ -58942,8 +58970,6 @@ harness=FAIL
 [css/css-multicol/large-actual-column-count.html]
 harness=FAIL
 [css/css-multicol/max-height-stretch-relayout.html]
-harness=FAIL
-[css/css-multicol/move-with-text-after-paint.html]
 harness=FAIL
 [css/css-multicol/moz-multicol3-column-balancing-break-inside-avoid-1.html]
 harness=FAIL
@@ -59091,6 +59117,8 @@ FAIL=Breakable block inside inline
 FAIL=Ruby text should affect column height
 [css/css-multicol/multicol-fill-balance-023.html]
 FAIL=Spanner in overflowed parent with forced breaks
+[css/css-multicol/multicol-fill-balance-024.html]
+harness=FAIL
 [css/css-multicol/multicol-fill-balance-025.html]
 FAIL=Clearance after float with forced break inside
 [css/css-multicol/multicol-fill-balance-026.html]
@@ -59674,8 +59702,6 @@ harness=FAIL
 FAIL=Resize multicol with fixed-width child
 [css/css-multicol/resize-multicol-with-fixed-size-children.html]
 harness=FAIL
-[css/css-multicol/resize-with-text-after-paint.html]
-harness=FAIL
 [css/css-multicol/scroll-width-height.tentative.html]
 FAIL=.child, .grandchild 1
 FAIL=.child, .grandchild 2
@@ -59749,8 +59775,6 @@ harness=FAIL
 FAIL=column-width:0 is a valid CSS declaration
 [css/css-multicol/zero-column-width-layout.html]
 harness=FAIL
-[css/css-overflow/add-scroller-then-scroll-content-into-view.html]
-harness=FAIL
 [css/css-overflow/auto-scrollbar-inline-children.html]
 FAIL=Auto scrollbar affects size of children
 [css/css-overflow/before-after-pseudo-element-scrolling.html]
@@ -59763,21 +59787,13 @@ harness=FAIL
 harness=FAIL
 [css/css-overflow/clip-005.html]
 harness=FAIL
-[css/css-overflow/clipped-scroller-add-content.html]
-harness=FAIL
 [css/css-overflow/column-creates-computed-style.html]
 FAIL=::column creates computed style on its originating element
 [css/css-overflow/column-style-change-triggers-relayout.html]
 harness=FAIL
 [css/css-overflow/column-updates-computed-style.html]
 FAIL=::column updates computed style on its originating element
-[css/css-overflow/content-change-then-scroll-into-view.html]
-harness=FAIL
 [css/css-overflow/display-flex-svg-overflow-default.html]
-harness=FAIL
-[css/css-overflow/document-element-overflow-hidden-scroll.html]
-harness=FAIL
-[css/css-overflow/dynamic-visible-to-clip-001.html]
 harness=FAIL
 [css/css-overflow/hit-test-border-radius-and-perspective-projection.html]
 FAIL=Corner point outside border-radius hits body after perspective
@@ -59796,10 +59812,6 @@ FAIL=Hit testing respects border-radius clipping on elements with will-change tr
 FAIL=Hit testing respects border-radius clipping on elements with will-change transform with perspective
 FAIL=Hit testing respects border-radius clipping on elements without creating stacking contexts
 FAIL=Hit testing respects border-radius clipping on elements without creating stacking contexts with perspective
-[css/css-overflow/incremental-scroll-002.html]
-harness=FAIL
-[css/css-overflow/incremental-scroll.html]
-harness=FAIL
 [css/css-overflow/inheritance.html]
 FAIL=Property block-ellipsis has initial value no-ellipsis
 FAIL=Property block-ellipsis inherits
@@ -60241,8 +60253,6 @@ harness=FAIL
 harness=FAIL
 [css/css-overflow/line-clamp/webkit-line-clamp-021.html]
 harness=FAIL
-[css/css-overflow/line-clamp/webkit-line-clamp-023.html]
-harness=FAIL
 [css/css-overflow/line-clamp/webkit-line-clamp-024.html]
 harness=FAIL
 [css/css-overflow/line-clamp/webkit-line-clamp-025.html]
@@ -60393,8 +60403,6 @@ harness=FAIL
 FAIL=.container 2
 FAIL=.container 3
 FAIL=.container 4
-[css/css-overflow/overflow-hidden-resize-with-stacking-context-child.html]
-harness=FAIL
 [css/css-overflow/overflow-img-border-radius.html]
 harness=FAIL
 [css/css-overflow/overflow-img-display-table.html]
@@ -60510,8 +60518,10 @@ FAIL=overflow: visible visible works
 [css/css-overflow/overflow-shorthand-002.html]
 FAIL=overflow - horizontal writing mode
 FAIL=overflow - vertical writing mode
+[css/css-overflow/overflow-video-hidden.html]
+harness=TIMEOUT
 [css/css-overflow/overflow-video.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-overflow/paint-containment-svg.html]
 harness=FAIL
 [css/css-overflow/parsing/block-ellipsis-valid.html]
@@ -61029,7 +61039,7 @@ harness=FAIL
 [css/css-overflow/scroll-markers/scroll-marker-group-add-dynamic-004.html]
 harness=FAIL
 [css/css-overflow/scroll-markers/scroll-marker-group-keeps-active-in-view.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-overflow/scroll-markers/scroll-marker-group-layout-parent.html]
 harness=FAIL
 [css/css-overflow/scroll-markers/scroll-marker-group-size-container-query-root.html]
@@ -61115,13 +61125,13 @@ FAIL=scroll-target-group: auto updates :target-current when there is an iframe s
 [css/css-overflow/scroll-markers/target-current-scroll-marker-update.html]
 FAIL=CSS Test: ::scroll-marker doesn't stay :target-current upon removing scroll-marker-group property
 [css/css-overflow/scroll-markers/targeted-column-scroll-marker-selection-001.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-overflow/scroll-markers/targeted-column-scroll-marker-selection-002.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-overflow/scroll-markers/targeted-column-scroll-marker-selection-003.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-overflow/scroll-markers/targeted-column-scroll-marker-selection-004.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-overflow/scroll-markers/targeted-scroll-marker-selection-with-transition.tentative.html]
 harness=TIMEOUT
 [css/css-overflow/scroll-markers/targeted-scroll-marker-selection.tentative.html]
@@ -61147,9 +61157,9 @@ FAIL=Check scrollHeight with overflow: scroll
 FAIL=Check scrollHeight with overflowX: visible, overflowY: auto
 FAIL=Check scrollHeight with overflowX: visible, overflowY: hidden
 [css/css-overflow/scrollable-overflow-input-001.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-overflow/scrollable-overflow-input-002.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-overflow/scrollable-overflow-padding-inline.html]
 FAIL=.scroller 1
 FAIL=.scroller 2
@@ -61409,6 +61419,8 @@ FAIL=overflow scroll, scrollbar-gutter stable
 FAIL=overflow scroll, scrollbar-gutter stable both-edges
 [css/css-overflow/scrollbar-gutter-dynamic-001.html]
 harness=FAIL
+[css/css-overflow/scrollbar-gutter-dynamic-004.html]
+harness=TIMEOUT
 [css/css-overflow/scrollbar-gutter-fixedpos-003.html]
 harness=FAIL
 [css/css-overflow/scrollbar-gutter-fixedpos-004.html]
@@ -61452,7 +61464,7 @@ FAIL=overflow scroll, scrollbar-gutter stable both-edges
 [css/css-overflow/scroller-covered-by-empty-svg.html]
 harness=TIMEOUT
 [css/css-overflow/single-axis-overflow-scroll-to-clip.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-overflow/single-axis-scroll-apis-dynamic.html]
 FAIL=changing from overflow: hidden to a single-axis scroller clamps the disabled axis and its scroll dimensions
 [css/css-overflow/single-axis-scroll-apis-programmatic.html]
@@ -61466,8 +61478,6 @@ FAIL=scrollIntoView() respects single-axis limits independently on each ancestor
 [css/css-overflow/text-overflow-ellipsis-001.html]
 harness=FAIL
 [css/css-overflow/text-overflow-ellipsis-002.html]
-harness=FAIL
-[css/css-overflow/text-overflow-ellipsis-003.html]
 harness=FAIL
 [css/css-overflow/text-overflow-ellipsis-rtl-001.html]
 harness=FAIL
@@ -62232,8 +62242,6 @@ FAIL=Property position has initial value static
 FAIL=Property right does not inherit
 FAIL=Property top does not inherit
 FAIL=Property z-index does not inherit
-[css/css-position/invalidate-opacity-negative-z-index.html]
-harness=FAIL
 [css/css-position/multicol/static-position/vlr-ltr-ltr-in-multicol.html]
 harness=FAIL
 [css/css-position/multicol/static-position/vlr-ltr-rtl-in-multicol.tentative.html]
@@ -62362,6 +62370,8 @@ FAIL=Property overlay value 'initial'
 FAIL=Property overlay value 'none'
 FAIL=Property overlay value 'revert'
 FAIL=Property overlay value 'unset'
+[css/css-position/overlay/overlay-transition-dialog.html]
+harness=TIMEOUT
 [css/css-position/overlay/overlay-transition-finished.html]
 harness=FAIL
 [css/css-position/overlay/overlay-transition-in-rendering.html]
@@ -63007,10 +63017,6 @@ FAIL=the sticky box should not be pushed outside its containing block
 FAIL=Sticky elements work with the root (document) scroller
 [css/css-position/sticky/position-sticky-rtl.html]
 harness=FAIL
-[css/css-position/sticky/position-sticky-scroll-reposition.html]
-harness=FAIL
-[css/css-position/sticky/position-sticky-scroll-with-clip-and-abspos.html]
-harness=FAIL
 [css/css-position/sticky/position-sticky-scrollIntoView.html]
 FAIL=scrolling a sticky element into view should use its unshifted position
 [css/css-position/sticky/position-sticky-single-axis-basic.html]
@@ -63085,8 +63091,6 @@ FAIL=Translation transform can move sticky element past sticking point
 FAIL=Perspective transforms are carried out on the stuck element position
 FAIL=Rotate transforms are carried out on the stuck element position
 [css/css-position/sticky/position-sticky-writing-modes.html]
-harness=FAIL
-[css/css-position/z-index-blend-will-change-overlapping-layers.html]
 harness=FAIL
 [css/css-shapes/animation/shape-image-threshold-interpolation.html]
 FAIL=CSS Animations: property <shape-image-threshold> from [0.5] to [1] at (-0.5) should be [0.25]
@@ -74069,8 +74073,6 @@ harness=FAIL
 harness=FAIL
 [css/css-tables/col_removal.html]
 FAIL=Table grid syncs after COL removal
-[css/css-tables/collapsed-border-color-change-with-compositing.html]
-harness=FAIL
 [css/css-tables/collapsed-border-paint-phase-001.html]
 harness=FAIL
 [css/css-tables/collapsed-border-paint-phase-002.html]
@@ -74078,8 +74080,6 @@ harness=FAIL
 [css/css-tables/collapsed-border-partial-invalidation-001.html]
 harness=FAIL
 [css/css-tables/collapsed-border-partial-invalidation-002.html]
-harness=FAIL
-[css/css-tables/collapsed-border-remove-cell.html]
 harness=FAIL
 [css/css-tables/collapsed-scroll-overflow.html]
 FAIL=collapsed-scroll-overflow
@@ -74244,8 +74244,6 @@ harness=FAIL
 [css/css-tables/paint/col-change-span-bg-invalidation-002.html]
 harness=FAIL
 [css/css-tables/paint/col-paint-vrl-rtl.html]
-harness=FAIL
-[css/css-tables/paint/row-background-paint-remove-last-cell.html]
 harness=FAIL
 [css/css-tables/parsing/border-collapse-computed.html]
 FAIL=Property border-collapse value 'collapse'
@@ -79298,7 +79296,7 @@ FAIL=Text selection by a pointer device should work correctly
 FAIL=line-height:<number> should be scaled
 FAIL=line-height:normal should be scaled
 [css/css-text/text-fit/selection-highlight-painting.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-text/text-fit/shrink-consistent.html]
 harness=FAIL
 [css/css-text/text-fit/shrink-per-line-all.html]
@@ -80912,8 +80910,6 @@ FAIL=Perspective does not apply to DOM normal-flow grandchildren
 harness=FAIL
 [css/css-transforms/3dtransform-and-filter-no-perspective-001.html]
 harness=FAIL
-[css/css-transforms/add-child-in-empty-layer.html]
-harness=FAIL
 [css/css-transforms/animation/backface-visibility-no-interpolation.html]
 FAIL=CSS Animations: property <backface-visibility> from [initial] to [hidden] at (-0.3) should be [initial]
 FAIL=CSS Animations: property <backface-visibility> from [initial] to [hidden] at (0) should be [initial]
@@ -80957,6 +80953,8 @@ FAIL=Web Animations: property <backface-visibility> from [initial] to [hidden] a
 FAIL=Web Animations: property <backface-visibility> from [initial] to [hidden] at (0.6) should be [hidden]
 FAIL=Web Animations: property <backface-visibility> from [initial] to [hidden] at (1) should be [hidden]
 FAIL=Web Animations: property <backface-visibility> from [initial] to [hidden] at (1.5) should be [hidden]
+[css/css-transforms/animation/canvas-webgl-translate-in-animation.html]
+harness=TIMEOUT
 [css/css-transforms/animation/composited-transform.html]
 FAIL=An additive transform animation on-top of a replace transform animation should composite correctly
 [css/css-transforms/animation/list-interpolation.html]
@@ -81472,6 +81470,8 @@ FAIL=Web Animations: property <perspective-origin> from neutral to [20px 20px] a
 FAIL=Web Animations: property <perspective-origin> from neutral to [20px 20px] at (0.6) should be [16px 24px]
 FAIL=Web Animations: property <perspective-origin> from neutral to [20px 20px] at (1) should be [20px 20px]
 FAIL=Web Animations: property <perspective-origin> from neutral to [20px 20px] at (1.5) should be [25px 15px]
+[css/css-transforms/animation/rotate-animation-on-svg.html]
+harness=TIMEOUT
 [css/css-transforms/animation/rotate-composition.html]
 FAIL=Compositing CSS Animations: property <rotate> underlying [0 1 0 -40deg] from replace [0 1 0 50deg] to add [0 1 0 10deg] at (-1) should be [0 1 0 130deg]
 FAIL=Compositing CSS Animations: property <rotate> underlying [0 1 0 -40deg] from replace [0 1 0 50deg] to add [0 1 0 10deg] at (0) should be [0 1 0 50deg]
@@ -81606,7 +81606,7 @@ FAIL=Compositing Web Animations: property <rotate> underlying [none] from add [n
 FAIL=Compositing Web Animations: property <rotate> underlying [none] from add [none] to replace [0 1 0 100deg] at (1) should be [y 100deg]
 FAIL=Compositing Web Animations: property <rotate> underlying [none] from add [none] to replace [0 1 0 100deg] at (2) should be [y 200deg]
 [css/css-transforms/animation/rotate-explicit-and-implicit-keyframes.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-transforms/animation/rotate-interpolation-math-functions-tentative.html]
 FAIL=CSS Animations: property <rotate> from [100deg] to [calc(sign(20rem - 20px) * 180deg)] at (-1) should be [20deg]
 FAIL=CSS Animations: property <rotate> from [100deg] to [calc(sign(20rem - 20px) * 180deg)] at (0) should be [100deg]
@@ -81995,6 +81995,8 @@ FAIL=Web Animations: property <rotate> from neutral to [30deg] at (0.25) should 
 FAIL=Web Animations: property <rotate> from neutral to [30deg] at (0.75) should be [25deg]
 FAIL=Web Animations: property <rotate> from neutral to [30deg] at (1) should be [30deg]
 FAIL=Web Animations: property <rotate> from neutral to [30deg] at (2) should be [50deg]
+[css/css-transforms/animation/scale-and-rotate-both-specified-on-animation-keyframes.html]
+harness=TIMEOUT
 [css/css-transforms/animation/scale-animation-math-functions-tentative.html]
 FAIL=CSS Animations: property <scale> from [100] to [calc(sign(20rem - 20px) * 180)] at (-1) should be [20]
 FAIL=CSS Animations: property <scale> from [100] to [calc(sign(20rem - 20px) * 180)] at (0) should be [100]
@@ -82044,6 +82046,8 @@ FAIL=Web Animations: property <scale> from [calc(sign(20rem - 20px) * 100)] to [
 FAIL=Web Animations: property <scale> from [calc(sign(20rem - 20px) * 100)] to [calc(progress(10rem, 20px, 100px) * 180)] at (0.875) should be [170]
 FAIL=Web Animations: property <scale> from [calc(sign(20rem - 20px) * 100)] to [calc(progress(10rem, 20px, 100px) * 180)] at (1) should be [180]
 FAIL=Web Animations: property <scale> from [calc(sign(20rem - 20px) * 100)] to [calc(progress(10rem, 20px, 100px) * 180)] at (2) should be [260]
+[css/css-transforms/animation/scale-animation-on-svg.html]
+harness=TIMEOUT
 [css/css-transforms/animation/scale-composition.html]
 FAIL=Compositing CSS Animations: property <scale> underlying [1 2 3] from add [4 5 6] to replace [7 8 9] at (-0.5) should be [2.5 11 22.5]
 FAIL=Compositing CSS Animations: property <scale> underlying [1 2 3] from add [4 5 6] to replace [7 8 9] at (0) should be [4 10 18]
@@ -82126,7 +82130,7 @@ FAIL=Compositing Web Animations: property <scale> underlying [none] from add [no
 FAIL=Compositing Web Animations: property <scale> underlying [none] from add [none] to replace [1.5 1] at (1) should be [1.5 1]
 FAIL=Compositing Web Animations: property <scale> underlying [none] from add [none] to replace [1.5 1] at (2) should be [2 1]
 [css/css-transforms/animation/scale-explicit-and-implicit-keyframes.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-transforms/animation/scale-interpolation.html]
 FAIL=CSS Animations: property <scale> from [-10 5 1] to [1] at (-1) should be [-21 9]
 FAIL=CSS Animations: property <scale> from [-10 5 1] to [1] at (0) should be [-10 5]
@@ -84044,7 +84048,7 @@ FAIL=Compositing Web Animations: property <transform> underlying [matrix3d(0.853
 FAIL=Compositing Web Animations: property <transform> underlying [matrix3d(0.8535533905932737,0.1464466094067262,-0.5,0,0.1464466094067262,0.8535533905932737,0.5,0,0.5,-0.5,0.7071067811865476,0,100,0,0,1)] from add [matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 100, 0, 0, 1)] to add [matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 200, 0, 0, 1)] at (1) should be [translateX(100px) rotate3d(1, 1, 0, 45deg) translateX(200px)]
 FAIL=Compositing Web Animations: property <transform> underlying [matrix3d(0.8535533905932737,0.1464466094067262,-0.5,0,0.1464466094067262,0.8535533905932737,0.5,0,0.5,-0.5,0.7071067811865476,0,100,0,0,1)] from add [matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 100, 0, 0, 1)] to add [matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 200, 0, 0, 1)] at (1.5) should be [translateX(100px) rotate3d(1, 1, 0, 45deg) translateX(250px)]
 [css/css-transforms/animation/transform-non-invertible-discrete-interpolation.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-transforms/animation/transform-non-invertible-no-transition.html]
 FAIL=Setting 'transform' to a non-invertible matrix does not yield a CSS Transition
 [css/css-transforms/animation/transform-origin-composition.html]
@@ -84226,7 +84230,9 @@ FAIL=Web Animations: property <transform-origin> from [unset] to [20px 20px] at 
 FAIL=Web Animations: property <transform-origin> from [unset] to [20px 20px] at (1) should be [20px 20px]
 FAIL=Web Animations: property <transform-origin> from [unset] to [20px 20px] at (1.5) should be [17.5px 17.5px]
 [css/css-transforms/animation/transform-percent-with-width-and-height-separate.html]
-harness=FAIL
+harness=TIMEOUT
+[css/css-transforms/animation/transform-percent-with-width-and-height.html]
+harness=TIMEOUT
 [css/css-transforms/animation/transform-perspective-composition.html]
 FAIL=Compositing CSS Animations: property <transform> underlying [perspective(10px)] from accumulate [perspective(10px)] to accumulate [perspective(50px)] at (-0.5) should be [perspective(4.12px)]
 FAIL=Compositing CSS Animations: property <transform> underlying [perspective(10px)] from accumulate [perspective(10px)] to accumulate [perspective(50px)] at (0) should be [perspective(5px)]
@@ -84399,6 +84405,8 @@ FAIL=Compositing Web Animations: property <transform> underlying [translateZ(100
 FAIL=Compositing Web Animations: property <transform> underlying [translateZ(100px)] from accumulate [translateZ(50px)] to accumulate [translateZ(250px)] at (0.75) should be [translateZ(300px)]
 FAIL=Compositing Web Animations: property <transform> underlying [translateZ(100px)] from accumulate [translateZ(50px)] to accumulate [translateZ(250px)] at (1) should be [translateZ(350px)]
 FAIL=Compositing Web Animations: property <transform> underlying [translateZ(100px)] from accumulate [translateZ(50px)] to accumulate [translateZ(250px)] at (1.5) should be [translateZ(450px)]
+[css/css-transforms/animation/translate-animation-on-svg.html]
+harness=TIMEOUT
 [css/css-transforms/animation/translate-composition.html]
 FAIL=Compositing CSS Animations: property <translate> underlying [100px 200px 300px] from add [-50px 50%] to add [100%] at (-1) should be [-100% calc(200px + 100%) 300px]
 FAIL=Compositing CSS Animations: property <translate> underlying [100px 200px 300px] from add [-50px 50%] to add [100%] at (0) should be [calc(50px + 0%) calc(200px + 50%) 300px]
@@ -84513,7 +84521,7 @@ FAIL=Compositing Web Animations: property <translate> underlying [none] from rep
 FAIL=Compositing Web Animations: property <translate> underlying [none] from replace [none] to add [100px] at (1) should be [100px]
 FAIL=Compositing Web Animations: property <translate> underlying [none] from replace [none] to add [100px] at (2) should be [200px]
 [css/css-transforms/animation/translate-explicit-and-implicit-keyframes.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-transforms/animation/translate-interpolation.html]
 FAIL=CSS Animations: property <translate> from [-100%] to [100%] at (-1) should be [-300%]
 FAIL=CSS Animations: property <translate> from [-100%] to [100%] at (0) should be [-100%]
@@ -84902,7 +84910,9 @@ FAIL=Web Animations: property <translate> from neutral to [20px] at (0.75) shoul
 FAIL=Web Animations: property <translate> from neutral to [20px] at (1) should be [20px]
 FAIL=Web Animations: property <translate> from neutral to [20px] at (2) should be [30px]
 [css/css-transforms/animation/translate-percent-with-width-and-height-separate.html]
-harness=FAIL
+harness=TIMEOUT
+[css/css-transforms/animation/translate-percent-with-width-and-height.html]
+harness=TIMEOUT
 [css/css-transforms/backface-visibility-hidden-002.html]
 harness=FAIL
 [css/css-transforms/backface-visibility-hidden-003.html]
@@ -84920,6 +84930,8 @@ harness=FAIL
 [css/css-transforms/backface-visibility-with-sibling-001.html]
 harness=FAIL
 [css/css-transforms/change-perspective-property.html]
+harness=FAIL
+[css/css-transforms/change-scale-wide-range.html]
 harness=FAIL
 [css/css-transforms/change-transform-origin-property.html]
 harness=FAIL
@@ -85005,8 +85017,6 @@ harness=FAIL
 [css/css-transforms/document-styles/svg-document-styles-013.html]
 harness=FAIL
 [css/css-transforms/document-styles/svg-document-styles-014.html]
-harness=FAIL
-[css/css-transforms/dynamic-fixed-pos-cb-change.html]
 harness=FAIL
 [css/css-transforms/external-styles/svg-external-styles-001.html]
 harness=FAIL
@@ -85285,10 +85295,6 @@ harness=FAIL
 [css/css-transforms/matrix/svg-matrix-068.html]
 harness=FAIL
 [css/css-transforms/matrix/svg-matrix-069.html]
-harness=FAIL
-[css/css-transforms/offset-change-inline-backface-visibility-hidden.html]
-harness=FAIL
-[css/css-transforms/paint-order-with-transform-change.html]
 harness=FAIL
 [css/css-transforms/parsing/backface-visibility-computed.html]
 FAIL=Property backface-visibility value 'hidden'
@@ -85626,8 +85632,6 @@ FAIL=Element is scrollable over preserve-3d descendant
 harness=FAIL
 [css/css-transforms/scrollable-scroll-3d-transform-z.html]
 harness=FAIL
-[css/css-transforms/size-change-under-backface-visibility-hidden.html]
-harness=FAIL
 [css/css-transforms/skew-test1.html]
 harness=FAIL
 [css/css-transforms/skewX/svg-skewx-001.html]
@@ -85672,6 +85676,10 @@ FAIL=Matrix for translation transforms
 harness=FAIL
 [css/css-transforms/transform-3d-rotateY-stair-below-001.xht]
 harness=FAIL
+[css/css-transforms/transform-3d-scales-different-x-y-dynamic-001.html]
+harness=TIMEOUT
+[css/css-transforms/transform-3d-scales-different-x-y-dynamic-002.html]
+harness=TIMEOUT
 [css/css-transforms/transform-abspos-001.html]
 harness=FAIL
 [css/css-transforms/transform-abspos-002.html]
@@ -86951,7 +86959,7 @@ FAIL=Window interface: window must inherit property "ontransitionstart" with the
 [css/css-transitions/inert-while-transitioning-to-display-none.html]
 FAIL=Elements which are transitioning to display:none should be inert.
 [css/css-transitions/inherit-background-color-transition.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-transitions/inherit-height-transition.html]
 harness=TIMEOUT
 [css/css-transitions/inheritance.html]
@@ -87115,6 +87123,8 @@ harness=TIMEOUT
 harness=TIMEOUT
 [css/css-transitions/properties-value-inherit-003.html]
 harness=TIMEOUT
+[css/css-transitions/pseudo-element-transform.html]
+harness=TIMEOUT
 [css/css-transitions/pseudo-elements-001.html]
 FAIL=transition padding-left on :after / values
 FAIL=transition padding-left on :after, changing content / values
@@ -87125,7 +87135,7 @@ FAIL=Check that transitions run on a pseudo element whose ancestor changes displ
 [css/css-transitions/retargetted-transition-with-box-sizing.html]
 FAIL=Retargeting transitions on box size relative transitions should work.
 [css/css-transitions/root-color-transition.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-transitions/starting-of-transitions-001.html]
 FAIL=changes to transition-property should cancel in-flight transitions
 [css/css-transitions/starting-style-adjustment.html]
@@ -88876,6 +88886,8 @@ FAIL=initial value for -webkit-appearance
 FAIL=initial value for appearance
 FAIL=support for -webkit-appearance
 FAIL=support for appearance
+[css/css-ui/appearance-invalidate-author-styling-001.html]
+harness=TIMEOUT
 [css/css-ui/appearance-menulist-button-002.tentative.html]
 harness=FAIL
 [css/css-ui/appearance-parsing.html]
@@ -88975,8 +88987,28 @@ harness=FAIL
 harness=FAIL
 [css/css-ui/caret-eol-001.html]
 harness=FAIL
+[css/css-ui/caret-shape-block-001-rtl-sideways-lr.html]
+harness=TIMEOUT
+[css/css-ui/caret-shape-block-001-rtl-sideways-rl.html]
+harness=TIMEOUT
+[css/css-ui/caret-shape-block-001-rtl-vlr.html]
+harness=TIMEOUT
+[css/css-ui/caret-shape-block-001-rtl-vrl.html]
+harness=TIMEOUT
+[css/css-ui/caret-shape-block-001-rtl.html]
+harness=TIMEOUT
+[css/css-ui/caret-shape-block-001-sideways-lr.html]
+harness=TIMEOUT
+[css/css-ui/caret-shape-block-001-sideways-rl.html]
+harness=TIMEOUT
+[css/css-ui/caret-shape-block-001-vlr.html]
+harness=TIMEOUT
+[css/css-ui/caret-shape-block-001-vrl.html]
+harness=TIMEOUT
+[css/css-ui/caret-shape-block-001.html]
+harness=TIMEOUT
 [css/css-ui/caret-shape-block-002.html]
-harness=FAIL
+harness=TIMEOUT
 [css/css-ui/caret-shape-block-color-001.html]
 harness=FAIL
 [css/css-ui/caret-shape-block-color-002.tentative.html]
@@ -89231,6 +89263,8 @@ harness=FAIL
 harness=FAIL
 [css/css-ui/outline-028.html]
 harness=FAIL
+[css/css-ui/outline-auto-dynamic-change.html]
+harness=TIMEOUT
 [css/css-ui/outline-color-001.html]
 harness=FAIL
 [css/css-ui/outline-dynamic.html]
@@ -89547,6 +89581,8 @@ FAIL=e.style['user-select'] = "none" should set the property value
 FAIL=e.style['user-select'] = "text" should set the property value
 [css/css-ui/parsing/webkit-appearance-alias.html]
 FAIL=-webkit-appearance is a legacy name alias for appearance
+[css/css-ui/pointer-events-no-scrollbars-002.html]
+harness=TIMEOUT
 [css/css-ui/resize-015.html]
 harness=TIMEOUT
 [css/css-ui/resize-016.html]
@@ -89555,8 +89591,6 @@ harness=TIMEOUT
 harness=TIMEOUT
 [css/css-ui/resize-018.html]
 harness=TIMEOUT
-[css/css-ui/resize-change-margin.html]
-harness=FAIL
 [css/css-ui/resize-generated-content.html]
 harness=FAIL
 [css/css-ui/resize-iframe-3d-transform.tentative.html]
@@ -98799,6 +98833,8 @@ harness=FAIL
 harness=FAIL
 [css/css-values/vh-support.html]
 harness=FAIL
+[css/css-values/vh-update-and-transition-in-subframe.html]
+harness=TIMEOUT
 [css/css-values/vh-zero-support.html]
 harness=FAIL
 [css/css-values/viewport-page-print.html]
@@ -101631,6 +101667,8 @@ harness=FAIL
 harness=FAIL
 [css/css-writing-modes/text-combine-upright-compression-007.html]
 harness=FAIL
+[css/css-writing-modes/text-combine-upright-decorations-001.html]
+harness=TIMEOUT
 [css/css-writing-modes/text-combine-upright-gen-con-001.html]
 harness=FAIL
 [css/css-writing-modes/text-combine-upright-layout-rules-001.html]
@@ -103415,7 +103453,7 @@ harness=TIMEOUT
 [css/cssom/HTMLLinkElement-disabled-007.html]
 harness=TIMEOUT
 [css/cssom/HTMLLinkElement-disabled-alternate.html]
-harness=FAIL
+harness=TIMEOUT
 [css/cssom/HTMLLinkElement-load-event-002.html]
 harness=TIMEOUT
 [css/cssom/HTMLLinkElement-load-event.html]
@@ -104326,7 +104364,7 @@ FAIL=With nested top layer elements, :focus-within should stop at the innermost 
 [css/selectors/has-argument-with-explicit-scope.html]
 FAIL=.a:has(:scope) .c matches expected elements on scope1
 [css/selectors/has-display-none-checked.html]
-harness=FAIL
+harness=TIMEOUT
 [css/selectors/has-focus-display-change.html]
 FAIL=:has(:focus) doesn't cause focusability to be lost
 [css/selectors/has-visited.html]
@@ -104546,8 +104584,6 @@ FAIL=Test :has() invalidation with :defined pseudo-class
 FAIL=:defined selector is effective
 [css/selectors/invalidation/fullscreen-pseudo-class-in-has.html]
 harness=TIMEOUT
-[css/selectors/invalidation/has-append-first-node.html]
-harness=FAIL
 [css/selectors/invalidation/has-complexity.html]
 harness=TIMEOUT
 [css/selectors/invalidation/has-css-nesting-shared.html]
