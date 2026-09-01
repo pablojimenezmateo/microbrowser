@@ -950,20 +950,37 @@ in these areas failing for a *harness* reason.
 | F7c | `svg/` — SVG boxes in the layout tree, replacing serialize-and-rasterize | F7a, F7b | `svg/geometry` 60% |
 | F8 | Image formats — WebP and AVIF decoders (ADR 0023 counted them); `png/` and the image parts of `css-images` | — | fuzzers + 80% of `png/` |
 | F9 | **Harness:** reftests enter the measurement at all — record them in `tests/wpt/expectations/`, count them in the baseline | F2 | **done 2026-08-17** |
-| F11 | **Harness:** `reftest-wait` — a reftest that says when it is ready. The runner photographs the *initial* state of 1,193 files that say "not yet" | F9 | 1,193 files |
+| F11 | **Harness:** `reftest-wait` — a reftest that says when it is ready | F9 | **done 2026-09-01** · 8,381 → 8,312 passing files, and the fall is the point |
 | F10 | **Harness:** the reftest *gate* — name the eight intermittents, then drop `--testharness-only` from the `ctest` registration | F9 | **done 2026-08-31** · seven of the eight were one font-cache bug; 7,963 → 8,005 files |
 
-**`reftest-wait` is not implemented and it is 1,193 files (F11, found 2026-09-01).**
+**`reftest-wait` landed 2026-09-01 (F11) and the honest reftest count went *down*.**
 `class="reftest-wait"` on the root element means "do not photograph me yet", and
 the test removes it — usually from a `requestAnimationFrame` — once the state it
-wants recorded exists. `grep -rn reftest-wait tools/wpt/` is empty, so every one
-of those files is photographed *before* the thing it tests has happened. It
-passes exactly when the initial state and the final one look the same, which is
-an accidental pass in the same family as F9's blank pages — and it **flips to a
-failure the moment the browser starts implementing the property under test**.
-Four did precisely that in F5's session, which is how it was found. The
-measurement is wrong before the browser is, and that is what makes it a gate
-task rather than a nicety.
+wants recorded exists. 1,193 files say it; `grep -rn reftest-wait tools/wpt/` was
+empty, so every one of them was photographed *before* the thing it tests had
+happened. The runner now waits for the class to go and records a page that never
+drops it as the TIMEOUT it is. **8,381 passing reftest files became 8,312**, 633
+blank-page passes became 586, and 41 files whose two states genuinely differ pass
+for the first time. That net loss of 69 is the same kind of correction F9's
+blank-page count was: an accidental pass is one where the state before the change
+and the state after it happen to look alike, and it **flips to a failure the
+moment the browser implements the property under test** — four did precisely that
+in F5's session, which is how this was found.
+
+**The gate does not get slower, and the reason is worth knowing before anyone
+"optimises" it.** A recording run went 90s → 557s, because a TIMEOUT is retried
+before it is written down. The run that counts — the one `ctest` uses — is 99s
+against 90s, because `--known-timeout-budget` gives a test already expected to
+TIMEOUT 2,000ms rather than the full deadline, and all 321 took it with none
+escalated back. **A measurement fix whose cost lands only on the recording run is
+the cheap kind**, and the first look at 557s said the opposite.
+
+**The four gate tasks are one lesson in four instalments.** F2 made a
+comparison honest, F9 put the reftest half into the number at all, F10 put it
+into `ctest`, and F11 made each comparison happen at the moment the test names.
+Not one of them changed the browser, and the reftest number moved every time —
+by 48% of the suite for F9, and *downwards* for F11. The measurement is wrong
+before the browser is.
 
 **F7 turned out to be two things and the smaller one paid for the larger.** The
 scope decision it names was unanswerable on 2026-09-01, because 228 of `svg/`'s

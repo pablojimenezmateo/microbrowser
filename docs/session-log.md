@@ -8389,3 +8389,73 @@ follow.
 
 **Left.** `calc()` inside a transform component is what remains in the parsing tests. Everything
 else in the area is F7c, G4, or 3D.
+
+## WPT task F11 — a reftest that says when it is ready · 2026-09-01
+
+**Status:** done
+**Check:** `./build/microbrowser-perf/microbrowser/microbrowser_wpt --reftests-only` printed
+
+```
+20998 tests in 99191 ms: 0 subtests, 0 passed (0.0%), 0 crashes, 321 timeouts, 0 disabled
+20998 reftests: 8312 passed (39.6%), 586 of those with both pages blank
+321 tests already expected to TIMEOUT ran at 2000 ms rather than the full budget (0 escalated back to it)
+0 unexpected results
+```
+
+exit 0, on two consecutive runs. The task's own check — "a reftest whose two states differ
+passes only when the second is photographed" — is the 41 files that went FAIL → OK, among them
+`css/CSS2/lists/list-item-dynamic-color.html`, `css/css-overflow/incremental-scroll.html`,
+`css/css-tables/collapsed-border-remove-cell.html` and
+`css/selectors/invalidation/has-append-first-node.html`. Every one of those is a page that
+changes itself after load and then says it is ready.
+
+**Landed:** `A reftest that says reftest-wait is photographed when it says it is ready.` ·
+`Re-record the reftests: 8,381 passing files become 8,312, and that is the number getting
+honest.` · this entry and the ledger.
+
+**The count went down by 69 and that is the deliverable.** 8,381 → 8,312 passing files, 633 →
+586 of them two blank pages agreeing. 316 files that say `reftest-wait` and never remove it are
+recorded as the TIMEOUTs they are, 41 whose two states genuinely differ pass for the first time.
+An accidental pass here is one where the state before the change and the state after it happen
+to look alike, and it flips to a failure the day the property under test lands — four did
+exactly that in F5's session, which is how the whole thing was found.
+
+**Found — the cost of a measurement fix is not what the first run says it is.** The change took
+a full reftest run from 90s to 557s and I nearly designed a shorter wait budget of our own to
+get it back, which would have made our numbers incomparable with Firefox's for no reason. The
+557s is the *recording* run: `finish()` retries a TIMEOUT before writing it down, deliberately,
+so the load average of one afternoon does not become an expectation. The run that counts — the
+one `ctest` uses — is **99s against 90s**, because `--known-timeout-budget` gives a test already
+expected to TIMEOUT 2,000ms and all 321 of these took it with none escalated back. **Measure the
+verify run, not the record run, before you believe a harness change is expensive.**
+
+**Found — the probe must read the class attribute, not `classList`.** A reftest's root element
+is as often `<svg>` as `<html>`, and every `classList` question is one more thing that can be
+absent on one of the two. `Engine/TheReftestWaitProbeReadsAnSvgRootToo` pins it in both
+directions plus the two neighbouring class names (`reftest-waiting`, `no-reftest-wait`) that a
+substring search would hang the runner on. The constant lives in `wpt/Reftest.h` rather than the
+tool's `main.cpp` for exactly that reason: a string that only the tool can see is a string no
+test can check.
+
+**Found — a `--reftests-only` re-record touches areas you would not predict, and that is
+correct.** `FileAPI.txt`, `fetch.txt`, `intersection-observer.txt` and `resize-observer.txt` all
+moved. Each of those areas contains a genuine reftest — `FileAPI/url/url_xmlhttprequest_img.html`
+has a `<link rel=match>` and a `reftest-wait` — so the area name says nothing about which half
+of the suite a file belongs to. Check the file before reading an unexpected area in a diff as a
+bug; four of them looked like a `--reftests-only` run leaking into testharness lines and none
+was.
+
+**Left — the 316 TIMEOUTs are four browser gaps, each now named by a line instead of hidden by
+an early photograph.** In descending order of files: `<link rel=preload as=image
+onload=takeScreenshot()>`, which this browser never fires; the html-in-canvas `.tentative` files,
+whose `drawElementImage` throws before the page can say it is ready (52 in
+`html/canvas/element/manual/draw-element-image/` alone, and Firefox does not pass them either);
+`@keyframes` and `Element.animate` tests waiting on an animation event, which is task G4's
+territory (`css/css-backgrounds/animations/` 23, `css/css-transforms/animation/` 13,
+`css/css-animations/` 9); and `onload` on an `<svg>` root (`svg/text/reftests/textLength-list-*`).
+The first of those is the cheapest and is not in any task: `rel=preload` firing `load` is a few
+lines and it is what three separate `css/css-backgrounds/` files wait on.
+
+**Left — read `--reftests-only`'s two closing lines as one sentence.** `8312 passed` and `586 of
+those with both pages blank` answer the same question; the second says how much of the first
+proves nothing. F11 moved both, in the same direction, for the same reason.

@@ -81,10 +81,10 @@
       "status": "not_started",
       "order": 1,
       "firefox_gap": {
-        "files": 7991,
+        "files": 7972,
         "blocked": 60,
         "feature": 1104,
-        "reftest": 6827
+        "reftest": 6808
       }
     },
     {
@@ -93,10 +93,10 @@
       "status": "not_started",
       "order": 2,
       "firefox_gap": {
-        "files": 4730,
+        "files": 4776,
         "blocked": 80,
         "feature": 2924,
-        "reftest": 1726
+        "reftest": 1772
       }
     },
     {
@@ -105,10 +105,10 @@
       "status": "not_started",
       "order": 6,
       "firefox_gap": {
-        "files": 795,
+        "files": 801,
         "blocked": 277,
         "feature": 509,
-        "reftest": 9
+        "reftest": 15
       }
     },
     {
@@ -153,10 +153,10 @@
       "status": "not_started",
       "order": 9,
       "firefox_gap": {
-        "files": 352,
+        "files": 357,
         "blocked": 32,
         "feature": 126,
-        "reftest": 194
+        "reftest": 199
       }
     },
     {
@@ -165,10 +165,10 @@
       "status": "not_started",
       "order": 11,
       "firefox_gap": {
-        "files": 317,
+        "files": 318,
         "blocked": 143,
         "feature": 173,
-        "reftest": 1
+        "reftest": 2
       }
     },
     {
@@ -189,10 +189,10 @@
       "status": "not_started",
       "order": 4,
       "firefox_gap": {
-        "files": 1437,
+        "files": 1442,
         "blocked": 567,
         "feature": 812,
-        "reftest": 58
+        "reftest": 63
       }
     }
   ],
@@ -740,12 +740,12 @@
       "firefox_ceiling": "94.4%",
       "target": "94%",
       "firefox_gap": {
-        "files": 213,
+        "files": 212,
         "harness_files": 139,
         "blocked": 22,
         "feature": 117,
-        "reftest_files": 74,
-        "we_pass": 261,
+        "reftest_files": 73,
+        "we_pass": 262,
         "reftests_firefox_passes": 221
       }
     },
@@ -765,12 +765,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.3%",
       "firefox_gap": {
-        "files": 209,
+        "files": 210,
         "harness_files": 147,
         "blocked": 119,
         "feature": 28,
-        "reftest_files": 62,
-        "we_pass": 98,
+        "reftest_files": 63,
+        "we_pass": 97,
         "reftests_firefox_passes": 159
       }
     },
@@ -844,12 +844,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "98.9%",
       "firefox_gap": {
-        "files": 3095,
+        "files": 3091,
         "harness_files": 25,
         "blocked": 0,
         "feature": 25,
-        "reftest_files": 3070,
-        "we_pass": 3052,
+        "reftest_files": 3066,
+        "we_pass": 3056,
         "reftests_firefox_passes": 6085
       },
       "claimed": "2026-08-31"
@@ -953,12 +953,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "91.4%",
       "firefox_gap": {
-        "files": 212,
+        "files": 208,
         "harness_files": 62,
         "blocked": 2,
         "feature": 60,
-        "reftest_files": 150,
-        "we_pass": 78,
+        "reftest_files": 146,
+        "we_pass": 82,
         "reftests_firefox_passes": 197
       }
     },
@@ -980,12 +980,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "68.9%",
       "firefox_gap": {
-        "files": 176,
+        "files": 168,
         "harness_files": 69,
         "blocked": 6,
         "feature": 63,
-        "reftest_files": 107,
-        "we_pass": 133,
+        "reftest_files": 99,
+        "we_pass": 141,
         "reftests_firefox_passes": 210
       }
     },
@@ -1007,12 +1007,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "98.9%",
       "firefox_gap": {
-        "files": 3095,
+        "files": 3091,
         "harness_files": 25,
         "blocked": 0,
         "feature": 25,
-        "reftest_files": 3070,
-        "we_pass": 3052,
+        "reftest_files": 3066,
+        "we_pass": 3056,
         "reftests_firefox_passes": 6085
       }
     },
@@ -1060,12 +1060,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "93.7%",
       "firefox_gap": {
-        "files": 1063,
+        "files": 1064,
         "harness_files": 59,
         "blocked": 8,
         "feature": 51,
-        "reftest_files": 1004,
-        "we_pass": 128,
+        "reftest_files": 1005,
+        "we_pass": 127,
         "reftests_firefox_passes": 1112
       }
     },
@@ -1085,12 +1085,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "89.9%",
       "firefox_gap": {
-        "files": 175,
+        "files": 172,
         "harness_files": 79,
         "blocked": 0,
         "feature": 79,
-        "reftest_files": 96,
-        "we_pass": 81,
+        "reftest_files": 93,
+        "we_pass": 84,
         "reftests_firefox_passes": 144
       }
     },
@@ -1110,12 +1110,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "74.2%",
       "firefox_gap": {
-        "files": 74,
+        "files": 73,
         "harness_files": 9,
         "blocked": 1,
         "feature": 8,
-        "reftest_files": 65,
-        "we_pass": 78,
+        "reftest_files": 64,
+        "we_pass": 79,
         "reftests_firefox_passes": 133
       }
     },
@@ -1135,12 +1135,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "95.6%",
       "firefox_gap": {
-        "files": 529,
+        "files": 538,
         "harness_files": 79,
         "blocked": 0,
         "feature": 79,
-        "reftest_files": 450,
-        "we_pass": 237,
+        "reftest_files": 459,
+        "we_pass": 228,
         "reftests_firefox_passes": 661
       }
     },
@@ -1179,12 +1179,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "95.4%",
       "firefox_gap": {
-        "files": 254,
+        "files": 253,
         "harness_files": 30,
         "blocked": 0,
         "feature": 30,
-        "reftest_files": 224,
-        "we_pass": 91,
+        "reftest_files": 223,
+        "we_pass": 92,
         "reftests_firefox_passes": 298
       }
     },
@@ -1233,12 +1233,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "99.2%",
       "firefox_gap": {
-        "files": 574,
+        "files": 578,
         "harness_files": 79,
         "blocked": 2,
         "feature": 77,
-        "reftest_files": 495,
-        "we_pass": 305,
+        "reftest_files": 499,
+        "we_pass": 301,
         "reftests_firefox_passes": 780
       },
       "claimed": "2026-09-01"
@@ -1259,12 +1259,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "78.5%",
       "firefox_gap": {
-        "files": 335,
+        "files": 341,
         "harness_files": 304,
         "blocked": 17,
         "feature": 287,
-        "reftest_files": 31,
-        "we_pass": 844,
+        "reftest_files": 37,
+        "we_pass": 838,
         "reftests_firefox_passes": 114
       },
       "claimed": "2026-08-18"
@@ -1285,12 +1285,12 @@
       "adr": "0022",
       "notes": "**Split out of F6 on 2026-08-17: 1,921 gap files, 957 of them blocked** -- the single largest task in the tree, and it is a worker feature rather than a canvas feature. G5's own notes had already named it (`OffscreenCanvas`, 889 tests) as one of the three things left in a worker after the global scope landed; it is larger than that estimate. Depends on G5 for that reason. The blocked half is what to measure first: 957 files where the harness never reported is a plumbing number, and `OffscreenCanvas is not defined` is one symbol.",
       "firefox_gap": {
-        "files": 1939,
+        "files": 1946,
         "harness_files": 1921,
         "blocked": 7,
         "feature": 1914,
-        "reftest_files": 18,
-        "we_pass": 37,
+        "reftest_files": 25,
+        "we_pass": 30,
         "reftests_firefox_passes": 55
       }
     },
@@ -1310,12 +1310,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.5%",
       "firefox_gap": {
-        "files": 759,
+        "files": 780,
         "harness_files": 568,
         "blocked": 51,
         "feature": 517,
-        "reftest_files": 191,
-        "we_pass": 315,
+        "reftest_files": 212,
+        "we_pass": 294,
         "reftests_firefox_passes": 437
       },
       "claimed": "2026-09-01"
@@ -1338,12 +1338,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.5%",
       "firefox_gap": {
-        "files": 759,
+        "files": 780,
         "harness_files": 568,
         "blocked": 51,
         "feature": 517,
-        "reftest_files": 191,
-        "we_pass": 315,
+        "reftest_files": 212,
+        "we_pass": 294,
         "reftests_firefox_passes": 437
       },
       "claimed": "2026-09-01"
@@ -1366,12 +1366,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.5%",
       "firefox_gap": {
-        "files": 759,
+        "files": 780,
         "harness_files": 568,
         "blocked": 51,
         "feature": 517,
-        "reftest_files": 191,
-        "we_pass": 315,
+        "reftest_files": 212,
+        "we_pass": 294,
         "reftests_firefox_passes": 437
       },
       "claimed": "2026-09-01"
@@ -1395,12 +1395,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.5%",
       "firefox_gap": {
-        "files": 759,
+        "files": 780,
         "harness_files": 568,
         "blocked": 51,
         "feature": 517,
-        "reftest_files": 191,
-        "we_pass": 315,
+        "reftest_files": 212,
+        "we_pass": 294,
         "reftests_firefox_passes": 437
       }
     },
@@ -1511,12 +1511,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "73.0%",
       "firefox_gap": {
-        "files": 111,
+        "files": 117,
         "harness_files": 102,
         "blocked": 6,
         "feature": 96,
-        "reftest_files": 9,
-        "we_pass": 12,
+        "reftest_files": 15,
+        "we_pass": 6,
         "reftests_firefox_passes": 18
       }
     },
@@ -2207,12 +2207,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "96.8%",
       "firefox_gap": {
-        "files": 305,
+        "files": 310,
         "harness_files": 111,
         "blocked": 8,
         "feature": 103,
-        "reftest_files": 194,
-        "we_pass": 160,
+        "reftest_files": 199,
+        "we_pass": 155,
         "reftests_firefox_passes": 327
       }
     },
@@ -2246,12 +2246,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "unmeasured",
       "firefox_gap": {
-        "files": 260,
+        "files": 261,
         "harness_files": 259,
         "blocked": 124,
         "feature": 135,
-        "reftest_files": 1,
-        "we_pass": 17,
+        "reftest_files": 2,
+        "we_pass": 16,
         "reftests_firefox_passes": 2
       }
     },
@@ -2300,12 +2300,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "unmeasured",
       "firefox_gap": {
-        "files": 260,
+        "files": 261,
         "harness_files": 259,
         "blocked": 124,
         "feature": 135,
-        "reftest_files": 1,
-        "we_pass": 17,
+        "reftest_files": 2,
+        "we_pass": 16,
         "reftests_firefox_passes": 2
       }
     },
@@ -2495,13 +2495,17 @@
         "F9"
       ],
       "target": "1,193 files photographed in the state they name",
-      "status": "in_progress",
+      "status": "done",
       "agent": "wpt-f11",
       "adr": "docs/adr/0040-web-platform-tests.md",
-      "notes": "Found by F5 on 2026-09-01. `grep -rn reftest-wait tools/wpt/` is EMPTY. **1,193 files use it**: html/canvas 223, html/semantics 142, css/css-overflow 81, css/css-backgrounds 73, css/css-transforms 64, css/selectors 53, css/css-multicol 45, css/css-fonts 45. Every one of them is currently photographed BEFORE the thing it tests has happened, so it passes exactly when the initial state and the final one look the same -- which is an accidental pass in the same family as the blank-page ones F9 counted, and it FLIPS TO A FAILURE the moment the browser starts implementing the property under test. Four did exactly that in F5's session. Same shape as F2 and F9 and it belongs beside them: the measurement is wrong before the browser is.",
+      "notes": "**Done 2026-09-01.** Check, run: a reftest whose two states differ passes only when the second is photographed -- 41 of them do now, `css/CSS2/lists/list-item-dynamic-color.html`, `css/css-overflow/incremental-scroll.html`, `css/css-tables/collapsed-border-remove-cell.html` and `css/selectors/invalidation/has-append-first-node.html` among them -- and `microbrowser_wpt --reftests-only` printed `20998 reftests: 8312 passed (39.6%), 586 of those with both pages blank` and `0 unexpected results`, exit 0, on two consecutive runs.\n\n**The number went DOWN and that is the deliverable: 8,381 -> 8,312 passing files, 633 -> 586 blank-page passes.** 316 files that say `reftest-wait` and never remove it are now the TIMEOUTs they are; 41 whose two states genuinely differ pass for the first time; net -69. An accidental pass is one where the state before the change and the state after it happen to look alike, and it flips to a failure the day the property lands -- four did exactly that in F5's session, which is how this was found.\n\n**The gate does not get slower, and the first measurement said it did.** A recording run went 90s -> 557s, because `finish()` retries a TIMEOUT before writing it down. The run that counts -- the one `ctest` uses -- is **99s against 90s**: `--known-timeout-budget` gives a test already expected to TIMEOUT 2,000ms rather than the full deadline, all 321 took it and none escalated back. A measurement fix whose cost lands only on the recording run is the cheap kind.\n\n**The probe reads the class *attribute*, not `classList`, and `Engine/TheReftestWaitProbeReadsAnSvgRootToo` is the test of why:** a reftest's root element is as often `<svg>` as `<html>`, and a probe that missed one of the two would photograph that whole half of the suite early -- silently, and in the direction that reads as a pass. It lives in `wpt/Reftest.h` rather than the tool's `main.cpp` so a unit test can reach it.\n\n**Four causes behind the 316 TIMEOUTs, all honest browser gaps the files now name instead of hiding:** `<link rel=preload as=image onload=takeScreenshot()>`, which this browser never fires (`css/css-backgrounds/background-image-first-letter.html`); the html-in-canvas `.tentative` files, whose `drawElementImage` throws before the page can say it is ready (52 files in `html/canvas/element/manual/draw-element-image/`); `@keyframes` and `Element.animate` tests waiting on an animation event (`css/css-backgrounds/animations/`, `css/css-animations/`, `web-animations/`); and `onload` on an `<svg>` root (`svg/text/reftests/textLength-list-*`). None is fixable inside this task and each is a line in an expectation file now.\n\n**Read `--reftests-only`'s two closing lines together from here on.** `8312 passed` and `586 of those with both pages blank` are the same sentence: the second is how much of the first proves nothing, and F11 moved both.",
       "ceiling_source": "firefox",
       "firefox_ceiling": "",
-      "claimed": "2026-09-01"
+      "claimed": "2026-09-01",
+      "firefox_gap_unblocks": {
+        "files": 1231,
+        "why": "files carrying `class=\"reftest-wait\"`. Not files this makes pass -- files this makes *comparable*: before it, each was photographed in a state the test explicitly says is not the one it is about"
+      }
     },
     {
       "id": "F10",
@@ -2535,12 +2539,12 @@
       "adr": "0012",
       "notes": "**Had no task until 2026-08-17.** 314 test files Firefox passes and we fail, of which only 65 are blocked -- the highest ratio of ordinary specification work to plumbing in the top ten. `custom-elements/form-associated` is a further 103 files at 1/104, which is the same subject from the other side. CLAUDE.md's own list of Hacker News gaps says `<select>` is laid out and submitted but not clickable, which is one of these.",
       "firefox_gap": {
-        "files": 343,
+        "files": 345,
         "harness_files": 316,
         "blocked": 66,
         "feature": 250,
-        "reftest_files": 27,
-        "we_pass": 79,
+        "reftest_files": 29,
+        "we_pass": 77,
         "reftests_firefox_passes": 66
       }
     },
@@ -2583,12 +2587,12 @@
       "adr": "0027",
       "notes": "**Had no task until 2026-08-17.** 520 test files Firefox passes and we fail, 237 blocked -- the largest single directory under html/semantics/. Depends on J1b because a large part of it is <iframe> as an element. The media-elements subtree beneath it is L1/L3 and is not this task.",
       "firefox_gap": {
-        "files": 543,
+        "files": 546,
         "harness_files": 521,
         "blocked": 237,
         "feature": 284,
-        "reftest_files": 22,
-        "we_pass": 111,
+        "reftest_files": 25,
+        "we_pass": 108,
         "reftests_firefox_passes": 42
       }
     },
