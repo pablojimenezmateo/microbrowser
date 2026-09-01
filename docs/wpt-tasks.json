@@ -57,8 +57,8 @@
       "status": "not_started",
       "order": 7,
       "firefox_gap": {
-        "files": 696,
-        "blocked": 113,
+        "files": 693,
+        "blocked": 110,
         "feature": 482,
         "reftest": 101
       }
@@ -581,12 +581,12 @@
       "firefox_ceiling": "94.3%",
       "target": "94%",
       "firefox_gap": {
-        "files": 13,
-        "harness_files": 13,
-        "blocked": 3,
+        "files": 10,
+        "harness_files": 10,
+        "blocked": 0,
         "feature": 10,
         "reftest_files": 0,
-        "we_pass": 16,
+        "we_pass": 19,
         "reftests_firefox_passes": 0
       }
     },
@@ -1330,12 +1330,22 @@
         "F7"
       ],
       "target": "svg/styling 60%",
-      "status": "not_started",
-      "agent": null,
+      "status": "in_progress",
+      "agent": "wpt-f7a",
       "adr": "docs/adr/0043-svg-as-a-document.md",
       "notes": "ADR 0043 \u00a72. First because everything else depends on it: getComputedStyle(rect).fill returns \"\" today, which is what makes the painter's job undefined. It is also the one stage that does not need the box tree, so it lands and is measured alone. Direct tests: svg/styling/ (20 gap files), svg/painting/ (73), and the `inheritance.svg` family across five subdirectories.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "97.5%"
+      "firefox_ceiling": "97.5%",
+      "firefox_gap": {
+        "files": 769,
+        "harness_files": 578,
+        "blocked": 51,
+        "feature": 527,
+        "reftest_files": 191,
+        "we_pass": 305,
+        "reftests_firefox_passes": 437
+      },
+      "claimed": "2026-09-01"
     },
     {
       "id": "F7b",
@@ -1353,7 +1363,16 @@
       "adr": "docs/adr/0043-svg-as-a-document.md",
       "notes": "ADR 0043 \u00a73. `svg/idlharness.window.html` alone carries 1,661 failing subtests, twelve times the next largest file in the area, because an SVG child is an HTMLUnknownElement today. animVal is deliberately out of scope: it exists to expose SMIL, which ADR 0043 refuses, and one that always equalled baseVal would be the stub ADR 0012 forbids.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "97.5%"
+      "firefox_ceiling": "97.5%",
+      "firefox_gap": {
+        "files": 769,
+        "harness_files": 578,
+        "blocked": 51,
+        "feature": 527,
+        "reftest_files": 191,
+        "we_pass": 305,
+        "reftests_firefox_passes": 437
+      }
     },
     {
       "id": "F7c",
@@ -1372,7 +1391,16 @@
       "adr": "docs/adr/0043-svg-as-a-document.md",
       "notes": "ADR 0043 \u00a74, and the largest of the three. It retires engine::PageImages's serialize-the-element-and-rasterize path for INLINE svg only -- `<img src=x.svg>` keeps src/gfx/SvgDecoder.cpp, which is what makes 'a document referenced as an image cannot run script' structural rather than remembered (the same argument ADR 0013 makes for the demuxer). It is what getBBox, getCTM, getScreenCTM and elementFromPoint need, and it is what turns 187 blank-page reftest passes into real ones.",
       "ceiling_source": "firefox",
-      "firefox_ceiling": "97.5%"
+      "firefox_ceiling": "97.5%",
+      "firefox_gap": {
+        "files": 769,
+        "harness_files": 578,
+        "blocked": 51,
+        "feature": 527,
+        "reftest_files": 191,
+        "we_pass": 305,
+        "reftests_firefox_passes": 437
+      }
     },
     {
       "id": "F8",

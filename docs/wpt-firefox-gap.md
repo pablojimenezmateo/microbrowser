@@ -4,7 +4,7 @@
 
 Firefox version: 157.0a1
 Firefox run date: 2026-08-31
-Firefox's WPT revision: `7e755825e0b5`
+Firefox's WPT revision: `bb5b8a99a4c3`
 Our pinned WPT revision: `4120ac0deb57`
 
 The unit is a **test file**, and a file counts as passed only when every
@@ -22,8 +22,8 @@ than a specification gap.
 |---|--:|--:|--:|
 | in our scope | 23146 | 20998 | 44144 |
 | Firefox passes | 19232 | 17918 | 37150 |
-| **we pass** | **5266** | **7598** | **12864** |
-| **Firefox passes, we fail** | **13966** | **10320** | **24286** |
+| **we pass** | **5273** | **7598** | **12871** |
+| **Firefox passes, we fail** | **13959** | **10320** | **24279** |
 | both fail | 3436 | 2233 | 5669 |
 | we pass, Firefox fails (audit) | 338 | 770 | 1108 |
 
@@ -37,8 +37,8 @@ nobody ran.
 
 | cause | files |
 |---|--:|
-| the harness never reported (TIMEOUT/ERROR/CRASH) | 4147 |
-| subtests ran and failed | 9819 |
+| the harness never reported (TIMEOUT/ERROR/CRASH) | 4134 |
+| subtests ran and failed | 9825 |
 
 A blocked file is worth more than its count: none of its subtests are
 in any denominator anywhere, so it is invisible in every rate.
@@ -136,14 +136,14 @@ distinction. A refused area is a decision with a name
 | `content-security-policy/script-src` | 57 | 37 | 20 | 0 | 24 | 81 | 90 |  |
 | `media-source` | 57 | 19 | 38 | 0 | 2 | 59 | 72 |  |
 | `shadow-dom` | 53 | 4 | 42 | 7 | 25 | 78 | 83 |  |
-| `custom-elements/reactions` | 52 | 0 | 52 | 0 | 4 | 56 | 57 |  |
 | `webmessaging` | 50 | 34 | 16 | 0 | 7 | 57 | 60 |  |
+| `custom-elements/reactions` | 49 | 0 | 49 | 0 | 7 | 56 | 57 |  |
 | `html/cross-origin-opener-policy` | 46 | 4 | 42 | 0 | 53 | 99 | 157 |  |
 | `navigation-timing` | 42 | 28 | 14 | 0 | 6 | 48 | 58 |  |
 | `html/infrastructure` | 41 | 15 | 26 | 0 | 55 | 96 | 118 |  |
 | `webstorage` | 39 | 25 | 14 | 0 | 10 | 49 | 54 |  |
-| `custom-elements` | 38 | 7 | 30 | 1 | 4 | 42 | 45 |  |
-| `custom-elements/registries` | 37 | 9 | 28 | 0 | 1 | 38 | 40 |  |
+| `custom-elements` | 37 | 0 | 36 | 1 | 5 | 42 | 45 |  |
+| `custom-elements/registries` | 37 | 8 | 29 | 0 | 1 | 38 | 40 |  |
 | `web-animations/interfaces` | 36 | 4 | 32 | 0 | 0 | 36 | 42 |  |
 | `shadow-dom/focus` | 34 | 2 | 30 | 2 | 5 | 39 | 40 |  |
 | `svg/linking` | 34 | 3 | 13 | 18 | 24 | 58 | 63 |  |
@@ -161,7 +161,7 @@ distinction. A refused area is a decision with a name
 | `png/apng` | 28 | 0 | 0 | 28 | 1 | 29 | 29 |  |
 | `content-security-policy/worker-src` | 27 | 10 | 17 | 0 | 3 | 30 | 31 |  |
 | `content-security-policy/style-src` | 26 | 14 | 12 | 0 | 12 | 38 | 42 |  |
-| `domxpath` | 26 | 3 | 23 | 0 | 0 | 26 | 32 |  |
+| `domxpath` | 26 | 2 | 24 | 0 | 0 | 26 | 32 |  |
 | `content-security-policy/reporting` | 25 | 19 | 6 | 0 | 1 | 26 | 31 |  |
 | `cors` | 25 | 8 | 17 | 0 | 0 | 25 | 27 |  |
 | `svg/struct` | 25 | 1 | 5 | 19 | 25 | 50 | 67 |  |
@@ -196,7 +196,6 @@ distinction. A refused area is a decision with a name
 | `svg/extensibility` | 14 | 0 | 3 | 11 | 9 | 23 | 25 |  |
 | `uievents/order-of-events` | 14 | 7 | 7 | 0 | 2 | 16 | 16 |  |
 | `webmessaging/broadcastchannel` | 14 | 6 | 8 | 0 | 0 | 14 | 14 |  |
-| `domparsing` | 13 | 3 | 10 | 0 | 15 | 28 | 34 | **partial** ADR 0012 -- DOMParser absent -- it returns a second Document |
 | `html/the-xhtml-syntax` | 13 | 13 | 0 | 0 | 2 | 15 | 15 |  |
 | `webmessaging/message-channels` | 13 | 2 | 11 | 0 | 4 | 17 | 23 |  |
 | `content-security-policy/img-src` | 12 | 11 | 1 | 0 | 3 | 15 | 15 |  |
@@ -217,6 +216,7 @@ distinction. A refused area is a decision with a name
 | `dom/collections` | 10 | 0 | 10 | 0 | 0 | 10 | 10 |  |
 | `dom/ranges` | 10 | 5 | 5 | 0 | 27 | 37 | 58 |  |
 | `dom/traversal` | 10 | 0 | 10 | 0 | 7 | 17 | 18 |  |
+| `domparsing` | 10 | 0 | 10 | 0 | 18 | 28 | 34 | **partial** ADR 0012 -- DOMParser absent -- it returns a second Document |
 | `encoding/legacy-mb-japanese` | 10 | 10 | 0 | 0 | 472 | 482 | 482 |  |
 | `eventsource/dedicated-worker` | 10 | 1 | 9 | 0 | 0 | 10 | 10 |  |
 | `hr-time` | 10 | 4 | 6 | 0 | 4 | 14 | 15 |  |
@@ -225,7 +225,7 @@ distinction. A refused area is a decision with a name
 | `content-security-policy/frame-src` | 9 | 7 | 2 | 0 | 0 | 9 | 12 |  |
 | `content-security-policy/object-src` | 9 | 9 | 0 | 0 | 0 | 9 | 13 |  |
 | `content-security-policy/reporting-api` | 9 | 8 | 1 | 0 | 1 | 10 | 11 |  |
-| `custom-elements/parser` | 9 | 3 | 6 | 0 | 2 | 11 | 11 |  |
+| `custom-elements/parser` | 9 | 2 | 7 | 0 | 2 | 11 | 11 |  |
 | `fetch/range` | 9 | 1 | 8 | 0 | 0 | 9 | 11 |  |
 | `html/user-activation` | 9 | 8 | 1 | 0 | 1 | 10 | 21 |  |
 | `selection/shadow-dom` | 9 | 0 | 9 | 0 | 8 | 17 | 22 |  |
