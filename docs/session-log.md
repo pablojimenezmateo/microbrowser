@@ -8210,3 +8210,64 @@ and **every one of them is an improvement** — zero `expected PASS, got FAIL` b
 only `expected OK, got X` are six TIMEOUTs that are load flakes. Some of that is this session's and
 some is the 2026-08-18 merge staleness the previous two entries name. They are not re-recorded here
 because this session's own change is not implicated in them and the diff should say what it did.
+
+## WPT task F7a — the SVG presentation properties · 2026-09-01
+
+**Status:** in_progress — the properties landed and the check is not met.
+**Check** (`docs/wpt-tasks.json`: "getComputedStyle on an SVG child answers `fill`, and
+svg/styling/ >= 60%"): **first half met, second half not.**
+`microbrowser_wpt svg/styling/` prints `138 subtests, 21 passed (15.2%)`, from 18.
+
+**Landed:** *The SVG presentation properties are CSS properties* · *Re-record svg/ and css/*
+
+The area went **479 → 659 passing subtests (9.1% → 12.5%)**, `svg/painting/inheritance.svg` alone
+**0 → 16 of 38**, and 232 lines left the two expectation files against 18 arriving, none of them a
+regression.
+
+**Found — and the finding is that the three things now blocking this task are not SVG.**
+
+1. **`CSS.supports(p, 'initial')` is false for every property but `font-family`.** The CSS-wide
+   keywords — `inherit`, `initial`, `unset`, `revert` — are handled ad-hoc in four places
+   (`grep -rn '"initial"' src/css/`) rather than universally, so `color: initial` does not apply and
+   `@supports` honestly reports no. That is not a cosmetic gap: `presentation-attributes-relevant`,
+   `-irrelevant` and `-unknown` each **loop over 70 properties gated on exactly that call**, so each
+   of them runs **one** subtest today. The fix needs something `src/css` does not have — a
+   per-property copy, `style.P = source.P` — because `ApplyDeclaration` is an if-else chain over
+   property *names* and there is no way to address a field generically. That is a task of its own
+   and it is worth more than this one.
+2. **`'color' in element.style` is false, for a `<div>` as much as for a `<rect>`.** The `style`
+   Proxy (`src/bindings/StyleBindings.cpp`) has `get` and `set` traps and no `has` trap, so the `in`
+   operator falls through to an empty target. `svg/styling/required-properties.svg` is 82 subtests
+   of `assert_true(property in target.style)` and scores **0**; roughly 50 of them would pass with
+   nothing else changed. It wants the same known-property predicate (1) does.
+3. **The HTML tree builder has no foreign content**, and says so at `src/html/TreeBuilder.cpp:218`.
+   An inline `<svg><rect fill="blue"/></svg>` in an HTML document produces **XHTML-namespace**
+   elements: `rect.namespaceURI` is `http://www.w3.org/1999/xhtml`, `rect.constructor.name` is
+   `HTMLUnknownElement`, and the presentation attributes therefore do not map. **Everything this
+   task landed works in a `.svg` document and through `createElementNS`, and none of it works in
+   inline SVG.** That is HTML §13.2.6.5 plus the adjust-SVG-attributes tables, and it is a
+   prerequisite for F7c as much as for this.
+
+**What the properties themselves cost, and four decisions in them.** A bare number is a length —
+`stroke-width="2"` is how the property is usually written and SVG is the one place in CSS where
+that is legal. Out of *range* is clamped (`fill-opacity: 2` is 1) and out of *grammar* is refused
+(`stroke-miterlimit: 0.5` is dropped), because the specification says each of those in as many
+words; a dash array of all zeros is refused for a third reason, that it is an infinite loop in any
+stroker that takes it at face value. `normal` and `fill stroke markers` are the *same stored value*
+for `paint-order`. And `url(#g)` is kept as text rather than resolved, because the cascade cannot
+see the tree it would resolve against.
+
+**Nine enums rather than one.** A value that belongs to one property must be refused on the others —
+`pixelated` is `image-rendering` only, `optimizeLegibility` is `text-rendering` only — and a shared
+"SVG keyword" enum makes that a check somebody has to remember instead of a type the compiler
+enforces. `Css/SvgPresentationPropertiesAreOrdinaryProperties` pins all three.
+
+**Three files were split rather than grown** — `css/SvgStyle.h`, `css/SvgDeclarations.cpp`,
+`engine/SvgComputedValues.cpp` — because each parent was at its module's line cap. The lint said so
+three times in a row, and each time the honest answer was a new file rather than a bigger one.
+
+**Also seen.** Twenty-two lines left `css.txt`: `css/cssom/serialize-values.html` was asserting the
+serialization of `alignment-baseline` and `css/css-images/inheritance.html` the initial value of
+`image-rendering`. Both are SVG presentation properties that CSS's own suite tests, so this work
+moved an area nobody was looking at — which is the argument for implementing a property rather than
+a test.
