@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "TestSupport.h"
+#include "engine/DocumentParse.h"
 #include "engine/Page.h"
 #include "gfx/FontCatalog.h"
 #include "html/Encoding.h"
@@ -614,6 +615,36 @@ void RegisterEncodingTests(std::vector<TestCase>& tests) {
                                       false),
            "and completes");
     ExpectEqString(out, "日", "as 日");
+  });
+
+  AddTest(tests, "Encoding/AnXmlDocumentIsNotAnHtmlDocument", [] {
+    // ADR 0043 §1. `Document::SetHtmlDocument` was never called by the engine's
+    // own parse, so every `application/xhtml+xml` and `image/svg+xml` page this
+    // browser loaded believed it was an HTML document -- and that flag is what
+    // `tagName` reads to decide whether to ASCII-upper-case a qualified name.
+    // `<h:script>` in an SVG document came back as `H:SCRIPT`. The uppercasing
+    // is only the visible half: `createElement`, `createCDATASection`,
+    // `createAttribute` and selector case-sensitivity branch on the same bit.
+    const std::unique_ptr<dom::Document> svg = engine::ParseDocumentFor(
+        "<svg xmlns=\"http://www.w3.org/2000/svg\"><title>x</title></svg>", "image/svg+xml");
+    Expect(svg != nullptr && !svg->IsHtmlDocument(), "an SVG document is an XML document");
+
+    const std::unique_ptr<dom::Document> xhtml = engine::ParseDocumentFor(
+        "<html xmlns=\"http://www.w3.org/1999/xhtml\"><body/></html>", "application/xhtml+xml");
+    Expect(xhtml != nullptr && !xhtml->IsHtmlDocument(), "and so is an XHTML one");
+
+    const std::unique_ptr<dom::Document> html =
+        engine::ParseDocumentFor("<p>x", "text/html; charset=utf-8");
+    Expect(html != nullptr && html->IsHtmlDocument(), "text/html still is one");
+
+    // The documented fallback: XML that is not well formed goes to the HTML
+    // tree builder, and what that builder produced *is* an HTML document. The
+    // deviation is named in DocumentParse.cpp; this pins which side of it the
+    // flag lands on.
+    const std::unique_ptr<dom::Document> broken =
+        engine::ParseDocumentFor("<svg><unclosed></svg>", "image/svg+xml");
+    Expect(broken != nullptr && broken->IsHtmlDocument(),
+           "a malformed XML document recovered by the HTML tree builder is an HTML one");
   });
 }
 

@@ -47,6 +47,16 @@ std::unique_ptr<dom::Document> ParseDocumentFor(std::string_view source,
   util::AddPerformanceCounter(util::PerfCounterId::DocumentParsedAsXml);
   xml::XmlParseResult result = xml::ParseXml(source);
   if (result.ok) {
+    // **An XML document is not an HTML document**, and the flag is what
+    // `tagName` reads to decide whether to ASCII-upper-case a qualified name.
+    // Nothing set it here, so every `.svg` and `.xhtml` page this browser
+    // loaded reported `H:SCRIPT` where the DOM says `h:script` -- and the
+    // uppercasing is only the visible half: `getElementsByTagName`,
+    // `document.createElement` and `Element.matches` all branch on it too.
+    // `DOMParser` had it right since the day it landed, which is why this went
+    // unnoticed: the only XML documents anybody looked at were the ones a page
+    // made for itself.
+    result.document->SetHtmlDocument(false);
     return std::move(result.document);
   }
   util::AddPerformanceCounter(util::PerfCounterId::DocumentXmlFellBackToHtml);
