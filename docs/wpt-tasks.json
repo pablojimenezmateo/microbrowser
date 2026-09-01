@@ -1358,8 +1358,8 @@
         "F7"
       ],
       "target": "svg/types 60%",
-      "status": "not_started",
-      "agent": null,
+      "status": "in_progress",
+      "agent": "wpt-f7b",
       "adr": "docs/adr/0043-svg-as-a-document.md",
       "notes": "ADR 0043 \u00a73. `svg/idlharness.window.html` alone carries 1,661 failing subtests, twelve times the next largest file in the area, because an SVG child is an HTMLUnknownElement today. animVal is deliberately out of scope: it exists to expose SMIL, which ADR 0043 refuses, and one that always equalled baseVal would be the stub ADR 0012 forbids.",
       "ceiling_source": "firefox",
@@ -1372,7 +1372,8 @@
         "reftest_files": 191,
         "we_pass": 305,
         "reftests_firefox_passes": 437
-      }
+      },
+      "claimed": "2026-09-01"
     },
     {
       "id": "F7c",
