@@ -62533,6 +62533,8 @@ harness=FAIL
 harness=FAIL
 [css/css-position/position-absolute-dynamic-static-position-margin-002.html]
 harness=FAIL
+[css/css-position/position-absolute-dynamic-static-position-table-cell.html]
+harness=FAIL
 [css/css-position/position-absolute-dynamic-static-position.html]
 harness=FAIL
 [css/css-position/position-absolute-fit-content-auto-margin.html]
@@ -81603,6 +81605,8 @@ FAIL=Compositing Web Animations: property <rotate> underlying [none] from add [n
 FAIL=Compositing Web Animations: property <rotate> underlying [none] from add [none] to replace [0 1 0 100deg] at (0.75) should be [y 75deg]
 FAIL=Compositing Web Animations: property <rotate> underlying [none] from add [none] to replace [0 1 0 100deg] at (1) should be [y 100deg]
 FAIL=Compositing Web Animations: property <rotate> underlying [none] from add [none] to replace [0 1 0 100deg] at (2) should be [y 200deg]
+[css/css-transforms/animation/rotate-explicit-and-implicit-keyframes.html]
+harness=FAIL
 [css/css-transforms/animation/rotate-interpolation-math-functions-tentative.html]
 FAIL=CSS Animations: property <rotate> from [100deg] to [calc(sign(20rem - 20px) * 180deg)] at (-1) should be [20deg]
 FAIL=CSS Animations: property <rotate> from [100deg] to [calc(sign(20rem - 20px) * 180deg)] at (0) should be [100deg]
@@ -81738,7 +81742,6 @@ FAIL=CSS Animations: property <rotate> from [unset] to [30deg] at (0.75) should 
 FAIL=CSS Animations: property <rotate> from [unset] to [30deg] at (1) should be [30deg]
 FAIL=CSS Animations: property <rotate> from [unset] to [30deg] at (2) should be [60deg]
 FAIL=CSS Animations: property <rotate> from neutral to [30deg] at (-1) should be [-10deg]
-FAIL=CSS Animations: property <rotate> from neutral to [30deg] at (0) should be [10deg]
 FAIL=CSS Animations: property <rotate> from neutral to [30deg] at (0.25) should be [15deg]
 FAIL=CSS Animations: property <rotate> from neutral to [30deg] at (0.75) should be [25deg]
 FAIL=CSS Animations: property <rotate> from neutral to [30deg] at (1) should be [30deg]
@@ -81783,13 +81786,11 @@ FAIL=CSS Transitions with transition: all: property <rotate> from [100deg] to [-
 FAIL=CSS Transitions with transition: all: property <rotate> from [100deg] to [-100deg] at (0) should be [100deg]
 FAIL=CSS Transitions with transition: all: property <rotate> from [100deg] to [-100deg] at (0.25) should be [50deg]
 FAIL=CSS Transitions with transition: all: property <rotate> from [100deg] to [-100deg] at (0.75) should be [-50deg]
-FAIL=CSS Transitions with transition: all: property <rotate> from [100deg] to [-100deg] at (1) should be [-100deg]
 FAIL=CSS Transitions with transition: all: property <rotate> from [100deg] to [-100deg] at (2) should be [-300deg]
 FAIL=CSS Transitions with transition: all: property <rotate> from [100deg] to [180deg] at (-1) should be [20deg]
 FAIL=CSS Transitions with transition: all: property <rotate> from [100deg] to [180deg] at (0) should be [100deg]
 FAIL=CSS Transitions with transition: all: property <rotate> from [100deg] to [180deg] at (0.125) should be [110deg]
 FAIL=CSS Transitions with transition: all: property <rotate> from [100deg] to [180deg] at (0.875) should be [170deg]
-FAIL=CSS Transitions with transition: all: property <rotate> from [100deg] to [180deg] at (1) should be [180deg]
 FAIL=CSS Transitions with transition: all: property <rotate> from [100deg] to [180deg] at (2) should be [260deg]
 FAIL=CSS Transitions with transition: all: property <rotate> from [45deg] to [-1 1 0 60deg] at (-1) should be [0.447214 -0.447214 0.774597 104.478deg]
 FAIL=CSS Transitions with transition: all: property <rotate> from [45deg] to [-1 1 0 60deg] at (0) should be [45deg]
@@ -81807,7 +81808,6 @@ FAIL=CSS Transitions with transition: all: property <rotate> from [none] to [30d
 FAIL=CSS Transitions with transition: all: property <rotate> from [none] to [30deg] at (0) should be [0deg]
 FAIL=CSS Transitions with transition: all: property <rotate> from [none] to [30deg] at (0.25) should be [7.5deg]
 FAIL=CSS Transitions with transition: all: property <rotate> from [none] to [30deg] at (0.75) should be [22.5deg]
-FAIL=CSS Transitions with transition: all: property <rotate> from [none] to [30deg] at (1) should be [30deg]
 FAIL=CSS Transitions with transition: all: property <rotate> from [none] to [30deg] at (2) should be [60deg]
 FAIL=CSS Transitions with transition: all: property <rotate> from [none] to [7 -8 9 400grad] at (-1) should be [0.5 -0.57 0.65 -400grad]
 FAIL=CSS Transitions with transition: all: property <rotate> from [none] to [7 -8 9 400grad] at (0) should be [0.5 -0.57 0.65 0deg]
@@ -81815,12 +81815,6 @@ FAIL=CSS Transitions with transition: all: property <rotate> from [none] to [7 -
 FAIL=CSS Transitions with transition: all: property <rotate> from [none] to [7 -8 9 400grad] at (0.875) should be [0.5 -0.57 0.65 350grad]
 FAIL=CSS Transitions with transition: all: property <rotate> from [none] to [7 -8 9 400grad] at (1) should be [0.5 -0.57 0.65 400grad]
 FAIL=CSS Transitions with transition: all: property <rotate> from [none] to [7 -8 9 400grad] at (2) should be [0.5 -0.57 0.65 800grad]
-FAIL=CSS Transitions with transition: all: property <rotate> from [none] to [none] at (-1) should be [none]
-FAIL=CSS Transitions with transition: all: property <rotate> from [none] to [none] at (0) should be [none]
-FAIL=CSS Transitions with transition: all: property <rotate> from [none] to [none] at (0.125) should be [none]
-FAIL=CSS Transitions with transition: all: property <rotate> from [none] to [none] at (0.875) should be [none]
-FAIL=CSS Transitions with transition: all: property <rotate> from [none] to [none] at (1) should be [none]
-FAIL=CSS Transitions with transition: all: property <rotate> from [none] to [none] at (2) should be [none]
 FAIL=CSS Transitions with transition: all: property <rotate> from [unset] to [30deg] at (-1) should be [-30deg]
 FAIL=CSS Transitions with transition: all: property <rotate> from [unset] to [30deg] at (0) should be [0deg]
 FAIL=CSS Transitions with transition: all: property <rotate> from [unset] to [30deg] at (0.25) should be [7.5deg]
@@ -81831,7 +81825,6 @@ FAIL=CSS Transitions with transition: all: property <rotate> from neutral to [30
 FAIL=CSS Transitions with transition: all: property <rotate> from neutral to [30deg] at (0) should be [10deg]
 FAIL=CSS Transitions with transition: all: property <rotate> from neutral to [30deg] at (0.25) should be [15deg]
 FAIL=CSS Transitions with transition: all: property <rotate> from neutral to [30deg] at (0.75) should be [25deg]
-FAIL=CSS Transitions with transition: all: property <rotate> from neutral to [30deg] at (1) should be [30deg]
 FAIL=CSS Transitions with transition: all: property <rotate> from neutral to [30deg] at (2) should be [50deg]
 FAIL=CSS Transitions: property <rotate> from [0 1 0 0deg] to [1 0 0 450deg] at (-1) should be [1 0 0 -450deg]
 FAIL=CSS Transitions: property <rotate> from [0 1 0 0deg] to [1 0 0 450deg] at (0) should be [1 0 0 0deg]
@@ -81873,13 +81866,11 @@ FAIL=CSS Transitions: property <rotate> from [100deg] to [-100deg] at (-1) shoul
 FAIL=CSS Transitions: property <rotate> from [100deg] to [-100deg] at (0) should be [100deg]
 FAIL=CSS Transitions: property <rotate> from [100deg] to [-100deg] at (0.25) should be [50deg]
 FAIL=CSS Transitions: property <rotate> from [100deg] to [-100deg] at (0.75) should be [-50deg]
-FAIL=CSS Transitions: property <rotate> from [100deg] to [-100deg] at (1) should be [-100deg]
 FAIL=CSS Transitions: property <rotate> from [100deg] to [-100deg] at (2) should be [-300deg]
 FAIL=CSS Transitions: property <rotate> from [100deg] to [180deg] at (-1) should be [20deg]
 FAIL=CSS Transitions: property <rotate> from [100deg] to [180deg] at (0) should be [100deg]
 FAIL=CSS Transitions: property <rotate> from [100deg] to [180deg] at (0.125) should be [110deg]
 FAIL=CSS Transitions: property <rotate> from [100deg] to [180deg] at (0.875) should be [170deg]
-FAIL=CSS Transitions: property <rotate> from [100deg] to [180deg] at (1) should be [180deg]
 FAIL=CSS Transitions: property <rotate> from [100deg] to [180deg] at (2) should be [260deg]
 FAIL=CSS Transitions: property <rotate> from [45deg] to [-1 1 0 60deg] at (-1) should be [0.447214 -0.447214 0.774597 104.478deg]
 FAIL=CSS Transitions: property <rotate> from [45deg] to [-1 1 0 60deg] at (0) should be [45deg]
@@ -81897,7 +81888,6 @@ FAIL=CSS Transitions: property <rotate> from [none] to [30deg] at (-1) should be
 FAIL=CSS Transitions: property <rotate> from [none] to [30deg] at (0) should be [0deg]
 FAIL=CSS Transitions: property <rotate> from [none] to [30deg] at (0.25) should be [7.5deg]
 FAIL=CSS Transitions: property <rotate> from [none] to [30deg] at (0.75) should be [22.5deg]
-FAIL=CSS Transitions: property <rotate> from [none] to [30deg] at (1) should be [30deg]
 FAIL=CSS Transitions: property <rotate> from [none] to [30deg] at (2) should be [60deg]
 FAIL=CSS Transitions: property <rotate> from [none] to [7 -8 9 400grad] at (-1) should be [0.5 -0.57 0.65 -400grad]
 FAIL=CSS Transitions: property <rotate> from [none] to [7 -8 9 400grad] at (0) should be [0.5 -0.57 0.65 0deg]
@@ -81905,12 +81895,6 @@ FAIL=CSS Transitions: property <rotate> from [none] to [7 -8 9 400grad] at (0.12
 FAIL=CSS Transitions: property <rotate> from [none] to [7 -8 9 400grad] at (0.875) should be [0.5 -0.57 0.65 350grad]
 FAIL=CSS Transitions: property <rotate> from [none] to [7 -8 9 400grad] at (1) should be [0.5 -0.57 0.65 400grad]
 FAIL=CSS Transitions: property <rotate> from [none] to [7 -8 9 400grad] at (2) should be [0.5 -0.57 0.65 800grad]
-FAIL=CSS Transitions: property <rotate> from [none] to [none] at (-1) should be [none]
-FAIL=CSS Transitions: property <rotate> from [none] to [none] at (0) should be [none]
-FAIL=CSS Transitions: property <rotate> from [none] to [none] at (0.125) should be [none]
-FAIL=CSS Transitions: property <rotate> from [none] to [none] at (0.875) should be [none]
-FAIL=CSS Transitions: property <rotate> from [none] to [none] at (1) should be [none]
-FAIL=CSS Transitions: property <rotate> from [none] to [none] at (2) should be [none]
 FAIL=CSS Transitions: property <rotate> from [unset] to [30deg] at (-1) should be [-30deg]
 FAIL=CSS Transitions: property <rotate> from [unset] to [30deg] at (0) should be [0deg]
 FAIL=CSS Transitions: property <rotate> from [unset] to [30deg] at (0.25) should be [7.5deg]
@@ -81921,7 +81905,6 @@ FAIL=CSS Transitions: property <rotate> from neutral to [30deg] at (-1) should b
 FAIL=CSS Transitions: property <rotate> from neutral to [30deg] at (0) should be [10deg]
 FAIL=CSS Transitions: property <rotate> from neutral to [30deg] at (0.25) should be [15deg]
 FAIL=CSS Transitions: property <rotate> from neutral to [30deg] at (0.75) should be [25deg]
-FAIL=CSS Transitions: property <rotate> from neutral to [30deg] at (1) should be [30deg]
 FAIL=CSS Transitions: property <rotate> from neutral to [30deg] at (2) should be [50deg]
 FAIL=Web Animations: property <rotate> from [0 1 0 0deg] to [1 0 0 450deg] at (-1) should be [1 0 0 -450deg]
 FAIL=Web Animations: property <rotate> from [0 1 0 0deg] to [1 0 0 450deg] at (0) should be [1 0 0 0deg]
@@ -82008,7 +81991,6 @@ FAIL=Web Animations: property <rotate> from [unset] to [30deg] at (0.75) should 
 FAIL=Web Animations: property <rotate> from [unset] to [30deg] at (1) should be [30deg]
 FAIL=Web Animations: property <rotate> from [unset] to [30deg] at (2) should be [60deg]
 FAIL=Web Animations: property <rotate> from neutral to [30deg] at (-1) should be [-10deg]
-FAIL=Web Animations: property <rotate> from neutral to [30deg] at (0) should be [10deg]
 FAIL=Web Animations: property <rotate> from neutral to [30deg] at (0.25) should be [15deg]
 FAIL=Web Animations: property <rotate> from neutral to [30deg] at (0.75) should be [25deg]
 FAIL=Web Animations: property <rotate> from neutral to [30deg] at (1) should be [30deg]
@@ -82143,6 +82125,8 @@ FAIL=Compositing Web Animations: property <scale> underlying [none] from add [no
 FAIL=Compositing Web Animations: property <scale> underlying [none] from add [none] to replace [1.5 1] at (0.75) should be [1.375 1]
 FAIL=Compositing Web Animations: property <scale> underlying [none] from add [none] to replace [1.5 1] at (1) should be [1.5 1]
 FAIL=Compositing Web Animations: property <scale> underlying [none] from add [none] to replace [1.5 1] at (2) should be [2 1]
+[css/css-transforms/animation/scale-explicit-and-implicit-keyframes.html]
+harness=FAIL
 [css/css-transforms/animation/scale-interpolation.html]
 FAIL=CSS Animations: property <scale> from [-10 5 1] to [1] at (-1) should be [-21 9]
 FAIL=CSS Animations: property <scale> from [-10 5 1] to [1] at (0) should be [-10 5]
@@ -82229,7 +82213,6 @@ FAIL=CSS Animations: property <scale> from [unset] to [1.5 1] at (0.75) should b
 FAIL=CSS Animations: property <scale> from [unset] to [1.5 1] at (1) should be [1.5 1]
 FAIL=CSS Animations: property <scale> from [unset] to [1.5 1] at (2) should be [2 1]
 FAIL=CSS Animations: property <scale> from neutral to [1.5 1] at (-1) should be [0.7 1]
-FAIL=CSS Animations: property <scale> from neutral to [1.5 1] at (0) should be [1.1 1]
 FAIL=CSS Animations: property <scale> from neutral to [1.5 1] at (0.25) should be [1.2 1]
 FAIL=CSS Animations: property <scale> from neutral to [1.5 1] at (0.75) should be [1.4 1]
 FAIL=CSS Animations: property <scale> from neutral to [1.5 1] at (1) should be [1.5 1]
@@ -82238,13 +82221,11 @@ FAIL=CSS Transitions with transition: all: property <scale> from [-10 5 1] to [1
 FAIL=CSS Transitions with transition: all: property <scale> from [-10 5 1] to [1] at (0) should be [-10 5]
 FAIL=CSS Transitions with transition: all: property <scale> from [-10 5 1] to [1] at (0.25) should be [-7.25 4]
 FAIL=CSS Transitions with transition: all: property <scale> from [-10 5 1] to [1] at (0.75) should be [-1.75 2]
-FAIL=CSS Transitions with transition: all: property <scale> from [-10 5 1] to [1] at (1) should be [1]
 FAIL=CSS Transitions with transition: all: property <scale> from [-10 5 1] to [1] at (2) should be [12 -3]
 FAIL=CSS Transitions with transition: all: property <scale> from [-10 5] to [10 -5] at (-1) should be [-30 15]
 FAIL=CSS Transitions with transition: all: property <scale> from [-10 5] to [10 -5] at (0) should be [-10 5]
 FAIL=CSS Transitions with transition: all: property <scale> from [-10 5] to [10 -5] at (0.25) should be [-5 2.5]
 FAIL=CSS Transitions with transition: all: property <scale> from [-10 5] to [10 -5] at (0.75) should be [5 -2.5]
-FAIL=CSS Transitions with transition: all: property <scale> from [-10 5] to [10 -5] at (1) should be [10 -5]
 FAIL=CSS Transitions with transition: all: property <scale> from [-10 5] to [10 -5] at (2) should be [30 -15]
 FAIL=CSS Transitions with transition: all: property <scale> from [1] to [10 -5 0] at (-1) should be [-8 7 2]
 FAIL=CSS Transitions with transition: all: property <scale> from [1] to [10 -5 0] at (0) should be [1]
@@ -82306,12 +82287,6 @@ FAIL=CSS Transitions with transition: all: property <scale> from [none] to [4 3 
 FAIL=CSS Transitions with transition: all: property <scale> from [none] to [4 3 2] at (0.875) should be [3.625 2.75 1.875]
 FAIL=CSS Transitions with transition: all: property <scale> from [none] to [4 3 2] at (1) should be [4 3 2]
 FAIL=CSS Transitions with transition: all: property <scale> from [none] to [4 3 2] at (2) should be [7 5 3]
-FAIL=CSS Transitions with transition: all: property <scale> from [none] to [none] at (-1) should be [none]
-FAIL=CSS Transitions with transition: all: property <scale> from [none] to [none] at (0) should be [none]
-FAIL=CSS Transitions with transition: all: property <scale> from [none] to [none] at (0.125) should be [none]
-FAIL=CSS Transitions with transition: all: property <scale> from [none] to [none] at (0.875) should be [none]
-FAIL=CSS Transitions with transition: all: property <scale> from [none] to [none] at (1) should be [none]
-FAIL=CSS Transitions with transition: all: property <scale> from [none] to [none] at (2) should be [none]
 FAIL=CSS Transitions with transition: all: property <scale> from [unset] to [1.5 1] at (-1) should be [0.5 1]
 FAIL=CSS Transitions with transition: all: property <scale> from [unset] to [1.5 1] at (0) should be [1]
 FAIL=CSS Transitions with transition: all: property <scale> from [unset] to [1.5 1] at (0.25) should be [1.125 1]
@@ -82322,19 +82297,16 @@ FAIL=CSS Transitions with transition: all: property <scale> from neutral to [1.5
 FAIL=CSS Transitions with transition: all: property <scale> from neutral to [1.5 1] at (0) should be [1.1 1]
 FAIL=CSS Transitions with transition: all: property <scale> from neutral to [1.5 1] at (0.25) should be [1.2 1]
 FAIL=CSS Transitions with transition: all: property <scale> from neutral to [1.5 1] at (0.75) should be [1.4 1]
-FAIL=CSS Transitions with transition: all: property <scale> from neutral to [1.5 1] at (1) should be [1.5 1]
 FAIL=CSS Transitions with transition: all: property <scale> from neutral to [1.5 1] at (2) should be [1.9 1]
 FAIL=CSS Transitions: property <scale> from [-10 5 1] to [1] at (-1) should be [-21 9]
 FAIL=CSS Transitions: property <scale> from [-10 5 1] to [1] at (0) should be [-10 5]
 FAIL=CSS Transitions: property <scale> from [-10 5 1] to [1] at (0.25) should be [-7.25 4]
 FAIL=CSS Transitions: property <scale> from [-10 5 1] to [1] at (0.75) should be [-1.75 2]
-FAIL=CSS Transitions: property <scale> from [-10 5 1] to [1] at (1) should be [1]
 FAIL=CSS Transitions: property <scale> from [-10 5 1] to [1] at (2) should be [12 -3]
 FAIL=CSS Transitions: property <scale> from [-10 5] to [10 -5] at (-1) should be [-30 15]
 FAIL=CSS Transitions: property <scale> from [-10 5] to [10 -5] at (0) should be [-10 5]
 FAIL=CSS Transitions: property <scale> from [-10 5] to [10 -5] at (0.25) should be [-5 2.5]
 FAIL=CSS Transitions: property <scale> from [-10 5] to [10 -5] at (0.75) should be [5 -2.5]
-FAIL=CSS Transitions: property <scale> from [-10 5] to [10 -5] at (1) should be [10 -5]
 FAIL=CSS Transitions: property <scale> from [-10 5] to [10 -5] at (2) should be [30 -15]
 FAIL=CSS Transitions: property <scale> from [1] to [10 -5 0] at (-1) should be [-8 7 2]
 FAIL=CSS Transitions: property <scale> from [1] to [10 -5 0] at (0) should be [1]
@@ -82396,12 +82368,6 @@ FAIL=CSS Transitions: property <scale> from [none] to [4 3 2] at (0.125) should 
 FAIL=CSS Transitions: property <scale> from [none] to [4 3 2] at (0.875) should be [3.625 2.75 1.875]
 FAIL=CSS Transitions: property <scale> from [none] to [4 3 2] at (1) should be [4 3 2]
 FAIL=CSS Transitions: property <scale> from [none] to [4 3 2] at (2) should be [7 5 3]
-FAIL=CSS Transitions: property <scale> from [none] to [none] at (-1) should be [none]
-FAIL=CSS Transitions: property <scale> from [none] to [none] at (0) should be [none]
-FAIL=CSS Transitions: property <scale> from [none] to [none] at (0.125) should be [none]
-FAIL=CSS Transitions: property <scale> from [none] to [none] at (0.875) should be [none]
-FAIL=CSS Transitions: property <scale> from [none] to [none] at (1) should be [none]
-FAIL=CSS Transitions: property <scale> from [none] to [none] at (2) should be [none]
 FAIL=CSS Transitions: property <scale> from [unset] to [1.5 1] at (-1) should be [0.5 1]
 FAIL=CSS Transitions: property <scale> from [unset] to [1.5 1] at (0) should be [1]
 FAIL=CSS Transitions: property <scale> from [unset] to [1.5 1] at (0.25) should be [1.125 1]
@@ -82412,7 +82378,6 @@ FAIL=CSS Transitions: property <scale> from neutral to [1.5 1] at (-1) should be
 FAIL=CSS Transitions: property <scale> from neutral to [1.5 1] at (0) should be [1.1 1]
 FAIL=CSS Transitions: property <scale> from neutral to [1.5 1] at (0.25) should be [1.2 1]
 FAIL=CSS Transitions: property <scale> from neutral to [1.5 1] at (0.75) should be [1.4 1]
-FAIL=CSS Transitions: property <scale> from neutral to [1.5 1] at (1) should be [1.5 1]
 FAIL=CSS Transitions: property <scale> from neutral to [1.5 1] at (2) should be [1.9 1]
 FAIL=Web Animations: property <scale> from [-10 5 1] to [1] at (-1) should be [-21 9]
 FAIL=Web Animations: property <scale> from [-10 5 1] to [1] at (0) should be [-10 5]
@@ -82499,13 +82464,10 @@ FAIL=Web Animations: property <scale> from [unset] to [1.5 1] at (0.75) should b
 FAIL=Web Animations: property <scale> from [unset] to [1.5 1] at (1) should be [1.5 1]
 FAIL=Web Animations: property <scale> from [unset] to [1.5 1] at (2) should be [2 1]
 FAIL=Web Animations: property <scale> from neutral to [1.5 1] at (-1) should be [0.7 1]
-FAIL=Web Animations: property <scale> from neutral to [1.5 1] at (0) should be [1.1 1]
 FAIL=Web Animations: property <scale> from neutral to [1.5 1] at (0.25) should be [1.2 1]
 FAIL=Web Animations: property <scale> from neutral to [1.5 1] at (0.75) should be [1.4 1]
 FAIL=Web Animations: property <scale> from neutral to [1.5 1] at (1) should be [1.5 1]
 FAIL=Web Animations: property <scale> from neutral to [1.5 1] at (2) should be [1.9 1]
-[css/css-transforms/animation/singular-scale-nested.html]
-harness=FAIL
 [css/css-transforms/animation/transform-additive-animation.html]
 harness=FAIL
 [css/css-transforms/animation/transform-box-will-change-transform-layer.html]
@@ -84550,6 +84512,8 @@ FAIL=Compositing Web Animations: property <translate> underlying [none] from rep
 FAIL=Compositing Web Animations: property <translate> underlying [none] from replace [none] to add [100px] at (0.75) should be [75px]
 FAIL=Compositing Web Animations: property <translate> underlying [none] from replace [none] to add [100px] at (1) should be [100px]
 FAIL=Compositing Web Animations: property <translate> underlying [none] from replace [none] to add [100px] at (2) should be [200px]
+[css/css-transforms/animation/translate-explicit-and-implicit-keyframes.html]
+harness=FAIL
 [css/css-transforms/animation/translate-interpolation.html]
 FAIL=CSS Animations: property <translate> from [-100%] to [100%] at (-1) should be [-300%]
 FAIL=CSS Animations: property <translate> from [-100%] to [100%] at (0) should be [-100%]
@@ -84648,7 +84612,6 @@ FAIL=CSS Animations: property <translate> from [unset] to [20px] at (0.75) shoul
 FAIL=CSS Animations: property <translate> from [unset] to [20px] at (1) should be [20px]
 FAIL=CSS Animations: property <translate> from [unset] to [20px] at (2) should be [40px]
 FAIL=CSS Animations: property <translate> from neutral to [20px] at (-1) should be [0px]
-FAIL=CSS Animations: property <translate> from neutral to [20px] at (0) should be [10px]
 FAIL=CSS Animations: property <translate> from neutral to [20px] at (0.25) should be [12.5px]
 FAIL=CSS Animations: property <translate> from neutral to [20px] at (0.75) should be [17.5px]
 FAIL=CSS Animations: property <translate> from neutral to [20px] at (1) should be [20px]
@@ -84657,7 +84620,6 @@ FAIL=CSS Transitions with transition: all: property <translate> from [-100%] to 
 FAIL=CSS Transitions with transition: all: property <translate> from [-100%] to [100%] at (0) should be [-100%]
 FAIL=CSS Transitions with transition: all: property <translate> from [-100%] to [100%] at (0.25) should be [-50%]
 FAIL=CSS Transitions with transition: all: property <translate> from [-100%] to [100%] at (0.75) should be [50%]
-FAIL=CSS Transitions with transition: all: property <translate> from [-100%] to [100%] at (1) should be [100%]
 FAIL=CSS Transitions with transition: all: property <translate> from [-100%] to [100%] at (2) should be [300%]
 FAIL=CSS Transitions with transition: all: property <translate> from [-100px -50px 100px] to [0px] at (-1) should be [-200px -100px 200px]
 FAIL=CSS Transitions with transition: all: property <translate> from [-100px -50px 100px] to [0px] at (0) should be [-100px -50px 100px]
@@ -84669,13 +84631,11 @@ FAIL=CSS Transitions with transition: all: property <translate> from [-100px -50
 FAIL=CSS Transitions with transition: all: property <translate> from [-100px -50px] to [100px 50px] at (0) should be [-100px -50px]
 FAIL=CSS Transitions with transition: all: property <translate> from [-100px -50px] to [100px 50px] at (0.25) should be [-50px -25px]
 FAIL=CSS Transitions with transition: all: property <translate> from [-100px -50px] to [100px 50px] at (0.75) should be [50px 25px]
-FAIL=CSS Transitions with transition: all: property <translate> from [-100px -50px] to [100px 50px] at (1) should be [100px 50px]
 FAIL=CSS Transitions with transition: all: property <translate> from [-100px -50px] to [100px 50px] at (2) should be [300px 150px]
 FAIL=CSS Transitions with transition: all: property <translate> from [-100px] to [100px] at (-1) should be [-300px]
 FAIL=CSS Transitions with transition: all: property <translate> from [-100px] to [100px] at (0) should be [-100px]
 FAIL=CSS Transitions with transition: all: property <translate> from [-100px] to [100px] at (0.25) should be [-50px]
 FAIL=CSS Transitions with transition: all: property <translate> from [-100px] to [100px] at (0.75) should be [50px]
-FAIL=CSS Transitions with transition: all: property <translate> from [-100px] to [100px] at (1) should be [100px]
 FAIL=CSS Transitions with transition: all: property <translate> from [-100px] to [100px] at (2) should be [300px]
 FAIL=CSS Transitions with transition: all: property <translate> from [0px] to [-100px -50px 100px] at (-1) should be [100px 50px -100px]
 FAIL=CSS Transitions with transition: all: property <translate> from [0px] to [-100px -50px 100px] at (0) should be [0px]
@@ -84737,12 +84697,6 @@ FAIL=CSS Transitions with transition: all: property <translate> from [none] to [
 FAIL=CSS Transitions with transition: all: property <translate> from [none] to [8px 80% 800px] at (0.875) should be [7px 70% 700px]
 FAIL=CSS Transitions with transition: all: property <translate> from [none] to [8px 80% 800px] at (1) should be [8px 80% 800px]
 FAIL=CSS Transitions with transition: all: property <translate> from [none] to [8px 80% 800px] at (2) should be [16px 160% 1600px]
-FAIL=CSS Transitions with transition: all: property <translate> from [none] to [none] at (-1) should be [none]
-FAIL=CSS Transitions with transition: all: property <translate> from [none] to [none] at (0) should be [none]
-FAIL=CSS Transitions with transition: all: property <translate> from [none] to [none] at (0.125) should be [none]
-FAIL=CSS Transitions with transition: all: property <translate> from [none] to [none] at (0.875) should be [none]
-FAIL=CSS Transitions with transition: all: property <translate> from [none] to [none] at (1) should be [none]
-FAIL=CSS Transitions with transition: all: property <translate> from [none] to [none] at (2) should be [none]
 FAIL=CSS Transitions with transition: all: property <translate> from [unset] to [20px] at (-1) should be [-20px]
 FAIL=CSS Transitions with transition: all: property <translate> from [unset] to [20px] at (0) should be [0px]
 FAIL=CSS Transitions with transition: all: property <translate> from [unset] to [20px] at (0.25) should be [5px]
@@ -84753,13 +84707,11 @@ FAIL=CSS Transitions with transition: all: property <translate> from neutral to 
 FAIL=CSS Transitions with transition: all: property <translate> from neutral to [20px] at (0) should be [10px]
 FAIL=CSS Transitions with transition: all: property <translate> from neutral to [20px] at (0.25) should be [12.5px]
 FAIL=CSS Transitions with transition: all: property <translate> from neutral to [20px] at (0.75) should be [17.5px]
-FAIL=CSS Transitions with transition: all: property <translate> from neutral to [20px] at (1) should be [20px]
 FAIL=CSS Transitions with transition: all: property <translate> from neutral to [20px] at (2) should be [30px]
 FAIL=CSS Transitions: property <translate> from [-100%] to [100%] at (-1) should be [-300%]
 FAIL=CSS Transitions: property <translate> from [-100%] to [100%] at (0) should be [-100%]
 FAIL=CSS Transitions: property <translate> from [-100%] to [100%] at (0.25) should be [-50%]
 FAIL=CSS Transitions: property <translate> from [-100%] to [100%] at (0.75) should be [50%]
-FAIL=CSS Transitions: property <translate> from [-100%] to [100%] at (1) should be [100%]
 FAIL=CSS Transitions: property <translate> from [-100%] to [100%] at (2) should be [300%]
 FAIL=CSS Transitions: property <translate> from [-100px -50px 100px] to [0px] at (-1) should be [-200px -100px 200px]
 FAIL=CSS Transitions: property <translate> from [-100px -50px 100px] to [0px] at (0) should be [-100px -50px 100px]
@@ -84771,13 +84723,11 @@ FAIL=CSS Transitions: property <translate> from [-100px -50px] to [100px 50px] a
 FAIL=CSS Transitions: property <translate> from [-100px -50px] to [100px 50px] at (0) should be [-100px -50px]
 FAIL=CSS Transitions: property <translate> from [-100px -50px] to [100px 50px] at (0.25) should be [-50px -25px]
 FAIL=CSS Transitions: property <translate> from [-100px -50px] to [100px 50px] at (0.75) should be [50px 25px]
-FAIL=CSS Transitions: property <translate> from [-100px -50px] to [100px 50px] at (1) should be [100px 50px]
 FAIL=CSS Transitions: property <translate> from [-100px -50px] to [100px 50px] at (2) should be [300px 150px]
 FAIL=CSS Transitions: property <translate> from [-100px] to [100px] at (-1) should be [-300px]
 FAIL=CSS Transitions: property <translate> from [-100px] to [100px] at (0) should be [-100px]
 FAIL=CSS Transitions: property <translate> from [-100px] to [100px] at (0.25) should be [-50px]
 FAIL=CSS Transitions: property <translate> from [-100px] to [100px] at (0.75) should be [50px]
-FAIL=CSS Transitions: property <translate> from [-100px] to [100px] at (1) should be [100px]
 FAIL=CSS Transitions: property <translate> from [-100px] to [100px] at (2) should be [300px]
 FAIL=CSS Transitions: property <translate> from [0px] to [-100px -50px 100px] at (-1) should be [100px 50px -100px]
 FAIL=CSS Transitions: property <translate> from [0px] to [-100px -50px 100px] at (0) should be [0px]
@@ -84839,12 +84789,6 @@ FAIL=CSS Transitions: property <translate> from [none] to [8px 80% 800px] at (0.
 FAIL=CSS Transitions: property <translate> from [none] to [8px 80% 800px] at (0.875) should be [7px 70% 700px]
 FAIL=CSS Transitions: property <translate> from [none] to [8px 80% 800px] at (1) should be [8px 80% 800px]
 FAIL=CSS Transitions: property <translate> from [none] to [8px 80% 800px] at (2) should be [16px 160% 1600px]
-FAIL=CSS Transitions: property <translate> from [none] to [none] at (-1) should be [none]
-FAIL=CSS Transitions: property <translate> from [none] to [none] at (0) should be [none]
-FAIL=CSS Transitions: property <translate> from [none] to [none] at (0.125) should be [none]
-FAIL=CSS Transitions: property <translate> from [none] to [none] at (0.875) should be [none]
-FAIL=CSS Transitions: property <translate> from [none] to [none] at (1) should be [none]
-FAIL=CSS Transitions: property <translate> from [none] to [none] at (2) should be [none]
 FAIL=CSS Transitions: property <translate> from [unset] to [20px] at (-1) should be [-20px]
 FAIL=CSS Transitions: property <translate> from [unset] to [20px] at (0) should be [0px]
 FAIL=CSS Transitions: property <translate> from [unset] to [20px] at (0.25) should be [5px]
@@ -84855,7 +84799,6 @@ FAIL=CSS Transitions: property <translate> from neutral to [20px] at (-1) should
 FAIL=CSS Transitions: property <translate> from neutral to [20px] at (0) should be [10px]
 FAIL=CSS Transitions: property <translate> from neutral to [20px] at (0.25) should be [12.5px]
 FAIL=CSS Transitions: property <translate> from neutral to [20px] at (0.75) should be [17.5px]
-FAIL=CSS Transitions: property <translate> from neutral to [20px] at (1) should be [20px]
 FAIL=CSS Transitions: property <translate> from neutral to [20px] at (2) should be [30px]
 FAIL=Web Animations: property <translate> from [-100%] to [100%] at (-1) should be [-300%]
 FAIL=Web Animations: property <translate> from [-100%] to [100%] at (0) should be [-100%]
@@ -84954,11 +84897,12 @@ FAIL=Web Animations: property <translate> from [unset] to [20px] at (0.75) shoul
 FAIL=Web Animations: property <translate> from [unset] to [20px] at (1) should be [20px]
 FAIL=Web Animations: property <translate> from [unset] to [20px] at (2) should be [40px]
 FAIL=Web Animations: property <translate> from neutral to [20px] at (-1) should be [0px]
-FAIL=Web Animations: property <translate> from neutral to [20px] at (0) should be [10px]
 FAIL=Web Animations: property <translate> from neutral to [20px] at (0.25) should be [12.5px]
 FAIL=Web Animations: property <translate> from neutral to [20px] at (0.75) should be [17.5px]
 FAIL=Web Animations: property <translate> from neutral to [20px] at (1) should be [20px]
 FAIL=Web Animations: property <translate> from neutral to [20px] at (2) should be [30px]
+[css/css-transforms/animation/translate-percent-with-width-and-height-separate.html]
+harness=FAIL
 [css/css-transforms/backface-visibility-hidden-002.html]
 harness=FAIL
 [css/css-transforms/backface-visibility-hidden-003.html]
@@ -85136,13 +85080,11 @@ harness=TIMEOUT
 harness=FAIL
 [css/css-transforms/individual-transform/animation/individual-transform-ordering.html]
 harness=FAIL
+[css/css-transforms/individual-transform/change-rotate-property.html]
+harness=FAIL
+[css/css-transforms/individual-transform/change-scale-property.html]
+harness=FAIL
 [css/css-transforms/individual-transform/change-translate-property.html]
-harness=FAIL
-[css/css-transforms/individual-transform/individual-transform-1.html]
-harness=FAIL
-[css/css-transforms/individual-transform/individual-transform-2a.html]
-harness=FAIL
-[css/css-transforms/individual-transform/individual-transform-2b.html]
 harness=FAIL
 [css/css-transforms/individual-transform/individual-transform-2c.html]
 harness=FAIL
@@ -85170,18 +85112,14 @@ FAIL=Property perspective has initial value none
 FAIL=Property perspective-origin does not inherit
 FAIL=Property perspective-origin has initial value 30px 20px
 FAIL=Property rotate does not inherit
-FAIL=Property rotate has initial value none
 FAIL=Property scale does not inherit
-FAIL=Property scale has initial value none
 FAIL=Property transform does not inherit
 FAIL=Property transform-box does not inherit
-FAIL=Property transform-box has initial value view-box
 FAIL=Property transform-origin does not inherit
 FAIL=Property transform-origin has initial value 30px 20px
 FAIL=Property transform-style does not inherit
 FAIL=Property transform-style has initial value flat
 FAIL=Property translate does not inherit
-FAIL=Property translate has initial value none
 [css/css-transforms/inline-styles/svg-inline-styles-001.html]
 harness=FAIL
 [css/css-transforms/inline-styles/svg-inline-styles-002.html]
@@ -85404,71 +85342,23 @@ FAIL=Property rotate value '-0.5 0 0 400grad'
 FAIL=Property rotate value '-1 0 0 400grad'
 FAIL=Property rotate value '0 -0.5 0 400grad'
 FAIL=Property rotate value '0 -1 0 400grad'
-FAIL=Property rotate value '0 0 -0.5 400grad'
-FAIL=Property rotate value '0 0 -1 400grad'
 FAIL=Property rotate value '0 0 0 400grad'
-FAIL=Property rotate value '0 0 0.5 400grad'
-FAIL=Property rotate value '0 0 1 400grad'
 FAIL=Property rotate value '0 0.5 0 400grad'
 FAIL=Property rotate value '0 1 0 400grad'
 FAIL=Property rotate value '0.5 0 0 400grad'
-FAIL=Property rotate value '0deg'
 FAIL=Property rotate value '1 0 0 400grad'
 FAIL=Property rotate value '100 200 300 400grad'
 FAIL=Property rotate value '400grad 100 200 300'
 FAIL=Property rotate value '400grad x'
 FAIL=Property rotate value '400grad y'
-FAIL=Property rotate value '400grad z'
-FAIL=Property rotate value '400grad'
-FAIL=Property rotate value 'none'
 FAIL=Property rotate value 'x 400grad'
 FAIL=Property rotate value 'y 400grad'
-[css/css-transforms/parsing/rotate-parsing-valid.html]
-FAIL=e.style['rotate'] = "-0.5 0 0 400grad" should set the property value
-FAIL=e.style['rotate'] = "-1 0 0 400grad" should set the property value
-FAIL=e.style['rotate'] = "0 -0.5 0 400grad" should set the property value
-FAIL=e.style['rotate'] = "0 -1 0 400grad" should set the property value
-FAIL=e.style['rotate'] = "0 0 -0.5 400grad" should set the property value
-FAIL=e.style['rotate'] = "0 0 -1 400grad" should set the property value
-FAIL=e.style['rotate'] = "0 0 0 400grad" should set the property value
-FAIL=e.style['rotate'] = "0 0 0.5 400grad" should set the property value
-FAIL=e.style['rotate'] = "0 0 1 400grad" should set the property value
-FAIL=e.style['rotate'] = "0 0.5 0 400grad" should set the property value
-FAIL=e.style['rotate'] = "0 1 0 400grad" should set the property value
-FAIL=e.style['rotate'] = "0.5 0 0 400grad" should set the property value
-FAIL=e.style['rotate'] = "0deg" should set the property value
-FAIL=e.style['rotate'] = "1 0 0 400grad" should set the property value
-FAIL=e.style['rotate'] = "100 200 300 400grad" should set the property value
-FAIL=e.style['rotate'] = "400grad 100 200 300" should set the property value
-FAIL=e.style['rotate'] = "400grad x" should set the property value
-FAIL=e.style['rotate'] = "400grad y" should set the property value
-FAIL=e.style['rotate'] = "400grad z" should set the property value
-FAIL=e.style['rotate'] = "400grad" should set the property value
-FAIL=e.style['rotate'] = "none" should set the property value
-FAIL=e.style['rotate'] = "x 400grad" should set the property value
-FAIL=e.style['rotate'] = "y 400grad" should set the property value
+[css/css-transforms/parsing/rotate-parsing-invalid.html]
+FAIL=e.style['rotate'] = "100px" should not set the property value
 [css/css-transforms/parsing/scale-parsing-computed.html]
-FAIL=Property scale value '-100 -100 1'
-FAIL=Property scale value '-100 -100'
-FAIL=Property scale value '-100% -100% 1'
-FAIL=Property scale value '-100% -100%'
-FAIL=Property scale value '-100%'
-FAIL=Property scale value '-100'
-FAIL=Property scale value '1%'
-FAIL=Property scale value '1'
-FAIL=Property scale value '100 100 1'
 FAIL=Property scale value '100 100 2'
-FAIL=Property scale value '100 100'
-FAIL=Property scale value '100 200 1'
 FAIL=Property scale value '100 200 300'
-FAIL=Property scale value '100 200'
-FAIL=Property scale value '100% 100% 1'
-FAIL=Property scale value '100% 100%'
-FAIL=Property scale value '100% 200% 1'
 FAIL=Property scale value '100% 200% 300%'
-FAIL=Property scale value '100% 200%'
-FAIL=Property scale value '100%'
-FAIL=Property scale value '100'
 FAIL=Property scale value '2 calc(300% * sign(1em - 1px)'
 FAIL=Property scale value '2 calc(300%)'
 FAIL=Property scale value 'calc(1 + 1)'
@@ -85485,29 +85375,7 @@ FAIL=Property scale value 'calc(200%) calc(300%) calc(400% * sign(1em - 1px))'
 FAIL=Property scale value 'calc(200%) calc(300%) calc(400%)'
 FAIL=Property scale value 'calc(200%) calc(300%)'
 FAIL=Property scale value 'calc(200%)'
-FAIL=Property scale value 'none'
 [css/css-transforms/parsing/scale-parsing-valid.html]
-FAIL=e.style['scale'] = "-100 -100 1" should set the property value
-FAIL=e.style['scale'] = "-100 -100" should set the property value
-FAIL=e.style['scale'] = "-100" should set the property value
-FAIL=e.style['scale'] = "-100% -100% 1" should set the property value
-FAIL=e.style['scale'] = "-100% -100%" should set the property value
-FAIL=e.style['scale'] = "-100%" should set the property value
-FAIL=e.style['scale'] = "1" should set the property value
-FAIL=e.style['scale'] = "1%" should set the property value
-FAIL=e.style['scale'] = "100 100 1" should set the property value
-FAIL=e.style['scale'] = "100 100 2" should set the property value
-FAIL=e.style['scale'] = "100 100" should set the property value
-FAIL=e.style['scale'] = "100 200 1" should set the property value
-FAIL=e.style['scale'] = "100 200 300" should set the property value
-FAIL=e.style['scale'] = "100 200" should set the property value
-FAIL=e.style['scale'] = "100" should set the property value
-FAIL=e.style['scale'] = "100% 100% 1" should set the property value
-FAIL=e.style['scale'] = "100% 100%" should set the property value
-FAIL=e.style['scale'] = "100% 200% 1" should set the property value
-FAIL=e.style['scale'] = "100% 200% 300%" should set the property value
-FAIL=e.style['scale'] = "100% 200%" should set the property value
-FAIL=e.style['scale'] = "100%" should set the property value
 FAIL=e.style['scale'] = "calc(-100% * sign(1em - 1px))" should set the property value
 FAIL=e.style['scale'] = "calc(-100%)" should set the property value
 FAIL=e.style['scale'] = "calc(2 * 1) 3 calc(4 * 100%)" should set the property value
@@ -85518,19 +85386,6 @@ FAIL=e.style['scale'] = "calc(200% * sign(1em - 1px))" should set the property v
 FAIL=e.style['scale'] = "calc(200%) calc(3 * sign(1em - 1px))" should set the property value
 FAIL=e.style['scale'] = "calc(200%) calc(3)" should set the property value
 FAIL=e.style['scale'] = "calc(200%)" should set the property value
-FAIL=e.style['scale'] = "none" should set the property value
-[css/css-transforms/parsing/transform-box-computed.html]
-FAIL=Property transform-box value 'border-box'
-FAIL=Property transform-box value 'content-box'
-FAIL=Property transform-box value 'fill-box'
-FAIL=Property transform-box value 'stroke-box'
-FAIL=Property transform-box value 'view-box'
-[css/css-transforms/parsing/transform-box-valid.html]
-FAIL=e.style['transform-box'] = "border-box" should set the property value
-FAIL=e.style['transform-box'] = "content-box" should set the property value
-FAIL=e.style['transform-box'] = "fill-box" should set the property value
-FAIL=e.style['transform-box'] = "stroke-box" should set the property value
-FAIL=e.style['transform-box'] = "view-box" should set the property value
 [css/css-transforms/parsing/transform-computed.html]
 FAIL=Property transform value 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)'
 FAIL=Property transform value 'perspective(10px)'
@@ -85602,45 +85457,20 @@ FAIL=e.style['transform'] = "skewY(-90deg)" should set the property value
 FAIL=e.style['transform'] = "skewY(0)" should set the property value
 [css/css-transforms/parsing/translate-parsing-computed.html]
 FAIL=Property translate value '0% 0% 100px'
-FAIL=Property translate value '0'
 FAIL=Property translate value '0em 0em 100px'
-FAIL=Property translate value '0px'
 FAIL=Property translate value '100% 0% 200px'
 FAIL=Property translate value '100% 200% 300px'
-FAIL=Property translate value '100% 200px'
-FAIL=Property translate value '100%'
-FAIL=Property translate value '100px 0%'
-FAIL=Property translate value '100px 0.1px'
-FAIL=Property translate value '100px 0px 0px'
 FAIL=Property translate value '100px 0px 300px'
-FAIL=Property translate value '100px 0px'
-FAIL=Property translate value '100px 200%'
-FAIL=Property translate value '100px 200px 0px'
 FAIL=Property translate value '100px 200px 300px'
 FAIL=Property translate value '100px calc(10px - 10%)'
-FAIL=Property translate value '1px 2px 0'
-FAIL=Property translate value 'none'
+[css/css-transforms/parsing/translate-parsing-invalid.html]
+FAIL=e.style['translate'] = "100deg" should not set the property value
+FAIL=e.style['translate'] = "100px 200px 300%" should not set the property value
+FAIL=e.style['translate'] = "100px 200px junk" should not set the property value
+FAIL=e.style['translate'] = "100px junk" should not set the property value
 [css/css-transforms/parsing/translate-parsing-valid.html]
-FAIL=e.style['translate'] = "0" should set the property value
-FAIL=e.style['translate'] = "0% 0% 100px" should set the property value
-FAIL=e.style['translate'] = "0em 0em 100px" should set the property value
-FAIL=e.style['translate'] = "0px" should set the property value
-FAIL=e.style['translate'] = "100% 0% 200px" should set the property value
-FAIL=e.style['translate'] = "100% 200% 300px" should set the property value
-FAIL=e.style['translate'] = "100% 200px" should set the property value
-FAIL=e.style['translate'] = "100%" should set the property value
-FAIL=e.style['translate'] = "100px 0%" should set the property value
-FAIL=e.style['translate'] = "100px 0.1px" should set the property value
-FAIL=e.style['translate'] = "100px 0px 0px" should set the property value
-FAIL=e.style['translate'] = "100px 0px 300px" should set the property value
-FAIL=e.style['translate'] = "100px 0px" should set the property value
-FAIL=e.style['translate'] = "100px 200%" should set the property value
-FAIL=e.style['translate'] = "100px 200px 0px" should set the property value
-FAIL=e.style['translate'] = "100px 200px 300px" should set the property value
 FAIL=e.style['translate'] = "100px calc(10px - 10%)" should set the property value
-FAIL=e.style['translate'] = "1px 2px 0" should set the property value
 FAIL=e.style['translate'] = "calc(10% + 10px) calc(20% + 20px) calc(30em + 30px)" should set the property value
-FAIL=e.style['translate'] = "none" should set the property value
 [css/css-transforms/parsing/webkit-perspective-invalid.tentative.html]
 FAIL=e.style['-webkit-perspective'] = "calc(1000)" should not set the property value
 FAIL=e.style['-webkit-perspective'] = "calc(25)" should not set the property value
@@ -85864,19 +85694,11 @@ harness=FAIL
 harness=FAIL
 [css/css-transforms/transform-box/content-box-mutation-001.html]
 harness=FAIL
-[css/css-transforms/transform-box/cssbox-border-box.html]
-harness=FAIL
 [css/css-transforms/transform-box/cssbox-content-box-001.html]
 harness=FAIL
 [css/css-transforms/transform-box/cssbox-content-box-002.html]
 harness=FAIL
 [css/css-transforms/transform-box/cssbox-fill-box.html]
-harness=FAIL
-[css/css-transforms/transform-box/cssbox-initial.html]
-harness=FAIL
-[css/css-transforms/transform-box/cssbox-stroke-box.html]
-harness=FAIL
-[css/css-transforms/transform-box/cssbox-view-box.html]
 harness=FAIL
 [css/css-transforms/transform-box/fill-box-001.html]
 harness=FAIL
