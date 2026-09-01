@@ -8123,3 +8123,90 @@ subtest denominators of the two runs are not comparable, and the record's is the
 this one recorded, and this session did not change that. `html/` uses `check-layout-th.js` in 63
 files (38 of them in `html/rendering/`), so the `offsetLeft` fix in this session almost certainly
 moved some of them in the right direction and they are still recorded as failing.
+
+## WPT task F7 — svg/, the scope decision · 2026-09-01
+
+**Status:** done.
+**Check** (`docs/wpt-tasks.json`: "An ADR exists and svg/ has a target in this file"): **met.**
+`docs/adr/0043-svg-as-a-document.md`, and the target is *300 of the 489 non-SMIL Firefox-gap
+files*, carried as F7a/F7b/F7c.
+
+**Landed:** *A script element is a local name and a namespace, not a tag name* · *An XML document
+is not an HTML document, and nothing had ever said so* · *Re-record svg/, domparsing/, domxpath/
+and custom-elements/*
+
+**What the runs printed.** `microbrowser_wpt svg/`, before and after:
+
+```
+1243 tests: 3778 subtests, 265 passed (7.0%), 0 crashes, 263 timeouts
+1243 tests: 5242 subtests, 479 passed (9.1%), 0 crashes,  51 timeouts
+```
+
+`blocked` in `docs/wpt-firefox-gap.md` 228 → 51, the area's gap 810 → 769, the suite 34.5% → 34.6%.
+48 files left four failure lists and **none was added to any of them**.
+
+**Found:**
+
+**The scope decision was unanswerable when the session started, and the reason was two lines of
+code.** 228 of `svg/`'s 810 gap files were blocked — the harness never reported, so none of them
+was evidence about anything. 214 of the 262 silent files begin
+
+```xml
+<h:script src="/resources/testharness.js"/>
+```
+
+with `h` bound to the XHTML namespace. `PageScript::Collect` compared `TagName() == "script"` and
+`TagName()` is the **qualified** name, so testharness.js was never fetched, the file's own inline
+script threw `ReferenceError: test is not defined`, and the page reported nothing. **This is the
+third area in a row where that shape was the answer** — the worker global scope (2026-08-14),
+`document.fonts.ready` (E3, 2026-08-31), and now this. The rule holds: *when an area's `blocked`
+count is most of its harness files, find what the blocked files have in common before reading any
+failure as a specification gap.*
+
+**Beside it, a bug much wider than SVG.** `Document::SetHtmlDocument(false)` was called by
+`DOMParser` and by nothing in the engine's own parse, so **every `application/xhtml+xml` and
+`image/svg+xml` document this browser has ever loaded believed it was an HTML document** — having
+been built by the XML parser two lines earlier. `tagName` was the visible half (`H:SCRIPT`); the
+others are `createElement`, `createCDATASection`, `createAttribute` and selector case-sensitivity.
+It went unnoticed for the reason these always do: the only XML documents anybody had looked at were
+the ones a page made for itself, and `DOMParser` had it right from the day it landed. Worth 3 files
+in `domparsing/`, 4 in `custom-elements/` and 6 subtests in `domxpath/` on its own.
+
+**The probe that made the ADR writable, and it is four lines of script.** For
+`<style>rect{fill:green}</style><svg><rect id=r …/></svg>`:
+
+| asked | answered |
+|---|---|
+| `r.constructor.name` | `HTMLUnknownElement` |
+| `r.getBoundingClientRect()` | `0, 0, 0, 0` |
+| `getComputedStyle(r).fill` | `""` |
+| `typeof r.getBBox` | `undefined` |
+
+An inline `<svg>` is a *replaced element* whose content `engine::PageImages` serializes back to
+markup and hands to `gfx::SvgDecoder`. So the subtree is a string that happens to live in the DOM:
+no interfaces, no boxes, no computed style, no geometry. That single probe is worth more than a day
+of reading `svg/`'s failures one at a time, and it is what §2/§3/§4 of the ADR are ordered by.
+
+**`svg/`'s reftest number must never be quoted alone.** 298 of 526 pass and **187 of those are two
+blank pages agreeing** — 36% of its passes, the highest ratio in the suite, and itself a measurement
+of how little SVG is drawn from the document tree. `--reftests-only svg/` prints both halves.
+
+**SMIL is refused** (ADR 0043), and it is 280 of the 769 remaining gap files — the largest single
+row in the area. The argument is three-part: it is a *second* animation timeline beside the CSS one
+this browser will have, with its own event set and a syncbase dependency graph a document can make
+cyclic; it is a clock a document starts on load and never stops, against a main loop whose entire
+design is that idle CPU is zero; and nothing outside `svg/animations/` depends on it. The refusal is
+recorded as a comment on the first `svg/animations/` entry in the expectation file, with a
+**checkable** condition to reopen it: the Web Animations timeline exists, *and* one of ADR 0007's
+five compatibility targets is measured to use SMIL. Nobody has run that measurement and the ADR does
+not claim its result.
+
+**Left.** F7a (properties), F7b (the DOM), F7c (boxes), in that order and for the reason the ADR
+gives: `getComputedStyle(rect).fill` returning `""` is what makes the painter's job undefined, and
+F7a is the only one of the three that does not need the box tree.
+
+**Also seen, not chased.** `dom/` (94 unexpected), `selection/` (17) and `uievents/` (18) are dirty
+and **every one of them is an improvement** — zero `expected PASS, got FAIL` between them, and the
+only `expected OK, got X` are six TIMEOUTs that are load flakes. Some of that is this session's and
+some is the 2026-08-18 merge staleness the previous two entries name. They are not re-recorded here
+because this session's own change is not implicated in them and the diff should say what it did.

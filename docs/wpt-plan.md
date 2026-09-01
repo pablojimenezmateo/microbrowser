@@ -944,10 +944,26 @@ in these areas failing for a *harness* reason.
 | F5 | `css/css-transforms/` — 3D transforms, `perspective`, `transform-style`, and what a stacking context does to them | F2 | 60% |
 | F6 | `html/canvas/element/` — the 2D context against the suite rather than against hand-written tests | — | 55% · **731 files, 19 blocked** |
 | F6b | `html/canvas/offscreen/` — `OffscreenCanvas`, `transferControlToOffscreen`, and a 2D context on a worker thread | G5 | 40% · **1,921 files, 957 blocked** |
-| F7 | `svg/` — triage first: this browser renders SVG as an image, and the suite tests it as a document. Decide the scope in an ADR before writing code | — | ADR + a number |
+| F7 | `svg/` — the scope decision | — | **done 2026-09-01** · ADR 0043; SMIL refused |
+| F7a | `svg/` — the SVG presentation properties become CSS properties | F7 | `svg/styling` 60% |
+| F7b | `svg/` — the SVG DOM: element interfaces and base values | F7 | `svg/types` 60% |
+| F7c | `svg/` — SVG boxes in the layout tree, replacing serialize-and-rasterize | F7a, F7b | `svg/geometry` 60% |
 | F8 | Image formats — WebP and AVIF decoders (ADR 0023 counted them); `png/` and the image parts of `css-images` | — | fuzzers + 80% of `png/` |
 | F9 | **Harness:** reftests enter the measurement at all — record them in `tests/wpt/expectations/`, count them in the baseline | F2 | **done 2026-08-17** |
 | F10 | **Harness:** the reftest *gate* — name the eight intermittents, then drop `--testharness-only` from the `ctest` registration | F9 | **done 2026-08-31** · seven of the eight were one font-cache bug; 7,963 → 8,005 files |
+
+**F7 turned out to be two things and the smaller one paid for the larger.** The
+scope decision it names was unanswerable on 2026-09-01, because 228 of `svg/`'s
+810 gap files were *blocked* — the harness never reported, so nothing about them
+was evidence in either direction. 214 of them were one comparison:
+`PageScript::Collect` matched `TagName() == "script"`, and an SVG document
+writes its external scripts as `<h:script src="…"/>` in the XHTML namespace.
+Fixing that (and the `SetHtmlDocument(false)` the engine's own XML parse had
+never called) took the area's timeouts from 263 to 51 and made ADR 0043 a
+document written from measurements. **The rule is the same one E3 found and it
+is now three for three: when an area's `blocked` count is most of its harness
+files, find what the blocked files have in common before reading any failure as
+a specification gap.**
 
 **F6 was one task over two features until 2026-08-17, and the split is worth
 more than either half.** `html/canvas/` is 2,654 gap files; **1,921 of them are

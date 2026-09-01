@@ -22,12 +22,12 @@ than a specification gap.
 |---|--:|--:|--:|
 | in our scope | 23146 | 20998 | 44144 |
 | Firefox passes | 19232 | 17918 | 37150 |
-| **we pass** | **5225** | **7598** | **12823** |
-| **Firefox passes, we fail** | **14007** | **10320** | **24327** |
+| **we pass** | **5266** | **7598** | **12864** |
+| **Firefox passes, we fail** | **13966** | **10320** | **24286** |
 | both fail | 3436 | 2233 | 5669 |
 | we pass, Firefox fails (audit) | 338 | 770 | 1108 |
 
-**34.5% of what Firefox passes.** Both halves of the suite are in that number as of
+**34.6% of what Firefox passes.** Both halves of the suite are in that number as of
 task F9 (2026-08-17). Before it, every reftest counted as a failure --
 which was the honest reading while nothing had ever recorded one, because
 a format that writes down only failures cannot tell a pass from a test
@@ -37,8 +37,8 @@ nobody ran.
 
 | cause | files |
 |---|--:|
-| the harness never reported (TIMEOUT/ERROR/CRASH) | 4324 |
-| subtests ran and failed | 9683 |
+| the harness never reported (TIMEOUT/ERROR/CRASH) | 4147 |
+| subtests ran and failed | 9819 |
 
 A blocked file is worth more than its count: none of its subtests are
 in any denominator anywhere, so it is invisible in every rate.
@@ -91,7 +91,7 @@ distinction. A refused area is a decision with a name
 | `css/css-images` | 308 | 0 | 20 | 288 | 121 | 429 | 501 |  |
 | `css/css-fonts` | 305 | 8 | 103 | 194 | 160 | 465 | 536 |  |
 | `xhr` | 296 | 29 | 267 | 0 | 87 | 383 | 398 |  |
-| `svg/animations` | 280 | 28 | 239 | 13 | 6 | 286 | 305 |  |
+| `svg/animations` | 280 | 27 | 240 | 13 | 6 | 286 | 305 |  |
 | `html/webappapis` | 279 | 121 | 158 | 0 | 32 | 311 | 343 |  |
 | `css/css-color` | 254 | 0 | 30 | 224 | 91 | 345 | 369 |  |
 | `IndexedDB` | 252 | 41 | 211 | 0 | 12 | 264 | 265 | **partial** ADR 0021/0038 -- memory tier only, no disk persistence by default |
@@ -120,15 +120,15 @@ distinction. A refused area is a decision with a name
 | `css/css-animations` | 105 | 7 | 79 | 19 | 31 | 136 | 155 |  |
 | `upgrade-insecure-requests/gen` | 99 | 0 | 99 | 0 | 0 | 99 | 196 |  |
 | `css/css-cascade` | 98 | 5 | 56 | 37 | 32 | 130 | 146 |  |
-| `svg/painting` | 94 | 59 | 6 | 29 | 34 | 128 | 156 |  |
 | `css/css-transitions` | 93 | 18 | 73 | 2 | 18 | 111 | 126 |  |
-| `svg/types` | 83 | 25 | 58 | 0 | 0 | 83 | 86 |  |
+| `svg/types` | 83 | 11 | 72 | 0 | 0 | 83 | 86 |  |
 | `html/interaction` | 76 | 8 | 68 | 0 | 14 | 90 | 194 |  |
 | `eventsource` | 75 | 37 | 38 | 0 | 1 | 76 | 76 |  |
-| `svg/geometry` | 75 | 42 | 12 | 21 | 4 | 79 | 86 |  |
 | `css/css-display` | 74 | 1 | 8 | 65 | 78 | 152 | 246 |  |
+| `svg/painting` | 73 | 0 | 44 | 29 | 55 | 128 | 156 |  |
 | `workers` | 71 | 28 | 43 | 0 | 28 | 99 | 111 | **partial** ADR 0022 §1 -- SharedWorker refused; DedicatedWorker implemented |
 | `resource-timing` | 70 | 33 | 37 | 0 | 8 | 78 | 102 |  |
+| `svg/geometry` | 68 | 1 | 46 | 21 | 11 | 79 | 86 |  |
 | `html/editing` | 67 | 25 | 32 | 10 | 36 | 103 | 241 |  |
 | `fetch/metadata` | 66 | 32 | 34 | 0 | 0 | 66 | 87 |  |
 | `intersection-observer` | 66 | 5 | 60 | 1 | 25 | 91 | 107 |  |
@@ -145,12 +145,12 @@ distinction. A refused area is a decision with a name
 | `custom-elements` | 38 | 7 | 30 | 1 | 4 | 42 | 45 |  |
 | `custom-elements/registries` | 37 | 9 | 28 | 0 | 1 | 38 | 40 |  |
 | `web-animations/interfaces` | 36 | 4 | 32 | 0 | 0 | 36 | 42 |  |
-| `svg/linking` | 35 | 13 | 4 | 18 | 23 | 58 | 63 |  |
-| `svg/text` | 35 | 13 | 14 | 8 | 37 | 72 | 97 |  |
 | `shadow-dom/focus` | 34 | 2 | 30 | 2 | 5 | 39 | 40 |  |
+| `svg/linking` | 34 | 3 | 13 | 18 | 24 | 58 | 63 |  |
 | `selection` | 32 | 4 | 28 | 0 | 38 | 70 | 90 |  |
-| `svg/path` | 32 | 7 | 21 | 4 | 13 | 45 | 65 |  |
 | `referrer-policy/generic` | 31 | 17 | 14 | 0 | 0 | 31 | 42 |  |
+| `svg/path` | 31 | 0 | 27 | 4 | 14 | 45 | 65 |  |
+| `svg/text` | 30 | 0 | 22 | 8 | 42 | 72 | 97 |  |
 | `workers/interfaces` | 30 | 9 | 21 | 0 | 34 | 64 | 65 |  |
 | `content-security-policy/frame-ancestors` | 29 | 24 | 5 | 0 | 5 | 34 | 34 |  |
 | `css/css-box` | 29 | 0 | 28 | 1 | 8 | 37 | 146 |  |
@@ -162,9 +162,9 @@ distinction. A refused area is a decision with a name
 | `content-security-policy/worker-src` | 27 | 10 | 17 | 0 | 3 | 30 | 31 |  |
 | `content-security-policy/style-src` | 26 | 14 | 12 | 0 | 12 | 38 | 42 |  |
 | `domxpath` | 26 | 3 | 23 | 0 | 0 | 26 | 32 |  |
-| `svg/struct` | 26 | 3 | 4 | 19 | 24 | 50 | 67 |  |
 | `content-security-policy/reporting` | 25 | 19 | 6 | 0 | 1 | 26 | 31 |  |
 | `cors` | 25 | 8 | 17 | 0 | 0 | 25 | 27 |  |
+| `svg/struct` | 25 | 1 | 5 | 19 | 25 | 50 | 67 |  |
 | `web-animations/responsive` | 25 | 0 | 22 | 3 | 4 | 29 | 46 |  |
 | `referrer-policy/css-integration` | 24 | 8 | 16 | 0 | 0 | 24 | 24 |  |
 | `resize-observer` | 24 | 9 | 13 | 2 | 13 | 37 | 38 |  |
@@ -175,14 +175,13 @@ distinction. A refused area is a decision with a name
 | `webmessaging/without-ports` | 23 | 13 | 10 | 0 | 4 | 27 | 27 |  |
 | `fetch/compression-dictionary` | 22 | 3 | 19 | 0 | 1 | 23 | 31 |  |
 | `svg/coordinate-systems` | 22 | 1 | 7 | 14 | 4 | 26 | 26 |  |
-| `svg/shapes` | 22 | 6 | 0 | 16 | 13 | 35 | 36 |  |
+| `svg/shapes` | 22 | 0 | 6 | 16 | 13 | 35 | 36 |  |
 | `web-animations/animation-model` | 22 | 0 | 18 | 4 | 4 | 26 | 31 |  |
 | `css/css-syntax` | 20 | 0 | 20 | 0 | 16 | 36 | 41 |  |
 | `encoding` | 20 | 13 | 7 | 0 | 52 | 72 | 78 |  |
-| `svg/styling` | 20 | 2 | 7 | 11 | 41 | 61 | 82 |  |
+| `svg/styling` | 20 | 1 | 8 | 11 | 41 | 61 | 82 |  |
 | `content-security-policy/securitypolicyviolation` | 19 | 17 | 2 | 0 | 0 | 19 | 24 |  |
 | `shadow-dom/focus-navigation` | 19 | 0 | 19 | 0 | 4 | 23 | 45 |  |
-| `svg/interact` | 19 | 12 | 7 | 0 | 7 | 26 | 34 |  |
 | `xhr/formdata` | 19 | 2 | 17 | 0 | 8 | 27 | 27 |  |
 | `content-security-policy/inheritance` | 18 | 16 | 2 | 0 | 2 | 20 | 26 |  |
 | `storage` | 18 | 1 | 17 | 0 | 0 | 18 | 28 |  |
@@ -191,10 +190,10 @@ distinction. A refused area is a decision with a name
 | `streams/readable-streams` | 17 | 1 | 16 | 0 | 0 | 17 | 22 |  |
 | `content-security-policy/sandbox` | 16 | 3 | 13 | 0 | 0 | 16 | 17 |  |
 | `streams/writable-streams` | 16 | 0 | 16 | 0 | 0 | 16 | 16 |  |
+| `svg/interact` | 16 | 4 | 12 | 0 | 10 | 26 | 34 |  |
 | `FileAPI/url` | 15 | 12 | 2 | 1 | 0 | 15 | 16 |  |
 | `custom-elements/form-associated` | 15 | 1 | 12 | 2 | 2 | 17 | 20 |  |
-| `svg/extensibility` | 14 | 1 | 2 | 11 | 9 | 23 | 25 |  |
-| `svg/pservers` | 14 | 9 | 3 | 2 | 22 | 36 | 37 |  |
+| `svg/extensibility` | 14 | 0 | 3 | 11 | 9 | 23 | 25 |  |
 | `uievents/order-of-events` | 14 | 7 | 7 | 0 | 2 | 16 | 16 |  |
 | `webmessaging/broadcastchannel` | 14 | 6 | 8 | 0 | 0 | 14 | 14 |  |
 | `domparsing` | 13 | 3 | 10 | 0 | 15 | 28 | 34 | **partial** ADR 0012 -- DOMParser absent -- it returns a second Document |
@@ -205,6 +204,7 @@ distinction. A refused area is a decision with a name
 | `html/obsolete` | 12 | 0 | 12 | 0 | 4 | 16 | 16 |  |
 | `streams/piping` | 12 | 0 | 12 | 0 | 0 | 12 | 13 |  |
 | `streams/transferable` | 12 | 4 | 8 | 0 | 0 | 12 | 12 |  |
+| `svg/pservers` | 12 | 1 | 9 | 2 | 24 | 36 | 37 |  |
 | `uievents/mouse` | 12 | 5 | 7 | 0 | 7 | 19 | 22 |  |
 | `content-security-policy/form-action` | 11 | 8 | 3 | 0 | 1 | 12 | 13 |  |
 | `cookies/prefix` | 11 | 6 | 5 | 0 | 0 | 11 | 11 |  |
@@ -236,7 +236,7 @@ distinction. A refused area is a decision with a name
 | `fetch/local-network-access` | 8 | 8 | 0 | 0 | 0 | 8 | 16 |  |
 | `streams/transform-streams` | 8 | 0 | 8 | 0 | 0 | 8 | 12 |  |
 | `svg/embedded` | 8 | 1 | 1 | 6 | 16 | 24 | 26 |  |
-| `svg/scripted` | 8 | 6 | 2 | 0 | 2 | 10 | 10 |  |
+| `svg/scripted` | 8 | 0 | 8 | 0 | 2 | 10 | 10 |  |
 | `websockets/interfaces` | 8 | 2 | 6 | 0 | 160 | 168 | 168 |  |
 | `FileAPI/file` | 7 | 0 | 7 | 0 | 14 | 21 | 21 |  |
 | `content-security-policy/nonce-hiding` | 7 | 5 | 2 | 0 | 1 | 8 | 8 |  |

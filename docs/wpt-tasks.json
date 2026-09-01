@@ -93,9 +93,9 @@
       "status": "not_started",
       "order": 2,
       "firefox_gap": {
-        "files": 4784,
-        "blocked": 257,
-        "feature": 2799,
+        "files": 4743,
+        "blocked": 80,
+        "feature": 2935,
         "reftest": 1728
       }
     },
@@ -1301,23 +1301,78 @@
       "scope": "This browser renders SVG as an image; the suite tests it as a document. Decide the scope in an ADR first.",
       "check": "An ADR exists and svg/ has a target in this file.",
       "depends": [],
-      "target": "98%",
-      "status": "in_progress",
+      "target": "300 of the 489 non-SMIL Firefox-gap files",
+      "status": "done",
       "agent": "wpt-f7",
-      "adr": "",
-      "notes": "",
+      "adr": "docs/adr/0043-svg-as-a-document.md",
+      "notes": "2026-09-01 (wpt-f7): DONE -- the check is \"An ADR exists and svg/ has a target in this file\" and both halves are met: docs/adr/0043-svg-as-a-document.md, and the target above. The ADR was written from measurements rather than from guesses because the session first removed the thing that made svg/ unmeasurable: 214 of the area's 262 silent files write their external scripts as `<h:script src=...>` with `h` bound to the XHTML namespace, and `PageScript::Collect` matched the *qualified* name. Second bug beside it: the engine's own parse never called `Document::SetHtmlDocument(false)`, so every XHTML and SVG document this browser has loaded believed it was an HTML document. Together: svg/ 3778 subtests / 265 passing / 263 timeouts -> 5242 / 479 / 51, blocked 228 -> 51, gap 810 -> 769. THE DECISION: SVG becomes a real subtree of the document -- styled by the cascade, boxed by layout, reachable from script -- in three further stages (F7a/F7b/F7c below), and SMIL IS REFUSED. SMIL is 280 of the 769 gap files, 36% of the area, and it is a second animation timeline with its own event set, its own syncbase dependency graph and a clock a document starts on load and never stops. The refusal is recorded as a comment on the first svg/animations/ entry in tests/wpt/expectations/svg.txt with the condition that would reopen it. NOTE the reftest number here: svg/ passes 298 of 526, but 187 of those are TWO BLANK PAGES AGREEING -- the highest such ratio in the suite, and itself a measurement of how little SVG is drawn from the document tree. Do not quote it without the second half. See docs/session-log.md, entry \"WPT task F7\".",
       "ceiling_source": "firefox",
       "firefox_ceiling": "97.5%",
       "firefox_gap": {
-        "files": 810,
-        "harness_files": 619,
-        "blocked": 228,
-        "feature": 391,
+        "files": 769,
+        "harness_files": 578,
+        "blocked": 51,
+        "feature": 527,
         "reftest_files": 191,
-        "we_pass": 264,
+        "we_pass": 305,
         "reftests_firefox_passes": 437
       },
       "claimed": "2026-09-01"
+    },
+    {
+      "id": "F7a",
+      "milestone": "M-F",
+      "title": "SVG presentation properties are CSS properties",
+      "area": "svg/",
+      "scope": "fill, fill-opacity, fill-rule, the stroke family, stop-color/stop-opacity, paint-order, clip-rule, color-interpolation, shape-rendering, text-anchor, dominant-baseline -- in css::ComputedStyle, through ApplyDeclaration, with the presentation attributes mapping to them.",
+      "check": "getComputedStyle on an SVG child answers `fill`, and svg/styling/ >= 60%.",
+      "depends": [
+        "F7"
+      ],
+      "target": "svg/styling 60%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "docs/adr/0043-svg-as-a-document.md",
+      "notes": "ADR 0043 \u00a72. First because everything else depends on it: getComputedStyle(rect).fill returns \"\" today, which is what makes the painter's job undefined. It is also the one stage that does not need the box tree, so it lands and is measured alone. Direct tests: svg/styling/ (20 gap files), svg/painting/ (73), and the `inheritance.svg` family across five subdirectories.",
+      "ceiling_source": "firefox",
+      "firefox_ceiling": "97.5%"
+    },
+    {
+      "id": "F7b",
+      "milestone": "M-F",
+      "title": "the SVG DOM: element interfaces and base values",
+      "area": "svg/",
+      "scope": "SVGElement under Element and the per-tag interfaces under it, the same shape src/bindings/NodeInterfaces.cpp already builds for HTML; SVGAnimatedLength/Number/String and the list types as far as their *base* value only.",
+      "check": "svg/types/ >= 60% and svg/idlharness.window.html reports fewer than 400 failures.",
+      "depends": [
+        "F7"
+      ],
+      "target": "svg/types 60%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "docs/adr/0043-svg-as-a-document.md",
+      "notes": "ADR 0043 \u00a73. `svg/idlharness.window.html` alone carries 1,661 failing subtests, twelve times the next largest file in the area, because an SVG child is an HTMLUnknownElement today. animVal is deliberately out of scope: it exists to expose SMIL, which ADR 0043 refuses, and one that always equalled baseVal would be the stub ADR 0012 forbids.",
+      "ceiling_source": "firefox",
+      "firefox_ceiling": "97.5%"
+    },
+    {
+      "id": "F7c",
+      "milestone": "M-F",
+      "title": "SVG boxes in the layout tree",
+      "area": "svg/",
+      "scope": "The <svg> element establishes an SVG formatting context; children get boxes in the local coordinate system; viewBox/preserveAspectRatio/transform are the mapping out. Painting reads the box tree instead of a re-serialized string.",
+      "check": "svg/geometry/ >= 60%, and svg/'s blank-page reftest passes below 60 of its total.",
+      "depends": [
+        "F7a",
+        "F7b"
+      ],
+      "target": "svg/geometry 60%",
+      "status": "not_started",
+      "agent": null,
+      "adr": "docs/adr/0043-svg-as-a-document.md",
+      "notes": "ADR 0043 \u00a74, and the largest of the three. It retires engine::PageImages's serialize-the-element-and-rasterize path for INLINE svg only -- `<img src=x.svg>` keeps src/gfx/SvgDecoder.cpp, which is what makes 'a document referenced as an image cannot run script' structural rather than remembered (the same argument ADR 0013 makes for the demuxer). It is what getBBox, getCTM, getScreenCTM and elementFromPoint need, and it is what turns 187 blank-page reftest passes into real ones.",
+      "ceiling_source": "firefox",
+      "firefox_ceiling": "97.5%"
     },
     {
       "id": "F8",
