@@ -22,8 +22,8 @@ than a specification gap.
 |---|--:|--:|--:|
 | in our scope | 23146 | 20998 | 44144 |
 | Firefox passes | 19232 | 17918 | 37150 |
-| **we pass** | **5306** | **7598** | **12904** |
-| **Firefox passes, we fail** | **13926** | **10320** | **24246** |
+| **we pass** | **5307** | **7599** | **12906** |
+| **Firefox passes, we fail** | **13925** | **10319** | **24244** |
 | both fail | 3435 | 2233 | 5668 |
 | we pass, Firefox fails (audit) | 339 | 770 | 1109 |
 
@@ -38,7 +38,7 @@ nobody ran.
 | cause | files |
 |---|--:|
 | the harness never reported (TIMEOUT/ERROR/CRASH) | 4060 |
-| subtests ran and failed | 9866 |
+| subtests ran and failed | 9865 |
 
 A blocked file is worth more than its count: none of its subtests are
 in any denominator anywhere, so it is invisible in every rate.
@@ -81,7 +81,7 @@ distinction. A refused area is a decision with a name
 | `referrer-policy/gen` | 951 | 865 | 86 | 0 | 0 | 951 | 1001 |  |
 | `css/css-text` | 844 | 0 | 79 | 765 | 697 | 1541 | 1915 |  |
 | `css/css-flexbox` | 807 | 3 | 212 | 592 | 469 | 1276 | 1369 |  |
-| `css/css-transforms` | 577 | 2 | 78 | 497 | 302 | 879 | 896 |  |
+| `css/css-transforms` | 574 | 2 | 77 | 495 | 305 | 879 | 896 |  |
 | `html/browsers` | 551 | 298 | 251 | 2 | 60 | 611 | 757 | **partial** ADR 0026 §6 -- window.open returns null, opener absent |
 | `css/css-backgrounds` | 529 | 0 | 79 | 450 | 237 | 766 | 848 |  |
 | `css/css-sizing` | 438 | 7 | 72 | 359 | 144 | 582 | 745 |  |
@@ -98,8 +98,8 @@ distinction. A refused area is a decision with a name
 | `css/css-values` | 243 | 14 | 127 | 102 | 72 | 315 | 479 |  |
 | `css/css-align` | 215 | 0 | 182 | 33 | 34 | 249 | 296 |  |
 | `css/selectors` | 213 | 22 | 117 | 74 | 261 | 474 | 503 | **partial** ADR 0012/0016/0033 -- :visited matches nothing (privacy) |
+| `css/css-position` | 212 | 2 | 60 | 150 | 78 | 290 | 362 |  |
 | `html/rendering` | 212 | 20 | 82 | 110 | 212 | 424 | 465 |  |
-| `css/css-position` | 211 | 2 | 60 | 149 | 79 | 290 | 362 |  |
 | `css/css-conditional` | 209 | 119 | 28 | 62 | 98 | 307 | 395 |  |
 | `html/dom` | 200 | 15 | 100 | 85 | 103 | 303 | 364 |  |
 | `content-security-policy/gen` | 184 | 184 | 0 | 0 | 0 | 184 | 260 |  |

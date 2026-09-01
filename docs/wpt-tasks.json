@@ -81,10 +81,10 @@
       "status": "not_started",
       "order": 1,
       "firefox_gap": {
-        "files": 7990,
+        "files": 7991,
         "blocked": 60,
         "feature": 1104,
-        "reftest": 6826
+        "reftest": 6827
       }
     },
     {
@@ -93,10 +93,10 @@
       "status": "not_started",
       "order": 2,
       "firefox_gap": {
-        "files": 4733,
+        "files": 4730,
         "blocked": 80,
-        "feature": 2925,
-        "reftest": 1728
+        "feature": 2924,
+        "reftest": 1726
       }
     },
     {
@@ -953,12 +953,12 @@
       "ceiling_source": "firefox",
       "firefox_ceiling": "91.4%",
       "firefox_gap": {
-        "files": 211,
+        "files": 212,
         "harness_files": 62,
         "blocked": 2,
         "feature": 60,
-        "reftest_files": 149,
-        "we_pass": 79,
+        "reftest_files": 150,
+        "we_pass": 78,
         "reftests_firefox_passes": 197
       }
     },
@@ -1229,16 +1229,16 @@
       "status": "in_progress",
       "agent": "wpt-f5",
       "adr": "",
-      "notes": "",
+      "notes": "2026-09-01 (wpt-f5): the individual transform properties landed and the check is NOT met. `css/css-transforms/` prints \"5506 subtests, 1262 passed (22.9%)\" against a target of 60%, from 19.7%; reftests 290 -> 292 of 790. **THE TASK'S TITLE IS WRONG ABOUT WHERE THE WORK IS, and two measurements say so.** (1) **293 of the 577 gap files have `<svg>` in the test or its reference** -- 51%. `2d-rotate-001.html` is the worked example: the rotation is correct in both pictures and the *reference* renders a black square where it should be a green outline, because it is an SVG `<rect stroke=green fill=none>` and inline SVG is serialized and handed to gfx::SvgDecoder, which does not apply the `<style>` inside it. So half this area is gated on ADR 0043 \u00a74 (F7c), not on transforms. Whoever ranks the plan next should read that: F7c is worth more than svg/'s own gap suggests. (2) Of the remaining 284, 44 are `animation/` (the interpolation harness, which wants task G4) and most of the 201 root files are genuinely 3D -- `3d-point-mapping-*`, `backface-visibility-*`, `perspective-*`. The testharness half is dominated by interpolation: the twelve largest files are all `animation/*-interpolation.html`. WHAT LANDED: `translate`/`rotate`/`scale` as properties of their own (CSS Transforms 2), `transform-box`, the CSSOM canonicalisation for all four, and getComputedStyle. 3D is refused rather than flattened, matching the rule the transform functions already follow. `parsing/rotate-parsing-valid.html` and `transform-box-computed.html` are 100%; what is left in the parsing tests is `calc()` inside a transform component. **AND A HARNESS GAP WORTH MORE THAN THIS TASK: `reftest-wait` IS NOT IMPLEMENTED.** `grep -rn reftest-wait tools/wpt/` is empty, so the runner screenshots a test's INITIAL state and never waits for the class to be removed. **1,193 files use it** -- html/canvas 223, html/semantics 142, css/css-overflow 81, css/css-backgrounds 73, css/css-transforms 64. Four of them turned from accidental passes into honest failures in this session, because they were passing only while the property they change did nothing. This is the same shape as F2 and F9 and it should be a Gate task. See docs/session-log.md, entry \"WPT task F5\".",
       "ceiling_source": "firefox",
       "firefox_ceiling": "99.2%",
       "firefox_gap": {
-        "files": 577,
-        "harness_files": 80,
+        "files": 574,
+        "harness_files": 79,
         "blocked": 2,
-        "feature": 78,
-        "reftest_files": 497,
-        "we_pass": 302,
+        "feature": 77,
+        "reftest_files": 495,
+        "we_pass": 305,
         "reftests_firefox_passes": 780
       },
       "claimed": "2026-09-01"
@@ -2483,6 +2483,24 @@
         "files": 17961,
         "why": "every reftest Firefox passes. Not files this makes pass -- files this makes *visible*. 48% of the suite is currently in no number this project quotes"
       }
+    },
+    {
+      "id": "F11",
+      "milestone": "M-F",
+      "title": "reftest-wait: a reftest that says when it is ready",
+      "area": "",
+      "scope": "The runner screenshots a reftest's initial state. `class=\"reftest-wait\"` on the root element means \"not yet\", and the test removes it -- usually from a requestAnimationFrame -- when the state it wants to be photographed in exists. Wait for the class to go, with the same deadline every other reftest gets, and record a test that never removes it as the TIMEOUT it is.",
+      "check": "A reftest whose two states differ passes only when the second is photographed; `microbrowser_wpt --reftests-only --areas tests/wpt/areas.txt` re-recorded and green.",
+      "depends": [
+        "F9"
+      ],
+      "target": "1,193 files photographed in the state they name",
+      "status": "not_started",
+      "agent": null,
+      "adr": "docs/adr/0040-web-platform-tests.md",
+      "notes": "Found by F5 on 2026-09-01. `grep -rn reftest-wait tools/wpt/` is EMPTY. **1,193 files use it**: html/canvas 223, html/semantics 142, css/css-overflow 81, css/css-backgrounds 73, css/css-transforms 64, css/selectors 53, css/css-multicol 45, css/css-fonts 45. Every one of them is currently photographed BEFORE the thing it tests has happened, so it passes exactly when the initial state and the final one look the same -- which is an accidental pass in the same family as the blank-page ones F9 counted, and it FLIPS TO A FAILURE the moment the browser starts implementing the property under test. Four did exactly that in F5's session. Same shape as F2 and F9 and it belongs beside them: the measurement is wrong before the browser is.",
+      "ceiling_source": "firefox",
+      "firefox_ceiling": ""
     },
     {
       "id": "F10",

@@ -950,7 +950,20 @@ in these areas failing for a *harness* reason.
 | F7c | `svg/` — SVG boxes in the layout tree, replacing serialize-and-rasterize | F7a, F7b | `svg/geometry` 60% |
 | F8 | Image formats — WebP and AVIF decoders (ADR 0023 counted them); `png/` and the image parts of `css-images` | — | fuzzers + 80% of `png/` |
 | F9 | **Harness:** reftests enter the measurement at all — record them in `tests/wpt/expectations/`, count them in the baseline | F2 | **done 2026-08-17** |
+| F11 | **Harness:** `reftest-wait` — a reftest that says when it is ready. The runner photographs the *initial* state of 1,193 files that say "not yet" | F9 | 1,193 files |
 | F10 | **Harness:** the reftest *gate* — name the eight intermittents, then drop `--testharness-only` from the `ctest` registration | F9 | **done 2026-08-31** · seven of the eight were one font-cache bug; 7,963 → 8,005 files |
+
+**`reftest-wait` is not implemented and it is 1,193 files (F11, found 2026-09-01).**
+`class="reftest-wait"` on the root element means "do not photograph me yet", and
+the test removes it — usually from a `requestAnimationFrame` — once the state it
+wants recorded exists. `grep -rn reftest-wait tools/wpt/` is empty, so every one
+of those files is photographed *before* the thing it tests has happened. It
+passes exactly when the initial state and the final one look the same, which is
+an accidental pass in the same family as F9's blank pages — and it **flips to a
+failure the moment the browser starts implementing the property under test**.
+Four did precisely that in F5's session, which is how it was found. The
+measurement is wrong before the browser is, and that is what makes it a gate
+task rather than a nicety.
 
 **F7 turned out to be two things and the smaller one paid for the larger.** The
 scope decision it names was unanswerable on 2026-09-01, because 228 of `svg/`'s

@@ -8335,3 +8335,57 @@ this engine. `url/url-searchparams.any.html`'s "URL.searchParams setter, invalid
 and four lines in `microbrowser_jsshell` reproduce it on a plain object literal — so it is the
 language rather than the bindings. It is newly *visible* rather than newly broken: `url/` now
 reports 15,654 subtests where the last recorded baseline had 9,903.
+
+## WPT task F5 — css/css-transforms · 2026-09-01
+
+**Status:** in_progress — the individual transform properties landed and the check is not met.
+**Check** (`docs/wpt-tasks.json`: "css/css-transforms/ >= 60%"): **not met.**
+`microbrowser_wpt css/css-transforms/` printed `5506 subtests, 1262 passed (22.9%)`, from
+`1087 passed (19.7%)`; reftests 290 → 292 of 790. The area's Firefox gap went 577 → 574 files.
+
+**Landed:** *`translate`, `rotate` and `scale` are properties of their own, and so is
+transform-box* · *Re-record css/*
+
+**Found — two measurements, and each says the task is ranked against the wrong thing.**
+
+**1. Half of `css/css-transforms/` is gated on SVG, not on transforms.** **293 of the 577 gap files
+have `<svg>` in the test or in its reference.** `2d-rotate-001.html` is the worked example and it
+took one `--reftest-artifacts` run: the rotation is *correct in both pictures*, and the **reference**
+draws a solid black square where it should draw a green outline — it is
+`<rect stroke="green" fill="none">` inside an inline `<svg>`, and inline SVG is serialized back to
+markup and handed to `gfx::SvgDecoder`, which does not apply the `<style>` element inside it. So
+this area is waiting on ADR 0043 §4 (task F7c). **Whoever ranks the plan next should read that:
+F7c is worth considerably more than `svg/`'s own gap suggests, because it is also half of
+css-transforms.**
+
+**2. `reftest-wait` is not implemented, and it is 1,193 files.** `grep -rn reftest-wait tools/wpt/`
+is **empty**. `class="reftest-wait"` on the root element means "do not photograph me yet"; the test
+removes it, usually from a `requestAnimationFrame`, once the state it wants recorded exists. The
+runner photographs the *initial* state instead. Such a test therefore passes **exactly when its
+initial state and its final one look the same** — an accidental pass in the same family as F9's
+blank pages, and one that **flips to a failure the moment the browser starts implementing the
+property under test**. Four did precisely that here:
+`individual-transform/change-rotate-property.html` sets `rotate: 45deg`, clears it to `0deg` in a
+rAF, and expects a plain green square; it passed while `rotate` did nothing. `html/canvas` has 223
+of these files, `html/semantics` 142, `css/css-overflow` 81. It is now **task F11**, beside F2 and
+F9, because the measurement is wrong before the browser is.
+
+**What the ranking inside the area says.** Of the 284 non-SVG gap files, 44 are `animation/` (the
+interpolation harness — task G4's, not this one's) and most of the 201 root files are genuinely 3D:
+`3d-point-mapping-*`, `backface-visibility-*`, `perspective-*`. The *testharness* half is dominated
+by interpolation — the twelve largest files are all `animation/*-interpolation.html`, 3,000 subtests
+between them. So the task title ("3D transforms") is right about the non-SVG remainder and the
+scope line should say so.
+
+**What landed, and one decision in it.** `translate`, `rotate`, `scale` and `transform-box`, with
+CSSOM canonicalisation and computed values. **The canonicaliser works on tokens rather than on a
+parsed value**, and that is not a shortcut: a specified value keeps the unit the page wrote, so
+`rotate: 400grad` must read back as `400grad`, and anything that went through radians and came back
+would not. The three rules differ and each is the suite's — `translate` drops a trailing zero
+*length* but keeps a zero percentage, `scale` drops a trailing 1 and then a y equal to x, and
+`rotate` collapses an axis vector to the keyword it is parallel to, carrying the sign into the
+angle. 3D is refused rather than flattened, which is the rule the transform *functions* already
+follow.
+
+**Left.** `calc()` inside a transform component is what remains in the parsing tests. Everything
+else in the area is F7c, G4, or 3D.
