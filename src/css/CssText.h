@@ -59,6 +59,36 @@ inline std::string_view Trim(std::string_view text) {
   return text;
 }
 
+// Splits on `separator`, but not inside a function's parentheses or a string.
+// `url(a,b), red` is two layers, not three: a comma inside `url()` belongs to
+// the url. A splitter that did not track nesting would produce a fragment that
+// parses as neither a url nor a colour and would silently drop the layer.
+inline std::vector<std::string_view> SplitTopLevel(std::string_view value, char separator) {
+  std::vector<std::string_view> parts;
+  std::size_t depth = 0;
+  char quote = '\0';
+  std::size_t begin = 0;
+  for (std::size_t i = 0; i < value.size(); ++i) {
+    const char c = value[i];
+    if (quote != '\0') {
+      if (c == quote) {
+        quote = '\0';
+      }
+    } else if (c == '"' || c == '\'') {
+      quote = c;
+    } else if (c == '(') {
+      ++depth;
+    } else if (c == ')') {
+      depth -= depth > 0 ? 1 : 0;
+    } else if (c == separator && depth == 0) {
+      parts.push_back(value.substr(begin, i - begin));
+      begin = i + 1;
+    }
+  }
+  parts.push_back(value.substr(begin));
+  return parts;
+}
+
 // The space-separated components of a value -- the `10px solid red` of a
 // shorthand -- with whitespace *inside* a function or a string left alone.
 //

@@ -65,36 +65,6 @@ void InheritInto(const ComputedStyle& parent, ComputedStyle& child, bool with_cu
 
 namespace {
 
-// Splits on `separator`, but not inside a function's parentheses or a string.
-// `url(a,b), red` is two layers, not three: a comma inside `url()` belongs to
-// the url. A splitter that did not track nesting would produce a fragment that
-// parses as neither a url nor a colour and would silently drop the layer.
-std::vector<std::string_view> SplitTopLevel(std::string_view value, char separator) {
-  std::vector<std::string_view> parts;
-  std::size_t depth = 0;
-  char quote = '\0';
-  std::size_t begin = 0;
-  for (std::size_t i = 0; i < value.size(); ++i) {
-    const char c = value[i];
-    if (quote != '\0') {
-      if (c == quote) {
-        quote = '\0';
-      }
-    } else if (c == '"' || c == '\'') {
-      quote = c;
-    } else if (c == '(') {
-      ++depth;
-    } else if (c == ')') {
-      depth -= depth > 0 ? 1 : 0;
-    } else if (c == separator && depth == 0) {
-      parts.push_back(value.substr(begin, i - begin));
-      begin = i + 1;
-    }
-  }
-  parts.push_back(value.substr(begin));
-  return parts;
-}
-
 // The contents of a `url(...)`, unquoted, or empty when `value` does not
 // contain one. Not a general function parser: `url()` is the only CSS function
 // this renderer fetches anything for.
@@ -116,40 +86,6 @@ std::string ParseUrlFunction(std::string_view value) {
   return std::string(inner);
 }
 
-std::optional<BackgroundRepeat> ParseBackgroundRepeat(std::string_view word) {
-  const std::string lowered = Lowered(Trim(word));
-  if (lowered == "repeat") {
-    return BackgroundRepeat::Repeat;
-  }
-  if (lowered == "repeat-x") {
-    return BackgroundRepeat::RepeatX;
-  }
-  if (lowered == "repeat-y") {
-    return BackgroundRepeat::RepeatY;
-  }
-  if (lowered == "no-repeat") {
-    return BackgroundRepeat::NoRepeat;
-  }
-  return std::nullopt;
-}
-
-// A `background-position` component. The keywords are percentages of the space
-// the image does not fill, which is what makes `center` centre rather than
-// offset by half the box.
-std::optional<Length> ParseBackgroundPosition(std::string_view word, bool horizontal,
-                                              const MediaContext& context, float root_font_size) {
-  const std::string lowered = Lowered(Trim(word));
-  if (lowered == "center") {
-    return Length{50.0f, Length::Unit::Percent};
-  }
-  if (lowered == (horizontal ? "left" : "top")) {
-    return Length::Pixels(0.0f);
-  }
-  if (lowered == (horizontal ? "right" : "bottom")) {
-    return Length{100.0f, Length::Unit::Percent};
-  }
-  return ParseLength(word, context, root_font_size);
-}
 
 // Splits a `font-family` value into its candidates, in order.
 //
@@ -469,6 +405,15 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     style.background_color = gfx::Color::Transparent();
     style.background.image.clear();
     style.background.repeat = BackgroundRepeat::Repeat;
+    // The two boxes reset too, and to their *own* initial values rather than to
+    // a shared one: `background: red` after a `background-origin: content-box`
+    // has to put the origin back to `padding-box`, and a shorthand that reset
+    // both to the same box would quietly move every background image on the
+    // page by a border width.
+    style.background.origin = BackgroundBox::PaddingBox;
+    style.background.clip = BackgroundBox::BorderBox;
+    style.background.position_x = Length::Pixels(0.0f);
+    style.background.position_y = Length::Pixels(0.0f);
     if (const auto color = ParseColor(raw_value)) {
       style.background_color = *color;
       return true;
@@ -486,14 +431,8 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
         break;
       }
     }
-    for (const std::string_view word : SplitWords(raw_value)) {
-      if (const std::optional<BackgroundRepeat> repeat = ParseBackgroundRepeat(word)) {
-        style.background.repeat = *repeat;
-        understood = true;
-      } else if (const auto color = ParseColor(word)) {
-        style.background_color = *color;
-        understood = true;
-      }
+    if (ApplyBackgroundShorthandWords(raw_value, style, context)) {
+      understood = true;
     }
     // A value made entirely of things this renderer does not have -- a
     // `linear-gradient()`, say -- is reported as unsupported rather than as an
@@ -628,6 +567,9 @@ bool ApplyDeclaration(std::string_view property, std::string_view raw_value,
     return true;
   }
   if (ApplyBoxDeclaration(property, value, parent, style, context)) {
+    return true;
+  }
+  if (ApplyBackgroundDeclaration(property, value, parent, style, context)) {
     return true;
   }
   if (ApplySvgDeclaration(property, value, parent, style, context)) {

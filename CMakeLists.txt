@@ -267,6 +267,7 @@ microbrowser_module(dom
 microbrowser_module(css
   SOURCES
     src/css/BoxDeclarations.cpp
+    src/css/BackgroundDeclarations.cpp
     src/css/SvgDeclarations.cpp
     src/css/Calc.cpp
     src/css/Declarations.cpp

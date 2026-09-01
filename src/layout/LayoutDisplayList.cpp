@@ -316,13 +316,43 @@ void PaintBorders(const css::ComputedStyle& style, const gfx::FloatRect& border_
   }
 }
 
+// One of the box model's four rectangles, in painted coordinates.
+//
+// `border_box` arrives already shifted by whatever the walk has accumulated, so
+// the shift is recovered from it rather than passed a second time: two
+// parameters that must agree about the same offset is how a background ends up
+// a scroll position away from its border.
+gfx::FloatRect BackgroundArea(const Box& box, const gfx::FloatRect& border_box,
+                              css::BackgroundBox which) {
+  const BoxGeometry& geometry = box.Geometry();
+  const gfx::FloatRect base = geometry.BorderBox();
+  const gfx::FloatRect wanted = which == css::BackgroundBox::BorderBox ? base
+                                : which == css::BackgroundBox::PaddingBox ? geometry.PaddingBox()
+                                                                         : geometry.content;
+  return gfx::FloatRect{wanted.x + (border_box.x - base.x), wanted.y + (border_box.y - base.y),
+                        wanted.width, wanted.height};
+}
+
 void PaintBackgroundImage(const Box& box, const gfx::FloatRect& border_box, gfx::DisplayList& out) {
   const std::shared_ptr<const gfx::Image>& image = box.BackgroundImage();
   if (image == nullptr || !image->IsValid() || border_box.IsEmpty()) {
     return;
   }
   const css::ComputedStyle& style = box.Style();
-  const gfx::FloatRect first = BackgroundTile(style, *image, border_box);
+  // **Two different rectangles, and using one for both is the bug this
+  // replaced.** `background-origin` decides where the image is measured and
+  // positioned from -- `padding-box` by default, so a background starts inside
+  // the border rather than under it -- and `background-clip` decides what it is
+  // painted into, `border-box` by default, so a tile that runs past the padding
+  // edge still shows beneath a dashed or translucent border. This renderer used
+  // the border box for both, which put every background image on a bordered
+  // element a border-width up and to the left of where CSS says it goes.
+  const gfx::FloatRect positioning = BackgroundArea(box, border_box, style.background.origin);
+  const gfx::FloatRect painting = BackgroundArea(box, border_box, style.background.clip);
+  if (positioning.IsEmpty() || painting.IsEmpty()) {
+    return;
+  }
+  const gfx::FloatRect first = BackgroundTile(style, *image, positioning);
   if (first.width <= 0.0f || first.height <= 0.0f) {
     return;
   }
@@ -352,15 +382,13 @@ void PaintBackgroundImage(const Box& box, const gfx::FloatRect& border_box, gfx:
   };
   float start_x = first.x;
   float start_y = first.y;
-  const int columns = span(repeat_x, first.x, first.width, border_box.x, border_box.Right(),
-                           start_x);
-  const int rows = span(repeat_y, first.y, first.height, border_box.y, border_box.Bottom(),
-                        start_y);
+  const int columns = span(repeat_x, first.x, first.width, painting.x, painting.Right(), start_x);
+  const int rows = span(repeat_y, first.y, first.height, painting.y, painting.Bottom(), start_y);
   if (columns <= 0 || rows <= 0 || columns > kMaxBackgroundTiles ||
       rows > kMaxBackgroundTiles || columns * rows > kMaxBackgroundTiles) {
     // Too many to be a design. Draw the single tile so the element is not
     // simply blank, and stop -- which is legible, unlike either extreme.
-    out.PushClip(gfx::EnclosingIntRect(border_box));
+    out.PushClip(gfx::EnclosingIntRect(painting));
     out.DrawImage(image, gfx::EnclosingIntRect(first));
     out.PopClip();
     return;
@@ -368,7 +396,7 @@ void PaintBackgroundImage(const Box& box, const gfx::FloatRect& border_box, gfx:
 
   // Clipped to the element, because the last tile in each direction runs past
   // its edge by design -- that is what makes a repeat reach the corner.
-  out.PushClip(gfx::EnclosingIntRect(border_box));
+  out.PushClip(gfx::EnclosingIntRect(painting));
   for (int row = 0; row < rows; ++row) {
     for (int column = 0; column < columns; ++column) {
       out.DrawImage(image, gfx::EnclosingIntRect(gfx::FloatRect{
@@ -639,8 +667,12 @@ void BuildDisplayList(const Box& root, gfx::DisplayList& out, gfx::FloatPoint do
     const gfx::Color ink = WithPaintOpacity(style.color, paint_opacity);
 
     if (paints_self && !background.IsFullyTransparent() && !border_box.IsEmpty()) {
+      // `background-clip` is a property of the whole background, not of its
+      // image: `background-clip: content-box` on a solid colour paints the
+      // content box and nothing else, which is the half of the property a page
+      // uses far more often than the image half.
       gfx::Path background_path;
-      background_path.AddRect(border_box);
+      background_path.AddRect(BackgroundArea(box, border_box, style.background.clip));
       out.FillPath(background_path, background);
     }
     // Over the colour and under the border, which is the order CSS paints a

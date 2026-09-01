@@ -11,6 +11,7 @@
 
 #include "css/Animation.h"
 #include "css/BoxEdges.h"
+#include "css/BackgroundStyle.h"
 #include "css/Length.h"
 #include "css/SvgStyle.h"
 #include "css/MediaQuery.h"
@@ -168,8 +169,6 @@ enum class VerticalAlign : std::uint8_t {
   // computes to zero here and means "ask the font", which only the measurer can do.
   Offset,
 };
-
-enum class BackgroundRepeat : std::uint8_t { Repeat, RepeatX, RepeatY, NoRepeat };
 // CSS Text 4 makes `white-space` a *shorthand* over two orthogonal longhands, and the four values
 // this engine used to store were one enum standing in for both. Keeping one enum could not express
 // `preserve-breaks nowrap` -- a pair the shorthand has no keyword for and which
@@ -296,37 +295,6 @@ enum class PointerEvents : std::uint8_t { Auto, None };
 // frame. Named so that the two places that fold a `rem` into pixels — Resolve,
 // and the `calc()` evaluator — cannot disagree about it.
 inline constexpr float kRootFontSize = 16.0f;
-
-
-
-// Everything `background-image` needs beyond the pixels.
-//
-// One value rather than five fields on ComputedStyle because they are one
-// concept: nothing here means anything without `image`, and a shorthand that
-// sets the image resets all of them together. Keeping them apart made the
-// style struct read as though a page could have a background position with no
-// background.
-//
-// A single layer. CSS allows a list, and a page that writes one gets its first
-// image -- see where the shorthand is parsed for why the rest are dropped
-// rather than approximated.
-struct BackgroundLayer {
-  // The `url()`, exactly as the stylesheet wrote it, or empty. Resolving it
-  // against the document is the loader's job: the cascade does not know what a
-  // base URL is, and doing it in two places is how the two disagree.
-  std::string image;
-  BackgroundRepeat repeat = BackgroundRepeat::Repeat;
-  // `auto` on an axis means the image's own size there, which is what keeps an
-  // icon's proportions when a stylesheet gives only a width.
-  Length size_x = Length::Auto();
-  Length size_y = Length::Auto();
-  // A percentage is a fraction of the space the image does *not* fill, which is
-  // what makes `50%` centre rather than offset by half the box.
-  Length position_x;
-  Length position_y;
-
-  friend bool operator==(const BackgroundLayer&, const BackgroundLayer&) = default;
-};
 
 // The custom properties in scope on one element, by name (with the leading
 // `--`), holding *unparsed* text.
@@ -824,6 +792,7 @@ std::optional<gfx::Color> ParseColor(std::string_view text);
 // the cascade carries on every ComputedStyle. It defaults to the initial 16px, which is the right
 // answer for the two callers that have no element -- a media query and the `@supports` scratch
 // style.
+
 std::optional<Length> ParseLength(std::string_view text, const MediaContext& context = {},
                                   float root_font_size = kRootFontSize);
 
@@ -844,6 +813,7 @@ bool ApplyTransformDeclaration(std::string_view property, std::string_view value
 
 // The SVG presentation properties (ADR 0043 §2), in their own translation unit
 // for the reason the box ones are: this module's files are at their line cap.
+
 bool ApplySvgDeclaration(std::string_view property, std::string_view value,
                          const ComputedStyle& parent, ComputedStyle& style,
                          const MediaContext& context = {});

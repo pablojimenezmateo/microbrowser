@@ -134,6 +134,7 @@ budget: CustomProperties header_lines=70 public_methods=8 members=1
 # +2 members for CSS Transforms 2's individual transform properties and
 # `transform-box`. The three properties are one grouped member in Transform.h,
 # beside the operation type they are made of; `transform-box` is one enum.
+budget: BackgroundLayer  header_lines=30  public_methods=2  members=7
 budget: ComputedStyle    header_lines=382 public_methods=27 members=48
 # Every field inherits, so the struct is copied whole by `InheritInto` -- which
 # is why a field added here is inherited by default and why that default is

@@ -613,6 +613,75 @@ void RegisterCssTests(std::vector<TestCase>& tests) {
                    "the quoted and unquoted spellings mean the same thing");
   });
 
+  AddTest(tests, "Css/BackgroundOriginAndClipAreTwoDifferentBoxes", [] {
+    // **Their initial values are different boxes and that is the point.**
+    // `background-origin` is `padding-box`, so an image starts inside the
+    // border; `background-clip` is `border-box`, so what runs past the padding
+    // edge still shows *under* a dashed or translucent border. This renderer
+    // used the border box for both, which put every background image on a
+    // bordered element a border-width up and to the left of where CSS says it
+    // goes -- a default-case bug that no test could see while neither property
+    // existed.
+    ComputedStyle parent;
+    ComputedStyle style;
+    Expect(style.background.origin == css::BackgroundBox::PaddingBox, "origin starts at the padding box");
+    Expect(style.background.clip == css::BackgroundBox::BorderBox, "and clip at the border box");
+
+    Expect(ApplyDeclaration(Declaration{"background-origin", "content-box"}, parent, style),
+           "background-origin takes a box");
+    Expect(style.background.origin == css::BackgroundBox::ContentBox, "and stores the one written");
+    Expect(style.background.clip == css::BackgroundBox::BorderBox, "without touching the other property");
+
+    // A list is one value: every entry has to parse or the declaration is
+    // invalid in full. A loop that stopped at the first entry would accept
+    // `content-box, nonsense` and paint a content-box clip for it.
+    Expect(ApplyDeclaration(Declaration{"background-clip", "content-box, border-box"}, parent, style),
+           "a layer list of boxes is a value");
+    Expect(style.background.clip == css::BackgroundBox::ContentBox, "the first layer is the one painted");
+    Expect(!ApplyDeclaration(Declaration{"background-clip", "content-box, nonsense"}, parent, style),
+           "and an entry that does not parse invalidates the whole list");
+    Expect(style.background.clip == css::BackgroundBox::ContentBox, "leaving what was there");
+
+    // `text` is refused rather than approximated: it clips the background to the
+    // glyphs, and accepting it would make `@supports (background-clip: text)`
+    // say yes to a page whose whole design then depends on it (ADR 0012).
+    Expect(!ApplyDeclaration(Declaration{"background-clip", "text"}, parent, style),
+           "background-clip: text is an honest no");
+
+    // The shorthand resets both, and to their own initial values rather than to
+    // a shared one -- resetting both to the same box would move every
+    // background image on the page by a border width.
+    Expect(ApplyDeclaration(Declaration{"background", "red"}, parent, style), "the shorthand applies");
+    Expect(style.background.origin == css::BackgroundBox::PaddingBox &&
+               style.background.clip == css::BackgroundBox::BorderBox,
+           "and puts each back to its own initial value");
+  });
+
+  AddTest(tests, "Css/BackgroundPositionHasTwoLonghandsAndTheyAreNotInterchangeable", [] {
+    // The keywords are per-axis: `right` is 100% horizontally and is not a value
+    // at all vertically. That is what makes these two properties rather than one
+    // indexed one, and it is why the parser takes an axis.
+    ComputedStyle parent;
+    ComputedStyle style;
+    Expect(ApplyDeclaration(Declaration{"background-position-x", "right"}, parent, style),
+           "`right` is a horizontal position");
+    Expect(style.background.position_x.unit == css::Length::Unit::Percent &&
+               style.background.position_x.value == 100.0f,
+           "and resolves to 100%");
+    Expect(!ApplyDeclaration(Declaration{"background-position-y", "right"}, parent, style),
+           "while `right` is not a vertical one");
+    Expect(ApplyDeclaration(Declaration{"background-position-y", "bottom"}, parent, style),
+           "`bottom` is");
+    Expect(style.background.position_y.unit == css::Length::Unit::Percent &&
+               style.background.position_y.value == 100.0f,
+           "and is the same 100%");
+    // The two-word edge-offset form is refused rather than half-read: reading
+    // only `right` would put the image at the far edge and silently drop the
+    // offset the page asked for.
+    Expect(!ApplyDeclaration(Declaration{"background-position-x", "right 10px"}, parent, style),
+           "`right 10px` is an edge offset this renderer cannot express");
+  });
+
   // --- @font-face, ADR 0024 --------------------------------------------------
 
   AddTest(tests, "Css/AtFontFaceIsADescriptorBlockRatherThanARule", [] {
